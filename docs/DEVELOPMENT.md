@@ -22,6 +22,16 @@ For a pre-commit-sized pass:
 python engine/tools/dev_check.py . --quick
 ```
 
+## File Size Guard
+
+Run the source file-size audit before and after refactor or verification changes:
+
+```powershell
+python tools/check_file_sizes.py
+```
+
+The guard warns above 350 lines and fails above 500 lines unless a file is explicitly allowlisted for a justified generated/vendor/data-only reason. `engine/src/App.cpp` is intentionally not allowlisted because it is the current known monolith and must stay visible as debt until it is extracted one responsibility at a time.
+
 ## Git Hooks
 
 This repo uses a tracked hook directory:
@@ -48,9 +58,10 @@ Before any public remote or release:
 1. Run `git status --short --ignored`.
 2. Run `python engine/tools/dev_check.py . --skip-build`.
 3. Confirm `docs/STRICT_ROADMAP.md` still matches the planned work.
-4. If adding Dragon-only behavior, update `docs/DRAGON_EXTENSIONS.md` in the same change.
-5. If a planned item is accepted but not implemented immediately, materialize it in the matching roadmap/audit document. Content plans also need a matching M.U.G.E.N-style folder or data file so they cannot disappear as untracked chat notes.
-6. If adding original benchmark characters, update `docs/BENCHMARK_CHARACTERS.md`. Do not list README-only reserved folders in `game/data/select.def`.
+4. Read `docs/REPOSITORY_POLICY.md` before engine/content changes. Engine/content changes must not reduce M.U.G.E.N-style customization, and the Dragon sidecar format remains `.dragon.def` unless explicitly approved.
+5. If adding Dragon-only behavior, update `docs/DRAGON_EXTENSIONS.md` in the same change.
+6. If a planned item is accepted but not implemented immediately, materialize it in the matching roadmap/audit document. Content plans also need a matching M.U.G.E.N-style folder or data file so they cannot disappear as untracked chat notes.
+7. If adding original benchmark characters, update `docs/BENCHMARK_CHARACTERS.md`. Do not list README-only reserved folders in `game/data/select.def`.
 
 ## Feature Work Contract
 

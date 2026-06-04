@@ -2,6 +2,21 @@
 
 This document tracks local compatibility checks against real M.U.G.E.N content.
 
+## Audit Scope
+
+This audit is a load-level/static compatibility record unless a row or section explicitly says it was live-tested. Passing this audit means files resolved and/or parsed enough to load through the current Dragon runtime subset. It does not prove full gameplay behavior, visual parity, animation timing parity, sound timing parity, controller correctness, or complete M.U.G.E.N runtime compatibility.
+
+Use these evidence levels when describing compatibility work:
+
+- `Parsed` - The file/controller/trigger is recognized and represented by the engine.
+- `Executed` - Runtime code attempts to run the parsed behavior.
+- `Live-tested` - The behavior was exercised in the running app.
+- `Visually/timing accurate` - The observed behavior matches expected M.U.G.E.N timing and presentation closely enough for the current milestone.
+- `Compatible with KFM` - Tested with Kung Fu Man content.
+- `Compatible with Evil Ryu/Evil Ken` - Tested with those M.U.G.E.N 1.0 stress-test characters.
+
+Static parser/load evidence should be recorded as `[VERIFIED-STATIC]` in `docs/FEATURE_LEDGER.md`. Do not mark runtime behavior as `[VERIFIED-LIVE]` until it is exercised in the running app and recorded in `docs/LIVE_VERIFICATION_MATRIX.md`.
+
 ## Reference Versions
 
 Kung Fu Man is from the 2001 DOS M.U.G.E.N package and remains the baseline for the first playable sandbox.

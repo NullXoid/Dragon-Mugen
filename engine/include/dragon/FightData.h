@@ -46,6 +46,8 @@ struct FightRoundSettings {
     FightPowerbarSettings powerbar;
 };
 
+bool hasFightDefinition(const std::filesystem::path& gameRoot);
+const char* fightDefinitionRequirementText();
 FightRoundSettings loadFightRoundSettings(const std::filesystem::path& gameRoot);
 
 } // namespace dragon

@@ -4,6 +4,8 @@ This document is the registry for every Dragon MUGEN feature that is not plain M
 
 The engine must keep the M.U.G.E.N backend structure. Characters, stages, common effects, common states, fonts, sounds, and storyboards still live where a M.U.G.E.N creator expects them. Dragon-only features may extend that structure, but they must not hide or replace it.
 
+The canonical customization policy is [REPOSITORY_POLICY.md](REPOSITORY_POLICY.md). M.U.G.E.N files are creator-owned source of truth for M.U.G.E.N-style content. Dragon sidecars extend behavior; they must not replace `.def`, `.cmd`, `.cns`, `.air`, `.sff`, `.snd`, `.act`, `select.def`, `fight.def`, `system.def`, or motif files where supported.
+
 ## Core Rule
 
 Use M.U.G.E.N files first.
@@ -59,12 +61,16 @@ game/
 Rules:
 
 - Do not require Dragon sidecars for M.U.G.E.N compatibility.
+- Classic Mode must not require `.dragon.def`.
+- Dragon Mode may use `.dragon.def` later, but if the sidecar is missing it must use safe defaults or mark Dragon enhancements unavailable.
 - Do not move M.U.G.E.N data out of M.U.G.E.N files just because Dragon can read a sidecar.
 - Do not write local player settings into character, stage, or data definition files.
 - Use `game/save/settings.def` for local settings and profiles.
 - Use `game/data/dragon.def` for game-wide Dragon defaults that ship with a project.
 - Use `game/chars/<character>/<character>.dragon.def` for optional character metadata that M.U.G.E.N does not understand.
 - Use `game/stages/<stage>.dragon.def` for optional stage metadata that M.U.G.E.N does not understand.
+- The current sidecar convention is M.U.G.E.N-style `.dragon.def`, not `.dragon/*.json`.
+- Do not introduce `.dragon/*.json` runtime sidecars or migrate character/stage sidecars to JSON.
 - Prefix extension sections with `Dragon` when practical, for example `[Dragon.Training]` or `[Dragon.StagePreview]`.
 - Every new extension must document: file, section, keys, default behavior, whether it is current or planned, and whether it affects M.U.G.E.N compatibility.
 

@@ -73,6 +73,15 @@ struct StageSlot {
     float screenright = 15.0f;
 };
 
+inline bool hasMugenRuntimeRootFiles(const std::filesystem::path& gameRoot) {
+    return std::filesystem::exists(gameRoot / "data" / "select.def")
+        && std::filesystem::exists(gameRoot / "data" / "system.def");
+}
+
+inline const char* mugenRuntimeRootRequirementText() {
+    return "data/select.def and data/system.def";
+}
+
 std::vector<CharacterSlot> loadCharacters(const std::filesystem::path& gameRoot);
 std::vector<StageSlot> loadStages(const std::filesystem::path& gameRoot);
 CharacterFiles resolveCharacterFiles(const std::filesystem::path& gameRoot, const CharacterSlot& character);

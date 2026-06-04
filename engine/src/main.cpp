@@ -1,18 +1,152 @@
 #include "dragon/App.h"
+#include "dragon/FightData.h"
 #include "dragon/MugenData.h"
 
 #include <filesystem>
 #include <iostream>
+#include <sstream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
+#include <system_error>
+#include <vector>
+
+namespace {
+
+struct LaunchOptions {
+    bool console = false;
+    bool hasRoot = false;
+    std::filesystem::path root;
+};
+
+std::filesystem::path normalizedAbsolute(const std::filesystem::path& path) {
+    if (path.empty()) {
+        return path;
+    }
+
+    std::error_code error;
+    const auto absolute = path.is_absolute() ? path : std::filesystem::absolute(path, error);
+    if (error) {
+        return path.lexically_normal();
+    }
+
+    return absolute.lexically_normal();
+}
+
+bool isRuntimeRoot(const std::filesystem::path& root) {
+    return dragon::hasMugenRuntimeRootFiles(root)
+        && dragon::hasFightDefinition(root);
+}
+
+void addCandidate(std::vector<std::filesystem::path>& candidates, const std::filesystem::path& path) {
+    const auto normalized = normalizedAbsolute(path);
+    if (normalized.empty()) {
+        return;
+    }
+
+    const auto key = normalized.generic_string();
+    for (const auto& existing : candidates) {
+        if (existing.generic_string() == key) {
+            return;
+        }
+    }
+
+    candidates.push_back(normalized);
+}
+
+LaunchOptions parseLaunchOptions(int argc, char** argv) {
+    LaunchOptions options;
+
+    for (int index = 1; index < argc; ++index) {
+        const std::string_view arg(argv[index]);
+        if (arg == "--console") {
+            options.console = true;
+            continue;
+        }
+
+        if (!options.hasRoot) {
+            options.root = std::filesystem::path(argv[index]);
+            options.hasRoot = true;
+            continue;
+        }
+
+        throw std::runtime_error("Unexpected argument: " + std::string(arg));
+    }
+
+    return options;
+}
+
+std::filesystem::path executableDirectory(char** argv) {
+    const std::filesystem::path executable = argv && argv[0] ? std::filesystem::path(argv[0]) : std::filesystem::path();
+    if (executable.empty()) {
+        std::error_code error;
+        return std::filesystem::current_path(error);
+    }
+
+    const auto absolute = normalizedAbsolute(executable);
+    if (!absolute.has_parent_path()) {
+        std::error_code error;
+        return std::filesystem::current_path(error);
+    }
+
+    return absolute.parent_path();
+}
+
+std::filesystem::path resolveRuntimeRoot(const LaunchOptions& options, const std::filesystem::path& exeDir) {
+    std::vector<std::filesystem::path> candidates;
+
+    if (options.hasRoot) {
+        addCandidate(candidates, options.root);
+    }
+
+    std::error_code error;
+    const auto cwd = std::filesystem::current_path(error);
+    if (!error) {
+        addCandidate(candidates, cwd / "game");
+    }
+
+    addCandidate(candidates, exeDir / "game");
+    addCandidate(candidates, exeDir.parent_path() / "game");
+
+    for (auto dir = exeDir; !dir.empty(); dir = dir.parent_path()) {
+        addCandidate(candidates, dir / "game");
+        if (dir == dir.parent_path()) {
+            break;
+        }
+    }
+
+    for (const auto& candidate : candidates) {
+        if (isRuntimeRoot(candidate)) {
+            return candidate;
+        }
+    }
+
+    std::ostringstream message;
+    message << "No valid Dragon MUGEN runtime root found.\n"
+        << "A valid root must contain "
+        << dragon::mugenRuntimeRootRequirementText()
+        << ", and "
+        << dragon::fightDefinitionRequirementText()
+        << ".\n"
+        << "Looked in:";
+    for (const auto& candidate : candidates) {
+        message << "\n  - " << candidate;
+    }
+    message << "\nLaunch from the repo root or pass the game folder, for example:\n"
+        << "  dragon_mugen.exe game\n"
+        << "  dragon_mugen.exe ..\\game";
+
+    throw std::runtime_error(message.str());
+}
+
+} // namespace
 
 int main(int argc, char** argv) {
     try {
-        const std::filesystem::path root = argc > 1
-            ? std::filesystem::path(argv[1])
-            : std::filesystem::path("game");
+        const LaunchOptions options = parseLaunchOptions(argc, argv);
+        const std::filesystem::path root = resolveRuntimeRoot(options, executableDirectory(argv));
 
-        if (argc <= 2 || std::string_view(argv[2]) != "--console") {
+        if (!options.console) {
             return dragon::runApp(root);
         }
 

@@ -164,6 +164,14 @@ void loadFightPowerbarSettings(const MugenDocument& doc, FightPowerbarSettings& 
 
 } // namespace
 
+bool hasFightDefinition(const std::filesystem::path& gameRoot) {
+    return std::filesystem::exists(gameRoot / "data" / "fight.def");
+}
+
+const char* fightDefinitionRequirementText() {
+    return "data/fight.def";
+}
+
 FightRoundSettings loadFightRoundSettings(const std::filesystem::path& gameRoot) {
     FightRoundSettings settings;
     const auto fightDef = gameRoot / "data" / "fight.def";

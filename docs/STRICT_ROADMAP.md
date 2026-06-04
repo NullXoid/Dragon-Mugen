@@ -16,6 +16,11 @@ This file is the technical contract for Dragon MUGEN. If an implementation choic
 - Runtime/content folder structure follows M.U.G.E.N's layout and names.
 - Dragon-only features must be documented in [DRAGON_EXTENSIONS.md](DRAGON_EXTENSIONS.md) with their file location, section/key format, defaults, and compatibility impact.
 - Compatibility audits for non-KFM test characters are tracked in [COMPATIBILITY_AUDIT.md](COMPATIBILITY_AUDIT.md).
+- M.U.G.E.N-style editability and customization must not be reduced during refactors.
+- Do not permanently rewrite imported character or stage files.
+- Do not hardcode roster, stages, or character-specific behavior.
+- `select.def` remains the roster/stage authority; character folders alone do not make characters selectable.
+- Classic Mode must not require Dragon metadata.
 
 ## Explicitly Not Allowed
 
@@ -27,6 +32,7 @@ This file is the technical contract for Dragon MUGEN. If an implementation choic
 - No menu polish before KFM/stage parsing and rendering are working.
 - No RPG/shop/equipment work until the training sandbox can load, draw, and simulate KFM.
 - No engine-owned content layout that hides M.U.G.E.N concepts behind unrelated folder names.
+- No refactor that bypasses editable M.U.G.E.N files as source of truth.
 
 ## Folder Structure Contract
 
