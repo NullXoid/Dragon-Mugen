@@ -37,6 +37,30 @@ REQUIRED_MODULE_FILES = [
     Path("engine/src/FightData.cpp"),
 ]
 
+RESERVED_BENCHMARK_CHARACTERS = {
+    "DragonBench": [
+        Path("game/chars/DragonBench/DragonBench.def"),
+        Path("game/chars/DragonBench/DragonBench.cmd"),
+        Path("game/chars/DragonBench/DragonBench.cns"),
+        Path("game/chars/DragonBench/DragonBench.air"),
+        Path("game/chars/DragonBench/DragonBench.sff"),
+    ],
+    "A.Ben": [
+        Path("game/chars/A.Ben/A.Ben.def"),
+        Path("game/chars/A.Ben/A.Ben.cmd"),
+        Path("game/chars/A.Ben/A.Ben.cns"),
+        Path("game/chars/A.Ben/A.Ben.air"),
+        Path("game/chars/A.Ben/A.Ben.sff"),
+    ],
+    "I.Chie": [
+        Path("game/chars/I.Chie/I.Chie.def"),
+        Path("game/chars/I.Chie/I.Chie.cmd"),
+        Path("game/chars/I.Chie/I.Chie.cns"),
+        Path("game/chars/I.Chie/I.Chie.air"),
+        Path("game/chars/I.Chie/I.Chie.sff"),
+    ],
+}
+
 
 @dataclass
 class Violation:
@@ -177,6 +201,38 @@ def guard_module_ownership(repo: Path, violations: list[Violation]) -> None:
         violations.append(Violation(Path("engine/src/FightData.cpp"), 0, "FightData must own fight.def parsing"))
 
 
+def guard_reserved_benchmark_characters(repo: Path, violations: list[Violation]) -> None:
+    select_def = Path("game/data/select.def")
+    text = read_text(repo / select_def)
+    section = ""
+    for line_no, raw in enumerate(text.splitlines(), 1):
+        line = raw.split(";", 1)[0].strip()
+        if not line:
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            section = line[1:-1].strip().lower()
+            continue
+        if section != "characters":
+            continue
+
+        character_entry = line.split(",", 1)[0].strip()
+        folder = character_entry.split("/", 1)[0].strip()
+        required_files = RESERVED_BENCHMARK_CHARACTERS.get(folder)
+        if not required_files:
+            continue
+
+        missing = [str(path) for path in required_files if not (repo / path).is_file()]
+        if missing:
+            violations.append(
+                Violation(
+                    select_def,
+                    line_no,
+                    f"{folder} is a reserved benchmark character; do not list it until real M.U.G.E.N files exist: "
+                    + ", ".join(missing),
+                )
+            )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("root", nargs="?", default=Path(__file__).resolve().parents[2], type=Path)
@@ -190,6 +246,7 @@ def main() -> int:
     guard_app_size(repo, violations)
     guard_app_layer_ownership(repo, violations)
     guard_module_ownership(repo, violations)
+    guard_reserved_benchmark_characters(repo, violations)
 
     if violations:
         print("Dragon architecture guard failed:")

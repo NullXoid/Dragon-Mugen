@@ -67,10 +67,12 @@ Runtime layout rules:
 - `game/save/` is reserved for local profiles, progression, and settings.
 - The engine may add new systems later, but they should extend this model rather than replace it.
 - `game/data/select.def` is the roster/stage-select authority. Character folders may exist without becoming selectable.
+- Planned original test characters must be materialized as documented `game/chars/<character>/` folders and tracked in [BENCHMARK_CHARACTERS.md](BENCHMARK_CHARACTERS.md). They must not be listed in `game/data/select.def` until their real M.U.G.E.N DEF/CMD/CNS/AIR/SFF files exist.
 - Dragon-only project defaults belong in `game/data/dragon.def`; Dragon-only character extensions belong beside the character as `<character>.dragon.def`; Dragon-only stage extensions belong beside the stage as `<stage>.dragon.def`; local user settings belong in `game/save/settings.def`.
 - Every Dragon extension must keep the relevant M.U.G.E.N file authoritative. For example, stage background images stay in `game/stages/<stage>.def` and `game/stages/<stage>.sff`; the Dragon sidecar can add preview/training/editor metadata, but not replace the stage definition.
 - Engine modules must preserve this folder model. Roster/stage/character file resolution belongs in the M.U.G.E.N data layer (`MugenData` today), and `fight.def` settings belong in fight data (`FightData` today), not in screen-specific app code. As compatibility systems mature, split them into real ownership modules instead of growing one giant app file.
 - `engine/tools/guard_architecture.py` is the executable guard for this rule and runs through the `dragon_architecture_guard` CMake target before `dragon_core` builds. If it fails, fix the ownership regression instead of weakening the guard.
+- The architecture guard also blocks reserved benchmark characters from being added to `select.def` while they are README-only placeholders.
 
 Reference content:
 
@@ -443,7 +445,8 @@ After the first training sandbox works:
 - Shop/equipment/leveling system.
 - Tournament/campaign shell.
 - External editor.
+- Original benchmark characters: `DragonBench`, `A.Ben`, and `I.Chie`, tracked in [BENCHMARK_CHARACTERS.md](BENCHMARK_CHARACTERS.md). These are future project-owned compatibility/AI test fighters and must keep normal M.U.G.E.N backend files as their source of truth.
 
 ## Current Rule
 
-The current code task is still Milestone 7: keep tightening selected-character hit interaction by expanding CNS/common-state behavior, hit sparks, sounds, and reset rules while preserving the KFM baseline. Do not regress runtime loading back to hardcoded KFM paths; KFM, Evil Ryu, Evil Ken, and future test characters must flow through `game/data/select.def` and the selected character DEF `[Files]` section. Do not collapse the project into one giant app file: each completed compatibility area should move toward a real data/runtime/rendering module with explicit ownership, and the architecture guard must stay passing. Do not start RPG/shop/equipment/tournament systems until KFM movement, one normal attack, dummy hitboxes, reset, and one working hit interaction are stable. The bgfx renderer remains required engine direction and should be addressed before broadening content or editor work.
+The current code task is still Milestone 7: keep tightening selected-character hit interaction by expanding CNS/common-state behavior, hit sparks, sounds, and reset rules while preserving the KFM baseline. Do not regress runtime loading back to hardcoded KFM paths; KFM, Evil Ryu, Evil Ken, and future test characters must flow through `game/data/select.def` and the selected character DEF `[Files]` section after they are real filesets. Do not collapse the project into one giant app file: each completed compatibility area should move toward a real data/runtime/rendering module with explicit ownership, and the architecture guard must stay passing. Planned future work must be added to the appropriate roadmap/audit document and, when it represents content, to the matching M.U.G.E.N-style content folder so it cannot be lost as an untracked chat note. Do not start RPG/shop/equipment/tournament systems until KFM movement, one normal attack, dummy hitboxes, reset, and one working hit interaction are stable. The bgfx renderer remains required engine direction and should be addressed before broadening content or editor work.

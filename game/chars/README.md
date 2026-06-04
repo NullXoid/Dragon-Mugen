@@ -51,6 +51,8 @@ SomeFolder/alternate.def, stages/kfm.def
 
 `EvilRyu/` and `EvilKen/` are local compatibility stress-test characters. They are listed in `game/data/select.def` so the current runtime can prove it resolves selected character DEF `[Files]` entries instead of hardcoding KFM. They should not be shipped in a public build unless the project has the rights to do so.
 
+`DragonBench/`, `A.Ben/`, and `I.Chie/` are reserved original benchmark character folders. They are intentionally not selectable yet because they do not have real M.U.G.E.N DEF/CMD/CNS/AIR/SFF files. Their plan is tracked in `docs/BENCHMARK_CHARACTERS.md`.
+
 For a new character, copy the folder shape and keep the main `.def` file name aligned with the folder name.
 
 ## Extension Rule

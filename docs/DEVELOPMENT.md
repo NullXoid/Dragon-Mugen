@@ -49,3 +49,5 @@ Before any public remote or release:
 2. Run `python engine/tools/dev_check.py . --skip-build`.
 3. Confirm `docs/STRICT_ROADMAP.md` still matches the planned work.
 4. If adding Dragon-only behavior, update `docs/DRAGON_EXTENSIONS.md` in the same change.
+5. If a planned item is accepted but not implemented immediately, materialize it in the matching roadmap/audit document. Content plans also need a matching M.U.G.E.N-style folder or data file so they cannot disappear as untracked chat notes.
+6. If adding original benchmark characters, update `docs/BENCHMARK_CHARACTERS.md`. Do not list README-only reserved folders in `game/data/select.def`.

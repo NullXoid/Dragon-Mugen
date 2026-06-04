@@ -51,6 +51,8 @@ Dragon-only features are tracked in [docs/DRAGON_EXTENSIONS.md](docs/DRAGON_EXTE
 
 Third-party character downloads used for compatibility research are archived under `content/research_mugen_chars/`. They may also be copied into `game/chars/` for local runtime compatibility tests, but they only become selectable when listed in `game/data/select.def`, and they should not be shipped as public runtime content without proper rights.
 
+Original benchmark/test characters are tracked in [docs/BENCHMARK_CHARACTERS.md](docs/BENCHMARK_CHARACTERS.md). Their reserved folders may exist under `game/chars/`, but they are not selectable until their real M.U.G.E.N files exist and `select.def` explicitly lists them.
+
 ## Verify Content
 
 ```powershell
