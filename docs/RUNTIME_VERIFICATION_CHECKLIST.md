@@ -125,6 +125,7 @@ Statuses:
 | --- | --- | --- |
 | `RoundStart` | PARTIAL | Fight loaded through VS; specific RoundStart callout/timing not independently verified. |
 | `Fight` | PASS | Fight view loaded and stayed active. |
+| Match pause menu rendering after extraction | BLOCKED | Render-only pause menu functions were extracted and post-extraction build/scripted verifiers passed, but Computer Use could not navigate the SDL main menu into Single Player/VS to open the pause menu. Manual match-pause GUI verification is still needed. |
 | `RoundFinish` | NOT TESTED |  |
 | `RoundResult` | NOT TESTED |  |
 | `MatchResult` | NOT TESTED |  |
