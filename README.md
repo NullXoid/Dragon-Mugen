@@ -68,6 +68,8 @@ Use [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for the short daily workflow and 
 
 The compatibility audit is documented in [docs/COMPATIBILITY_AUDIT.md](docs/COMPATIBILITY_AUDIT.md). It checks the active `game/data/select.def` roster, including local Evil Ryu/Evil Ken stress-test entries, against the current runtime subset.
 
+Feature work is governed by [docs/FEATURE_COMPLETION_POLICY.md](docs/FEATURE_COMPLETION_POLICY.md). The active recovery plan is [docs/FEATURE_SPECS/0001_architecture_recovery.md](docs/FEATURE_SPECS/0001_architecture_recovery.md), and the module split target is [docs/MODULE_SPLIT_PLAN.md](docs/MODULE_SPLIT_PLAN.md). `App.cpp` growth is intentionally frozen until owned runtime modules are extracted.
+
 ## Intended First Runtime Milestones
 
 1. Parse DEF, AIR, CMD, CNS, ACT, SFF, and SND enough to inspect KFM.

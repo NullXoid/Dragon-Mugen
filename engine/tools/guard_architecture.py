@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-APP_CPP_LINE_BUDGET = 17000
+APP_CPP_LINE_BUDGET = 16771
 
 APP_LAYER_FILES = [
     Path("engine/src/App.cpp"),
@@ -35,6 +35,14 @@ REQUIRED_MODULE_FILES = [
     Path("engine/src/MugenData.cpp"),
     Path("engine/include/dragon/FightData.h"),
     Path("engine/src/FightData.cpp"),
+]
+
+REQUIRED_PROCESS_FILES = [
+    Path("docs/FEATURE_COMPLETION_POLICY.md"),
+    Path("docs/MODULE_SPLIT_PLAN.md"),
+    Path("docs/FEATURE_SPECS/README.md"),
+    Path("docs/FEATURE_SPECS/0001_architecture_recovery.md"),
+    Path("engine/tools/check_feature_specs.py"),
 ]
 
 RESERVED_BENCHMARK_CHARACTERS = {
@@ -108,6 +116,10 @@ def guard_required_layout(repo: Path, violations: list[Violation]) -> None:
     for relative in REQUIRED_MODULE_FILES:
         if not (repo / relative).is_file():
             violations.append(Violation(relative, 0, "required engine data module file is missing"))
+
+    for relative in REQUIRED_PROCESS_FILES:
+        if not (repo / relative).is_file():
+            violations.append(Violation(relative, 0, "required feature-completion/process file is missing"))
 
 
 def guard_cmake_membership(repo: Path, violations: list[Violation]) -> None:
