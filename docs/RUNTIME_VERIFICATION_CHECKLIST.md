@@ -15,6 +15,7 @@ Statuses:
 | Check | Status | Notes |
 | --- | --- | --- |
 | Launch with `build/dragon_mugen.exe game` | PASS | Verified live on 2026-06-04 with commit `33d86e3`. |
+| Launch `build/dragon_mugen.exe` with no game argument | PASS | Verified live on 2026-06-04 with commit `e0bc149`; runtime root auto-resolved and full title art loaded. |
 | Main/title screen appears | PASS | Main screen showed M.U.G.E.N motif and Training highlighted. |
 | Settings screen opens | BLOCKED | Automation could not move the SDL menu selector with Down; manual verification required. |
 | Training path opens | PASS | Enter from main opened Training character select. |
@@ -51,8 +52,8 @@ Statuses:
 | Jump | BLOCKED | Gameplay letter/direction input was not reliable through automation. |
 | Dash forward, if implemented | BLOCKED | Requires held/repeated directional verification; manual pass required. |
 | Dash backward, if implemented | BLOCKED | Requires held/repeated directional verification; manual pass required. |
-| `x/y/z` buttons | BLOCKED | `A`/`S` presses produced no visible attack in captured frames; likely automation/input limitation, not marked FAIL. |
-| `a/b/c` buttons | BLOCKED | Not attempted after `x/y/z` could not be observed reliably. |
+| `x/y/z` buttons | BLOCKED | `A/S/D` presses produced no visible attack or input-HUD update in captured frames; likely automation/input limitation, not marked FAIL. |
+| `a/b/c` buttons | BLOCKED | `Z/X/C` presses produced no visible attack or input-HUD update in captured frames; likely automation/input limitation, not marked FAIL. |
 | Hold directions | BLOCKED | Automation API has no reliable held-key primitive for this SDL input path. |
 | Release directions | BLOCKED | Requires reliable held-key input. |
 | Simultaneous buttons | BLOCKED | Requires reliable gameplay input injection. |
@@ -100,7 +101,7 @@ Statuses:
 | Walk forward/back | BLOCKED | Requires reliable held directional input; automation could not provide it. |
 | Crouch | BLOCKED | Requires reliable held down input; automation could not provide it. |
 | Jump | BLOCKED | Gameplay directional input was not reliable through automation. |
-| Standing normals | BLOCKED | `A`/`S` presses produced no visible attack in captured frames; manual verification required. |
+| Standing normals | BLOCKED | `A/S/D/Z/X/C` presses produced no visible attack or input-HUD update in captured frames; manual verification or input harness required. |
 | Crouching normals | BLOCKED | Requires reliable held down plus button input. |
 | Hit detection | NOT TESTED | Depends on attack input or controlled positioning. |
 | Damage | NOT TESTED | Depends on hit detection. |

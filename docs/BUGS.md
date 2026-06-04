@@ -30,6 +30,6 @@ Blocking:
 
 ## Current Pass
 
-No live verification bugs have been recorded yet in this pass.
+No Dragon MUGEN runtime bugs have been recorded yet in this pass.
 
-Computer Use could not reliably exercise SDL held movement, letter attack keys, or menu Down navigation. That is recorded as a verification limitation in `docs/LIVE_VERIFICATION_MATRIX.md`, not as a Dragon MUGEN runtime bug.
+Computer Use could verify event-style keys such as `F1` and `F2`, but it could not reliably exercise SDL polled gameplay controls such as held movement or `A/S/D/Z/X/C` attacks. That is recorded as a verification limitation in `docs/LIVE_VERIFICATION_MATRIX.md`, not as a Dragon MUGEN runtime bug.
