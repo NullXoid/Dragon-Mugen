@@ -37,6 +37,15 @@ add_custom_target(dragon_architecture_guard
     COMMENT "Checking Dragon MUGEN architecture boundaries"
 )
 
+add_custom_target(dragon_dev_check
+    COMMAND ${Python3_EXECUTABLE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/engine/tools/dev_check.py
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        --skip-build
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    COMMENT "Running Dragon MUGEN development checks"
+)
+
 add_library(dragon_core
     engine/src/MugenText.cpp
     engine/src/FightData.cpp

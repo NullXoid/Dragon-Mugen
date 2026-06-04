@@ -4,6 +4,7 @@
 *.h text eol=crlf
 *.py text eol=lf
 *.md text eol=lf
+.githooks/* text eol=lf
 *.txt text eol=crlf
 *.def text eol=crlf
 *.air text eol=crlf

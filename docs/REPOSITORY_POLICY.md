@@ -13,6 +13,7 @@ This repository is for local Dragon MUGEN engine development.
 ## Architecture Policy
 
 - Run `python engine/tools/guard_architecture.py .` before commits that touch engine structure.
+- Run `python engine/tools/dev_check.py . --skip-build` before resuming feature work after a repo/setup change.
 - The CMake build runs `dragon_architecture_guard` automatically before `dragon_core`.
 - If the guard fails, move ownership back into the correct module instead of weakening the guard.
 

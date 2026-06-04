@@ -54,10 +54,13 @@ Third-party character downloads used for compatibility research are archived und
 ## Verify Content
 
 ```powershell
+python engine/tools/dev_check.py .
 python engine/tools/guard_architecture.py .
 python engine/tools/inspect_mugen_content.py game
 python engine/tools/audit_mugen_compat.py game
 ```
+
+Use [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for the short daily workflow and Git hook setup.
 
 `guard_architecture.py` also runs automatically as the `dragon_architecture_guard` CMake target before `dragon_core` builds. It fails if roster/stage path rules, `select.def`, `fight.def`, or their ownership structs/loaders move back into the app layer, if required M.U.G.E.N runtime folders disappear, or if `App.cpp` exceeds its current split-before-growth budget.
 
