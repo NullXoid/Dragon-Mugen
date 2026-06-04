@@ -19,6 +19,7 @@ Current pass metadata:
 - Verification commands: `build/dragon_mugen.exe --verify kfm-baseline`, `build/dragon_mugen.exe --verify evilken-smoke`
 - Baseline character: `Kung Fu Man`
 - Baseline stage: `Mountainside Temple`
+- Input extraction checkpoint: App.cpp input boundary extraction manually smoked after build; `App.cpp` line count changed from `16820` to `16724`.
 
 | Area | Character | Mode | Input / Action | Expected Result | Actual Result | Status | Evidence / Notes |
 |---|---|---|---|---|---|---|---|
@@ -42,6 +43,8 @@ Current pass metadata:
 | KFM physical keyboard | Kung Fu Man | Training | Hit/damage | Attack contacts dummy/opponent and produces hit/damage evidence | Manual report says the listed hit/damage check works | PASS | User-observed manual evidence on 2026-06-04. Guard and KO remain separate unverified checks. |
 | KFM physical keyboard | Kung Fu Man | Training | Run forward | Forward run/dash behavior works from physical keyboard | Manual report says run forward works | PASS | User-observed manual evidence on 2026-06-04. |
 | KFM physical keyboard | Kung Fu Man | Training | Dash backward | Back dash behavior works from physical keyboard | Manual report says dash backward works | PASS | User-observed manual evidence on 2026-06-04. |
+| KFM physical keyboard | Kung Fu Man | Training | Post-input-extraction smoke | Held forward/back walk, crouch, jump, one normal, and Esc exit still work | User retested after input boundary extraction and reported working | PASS | Confirms the extracted SDL/gamepad input boundary preserved P1 keyboard behavior. |
+| KFM physical keyboard | Kung Fu Man | Training | Hitpause/spark/sound | Hit contact shows hitpause, spark, and sound feedback | User retested after input boundary extraction and reported hitpause/spark/sound working | PASS | Physical keyboard/manual evidence; scripted snapshot still records spark lifecycle as partial because active effects are not exposed at final snapshot. |
 | KFM scripted core | Kung Fu Man | Training | `--verify kfm-baseline` controllable idle | KFM reaches state `0` with control | `state=0 anim=0 ctrl=1` | PASS | Internal symbolic input/CMD/CNS runtime path, not physical keyboard. |
 | KFM scripted core | Kung Fu Man | Training | Hold right 60 frames | Position changes right | `x_before=-70 x_after=38 delta=108` | PASS | Proves internal held-input path through fighter input and movement runtime. |
 | KFM scripted core | Kung Fu Man | Training | Hold left 60 frames | Position changes left | `x_before=38 x_after=-93.999977 delta=-131.999969` | PASS | Proves internal held-input path through fighter input and movement runtime. |
@@ -69,5 +72,5 @@ Current pass metadata:
 | Evil Ken scripted smoke | Evil Ken | Single Player | Round/timer stability | Timer/round systems keep running | `match_phase=1 timer_ticks=5650` | PASS | Internal scripted smoke. |
 | Evil Ken scripted smoke | Evil Ken | Single Player | Combo or hit evidence | Contact evidence if available | `combo_hits=1 last_hit="P1 hit 206#2 dmg 0 attr S, NA hit 12 spark 0 snd 6,1"` | PASS | Damage was `0` for this smoke hit, so full damage compatibility remains unproven. |
 | Evil Ken scripted smoke | Evil Ken | Single Player | Clean scenario exit | Scenario exits with code `0` | `SUMMARY pass=7 partial=0 fail=0 blocked=0` | PASS | Build command used: `build\dragon_mugen.exe --verify evilken-smoke`. |
-| P2 keyboard | Kung Fu Man | VS or Training P2 control | Movement and attack buttons | P2 responds where local P2 is expected | Not attempted because menu/input navigation was unreliable | BLOCKED | Manual verification or input harness required. |
+| P2 keyboard | Kung Fu Man | VS or Training P2 control | Movement and attack buttons | P2 responds where local P2 is expected | User tested P2 keyboard in a real P2 mode and reported working | PASS | Manual physical keyboard evidence after input boundary extraction. Detailed per-button matrix can be expanded later. |
 | Controller input | N/A | Any | Gamepad assignment and input | Connected controller can drive assigned player | No controller verified in this pass yet | BLOCKED | Mark PASS only after a real controller is tested. |

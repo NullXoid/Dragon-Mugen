@@ -57,20 +57,21 @@ Statuses:
 | Hold directions | PASS | Manual physical keyboard retest confirms direction holds reach runtime and walk animation cycles correctly. |
 | Release directions | PASS | Manual physical keyboard report says the listed movement/crouch checks work, including expected recovery behavior. |
 | Simultaneous buttons | PASS | Manual physical keyboard report says Down + attack crouching-normal behavior works. |
+| Post-input-extraction smoke | PASS | After input boundary extraction, user confirmed held forward/back walk, crouch, jump, a normal attack, and Esc exit still work. |
 
 ## 4. Keyboard P2 Input
 
 | Check | Status | Notes |
 | --- | --- | --- |
-| Held left movement | NOT TESTED |  |
-| Held right movement | NOT TESTED |  |
-| Crouch | NOT TESTED |  |
-| Jump | NOT TESTED |  |
-| `x/y/z` buttons | NOT TESTED |  |
-| `a/b/c` buttons | NOT TESTED |  |
-| P2 can be controlled where expected | NOT TESTED |  |
-| P1/P2 face each other | NOT TESTED |  |
-| Collision/player push works | NOT TESTED |  |
+| Held left movement | PASS | User tested P2 keyboard in a real P2 mode after input boundary extraction and reported working. |
+| Held right movement | PASS | User tested P2 keyboard in a real P2 mode after input boundary extraction and reported working. |
+| Crouch | PASS | User tested P2 keyboard in a real P2 mode after input boundary extraction and reported working. |
+| Jump | PASS | User tested P2 keyboard in a real P2 mode after input boundary extraction and reported working. |
+| `x/y/z` buttons | PASS | User tested P2 keyboard in a real P2 mode after input boundary extraction and reported working; detailed per-button matrix can be expanded later. |
+| `a/b/c` buttons | PASS | User tested P2 keyboard in a real P2 mode after input boundary extraction and reported working; detailed per-button matrix can be expanded later. |
+| P2 can be controlled where expected | PASS | Manual physical keyboard evidence in a real P2 mode. |
+| P1/P2 face each other | PARTIAL | User reported P2 keyboard mode works; a dedicated facing-only check was not separately recorded. |
+| Collision/player push works | PARTIAL | User reported P2 keyboard mode works; a dedicated player-push/collision-only check was not separately recorded. |
 
 ## 5. Training Mode
 
@@ -108,7 +109,7 @@ Statuses:
 | Guard contact | NOT TESTED | Depends on attack and guard setup. |
 | Guard damage | NOT TESTED | Depends on guard contact. |
 | Hit pause | PASS | Internal scripted path observed hitpause. |
-| Hit spark | PARTIAL | Hit text identified spark `1`, but final snapshot did not expose active effect count. |
+| Hit spark | PASS | Manual physical keyboard retest confirmed hitpause/spark/sound feedback; scripted final snapshot still does not expose active effect count. |
 | Hit sound | PASS | Internal scripted path observed active sounds and hit text `snd 5,2`. |
 | Guard spark | NOT TESTED | Depends on guard contact. |
 | Guard sound | NOT TESTED | Depends on guard contact. |

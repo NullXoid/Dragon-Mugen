@@ -4,6 +4,7 @@
 #include "dragon/MugenText.h"
 #include "dragon/Sff.h"
 #include "dragon/Snd.h"
+#include "Input.h"
 #include "VerificationScenario.h"
 
 #include <SDL3/SDL.h>
@@ -51,7 +52,6 @@ constexpr int kVersusPrepareStartFrames = 2;
 constexpr int kCharacterSelectColumns = 5;
 constexpr int kCharacterSelectRows = 2;
 constexpr int kCharacterSelectPageSize = kCharacterSelectColumns * kCharacterSelectRows;
-constexpr Sint16 kGamepadAxisDeadzone = 10000;
 
 enum class Screen {
     ModeSelect,
@@ -1183,45 +1183,12 @@ struct CommandStateEntry {
     bool requiresMoveContact = false;
 };
 
-struct FighterControls {
-    SDL_Scancode left = SDL_SCANCODE_LEFT;
-    SDL_Scancode right = SDL_SCANCODE_RIGHT;
-    SDL_Scancode up = SDL_SCANCODE_UP;
-    SDL_Scancode down = SDL_SCANCODE_DOWN;
-    SDL_Scancode s = SDL_SCANCODE_SPACE;
-    SDL_Scancode x = SDL_SCANCODE_A;
-    SDL_Scancode y = SDL_SCANCODE_S;
-    SDL_Scancode z = SDL_SCANCODE_D;
-    SDL_Scancode a = SDL_SCANCODE_Z;
-    SDL_Scancode b = SDL_SCANCODE_X;
-    SDL_Scancode c = SDL_SCANCODE_C;
-};
-
-struct FighterInputState {
-    bool left = false;
-    bool right = false;
-    bool up = false;
-    bool down = false;
-    bool s = false;
-    bool x = false;
-    bool y = false;
-    bool z = false;
-    bool a = false;
-    bool b = false;
-    bool c = false;
-};
-
 struct FightInputOverride {
     const FighterInputState* p1 = nullptr;
     const FighterInputState* p2 = nullptr;
 };
 
 const FightInputOverride* gFightInputOverride = nullptr;
-
-struct CommandInputFrame {
-    FighterInputState input;
-    int tick = 0;
-};
 
 struct CommandAtom {
     std::string symbol;
@@ -1239,13 +1206,6 @@ struct CommandDefinition {
     std::vector<CommandStep> steps;
     int maxTime = 15;
     int bufferTime = 1;
-};
-
-struct GamepadDevice {
-    SDL_JoystickID id = 0;
-    SDL_Gamepad* handle = nullptr;
-    std::string name;
-    SDL_GamepadType type = SDL_GAMEPAD_TYPE_UNKNOWN;
 };
 
 struct AnimationFrame {
@@ -12873,42 +12833,6 @@ bool commandActive(const std::vector<std::string>& commands, std::string_view co
     });
 }
 
-bool gamepadButtonDown(const GamepadDevice* gamepad, SDL_GamepadButton button) {
-    return gamepad && gamepad->handle && SDL_GetGamepadButton(gamepad->handle, button);
-}
-
-bool gamepadAxisLessThan(const GamepadDevice* gamepad, SDL_GamepadAxis axis, Sint16 threshold) {
-    return gamepad && gamepad->handle && SDL_GetGamepadAxis(gamepad->handle, axis) < threshold;
-}
-
-bool gamepadAxisGreaterThan(const GamepadDevice* gamepad, SDL_GamepadAxis axis, Sint16 threshold) {
-    return gamepad && gamepad->handle && SDL_GetGamepadAxis(gamepad->handle, axis) > threshold;
-}
-
-FighterInputState collectFighterInput(const bool* keys, const FighterControls& controls, const GamepadDevice* gamepad) {
-    FighterInputState input;
-    input.left = keys[controls.left]
-        || gamepadButtonDown(gamepad, SDL_GAMEPAD_BUTTON_DPAD_LEFT)
-        || gamepadAxisLessThan(gamepad, SDL_GAMEPAD_AXIS_LEFTX, -kGamepadAxisDeadzone);
-    input.right = keys[controls.right]
-        || gamepadButtonDown(gamepad, SDL_GAMEPAD_BUTTON_DPAD_RIGHT)
-        || gamepadAxisGreaterThan(gamepad, SDL_GAMEPAD_AXIS_LEFTX, kGamepadAxisDeadzone);
-    input.up = keys[controls.up]
-        || gamepadButtonDown(gamepad, SDL_GAMEPAD_BUTTON_DPAD_UP)
-        || gamepadAxisLessThan(gamepad, SDL_GAMEPAD_AXIS_LEFTY, -kGamepadAxisDeadzone);
-    input.down = keys[controls.down]
-        || gamepadButtonDown(gamepad, SDL_GAMEPAD_BUTTON_DPAD_DOWN)
-        || gamepadAxisGreaterThan(gamepad, SDL_GAMEPAD_AXIS_LEFTY, kGamepadAxisDeadzone);
-    input.x = keys[controls.x] || gamepadButtonDown(gamepad, SDL_GAMEPAD_BUTTON_WEST);
-    input.y = keys[controls.y] || gamepadButtonDown(gamepad, SDL_GAMEPAD_BUTTON_NORTH);
-    input.z = keys[controls.z] || gamepadButtonDown(gamepad, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER);
-    input.a = keys[controls.a] || gamepadButtonDown(gamepad, SDL_GAMEPAD_BUTTON_SOUTH);
-    input.b = keys[controls.b] || gamepadButtonDown(gamepad, SDL_GAMEPAD_BUTTON_EAST);
-    input.c = keys[controls.c] || gamepadButtonDown(gamepad, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER);
-    input.s = keys[controls.s] || gamepadButtonDown(gamepad, SDL_GAMEPAD_BUTTON_START);
-    return input;
-}
-
 void pushFighterInputFrame(FighterState& fighter, const FighterInputState& input, int tick) {
     fighter.inputHistory.push_back(CommandInputFrame{ input, tick });
     constexpr size_t maxInputHistory = 90;
@@ -13803,26 +13727,6 @@ void updateGroundGuardState(const AppState& state, FighterState& target) {
         clearFighterHitRuntime(target);
         enterGroundGuardReadyState(state, target, crouch ? GuardStance::Crouch : GuardStance::Stand);
     }
-}
-
-FighterControls p1Controls() {
-    return FighterControls{};
-}
-
-FighterControls p2Controls() {
-    FighterControls controls;
-    controls.left = SDL_SCANCODE_J;
-    controls.right = SDL_SCANCODE_L;
-    controls.up = SDL_SCANCODE_I;
-    controls.down = SDL_SCANCODE_K;
-    controls.s = SDL_SCANCODE_SEMICOLON;
-    controls.x = SDL_SCANCODE_U;
-    controls.y = SDL_SCANCODE_O;
-    controls.z = SDL_SCANCODE_P;
-    controls.a = SDL_SCANCODE_N;
-    controls.b = SDL_SCANCODE_M;
-    controls.c = SDL_SCANCODE_COMMA;
-    return controls;
 }
 
 void updateControlledFighter(

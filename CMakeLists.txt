@@ -52,6 +52,7 @@ add_library(dragon_core
     engine/src/MugenData.cpp
     engine/src/Sff.cpp
     engine/src/Snd.cpp
+    engine/src/Input.cpp
     engine/src/VerificationScenario.cpp
     engine/src/App.cpp
 )
