@@ -30,12 +30,17 @@ Out of scope:
 - New moves, AI, shop, equipment, tournament, storyboard, networking, or editor work.
 - Character-specific fixes that bypass CMD/CNS/AIR/SFF/SND data.
 
+## Minimum Batch
+
+The next commit that touches `engine/src/App.cpp` must reduce that file to 15,500 lines or fewer. Smaller extraction commits are not acceptable for architecture recovery unless the user explicitly changes this spec first.
+
 ## Ownership
 
 - Feature rules: `docs/FEATURE_COMPLETION_POLICY.md`
 - Module recovery order: `docs/MODULE_SPLIT_PLAN.md`
 - Validation: `engine/tools/check_feature_specs.py`
 - Architecture hard stops: `engine/tools/guard_architecture.py`
+- Active-change hard stop: `engine/tools/guard_active_change.py`
 - Runtime extraction targets: future modules listed in `docs/MODULE_SPLIT_PLAN.md`
 
 ## Implementation Checklist
@@ -45,6 +50,7 @@ Out of scope:
 - [x] Add feature spec validator.
 - [x] Wire feature spec validation into `dev_check.py`.
 - [x] Freeze `App.cpp` growth at its current line count.
+- [x] Add an active-change guard that blocks symbolic `App.cpp` extraction commits.
 - [ ] Extract screen/mode flow from `App.cpp`.
 - [ ] Extract fight session and round flow from `App.cpp`.
 - [ ] Extract command buffering and CMD matching from `App.cpp`.

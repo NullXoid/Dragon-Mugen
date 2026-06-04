@@ -57,3 +57,5 @@ Before any public remote or release:
 Feature work follows [FEATURE_COMPLETION_POLICY.md](FEATURE_COMPLETION_POLICY.md). Create or update a spec under `docs/FEATURE_SPECS/` before coding. Only one feature may be marked `Status: In Progress`.
 
 The active recovery feature is [0001_architecture_recovery.md](FEATURE_SPECS/0001_architecture_recovery.md). Until that is complete, broad gameplay work should be limited to fixes needed to preserve current behavior while extracting modules.
+
+The postmortem for the current architecture drift is [FAILURE_POSTMORTEM_2026_06_04.md](FAILURE_POSTMORTEM_2026_06_04.md). Follow its prevention rules before touching `engine/src/App.cpp`.

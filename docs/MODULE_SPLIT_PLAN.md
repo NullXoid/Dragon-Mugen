@@ -1,6 +1,6 @@
 # Module Split Plan
 
-`engine/src/App.cpp` is currently the recovery risk. The app layer grew into a mixed UI, runtime, parser, renderer, audio, and fight-state file. That is why feature work started stepping on itself.
+`engine/src/App.cpp` is currently the recovery blocker. The app layer grew into a mixed UI, runtime, parser, renderer, audio, and fight-state file. That is why feature work started stepping on itself.
 
 The architecture guard freezes `App.cpp` at 16,771 lines. New gameplay work should wait until the active feature is split into owned modules.
 

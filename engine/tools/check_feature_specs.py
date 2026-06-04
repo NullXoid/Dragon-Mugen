@@ -14,6 +14,7 @@ REQUIRED_HEADINGS = [
     "## Goal",
     "## Source References",
     "## Scope",
+    "## Minimum Batch",
     "## Ownership",
     "## Implementation Checklist",
     "## Verification",

@@ -2,3 +2,4 @@
 set -eu
 
 python engine/tools/guard_architecture.py .
+python engine/tools/guard_active_change.py .

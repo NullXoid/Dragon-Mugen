@@ -39,10 +39,12 @@ REQUIRED_MODULE_FILES = [
 
 REQUIRED_PROCESS_FILES = [
     Path("docs/FEATURE_COMPLETION_POLICY.md"),
+    Path("docs/FAILURE_POSTMORTEM_2026_06_04.md"),
     Path("docs/MODULE_SPLIT_PLAN.md"),
     Path("docs/FEATURE_SPECS/README.md"),
     Path("docs/FEATURE_SPECS/0001_architecture_recovery.md"),
     Path("engine/tools/check_feature_specs.py"),
+    Path("engine/tools/guard_active_change.py"),
 ]
 
 RESERVED_BENCHMARK_CHARACTERS = {

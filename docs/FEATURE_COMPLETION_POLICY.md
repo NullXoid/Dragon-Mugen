@@ -18,6 +18,16 @@ Every feature spec must include:
 
 Only one feature may be marked `Status: In Progress` at a time. Small commits are allowed inside that feature, but they must move the same feature toward its done criteria. They are not permission to start another loose slice.
 
+Planning language should use dependency order, difficulty, and completion value. Do not use uncertainty as the deciding factor for what to do next.
+
+## Minimum Batch Rule
+
+Every feature spec must define a minimum batch. The minimum batch is the smallest change that can be honestly considered real progress on that feature.
+
+For architecture recovery, a commit that touches `engine/src/App.cpp` must complete a meaningful extraction batch. The current hard gate is enforced by `engine/tools/guard_active_change.py`: `App.cpp` changes cannot be committed unless the file is reduced to 15,500 lines or fewer.
+
+If that batch is too difficult, stop and revise the feature spec before coding. Do not replace it with a small symbolic extraction.
+
 ## Complete Means Complete
 
 A completed feature must include:
@@ -30,6 +40,16 @@ A completed feature must include:
 - Cleanup of stale placeholders, dead branches, and one-off debug-only code.
 
 If a feature cannot be completed at that scope, narrow the scope in the feature spec before coding. Do not silently land a half-feature.
+
+## Mistake Protocol
+
+When a change violates the project direction:
+
+- State plainly what failed.
+- Revert or isolate the bad change before continuing.
+- Add or update a guard/policy if the same mistake can repeat.
+- Re-run verification.
+- Do not present generic options as a substitute for prevention.
 
 ## M.U.G.E.N Compatibility Rule
 

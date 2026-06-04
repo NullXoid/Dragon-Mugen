@@ -18,6 +18,7 @@ Required headings:
 - `## Goal`
 - `## Source References`
 - `## Scope`
+- `## Minimum Batch`
 - `## Ownership`
 - `## Implementation Checklist`
 - `## Verification`
