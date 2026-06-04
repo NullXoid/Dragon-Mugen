@@ -89,7 +89,7 @@ Statuses:
 | P2-controlled training option | NOT TESTED |  |
 | Command HUD | PASS | Command panel visible in fight view. |
 | Input HUD | PASS | Input HUD area visible in fight view. |
-| Post-training-overlay extraction GUI smoke | PASS | After render-only overlay extraction, GUI smoke reached title -> character select -> stage select -> VS -> fight, command/input HUD rendered, F1 hitboxes toggled, F2 Training Options opened, `R` did not crash, and Escape backed out to main/exit. Computer Use could not perform a true held-key physical retest, so held input status remains based on scripted verification and prior user manual evidence. |
+| Post-training-overlay extraction GUI smoke | PASS | After render-only overlay extraction, GUI smoke reached title -> character select -> stage select -> VS -> fight, command/input HUD rendered, F1 hitboxes toggled, F2 Training Options opened, `R` did not crash, and Escape backed out to main/exit. User-supplied screenshots on 2026-06-04 also confirm command/input HUD, F1 hitboxes, F2 Training Options, stage select backout, and Training overlay persistence after the pause-menu extraction. Computer Use could not perform a true held-key physical retest, so held input status remains based on scripted verification and prior user manual evidence. |
 | Training power mode | NOT TESTED |  |
 | Move category filter | NOT TESTED |  |
 | Move list derived from CMD `State -1` | NOT TESTED |  |
@@ -125,7 +125,7 @@ Statuses:
 | --- | --- | --- |
 | `RoundStart` | PARTIAL | Fight loaded through VS; specific RoundStart callout/timing not independently verified. |
 | `Fight` | PASS | Fight view loaded and stayed active. |
-| Match pause menu rendering after extraction | BLOCKED | Render-only pause menu functions were extracted and post-extraction build/scripted verifiers passed, but Computer Use could not navigate the SDL main menu into Single Player/VS to open the pause menu. Manual match-pause GUI verification is still needed. |
+| Match pause menu rendering after extraction | PASS | Render-only pause menu functions were extracted and post-extraction build/scripted verifiers passed. User-supplied screenshots on 2026-06-04 confirm the Single Player pause menu renders with all expected rows and selected-row highlight, and that Resume returns to fight. Restart/Fighter Select/Stage Select/Mode Select actions remain separate untested pause-menu actions. |
 | `RoundFinish` | NOT TESTED |  |
 | `RoundResult` | NOT TESTED |  |
 | `MatchResult` | NOT TESTED |  |
