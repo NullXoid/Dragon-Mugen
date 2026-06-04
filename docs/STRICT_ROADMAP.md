@@ -1,6 +1,6 @@
 # Strict Roadmap
 
-This file is the technical contract for Dragon MUGEN Core. If an implementation choice conflicts with this document, update this document first and explain why. No temporary platform or renderer paths should be added just to make a demo faster.
+This file is the technical contract for Dragon MUGEN. If an implementation choice conflicts with this document, update this document first and explain why. No temporary platform or renderer paths should be added just to make a demo faster.
 
 ## Non-Negotiable Direction
 
@@ -37,7 +37,7 @@ The project README and runtime folder READMEs must point back to this roadmap so
 Repository layout:
 
 ```text
-dragon_mugen_core/
+dragon-mugen/
   engine/                 # C++ engine source, not shipped as creator content
     include/
     src/
@@ -118,7 +118,7 @@ Exit criteria:
 
 - `dragon_mugen` opens an SDL3 window.
 - Escape exits.
-- Window title says `Dragon MUGEN Core`.
+- Window title says `Dragon MUGEN`.
 - Frame loop updates at 60 Hz.
 - No Win32-only display code exists.
 - Mode select is user-friendly enough to test startup flow.

@@ -16,7 +16,7 @@ int main(int argc, char** argv) {
             return dragon::runApp(root);
         }
 
-        std::cout << "Dragon MUGEN Core prototype\n";
+        std::cout << "Dragon MUGEN prototype\n";
         const auto characters = dragon::loadCharacters(root);
         if (characters.empty()) {
             std::cout << "No selectable characters resolved from M.U.G.E.N data\n";

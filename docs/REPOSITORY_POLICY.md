@@ -1,6 +1,6 @@
 # Repository Policy
 
-This repository is for local Dragon MUGEN Core engine development.
+This repository is for local Dragon MUGEN engine development.
 
 ## Content Policy
 

@@ -16695,7 +16695,7 @@ int runApp(const std::filesystem::path& gameRoot) {
         return 1;
     }
 
-    SDL_Window* window = SDL_CreateWindow("Dragon MUGEN Core", kWindowWidth, kWindowHeight, SDL_WINDOW_RESIZABLE);
+    SDL_Window* window = SDL_CreateWindow("Dragon MUGEN", kWindowWidth, kWindowHeight, SDL_WINDOW_RESIZABLE);
     if (!window) {
         SDL_Log("SDL_CreateWindow failed: %s", SDL_GetError());
         SDL_Quit();

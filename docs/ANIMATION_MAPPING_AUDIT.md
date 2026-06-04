@@ -1,6 +1,6 @@
 # Animation Mapping Audit
 
-This file tracks M.U.G.E.N common AIR action numbers that exist in the current test characters and whether Dragon MUGEN Core actively routes runtime behavior into them.
+This file tracks M.U.G.E.N common AIR action numbers that exist in the current test characters and whether Dragon MUGEN actively routes runtime behavior into them.
 
 The runtime loads all AIR actions it can decode. `mapped` means the engine currently has gameplay logic that can choose the action. `unmapped` means the action exists in the character AIR file but the engine has no direct common-state behavior for it yet.
 

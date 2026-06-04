@@ -1,6 +1,6 @@
 # Memory Model
 
-This is the asset and runtime memory plan for Dragon MUGEN Core. It exists early because M.U.G.E.N-style content can become large quickly: many characters, many palettes, stage layers, sounds, storyboards, and later RPG equipment/campaign data.
+This is the asset and runtime memory plan for Dragon MUGEN. It exists early because M.U.G.E.N-style content can become large quickly: many characters, many palettes, stage layers, sounds, storyboards, and later RPG equipment/campaign data.
 
 ## Principles
 

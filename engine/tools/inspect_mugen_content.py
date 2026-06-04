@@ -112,7 +112,7 @@ def main() -> int:
     files = section(char_def, "Files")
     stage_def = parse_mugen_text(stages / "kfm.def")
 
-    print("Dragon MUGEN Core content inspection")
+    print("Dragon MUGEN content inspection")
     print(f"root: {root}")
     if info:
         print(f"character name: {info.properties.get('name', '(unknown)')}")

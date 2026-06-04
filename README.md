@@ -1,4 +1,4 @@
-# Dragon MUGEN Core
+# Dragon MUGEN
 
 Early prototype for a small M.U.G.E.N-like fighting runtime.
 

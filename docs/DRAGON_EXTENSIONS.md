@@ -1,6 +1,6 @@
 # Dragon Extensions
 
-This document is the registry for every Dragon MUGEN Core feature that is not plain M.U.G.E.N behavior.
+This document is the registry for every Dragon MUGEN feature that is not plain M.U.G.E.N behavior.
 
 The engine must keep the M.U.G.E.N backend structure. Characters, stages, common effects, common states, fonts, sounds, and storyboards still live where a M.U.G.E.N creator expects them. Dragon-only features may extend that structure, but they must not hide or replace it.
 
