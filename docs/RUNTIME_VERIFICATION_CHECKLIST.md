@@ -46,17 +46,17 @@ Statuses:
 
 | Check | Status | Notes |
 | --- | --- | --- |
-| Held left movement | BLOCKED | Automation API has no reliable held-key primitive for this SDL input path. |
-| Held right movement | BLOCKED | Automation API has no reliable held-key primitive for this SDL input path. |
-| Held crouch | BLOCKED | Automation API has no reliable held-key primitive for this SDL input path. |
-| Jump | BLOCKED | Gameplay letter/direction input was not reliable through automation. |
-| Dash forward, if implemented | BLOCKED | Requires held/repeated directional verification; manual pass required. |
-| Dash backward, if implemented | BLOCKED | Requires held/repeated directional verification; manual pass required. |
-| `x/y/z` buttons | BLOCKED | `A/S/D` presses produced no visible attack or input-HUD update in captured frames; likely automation/input limitation, not marked FAIL. |
-| `a/b/c` buttons | BLOCKED | `Z/X/C` presses produced no visible attack or input-HUD update in captured frames; likely automation/input limitation, not marked FAIL. |
-| Hold directions | BLOCKED | Automation API has no reliable held-key primitive for this SDL input path. |
-| Release directions | BLOCKED | Requires reliable held-key input. |
-| Simultaneous buttons | BLOCKED | Requires reliable gameplay input injection. |
+| Held left movement | PASS | Manual physical keyboard retest confirms movement and walk animation are good after the second targeted fix. |
+| Held right movement | PASS | Manual physical keyboard retest confirms movement and walk animation are good after the second targeted fix. |
+| Held crouch | PASS | Manual physical keyboard report says the listed crouch check works. |
+| Jump | PASS | Manual physical keyboard report says the listed jump/land check works. |
+| Dash forward, if implemented | PASS | Manual physical keyboard report says run forward works. |
+| Dash backward, if implemented | PASS | Manual physical keyboard report says dash backward works. |
+| `x/y/z` buttons | PASS | Manual physical keyboard report says standing/crouching attacks work; exact per-button matrix still needs a later detailed pass. |
+| `a/b/c` buttons | PASS | Manual physical keyboard report says standing/crouching attacks work; exact per-button matrix still needs a later detailed pass. |
+| Hold directions | PASS | Manual physical keyboard retest confirms direction holds reach runtime and walk animation cycles correctly. |
+| Release directions | PASS | Manual physical keyboard report says the listed movement/crouch checks work, including expected recovery behavior. |
+| Simultaneous buttons | PASS | Manual physical keyboard report says Down + attack crouching-normal behavior works. |
 
 ## 4. Keyboard P2 Input
 
@@ -79,7 +79,7 @@ Statuses:
 | Dummy appears | PASS | Dummy was visible in Training fight view. |
 | `F1` hitbox toggle | PASS | Hitboxes appeared after `F1`. |
 | `F2` training options | PASS | Training Options panel opened after `F2`. |
-| `R` reset | PARTIAL | `R` was pressed, but no distinct visual state change proved reset from screenshot evidence. |
+| `R` reset | PASS | Manual physical keyboard report says reset works without crash. |
 | Dummy invincibility | NOT TESTED |  |
 | Dummy auto-life | NOT TESTED |  |
 | Dummy freeze | NOT TESTED |  |
@@ -97,19 +97,19 @@ Statuses:
 
 | Check | Status | Notes |
 | --- | --- | --- |
-| Idle | PASS | KFM idle pose/animation visible in fight view. |
-| Walk forward/back | BLOCKED | Requires reliable held directional input; automation could not provide it. |
-| Crouch | BLOCKED | Requires reliable held down input; automation could not provide it. |
-| Jump | BLOCKED | Gameplay directional input was not reliable through automation. |
-| Standing normals | BLOCKED | `A/S/D/Z/X/C` presses produced no visible attack or input-HUD update in captured frames; manual verification or input harness required. |
-| Crouching normals | BLOCKED | Requires reliable held down plus button input. |
-| Hit detection | NOT TESTED | Depends on attack input or controlled positioning. |
-| Damage | NOT TESTED | Depends on hit detection. |
+| Idle | PASS | Live visual pass plus `--verify kfm-baseline`: `state=0 anim=0 ctrl=1`. |
+| Walk forward/back | PASS | Internal scripted input path verified movement deltas. Manual physical keyboard retest confirms walk animation now cycles correctly after the second targeted fix. |
+| Crouch | PASS | Internal scripted input path verified `state=11 anim=11`; manual physical keyboard report says crouch works. |
+| Jump | PASS | Internal scripted input path verified `y_min=-73.079994 grounded_final=true`; manual physical keyboard report says jump/land works. |
+| Standing normals | PASS | Internal scripted CMD/CNS path verified `command=y state_after=210 anim_after=210`; manual physical keyboard report says standing normals work. |
+| Crouching normals | PASS | Internal scripted CMD/CNS path verified `command=y state_before=11 state_after=410 anim_after=410`; manual physical keyboard report says crouching normals work. |
+| Hit detection | PASS | Internal scripted path verified `contact=1`; manual physical keyboard report says hit/damage works. |
+| Damage | PASS | Internal scripted path verified P2 life `1000 -> 943`; manual physical keyboard report says hit/damage works. |
 | Guard contact | NOT TESTED | Depends on attack and guard setup. |
 | Guard damage | NOT TESTED | Depends on guard contact. |
-| Hit pause | NOT TESTED | Depends on hit detection. |
-| Hit spark | NOT TESTED | Depends on hit detection. |
-| Hit sound | NOT TESTED | Depends on hit detection. |
+| Hit pause | PASS | Internal scripted path observed hitpause. |
+| Hit spark | PARTIAL | Hit text identified spark `1`, but final snapshot did not expose active effect count. |
+| Hit sound | PASS | Internal scripted path observed active sounds and hit text `snd 5,2`. |
 | Guard spark | NOT TESTED | Depends on guard contact. |
 | Guard sound | NOT TESTED | Depends on guard contact. |
 | Fall/get-hit routing | NOT TESTED | Depends on successful hit setup. |
@@ -142,12 +142,12 @@ Statuses:
 
 | Check | Status | Notes |
 | --- | --- | --- |
-| Load | NOT TESTED |  |
-| Idle | NOT TESTED |  |
-| Walk | NOT TESTED |  |
+| Evil Ken load | PASS | Screenshot-backed visual evidence plus `--verify evilken-smoke` scripted runtime load. |
+| Evil Ken idle | PASS | Screenshot-backed visual evidence plus scripted `state=0 anim=0`. |
+| Evil Ken walk/repositioning | PASS | Internal scripted input path verified: movement delta `127.250015`. Physical keyboard held input remains manual. |
 | Crouch | NOT TESTED |  |
-| Jump | NOT TESTED |  |
-| One normal | NOT TESTED |  |
+| Evil Ken jump/airborne | PASS | Internal scripted input path verified `airborne_observed=1`; screenshot also shows airborne frames. |
+| One normal | PASS | Internal scripted CMD/CNS path verified: `command=x state_after=206 anim_after=206`. |
 | One special | NOT TESTED |  |
 | One super startup, if reachable | NOT TESTED |  |
 | SuperPause, if reachable | NOT TESTED |  |
@@ -155,7 +155,10 @@ Statuses:
 | No match-start animation glitch | NOT TESTED |  |
 | No match-start sound glitch | NOT TESTED |  |
 | No match-start death | NOT TESTED |  |
-| No crash on reset/back out | NOT TESTED |  |
+| No crash on reset/back out | PASS | `--verify evilken-smoke` completed with exit code `0`. Manual reset/backout remains separate. |
+| Round intro overlay | PASS | Screenshot-backed visual evidence shows `ROUND 1`. |
+| Timer countdown | PASS | Screenshot-backed visual evidence plus scripted timer stability `timer_ticks=5650`. |
+| Combo counter display | PASS | Screenshot-backed `4 Rush!` plus scripted `combo_hits=1`; full Evil Ken damage compatibility remains unproven because smoke hit damage was `0`. |
 
 ## 9. Controller Input
 

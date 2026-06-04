@@ -22,6 +22,17 @@ For a pre-commit-sized pass:
 python engine/tools/dev_check.py . --quick
 ```
 
+## Playable Core Verification
+
+Run these after changes that touch input, CMD/CNS routing, movement, hit detection, or fight runtime:
+
+```powershell
+build\dragon_mugen.exe --verify kfm-baseline
+build\dragon_mugen.exe --verify evilken-smoke
+```
+
+These scenarios use internal symbolic input to verify the runtime path. They do not prove physical keyboard or controller hardware mapping.
+
 ## File Size Guard
 
 Run the source file-size audit before and after refactor or verification changes:

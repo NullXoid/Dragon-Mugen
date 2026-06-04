@@ -41,6 +41,8 @@ struct CharacterConstants {
     CharacterSize size;
     int maxPower = 3000;
     int attackDistance = 160;
+    float velocityWalkFwdX = 2.4f;
+    float velocityWalkBackX = -2.2f;
     float velocityRunFwdX = 4.6f;
     float velocityRunFwdY = 0.0f;
     float velocityRunBackX = -4.5f;

@@ -15,7 +15,9 @@ namespace {
 
 struct LaunchOptions {
     bool console = false;
+    bool verify = false;
     bool hasRoot = false;
+    std::string verifyScenario;
     std::filesystem::path root;
 };
 
@@ -61,6 +63,21 @@ LaunchOptions parseLaunchOptions(int argc, char** argv) {
         const std::string_view arg(argv[index]);
         if (arg == "--console") {
             options.console = true;
+            continue;
+        }
+
+        if (arg == "--verify") {
+            if (options.verify) {
+                throw std::runtime_error("Duplicate --verify option");
+            }
+            if (index + 1 >= argc) {
+                throw std::runtime_error("--verify requires a scenario name");
+            }
+            options.verify = true;
+            options.verifyScenario = argv[++index];
+            if (options.verifyScenario.empty() || options.verifyScenario.starts_with("--")) {
+                throw std::runtime_error("--verify requires a scenario name");
+            }
             continue;
         }
 
@@ -145,6 +162,13 @@ int main(int argc, char** argv) {
     try {
         const LaunchOptions options = parseLaunchOptions(argc, argv);
         const std::filesystem::path root = resolveRuntimeRoot(options, executableDirectory(argv));
+
+        if (options.verify) {
+            if (options.console) {
+                throw std::runtime_error("--verify and --console cannot be combined");
+            }
+            return dragon::runVerificationScenario(root, options.verifyScenario, std::cout);
+        }
 
         if (!options.console) {
             return dragon::runApp(root);

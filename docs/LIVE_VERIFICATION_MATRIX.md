@@ -13,8 +13,10 @@ Statuses:
 Current pass metadata:
 
 - Date/time started: `2026-06-04 13:12:01 -04:00`
-- Commit: `e0bc149`
+- Stable commit before Playable Core Proof work: `cf93a57`
+- Verification build: current worktree after Playable Core Proof changes
 - Launch command: `build/dragon_mugen.exe` from the build folder/no-argument launch path
+- Verification commands: `build/dragon_mugen.exe --verify kfm-baseline`, `build/dragon_mugen.exe --verify evilken-smoke`
 - Baseline character: `Kung Fu Man`
 - Baseline stage: `Mountainside Temple`
 
@@ -30,15 +32,42 @@ Current pass metadata:
 | App shell | Kung Fu Man | Training | Escape/back routing | Back out through fight/stage/character/main and exit | Fight -> Stage Select -> Character Select -> Main -> app closed | PASS | Escape sequence verified; `list_apps` showed no Dragon MUGEN window after final Escape. |
 | Training tools | Kung Fu Man | Training | `F1` | Hitbox overlay toggles | Blue hitboxes appeared around KFM and Dummy | PASS | F1 event input verified live on commit `e0bc149`. |
 | Training tools | Kung Fu Man | Training | `F2` | Training options opens | Training Options panel opened | PASS | F2 event input verified live on commit `e0bc149`. |
-| Training tools | Kung Fu Man | Training | `R` reset | Fight resets to stage starts | No distinct visual change proved reset | PARTIAL | Key was pressed, but screenshot evidence was inconclusive. |
+| Training tools | Kung Fu Man | Training | `R` reset | Fight resets to stage starts | Manual physical keyboard report says reset works without crash | PASS | User-observed manual evidence on 2026-06-04. |
 | KFM baseline | Kung Fu Man | Training | Idle | KFM idles in fight view | KFM idle pose/animation visible | PASS | Fight view remained active. |
-| KFM baseline | Kung Fu Man | Training | Held left/right | Fighter walks under held input | Repeated `Right` key presses produced no visible movement or input-HUD update | BLOCKED | Computer Use can send quick key events, but this runtime path uses SDL polled keyboard state; manual verification or an input harness is required. |
-| KFM baseline | Kung Fu Man | Training | Held down | Fighter crouches under held input | Could not perform real held input with Computer Use | BLOCKED | Manual verification or input harness required. |
-| KFM baseline | Kung Fu Man | Training | Jump | Fighter jumps and returns to ground | Gameplay direction input not reliable through automation | BLOCKED | Manual verification or input harness required. |
-| KFM baseline | Kung Fu Man | Training | Standing normals | Buttons enter authored normal states | `A/S/D/Z/X/C` presses produced no visible attack or input-HUD update in captured frames | BLOCKED | Do not mark FAIL without manual or harness verification; F1/F2 proved the window receives event-style keys. |
-| KFM baseline | Kung Fu Man | Training | Crouching normals | Down plus buttons enter authored crouch normal states | Requires reliable held down plus button input | BLOCKED | Manual verification required. |
-| KFM baseline | Kung Fu Man | Training | Hit/guard/KO flow | Damage, guard, KO, and reset behavior can be observed | Not attempted because attack/movement input could not be verified | NOT TESTED | Requires reliable input harness/manual pass. |
+| KFM physical keyboard | Kung Fu Man | Training | Held left/right | Fighter moves continuously while held, stops on release, and keeps walking animation active | Manual retest after second targeted fix: "ok its all good now" | PASS | Physical keyboard path reaches movement runtime and walk animation now cycles correctly after state `20` starts action `20`/`21` on entry. |
+| KFM physical keyboard | Kung Fu Man | Training | Held down | Fighter crouches under held input and returns after release | Manual report says the listed crouch check works | PASS | User-observed manual evidence on 2026-06-04. |
+| KFM physical keyboard | Kung Fu Man | Training | Jump | Fighter jumps, lands, and returns grounded | Manual report says the listed jump check works | PASS | User-observed manual evidence on 2026-06-04. |
+| KFM physical keyboard | Kung Fu Man | Training | Standing normals | Buttons enter authored normal attack states and recover | Manual report says the listed standing-normal check works | PASS | User-observed manual evidence on 2026-06-04; exact per-button matrix still needs a later detailed pass. |
+| KFM physical keyboard | Kung Fu Man | Training | Crouching normals | Down plus attack enters crouching attack behavior | Manual report says the listed crouching-normal check works | PASS | User-observed manual evidence on 2026-06-04; exact per-button matrix still needs a later detailed pass. |
+| KFM physical keyboard | Kung Fu Man | Training | Hit/damage | Attack contacts dummy/opponent and produces hit/damage evidence | Manual report says the listed hit/damage check works | PASS | User-observed manual evidence on 2026-06-04. Guard and KO remain separate unverified checks. |
+| KFM physical keyboard | Kung Fu Man | Training | Run forward | Forward run/dash behavior works from physical keyboard | Manual report says run forward works | PASS | User-observed manual evidence on 2026-06-04. |
+| KFM physical keyboard | Kung Fu Man | Training | Dash backward | Back dash behavior works from physical keyboard | Manual report says dash backward works | PASS | User-observed manual evidence on 2026-06-04. |
+| KFM scripted core | Kung Fu Man | Training | `--verify kfm-baseline` controllable idle | KFM reaches state `0` with control | `state=0 anim=0 ctrl=1` | PASS | Internal symbolic input/CMD/CNS runtime path, not physical keyboard. |
+| KFM scripted core | Kung Fu Man | Training | Hold right 60 frames | Position changes right | `x_before=-70 x_after=38 delta=108` | PASS | Proves internal held-input path through fighter input and movement runtime. |
+| KFM scripted core | Kung Fu Man | Training | Hold left 60 frames | Position changes left | `x_before=38 x_after=-93.999977 delta=-131.999969` | PASS | Proves internal held-input path through fighter input and movement runtime. |
+| KFM scripted core | Kung Fu Man | Training | Hold down | Crouch state/animation reached | `state=11 anim=11` | PASS | Internal scripted input path. |
+| KFM scripted core | Kung Fu Man | Training | Jump and land | Airborne motion then grounded final state | `y_min=-73.079994 grounded_final=true` | PASS | Internal scripted input path. |
+| KFM scripted core | Kung Fu Man | Training | Standing normal | CMD/CNS-driven attack state | `command=y state_before=0 state_after=210 anim_before=0 anim_after=210` | PASS | Does not directly set state or animation. |
+| KFM scripted core | Kung Fu Man | Training | Crouching normal | CMD/CNS-driven crouch attack state | `command=y state_before=11 state_after=410 anim_before=11 anim_after=410` | PASS | Does not directly set state or animation. |
+| KFM scripted core | Kung Fu Man | Training | Hit contact | Hit/contact event observed | `contact=1 last_hit="P1 hit 210#2 dmg 57 attr S, NA hit 15 spark 1 snd 5,2"` | PASS | Internal scripted path with deterministic spacing. |
+| KFM scripted core | Kung Fu Man | Training | Damage | P2 life decreases after hit | `p2_life_before=1000 p2_life_after=943 delta=-57` | PASS | Damage was not directly mutated by the verifier. |
+| KFM scripted core | Kung Fu Man | Training | Hitpause/spark/sound | Optional observations available | `hitpause_observed=1 active_effects=0 active_sounds=10` | PARTIAL | Hitpause/sound were observable; spark lifecycle was not numerically exposed at final snapshot. |
+| KFM scripted core | Kung Fu Man | Training | Clean scenario exit | Scenario exits with code `0` | `SUMMARY pass=11 partial=1 fail=0 blocked=0` | PASS | Build command used: `build\dragon_mugen.exe --verify kfm-baseline`. |
 | Evil Ryu smoke | Evil Ryu | Training | Load/idle/move/normal/special | Character loads and basic actions do not glitch/crash | Not attempted; character selection navigation blocked by unreliable Down/Right automation input | BLOCKED | Static load audit still passes with warnings. |
-| Evil Ken smoke | Evil Ken | Training | Load/idle/move/normal/special | Character loads and basic actions do not glitch/crash | Not attempted; character selection navigation blocked by unreliable Down/Right automation input | BLOCKED | Static load audit still passes with warnings. |
+| Evil Ken visual smoke | Evil Ken | Fight | Fight load | Evil Ken reaches fight presentation | Evil Ken is visible in fight view on Mountainside Temple | PASS | Screenshot-backed visual verification from 2026-06-04. This proves visual reachability, not full compatibility. |
+| Evil Ken visual smoke | Evil Ken | Fight | Idle/stance | Evil Ken renders stable stance frames | Evil Ken stance/idle frames are visible | PASS | Screenshot-backed visual verification. |
+| Evil Ken visual smoke | Evil Ken | Fight | Movement/repositioning | Character position changes during fight without crashing | Evil Ken appears at different stage positions | PARTIAL | Screenshot-backed visual evidence; exact held-input path still needs deterministic or manual verification. |
+| Evil Ken visual smoke | Evil Ken | Fight | Jump/airborne | Character enters airborne visual state | Evil Ken jump/airborne frames are visible | PARTIAL | Screenshot-backed visual evidence; exact input path and landing behavior still need deterministic verification. |
+| Evil Ken visual smoke | Evil Ken | Fight | Round intro | Round intro appears before fight | `ROUND 1` overlay appears | PASS | Screenshot-backed visual verification. |
+| Evil Ken visual smoke | Evil Ken | Fight | Timer countdown | Timer runs during fight | Timer values shown at multiple counts | PASS | Screenshot-backed visual verification. |
+| Evil Ken visual smoke | Evil Ken | Fight | Combo counter | Combo display appears during contact | `4 Rush!` combo counter visible | PARTIAL | Confirms combo UI can appear; damage math and hit event values still need deterministic verification. |
+| Evil Ken visual smoke | Evil Ken | Fight | Stage/HUD stability | Stage and HUD continue rendering during fight | Mountainside Temple, lifebars, power bars, names, and timer remain visible | PASS | Screenshot-backed visual verification. |
+| Evil Ken scripted smoke | Evil Ken | Single Player | `--verify evilken-smoke` load/idle | Evil Ken loads and reaches stable stance | `state=0 anim=0` | PASS | Internal symbolic input/CMD/CNS runtime path, not physical keyboard. |
+| Evil Ken scripted smoke | Evil Ken | Single Player | Movement | Position changes safely | `x_before=-70 x_after=57.250015 delta=127.250015` | PASS | Internal scripted input path. |
+| Evil Ken scripted smoke | Evil Ken | Single Player | Jump/airborne | Airborne state observed | `airborne_observed=1` | PASS | Internal scripted input path. |
+| Evil Ken scripted smoke | Evil Ken | Single Player | One normal | CMD/CNS-driven attack state | `command=x state_before=0 state_after=206 anim_before=0 anim_after=206` | PASS | Does not prove full Evil Ken compatibility. |
+| Evil Ken scripted smoke | Evil Ken | Single Player | Round/timer stability | Timer/round systems keep running | `match_phase=1 timer_ticks=5650` | PASS | Internal scripted smoke. |
+| Evil Ken scripted smoke | Evil Ken | Single Player | Combo or hit evidence | Contact evidence if available | `combo_hits=1 last_hit="P1 hit 206#2 dmg 0 attr S, NA hit 12 spark 0 snd 6,1"` | PASS | Damage was `0` for this smoke hit, so full damage compatibility remains unproven. |
+| Evil Ken scripted smoke | Evil Ken | Single Player | Clean scenario exit | Scenario exits with code `0` | `SUMMARY pass=7 partial=0 fail=0 blocked=0` | PASS | Build command used: `build\dragon_mugen.exe --verify evilken-smoke`. |
 | P2 keyboard | Kung Fu Man | VS or Training P2 control | Movement and attack buttons | P2 responds where local P2 is expected | Not attempted because menu/input navigation was unreliable | BLOCKED | Manual verification or input harness required. |
 | Controller input | N/A | Any | Gamepad assignment and input | Connected controller can drive assigned player | No controller verified in this pass yet | BLOCKED | Mark PASS only after a real controller is tested. |

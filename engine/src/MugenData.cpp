@@ -509,6 +509,8 @@ CharacterConstants loadCharacterConstants(const CharacterFiles& files) {
                 constants.attackDistance);
         }
         if (const auto* velocity = findSection(doc, "Velocity")) {
+            constants.velocityWalkFwdX = parseFloatOr(velocity, "walk.fwd", constants.velocityWalkFwdX);
+            constants.velocityWalkBackX = parseFloatOr(velocity, "walk.back", constants.velocityWalkBackX);
             if (const auto* runFwd = findProperty(*velocity, "run.fwd")) {
                 const auto values = parseCharacterFloatPairValue(runFwd->value, constants.velocityRunFwdX, constants.velocityRunFwdY);
                 constants.velocityRunFwdX = values.first;

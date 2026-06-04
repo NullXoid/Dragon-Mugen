@@ -4,6 +4,7 @@
 #include "dragon/MugenText.h"
 #include "dragon/Sff.h"
 #include "dragon/Snd.h"
+#include "VerificationScenario.h"
 
 #include <SDL3/SDL.h>
 
@@ -17,9 +18,11 @@
 #include <filesystem>
 #include <iomanip>
 #include <optional>
+#include <ostream>
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace dragon {
@@ -1208,6 +1211,13 @@ struct FighterInputState {
     bool c = false;
 };
 
+struct FightInputOverride {
+    const FighterInputState* p1 = nullptr;
+    const FighterInputState* p2 = nullptr;
+};
+
+const FightInputOverride* gFightInputOverride = nullptr;
+
 struct CommandInputFrame {
     FighterInputState input;
     int tick = 0;
@@ -2141,6 +2151,12 @@ float mugenVolumeToGain(const std::string& value) {
 
 std::optional<float> lookupCharacterConstant(const CharacterConstants& constants, std::string_view name) {
     const std::string key = lowercaseCopy(trim(name));
+    if (key == "velocity.walk.fwd.x") {
+        return constants.velocityWalkFwdX;
+    }
+    if (key == "velocity.walk.back.x") {
+        return constants.velocityWalkBackX;
+    }
     if (key == "velocity.run.fwd.x") {
         return constants.velocityRunFwdX;
     }
@@ -13338,7 +13354,7 @@ void finishStateIfAnimationEnded(const AppState& state, FighterState& fighter) {
     if (fighter.stateNo == 0
         || fighter.moveType == 'H'
         || isCrouchStateNo(fighter.stateNo)
-        || fighter.stateNo == 130
+        || fighter.stateNo == 20 || fighter.stateNo == 130
         || fighter.stateNo == 131) {
         return;
     }
@@ -13813,8 +13829,7 @@ void updateControlledFighter(
     AppState& state,
     FighterState& fighter,
     const FighterState* opponent,
-    const FighterInputState& input,
-    float walkSpeed) {
+    const FighterInputState& input) {
     pushFighterInputFrame(fighter, input, state.frame);
 
     if (fighter.hitPauseTicks > 0) {
@@ -13842,17 +13857,35 @@ void updateControlledFighter(
     const auto commands = collectFighterCommands(input, fighter, state.commandDefinitions);
     const bool changedStateFromCommand = applyCommandState(state, fighter, opponent, commands);
     const bool movementLocked = fighterHasAssertSpecialFlag(fighter, "nowalk");
+    const bool holdingHorizontal = input.left != input.right;
+    const int heldWalkAction = ((fighter.facing >= 0 && input.right) || (fighter.facing < 0 && input.left)) ? 20 : 21;
+
+    if (!changedStateFromCommand && fighter.stateNo == 20 && (!holdingHorizontal || holdingDown || !fighter.ctrl)) {
+        enterState(state, fighter, 0);
+    } else if (!changedStateFromCommand && fighter.stateNo == 20 && holdingHorizontal) {
+        if (findExactClip(state, heldWalkAction)) {
+            setFighterAction(fighter, heldWalkAction);
+        }
+    }
 
     if (fighter.stateNo == 0) {
         if (fighter.onGround) {
             fighter.vx = 0.0f;
             fighter.jumpBaseAction = 0;
             fighter.jumpPeakActionApplied = false;
-            if (!changedStateFromCommand && !movementLocked && !holdingDown && fighter.ctrl && input.left) {
-                fighter.vx -= walkSpeed;
-            }
-            if (!changedStateFromCommand && !movementLocked && !holdingDown && fighter.ctrl && input.right) {
-                fighter.vx += walkSpeed;
+            if (!changedStateFromCommand && !movementLocked && !holdingDown && fighter.ctrl && holdingHorizontal) {
+                if (findStateDefinition(state, 20)) {
+                    enterState(state, fighter, 20);
+                    if (findExactClip(state, heldWalkAction)) {
+                        setFighterAction(fighter, heldWalkAction);
+                    }
+                } else {
+                    const bool movingForward = (fighter.facing >= 0 && input.right) || (fighter.facing < 0 && input.left);
+                    const float localVelocity = movingForward
+                        ? state.characterConstants.velocityWalkFwdX
+                        : state.characterConstants.velocityWalkBackX;
+                    fighter.vx = localVelocity * static_cast<float>(fighter.facing);
+                }
             }
         }
         if (!changedStateFromCommand && !movementLocked && !holdingDown && fighter.ctrl && input.up && fighter.onGround) {
@@ -14349,6 +14382,8 @@ void updateFight(AppState& state) {
     const StageSlot& stage = selectedStageSlot(state) ? *selectedStageSlot(state) : fallbackStage;
     auto& p1 = state.fighters[0];
     auto& p2 = state.fighters[1];
+    const int p1StateNoAtFrameStart = p1.stateNo;
+    const int p2StateNoAtFrameStart = p2.stateNo;
 
     updateRuntimeEffects(state);
     clearFightAssertSpecialFlags(state);
@@ -14375,20 +14410,23 @@ void updateFight(AppState& state) {
         return;
     }
 
-    const bool* keys = SDL_GetKeyboardState(nullptr);
-    constexpr float walkSpeed = 1.35f;
+    const bool* keys = gFightInputOverride ? nullptr : SDL_GetKeyboardState(nullptr);
     updateFighterFacing(state);
 
-    const FighterInputState p1Input = collectFighterInput(keys, p1Controls(), assignedGamepad(state, 0));
+    const FighterInputState p1Input = gFightInputOverride && gFightInputOverride->p1
+        ? *gFightInputOverride->p1
+        : collectFighterInput(keys, p1Controls(), assignedGamepad(state, 0));
     if (fighterCanUpdateDuringGlobalPause(state, 0)) {
-        updateControlledFighter(state, p1, &p2, p1Input, walkSpeed);
+        updateControlledFighter(state, p1, &p2, p1Input);
     }
     if (!fighterCanUpdateDuringGlobalPause(state, 1)) {
         p2.vx = 0.0f;
         p2.vy = 0.0f;
     } else if (usesLocalP2Controls(state)) {
-        const FighterInputState p2Input = collectFighterInput(keys, p2Controls(), assignedGamepad(state, 1));
-        updateControlledFighter(state, p2, &p1, p2Input, walkSpeed);
+        const FighterInputState p2Input = gFightInputOverride && gFightInputOverride->p2
+            ? *gFightInputOverride->p2
+            : collectFighterInput(keys, p2Controls(), assignedGamepad(state, 1));
+        updateControlledFighter(state, p2, &p1, p2Input);
     } else if (activeOpponentType(state) == OpponentType::Dummy) {
         updateTrainingDummy(state, p2);
     } else {
@@ -14472,12 +14510,14 @@ void updateFight(AppState& state) {
         --state.lastHitTextTicks;
     }
     updateComboDisplayTimers(state);
-    if (p1.hitPauseTicks <= 0 && fighterCanUpdateDuringGlobalPause(state, 0)) {
+    const bool p1EnteredNewStateThisFrame = p1.stateNo != p1StateNoAtFrameStart && p1.stateTime == 0;
+    const bool p2EnteredNewStateThisFrame = p2.stateNo != p2StateNoAtFrameStart && p2.stateTime == 0;
+    if (!p1EnteredNewStateThisFrame && p1.hitPauseTicks <= 0 && fighterCanUpdateDuringGlobalPause(state, 0)) {
         ++p1.animTick;
         ++p1.stateTime;
         updateAfterImageEffect(p1);
     }
-    if (p2.hitPauseTicks <= 0 && fighterCanUpdateDuringGlobalPause(state, 1)) {
+    if (!p2EnteredNewStateThisFrame && p2.hitPauseTicks <= 0 && fighterCanUpdateDuringGlobalPause(state, 1)) {
         ++p2.animTick;
         ++p2.stateTime;
         updateAfterImageEffect(p2);
@@ -16687,7 +16727,16 @@ void applyLogicalPresentation(SDL_Renderer* renderer, const AppState& state) {
     SDL_SetRenderLogicalPresentation(renderer, logicalWidth(state), kLogicalHeight, SDL_LOGICAL_PRESENTATION_LETTERBOX);
 }
 
+#include "AppVerificationBridge.h"
+
 } // namespace
+
+int runVerificationScenario(
+    const std::filesystem::path& gameRoot,
+    std::string_view scenarioName,
+    std::ostream& out) {
+    return runVerificationScenarioInternal(gameRoot, scenarioName, out);
+}
 
 int runApp(const std::filesystem::path& gameRoot) {
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD)) {
