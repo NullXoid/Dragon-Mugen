@@ -8,8 +8,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-APP_CPP_LINE_BUDGET = 16771
-
 APP_LAYER_FILES = [
     Path("engine/src/App.cpp"),
     Path("engine/src/main.cpp"),
@@ -40,7 +38,9 @@ REQUIRED_MODULE_FILES = [
 REQUIRED_PROCESS_FILES = [
     Path("docs/FEATURE_COMPLETION_POLICY.md"),
     Path("docs/FAILURE_POSTMORTEM_2026_06_04.md"),
+    Path("docs/FEATURE_LEDGER.md"),
     Path("docs/MODULE_SPLIT_PLAN.md"),
+    Path("docs/REGRESSION_CHECKLIST.md"),
     Path("docs/FEATURE_SPECS/README.md"),
     Path("docs/FEATURE_SPECS/0001_architecture_recovery.md"),
     Path("engine/tools/check_feature_specs.py"),
@@ -130,19 +130,6 @@ def guard_cmake_membership(repo: Path, violations: list[Violation]) -> None:
     for source in ("engine/src/MugenData.cpp", "engine/src/FightData.cpp"):
         if source not in text:
             violations.append(Violation(cmake, 0, f"{source} must stay compiled into dragon_core"))
-
-
-def guard_app_size(repo: Path, violations: list[Violation]) -> None:
-    app = Path("engine/src/App.cpp")
-    line_count = len(read_text(repo / app).splitlines())
-    if line_count > APP_CPP_LINE_BUDGET:
-        violations.append(
-            Violation(
-                app,
-                0,
-                f"App.cpp has {line_count} lines; budget is {APP_CPP_LINE_BUDGET}. Split a real subsystem before adding more app code.",
-            )
-        )
 
 
 def guard_app_layer_ownership(repo: Path, violations: list[Violation]) -> None:
@@ -257,7 +244,6 @@ def main() -> int:
 
     guard_required_layout(repo, violations)
     guard_cmake_membership(repo, violations)
-    guard_app_size(repo, violations)
     guard_app_layer_ownership(repo, violations)
     guard_module_ownership(repo, violations)
     guard_reserved_benchmark_characters(repo, violations)

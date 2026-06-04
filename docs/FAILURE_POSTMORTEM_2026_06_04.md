@@ -20,18 +20,19 @@ That made the project feel broken and untrustworthy. The response afterward also
 
 - The failed `ScreenFlow` extraction was reverted before commit.
 - The repo returned to the clean committed state at `ec2f265`.
-- `engine/tools/guard_active_change.py` now blocks future commits that touch `App.cpp` unless the file is reduced to a meaningful extraction target.
+- `engine/tools/guard_active_change.py` now blocks future engine/app code commits unless preservation documentation is updated with the same commit.
 - Feature specs now require a minimum batch definition.
+- `docs/FEATURE_LEDGER.md` and `docs/REGRESSION_CHECKLIST.md` now track behavior that must not disappear silently.
 - The policy now uses dependency order, difficulty, and completion value as planning language.
 
 ## Prevention Rules
 
 - Do not call a feature complete unless its spec's `Done Means` section is satisfied.
-- Do not commit small `App.cpp` edits during architecture recovery.
+- Do not commit engine/app code changes without updating the feature ledger, regression checklist, or active feature spec.
 - Do not add gameplay behavior until the current recovery feature either completes or is explicitly replaced by a new accepted feature spec.
 - Do not use Dragon sidecars or app code to replace M.U.G.E.N files as the source of truth.
 - Do not answer user frustration with generic choices. State what failed, what was reverted, what guard changed, and what remains.
 
-## Current Recovery Gate
+## Current Preservation Gate
 
-Any commit that stages `engine/src/App.cpp` must bring it to 15,500 lines or fewer. This forces the next App-layer change to be a real extraction batch instead of another small cleanup.
+Any commit that stages engine/app code must also stage one of the preservation documents. This targets the actual failure mode: adding or changing features while previous work is undocumented and easy to lose.

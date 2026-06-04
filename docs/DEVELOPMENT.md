@@ -58,4 +58,4 @@ Feature work follows [FEATURE_COMPLETION_POLICY.md](FEATURE_COMPLETION_POLICY.md
 
 The active recovery feature is [0001_architecture_recovery.md](FEATURE_SPECS/0001_architecture_recovery.md). Until that is complete, broad gameplay work should be limited to fixes needed to preserve current behavior while extracting modules.
 
-The postmortem for the current architecture drift is [FAILURE_POSTMORTEM_2026_06_04.md](FAILURE_POSTMORTEM_2026_06_04.md). Follow its prevention rules before touching `engine/src/App.cpp`.
+The postmortem for the current architecture drift is [FAILURE_POSTMORTEM_2026_06_04.md](FAILURE_POSTMORTEM_2026_06_04.md). Before touching engine/app code, update the preservation record in [FEATURE_LEDGER.md](FEATURE_LEDGER.md), [REGRESSION_CHECKLIST.md](REGRESSION_CHECKLIST.md), or the active feature spec.

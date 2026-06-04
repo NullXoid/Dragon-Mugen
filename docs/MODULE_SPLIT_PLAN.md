@@ -32,7 +32,7 @@ The architecture guard freezes `App.cpp` at 16,771 lines. New gameplay work shou
 5. Extract fighter runtime and CNS controller execution.
 6. Extract hit/guard/projectile/effect runtime.
 7. Extract training-only UI/tools.
-8. Lower the `App.cpp` budget after every meaningful extraction.
+8. Update `docs/FEATURE_LEDGER.md` and `docs/REGRESSION_CHECKLIST.md` after every meaningful extraction so preserved behavior remains explicit.
 
 ## Done Means
 

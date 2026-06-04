@@ -64,7 +64,7 @@ python engine/tools/audit_mugen_compat.py game
 
 Use [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for the short daily workflow and Git hook setup.
 
-`guard_architecture.py` also runs automatically as the `dragon_architecture_guard` CMake target before `dragon_core` builds. It fails if roster/stage path rules, `select.def`, `fight.def`, or their ownership structs/loaders move back into the app layer, if required M.U.G.E.N runtime folders disappear, or if `App.cpp` exceeds its current split-before-growth budget.
+`guard_architecture.py` also runs automatically as the `dragon_architecture_guard` CMake target before `dragon_core` builds. It fails if roster/stage path rules, `select.def`, `fight.def`, or their ownership structs/loaders move back into the app layer, or if required M.U.G.E.N runtime folders disappear. `guard_active_change.py` runs in the pre-commit hook and requires preservation documentation when engine/app code changes.
 
 The compatibility audit is documented in [docs/COMPATIBILITY_AUDIT.md](docs/COMPATIBILITY_AUDIT.md). It checks the active `game/data/select.def` roster, including local Evil Ryu/Evil Ken stress-test entries, against the current runtime subset.
 

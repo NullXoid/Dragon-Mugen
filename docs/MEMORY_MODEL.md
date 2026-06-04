@@ -27,7 +27,7 @@ Current implementation follows this: mode select, character select, and stage se
 
 Current code ownership: `engine/src/MugenData.cpp` owns roster loading, stage loading, selected character DEF `[Files]` resolution, and selected character `[Size]`/`[Data]`/`[Velocity]`/`[Movement]` constants. `engine/src/FightData.cpp` owns the current `game/data/fight.def` round, combo, and powerbar settings subset. Screen flow code must ask these modules for metadata instead of rebuilding M.U.G.E.N path or fight-setting rules directly in `App.cpp`. Future extraction should keep following content ownership: system/motif UI parsing belongs with a system data module, character runtime data belongs with a character/session module, and rendering resources belong behind the renderer/cache layer.
 
-`engine/tools/guard_architecture.py` enforces the current ownership boundary during the CMake build. It checks that required M.U.G.E.N runtime folders still exist, that `MugenData` and `FightData` stay compiled, that app-layer files do not regain `select.def`/`fight.def`/`chars`/`stages` path rules, and that `App.cpp` stays under the current split-before-growth line budget.
+`engine/tools/guard_architecture.py` enforces the current ownership boundary during the CMake build. It checks that required M.U.G.E.N runtime folders still exist, that `MugenData` and `FightData` stay compiled, and that app-layer files do not regain `select.def`/`fight.def`/`chars`/`stages` path rules. `engine/tools/guard_active_change.py` enforces preservation documentation for engine/app code changes.
 
 ## Mode Loading
 

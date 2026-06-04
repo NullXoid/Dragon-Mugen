@@ -20,13 +20,19 @@ Only one feature may be marked `Status: In Progress` at a time. Small commits ar
 
 Planning language should use dependency order, difficulty, and completion value. Do not use uncertainty as the deciding factor for what to do next.
 
-## Minimum Batch Rule
+## Preservation Documentation Rule
 
 Every feature spec must define a minimum batch. The minimum batch is the smallest change that can be honestly considered real progress on that feature.
 
-For architecture recovery, a commit that touches `engine/src/App.cpp` must complete a meaningful extraction batch. The current hard gate is enforced by `engine/tools/guard_active_change.py`: `App.cpp` changes cannot be committed unless the file is reduced to 15,500 lines or fewer.
+The active guard in `engine/tools/guard_active_change.py` is not a line-count guard. It is a preservation guard. Any commit that changes engine/app code must also update one of:
 
-If that batch is too difficult, stop and revise the feature spec before coding. Do not replace it with a small symbolic extraction.
+- `docs/FEATURE_LEDGER.md`
+- `docs/REGRESSION_CHECKLIST.md`
+- the active `docs/FEATURE_SPECS/*.md` file
+
+This forces every engine change to record what must keep working, what changed, or how it was verified.
+
+If the minimum batch is too difficult, stop and revise the feature spec before coding. Do not replace it with an undocumented slice.
 
 ## Complete Means Complete
 
@@ -66,12 +72,11 @@ The runtime should read the files and execute their behavior. Do not hardcode ch
 
 ## App Layer Rule
 
-`engine/src/App.cpp` is already too large. Its growth is frozen at the current line count by the architecture guard. New work must either:
+`engine/src/App.cpp` is large, but file size is not the active blocker. The active blocker is losing previous behavior while adding new behavior.
 
-- extract existing behavior into an owned module first, or
-- add the new feature directly to the correct module.
+The app layer may orchestrate screens and sessions, but it must not own M.U.G.E.N file resolution, fight rules, CNS execution, input command parsing, collision/hit logic, audio controller behavior, or stage rendering rules unless that ownership is documented as temporary in the feature ledger.
 
-The app layer may orchestrate screens and sessions, but it must not own M.U.G.E.N file resolution, fight rules, CNS execution, input command parsing, collision/hit logic, audio controller behavior, or stage rendering rules.
+If work stays in the app layer for playability, document what was added and what must remain working.
 
 ## No Lost Plan Items
 
@@ -81,3 +86,9 @@ If a plan item is accepted but not implemented immediately, it must be materiali
 - M.U.G.E.N-style folder or data file for content work.
 - Dragon extension document for Dragon-only behavior.
 - Feature spec when it becomes the active implementation target.
+
+## No Lost Features
+
+When a feature exists, it belongs in `docs/FEATURE_LEDGER.md`. When a behavior must be checked before commit, it belongs in `docs/REGRESSION_CHECKLIST.md`.
+
+Adding a new feature is not allowed to erase or weaken older behavior unless the ledger explicitly documents the replacement.

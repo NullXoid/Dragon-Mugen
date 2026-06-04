@@ -32,7 +32,7 @@ Out of scope:
 
 ## Minimum Batch
 
-The next commit that touches `engine/src/App.cpp` must reduce that file to 15,500 lines or fewer. Smaller extraction commits are not acceptable for architecture recovery unless the user explicitly changes this spec first.
+Architecture recovery must preserve playability and compatibility behavior already listed in `docs/FEATURE_LEDGER.md`. The smallest acceptable batch is one complete subsystem extraction or one complete preservation/verification improvement. Engine/app code commits must update `docs/FEATURE_LEDGER.md`, `docs/REGRESSION_CHECKLIST.md`, or this spec in the same commit.
 
 ## Ownership
 
@@ -40,7 +40,7 @@ The next commit that touches `engine/src/App.cpp` must reduce that file to 15,50
 - Module recovery order: `docs/MODULE_SPLIT_PLAN.md`
 - Validation: `engine/tools/check_feature_specs.py`
 - Architecture hard stops: `engine/tools/guard_architecture.py`
-- Active-change hard stop: `engine/tools/guard_active_change.py`
+- Active-change preservation guard: `engine/tools/guard_active_change.py`
 - Runtime extraction targets: future modules listed in `docs/MODULE_SPLIT_PLAN.md`
 
 ## Implementation Checklist
@@ -49,15 +49,15 @@ The next commit that touches `engine/src/App.cpp` must reduce that file to 15,50
 - [x] Add feature spec folder and active architecture recovery spec.
 - [x] Add feature spec validator.
 - [x] Wire feature spec validation into `dev_check.py`.
-- [x] Freeze `App.cpp` growth at its current line count.
-- [x] Add an active-change guard that blocks symbolic `App.cpp` extraction commits.
+- [x] Replace the `App.cpp` size gate with preservation documentation guards.
+- [x] Add an active-change guard that blocks undocumented engine/app code commits.
 - [ ] Extract screen/mode flow from `App.cpp`.
 - [ ] Extract fight session and round flow from `App.cpp`.
 - [ ] Extract command buffering and CMD matching from `App.cpp`.
 - [ ] Extract fighter runtime and CNS controller execution from `App.cpp`.
 - [ ] Extract hit/guard/projectile/effect runtime from `App.cpp`.
 - [ ] Extract training-only tools from `App.cpp`.
-- [ ] Lower the `App.cpp` line budget after each meaningful extraction.
+- [ ] Update the feature ledger and regression checklist after each meaningful extraction.
 
 ## Verification
 
