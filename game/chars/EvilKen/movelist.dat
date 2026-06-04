@@ -1,0 +1,63 @@
+<#f0f000>THROWS</>
+
+Jigoku Guruma							[_B/_F]_+^2P
+Inazuma Kakato Geki						[_B/_F]_+^2K
+Jigoku Fuusha							_AIR[_B/_F]_+^2P
+Jigoku Geki								_AIR[_B/_F]_+^2K
+
+<#f0f000>UNIQUE ATTACKS</>
+
+Headbutt								_B_+^Y
+Hop Kick								_F_+^B
+Slammy Kick								_B_+^B
+Standing Uppercut						_B_+^Z
+Knee Jab								_B_+^C
+
+<#f0f000>SPECIAL MOVES</>
+
+Hadouken								_D_DF_F^P
+Zankuu Hadouken							_AIR_D_DF_F^P
+Bakuretsuken							_AIR_D_DB_B^P
+Fujin Senkyaku							_F_D_DF^K
+Tatsumaki Senpuu Kyaku					_AIROK_D_DB_B^K
+Tenshou Tatsumaki Senpuu Kyaku			_D_DF_F^K
+Shoryuken								_F_D_DF^P
+_!Seoi Shoryuken						_F_D_DF^P
+Ryuujin Kyaku							_AIR_D_DF_F^K
+Makuu Shihai							[_F_D_DF/_B_D_DB][^3P/^3K]
+Zenpou Tenshin							_D_DB_B^P
+
+<#f0f000>LEVEL 1 SUPER COMBOS (MSSM)</>
+
+Shoryureppa								_D_DF_F_D_DF_F^P_MASH
+Shinryuken								_D_DF_F_D_DF_F^K_MASH
+Shippu Jinrai Kyaku						_D_DB_B_D_DB_B^K_MASH
+Messatsu Shakunetsu Hadou				_D_DB_B_D_DB_B^P
+Tameiki Wari							_D_D_D^K
+Shakunetsu Hadou Ken					_AIROK_B_DB_D_DF_F^2K
+Garyuu Messhuu							_AIR_D_DF_F_D_DF_F^K
+Tenma Gou Zankuu						_AIR_D_DF_F_D_DF_F^P
+Tenrai Bakuretsuzo						_AIR_D_DB_B_D_DB_B^P
+Skuhachi								_D_D_D^P
+
+<#f0f000>LEVEL 2 SUPER COMBOS</>
+
+Kyouja Renbu							_D_DF_F_DF_D_DB_B^P
+Shouki Hatsudou							_B_DB_D_DF_F^2P_MASH
+
+<#f0f000>LEVEL 3 SUPER COMBOS</>
+
+Shun Goku Satsu							^X,^X,_F,^A,^Z
+
+<#f0f000>SYSTEM</>
+
+Forward Dash							_F_F
+Back Dash								_B_B
+High Jump								_TAP_D,_U
+Shinpou Ryu								^B_+^Y
+Custom Combo							_AIROK_^C_+^Z
+Alpha Counter							_AIROK_(during guard)_B_DB_D[^P/^K]
+Fall Recovery							(when allowed)^2P/^2K
+Roll Recovery							(while falling from a hit)_B_DB_D^P
+Aerial Rave								_U(after crouching hard punch)
+Taunt									^S

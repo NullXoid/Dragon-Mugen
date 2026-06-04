@@ -1,0 +1,53 @@
+;-------------------------------;
+; Evil Ryu by Reu and KingTigre ;
+;   http://www.reubenkee.com/   ;
+;-------------------------------;
+
+[Info]
+name         = "Evil Ryu"
+displayname  = "Evil Ryu"
+versiondate  = 01,19,2010; PotS Update
+mugenversion = 1.0
+author       = "Reu and Kingtigre"
+pal.defaults = 1,2,3,4,5,6,7,8,9,10,11,12
+localcoord   = 320, 240
+
+[Files]
+cmd      = evilryucmd.cns
+cns      = evilryu.cns
+st       = evilryu.cns
+stcommon = common1.cns
+sprite   = evilryu.sff
+anim     = evilryu.air
+sound    = evilryu.snd
+pal1     = Default.act
+pal2     = Old03.act
+pal3     = Hoshi02.act
+pal4     = Hoshi03.act
+pal5     = Hoshi05.act
+pal6     = Hoshi06.act
+pal7     = Hoshi07.act
+pal8     = Hoshi08.act
+pal9     = Anjel.act
+pal10    = Anjel_Hoshi.act
+pal11    = Hoshi01.act
+pal12    = Hoshi04.act
+movelist = movelist.dat; Ikemen feature
+
+[Palette Keymap]
+x  = 1
+y  = 2
+z  = 3
+a  = 4
+b  = 5
+c  = 6
+x2 = 7
+y2 = 8
+z2 = 9
+a2 = 10
+b2 = 11
+c2 = 12
+
+;[Arcade]
+;intro.storyboard = intro.def
+;ending.storyboard = ending.def

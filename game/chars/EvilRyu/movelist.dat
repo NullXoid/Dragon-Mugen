@@ -1,0 +1,56 @@
+<#f0f000>THROWS</>
+
+Tomoe Nage								[_B/_F]_+^2P
+Tsukami Nage							[_B/_F]_+^2K
+
+<#f0f000>UNIQUE ATTACKS</>
+
+Body Blow								_B_+^Y
+Hop Kick								_F_+^B
+Low Blade Kick							_B_+^B
+Standing Uppercut						_B_+^Z
+Axe Kick								_B_+^C
+Scooping Thrust							_AIR_U_+^Y
+
+<#f0f000>SPECIAL MOVES</>
+
+Hadouken								_AIROK_D_DF_F^P
+Denjin Hadouken							_B_DB_D_DF_F^P_HOLD
+Zankuu Hadouken							_AIR_D_DB_B^P
+_!Seoi Zankuu Hadouken					_D_DB_B^P
+Tatsumaki Senpuu Kyaku					_AIROK_D_DB_B^K
+Shoryuken								_F_D_DF^P
+Ryuujin Kyaku							_AIR_D_DF_F^K
+Joudan Sokutou Geri						_D_DF_F^K
+Makuu Shihai							[_F_D_DF/_B_D_DB][^3P/^3K]
+Zenpou Tenshin							_D_DB_B^P
+
+<#f0f000>LEVEL 1 SUPER COMBOS (MSSM)</>
+
+Metsu Joudan Sokotou Geri				_B_DB_D_DF_F^2K
+Shin Shoryuken							_D_DF_F_D_DF_F^K
+Shinkuu Tatsumaki Senpuu Kyaku			_AIROK_D_DB_B_D_DB_B^K
+Misogi									_D_D_D^K
+Kongou Kokuretsu Zan					_D_D_D^P
+Shinkuu Hadouken						_AIROK_D_DF_F_D_DF_F^P
+Tenma Gou Zankuu						_AIR_D_DB_B_D_DB_B^P
+Garyuu Messhuu							_AIR_D_DF_F_D_DF_F^K
+
+<#f0f000>LEVEL 3 SUPER COMBOS</>
+
+Kaze No Ken								_B_DB_D_DF_F^2P
+_!Tenrai No Ken							^X,^Y,_F,^A,^B
+Metsu Hadouken							_D_DB_B_D_DB_B^P_HOLD
+
+<#f0f000>SYSTEM</>
+
+Forward Dash							_F_F
+Back Dash								_B_B
+High Jump								_TAP_D,_U
+Shinpou Ryu								^B_+^Y
+Custom Combo							_AIROK^C_+^Z
+Alpha Counter							_AIROK(during guard)_B_DB_D[^P/^K]
+Fall Recovery							(when allowed)^2P/^2K
+Roll Recovery							(while falling from a hit)_B_DB_D^P
+Jump Cancel								_TAP_D,_U(after normal attacks)
+Taunt									^S

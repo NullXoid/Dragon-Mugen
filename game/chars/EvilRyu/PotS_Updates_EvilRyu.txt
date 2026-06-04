@@ -1,0 +1,99 @@
+Character change log for the October 2024 revision.
+
+You can read more about this update here:
+https://mugenguild.com/forum/topics/bringing-reus-characters-new-mugen-106728.0.html
+
+
+===============================================================================================
+)                                          EVIL RYU                                           (
+-----------------------------------------------------------------------------------------------
+
+
+GAMEPLAY:
+ - Lowered life and defense values
+ - Revised damage output
+ - Revised a lot of collision boxes and invulnerability times
+ - Power Charge can now be initiated by holding B+Y, not just pressing them
+ - Can charge power beyond three bars, just in case maximum power is changed or Simul mode is used
+ - Increased liedown.time
+ - Can throw with A+C and X+Z as well
+ - Medium and strong Hadoukens can no longer eat other projectiles
+ - Fireballs are no longer drawn behind the player after hitting
+ - MSSM Kuuchuu Shinkuu Hadouken will no longer randomly be nullified by other projectiles, always explodes
+ - MSSM Kuuchuu Shinkuu Hadouken now uses transparency.  The darkened background still looks cool though, so that was kept
+ - There are no longer normal attacks that deal guard damage
+ - Added Negative Edge
+ - Can use medium and strong versions of Zenpou Tenshin now, not just the weak one
+ - Rolls are considered grounded and vulnerable to anything but throws
+ - MSSM Kuuchuu Shinkuu Hadouken dissipates if Ryu is hit
+ - Tweaked Tenrai No Ken to work properly under new Mugen's corner behaviour (why did they change that?) and other situations too
+ - Dive kicks can be "tiger knee'd" and must be blocked high
+ - It is now a whole lot easier to hit Ryu out of charging a Metsu Hadouken
+ - An opponent dizzied by Metsu Hadouken can now be thrown or comboed on the ground
+ - Electrical burns no longer override the dizzy state
+ - MSSM Kongou Kokuretsu Zan now has an initial thunder bolt so that it's not less effective than the normal version
+ - Tenrai No Ken's victim now stands up after a predetermined time
+ - Dashes are now considered grounded and Ryu can attack from them
+ - Can cancel dash recovery with a second dash
+ - Aerial fireballs can be blocked low
+ - Revised fall recovery states
+ - Alpha Counters cost 2000 power and suffer from damage scaling
+ - Hitting Ryu cancels the electrical burn effect
+ - Metsu Joudan Sokutou Geri changed. Normal version is similar to former MSSM version, which now is different
+ - Metsu Hadouken now spends the three levels of power right when it starts, so that Ryu doesn't get multiple opportunities to retry the move
+ - Each level of Metsu Hadouken charge is flagged by a PalFX
+ - All hits of Shoryuken knock down
+ - A juggling Shoryuken connects all hits but can juggle less times
+ - Can't normally combo after MSSM Misogi
+ - Kaze no Ken has more range, making it a better counter move and thus better worth the three bars
+ - Weak Ryuujin Kyaku is now the one able to cancel to more aerial attacks, while strong one is the most damaging. This way all versions have a purpose
+ - Can Rage Burst (custom combo) with only one power level
+ - Normal throws can now be "teched"
+ - Attacks are flagged as idle during their recovery
+ - Fixed high jumps getting off the ground before their animation start, and removed near high jump variation
+ - All specials and supers and specific normals force P2 to stand when they hit
+ - Teleports have slightly more recovery and don't build power
+ - Can no longer use Zenpou Tenshin with A+X, just to prevent the illusion that it's a KOF roll
+ - Fresh set of palettes. Many thanks to Hoshi, Anjel and Garuda
+ - High jump cancels need down, up input
+ - Most specials now allow ground fall recovery
+ - Commands are more forgiving
+ - Can now guard during dashes
+ - Taunts can raise defense up to three times, but raise it slower than before and the bonus is reset every round
+ - Cancelling a teleport into a super makes it have less invulnerability
+ - Kongou Kokuretsu Zan is now considered a stationary projectile and, as such, can nullify projectiles
+ - Some neutral states stop the character immediately instead of relying on friction to do it
+ - Fall Recovery can be activated with any single button
+
+
+OTHER:
+ - Removed old AI activation methods, obsolete in Mugen 1.0
+ - AI is now scaled according to the Options setting
+ - Unlocking the secret mode is now flagged by a PalFX
+ - Some visual effects no longer make P2 guard
+ - Cleaned leftover animations from the AIR file
+ - Fixed palette errors in some sprites
+ - Fixed camera errors caused by special intros
+ - Special intros are disabled in Simul mode to prevent errors
+ - Added Throw Escape and Electrocuted special animations
+ - Now uses SuperPause instead of Pause for compatibility purposes
+ - Can select win poses by holding buttons
+ - Intros are played in Turns and Survival modes
+ - Tenrai no Ken uses the "cheap KO" animation when available
+ - Now using common guard sparks (this is easy to revert using text replacement)
+ - Overwrote guarding states to prevent some AI spasms
+ - Idle stances now change according to more factors
+ - Many special effects can now have a floor reflection
+ - Eliminated debug spam
+ - Some effects are compatible with widescreen
+ - Re-ripped his voice samples
+ - Added Ikemen GO movelist
+ - Added Ikemen GO tagging animations
+ - Removed most calls to inexistent sounds, to clear debug messages in Ikemen
+ - Fixed some special effects being flagged with movetype A
+ - Slow motion effects are less likely to cause inputs to be dropped
+
+
+===============================================================================================
+
+R.I.P. Reuben, and may your work continue to entertain and inspire people as much as it did with me.

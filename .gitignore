@@ -1,0 +1,50 @@
+# Build output
+/build/
+/out/
+/dist/
+/CMakeFiles/
+/CMakeCache.txt
+/cmake_install.cmake
+/*.ninja
+/.ninja_*
+
+# IDE and user-local files
+/.vs/
+/.vscode/
+/.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+CMakeUserPresets.json
+
+# Runtime/generated binaries
+*.exe
+*.dll
+*.pdb
+*.ilk
+*.obj
+*.lib
+*.exp
+
+# Local archives and duplicate research downloads
+*.zip
+*.7z
+*.rar
+/content/research_mugen_chars/
+
+# Local-only save/profile output
+/game/save/*.def
+/game/save/*.cfg
+/game/save/*.sav
+/game/save/*.dat
+!/game/save/README.md
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+*.orig
+*.rej
+Thumbs.db
+Desktop.ini

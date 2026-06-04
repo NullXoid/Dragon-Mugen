@@ -1,0 +1,27 @@
+* text=auto
+
+*.cpp text eol=crlf
+*.h text eol=crlf
+*.py text eol=lf
+*.md text eol=lf
+*.txt text eol=crlf
+*.def text eol=crlf
+*.air text eol=crlf
+*.cmd text eol=crlf
+*.cns text eol=crlf
+*.st text eol=crlf
+*.cfg text eol=crlf
+
+*.sff binary
+*.snd binary
+*.act binary
+*.pcx binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.mp3 binary
+*.wav binary
+*.zip binary
+*.7z binary
+*.rar binary
