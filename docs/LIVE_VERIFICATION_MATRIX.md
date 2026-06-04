@@ -20,6 +20,7 @@ Current pass metadata:
 - Baseline character: `Kung Fu Man`
 - Baseline stage: `Mountainside Temple`
 - Input extraction checkpoint: App.cpp input boundary extraction manually smoked after build; `App.cpp` line count changed from `16820` to `16724`.
+- Training overlay extraction checkpoint: render-only overlay extraction GUI-smoked after build; file-size guard count for `engine/src/App.cpp` changed from `16724` to `16330`. Computer Use can verify event-style GUI behavior, but it cannot perform a true human held-key smoke.
 
 | Area | Character | Mode | Input / Action | Expected Result | Actual Result | Status | Evidence / Notes |
 |---|---|---|---|---|---|---|---|
@@ -33,6 +34,11 @@ Current pass metadata:
 | App shell | Kung Fu Man | Training | Escape/back routing | Back out through fight/stage/character/main and exit | Fight -> Stage Select -> Character Select -> Main -> app closed | PASS | Escape sequence verified; `list_apps` showed no Dragon MUGEN window after final Escape. |
 | Training tools | Kung Fu Man | Training | `F1` | Hitbox overlay toggles | Blue hitboxes appeared around KFM and Dummy | PASS | F1 event input verified live on commit `e0bc149`. |
 | Training tools | Kung Fu Man | Training | `F2` | Training options opens | Training Options panel opened | PASS | F2 event input verified live on commit `e0bc149`. |
+| Training overlay extraction | Kung Fu Man | Training | Post-extraction title/select/fight path | Render-only extraction preserves visual navigation path | Title screen, character select, stage select, VS screen, and fight view were reached after extraction | PASS | 2026-06-04 current worktree after Training overlay extraction; launched `build/dragon_mugen.exe` through Computer Use. |
+| Training overlay extraction | Kung Fu Man | Training | Post-extraction command/input HUD | Command/input HUD still renders in fight view | `INPUT` and `COMMANDS` panel rendered over Mountainside Temple | PASS | GUI smoke after extraction. |
+| Training overlay extraction | Kung Fu Man | Training | Post-extraction `F1` | Hitbox/debug overlay still toggles | Blue hitboxes appeared around KFM and Dummy | PASS | GUI smoke after extraction. |
+| Training overlay extraction | Kung Fu Man | Training | Post-extraction `F2` | Training Options still opens | Training Options panel opened with option columns | PASS | GUI smoke after extraction. |
+| Training overlay extraction | Kung Fu Man | Training | Post-extraction `R` and `Esc` | Reset key does not crash; Escape backs out cleanly | `R` was tapped, then Escape routed fight -> Stage Select -> Character Select -> Main -> app closed | PASS | GUI smoke after extraction. This is event-style automation evidence, not a true held-key movement proof. |
 | Training tools | Kung Fu Man | Training | `R` reset | Fight resets to stage starts | Manual physical keyboard report says reset works without crash | PASS | User-observed manual evidence on 2026-06-04. |
 | KFM baseline | Kung Fu Man | Training | Idle | KFM idles in fight view | KFM idle pose/animation visible | PASS | Fight view remained active. |
 | KFM physical keyboard | Kung Fu Man | Training | Held left/right | Fighter moves continuously while held, stops on release, and keeps walking animation active | Manual retest after second targeted fix: "ok its all good now" | PASS | Physical keyboard path reaches movement runtime and walk animation now cycles correctly after state `20` starts action `20`/`21` on entry. |

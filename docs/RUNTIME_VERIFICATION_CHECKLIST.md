@@ -89,6 +89,7 @@ Statuses:
 | P2-controlled training option | NOT TESTED |  |
 | Command HUD | PASS | Command panel visible in fight view. |
 | Input HUD | PASS | Input HUD area visible in fight view. |
+| Post-training-overlay extraction GUI smoke | PASS | After render-only overlay extraction, GUI smoke reached title -> character select -> stage select -> VS -> fight, command/input HUD rendered, F1 hitboxes toggled, F2 Training Options opened, `R` did not crash, and Escape backed out to main/exit. Computer Use could not perform a true held-key physical retest, so held input status remains based on scripted verification and prior user manual evidence. |
 | Training power mode | NOT TESTED |  |
 | Move category filter | NOT TESTED |  |
 | Move list derived from CMD `State -1` | NOT TESTED |  |
