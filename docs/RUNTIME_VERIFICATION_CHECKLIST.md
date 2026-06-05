@@ -27,6 +27,7 @@ Statuses:
 | Fight view opens | PASS | Auto-advance from VS loaded KFM, Dummy, and Mountainside Temple. |
 | Escape/back routing works | PASS | Fight -> Stage Select -> Character Select -> Main observed. |
 | Clean exit works | PASS | Escape from main closed the app; no Dragon MUGEN window remained. |
+| Post-main-menu extraction GUI smoke | PASS | After render-only main menu extraction, GUI smoke confirmed no-argument launch, M.U.G.E.N title art, `DRAGON MUGEN CORE`, Training highlight, footer/help text, Training -> character select -> stage select -> VS -> fight, visible normal-attack effect, F1 hitboxes, F2 Training Options, `R`, Escape backout, and clean exit. |
 
 ## 2. Character And Stage Selection
 
@@ -90,6 +91,7 @@ Statuses:
 | Command HUD | PASS | Command panel visible in fight view. |
 | Input HUD | PASS | Input HUD area visible in fight view. |
 | Post-training-overlay extraction GUI smoke | PASS | After render-only overlay extraction, GUI smoke reached title -> character select -> stage select -> VS -> fight, command/input HUD rendered, F1 hitboxes toggled, F2 Training Options opened, `R` did not crash, and Escape backed out to main/exit. User-supplied screenshots on 2026-06-04 also confirm command/input HUD, F1 hitboxes, F2 Training Options, stage select backout, and Training overlay persistence after the pause-menu extraction. Computer Use could not perform a true held-key physical retest, so held input status remains based on scripted verification and prior user manual evidence. |
+| Post-main-menu extraction Training smoke | PASS | After render-only main menu extraction, GUI smoke reached Training fight view, command/input HUD rendered, a normal-attack effect was visible, F1 hitboxes toggled, F2 Training Options opened, `R` did not crash, and Escape backed out to main/exit. |
 | Training power mode | NOT TESTED |  |
 | Move category filter | NOT TESTED |  |
 | Move list derived from CMD `State -1` | NOT TESTED |  |
