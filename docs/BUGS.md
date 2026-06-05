@@ -57,16 +57,17 @@ CPU opponent should move, attack, guard, or otherwise produce gameplay input. CP
 `CPU decision -> FighterInputState -> command buffer -> CMD/CNS -> runtime`.
 
 Actual:
-Single Player match flow and match-complete presentation worked, but before the fix the CPU behaved like a passive training dummy and did not meaningfully fight back.
+Single Player match flow and match-complete presentation worked, but before the fix the CPU behaved like a passive training dummy and did not meaningfully fight back. A first CPU input fix made P2 move and enter attack states, but user retest then showed CPU attacks did not damage P1 because P2-to-P1 hit resolution was still gated to local P2 controls.
 
 Evidence:
 User-supplied screenshot on 2026-06-05 shows `MATCH COMPLETE`, `SINGLE PLAYER`, Evil Ken winning `2 - 0` by decision on Mountainside Temple. User report says the CPU opponent was basically passive/training-dummy-like during the match.
 
 Notes:
 This is not a SelectionState issue. The fix does not force CPU `ChangeState` directly; it produces `FighterInputState` for CPU-controlled P2 and routes through the normal command/CMD/CNS path.
+Single Player hitbox-debug display is not claimed by this bug fix; the focused fix is CPU attack hit application through the existing HitDef path.
 
 Fix evidence:
-`--verify cpu-baseline` passes with `pass=6 partial=0 fail=0 blocked=0`. The verifier proves Single Player reaches fight phase, P2 moves toward P1, P2 enters attack state/action `200`, P1 can still hit/damage P2, timer stability remains intact, and the scenario exits cleanly.
+`--verify cpu-baseline` passes with `pass=7 partial=0 fail=0 blocked=0`. The verifier proves Single Player reaches fight phase, P2 moves toward P1, P2 enters attack state/action `200`, CPU P2 can damage P1 (`p1_life_before=977`, `p1_life_after=885`), P1 can still hit/damage P2, timer stability remains intact, and the scenario exits cleanly.
 
 Possible suspect files:
 `engine/src/App.cpp`, CPU control/update path, FighterInputState production for CPU-controlled fighters

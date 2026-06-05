@@ -11488,7 +11488,7 @@ void applyHitBetween(AppState& state, size_t attackerIndex, size_t defenderIndex
 
 void applyHitIfNeeded(AppState& state) {
     applyHitBetween(state, 0, 1);
-    if (usesLocalP2Controls(state)) {
+    if (activeOpponentType(state) != OpponentType::Dummy) {
         applyHitBetween(state, 1, 0);
     }
     const size_t helperBase = state.fighters.size();

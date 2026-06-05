@@ -511,6 +511,28 @@ int runCpuBaseline(RuntimeProbe& runtime, std::ostream& out) {
             ? "state=" + std::to_string(cpuAttackSnap.stateNo) + " anim=" + std::to_string(cpuAttackSnap.action)
             : "no CPU attack move observed");
 
+    runtime.positionFighters(-18.0f, 22.0f);
+    waitForControllableIdle(runtime, 120);
+    runtime.step({}, 3);
+    const auto cpuHitBefore = runtime.snapshot();
+    bool sawCpuContact = false;
+    bool sawCpuHitOrGuard = false;
+    for (int i = 0; i < 180; ++i) {
+        runtime.step({}, 1);
+        const auto snap = runtime.snapshot();
+        sawCpuContact = sawCpuContact || snap.p2.moveContact || snap.p2.moveHit || snap.p2.moveGuarded;
+        sawCpuHitOrGuard = sawCpuHitOrGuard || snap.p2.moveHit || snap.p2.moveGuarded || snap.p1.life < cpuHitBefore.p1.life;
+    }
+    const auto cpuHitAfter = runtime.snapshot();
+    const bool cpuDamagedP1 = cpuHitAfter.p1.life < cpuHitBefore.p1.life;
+    record(out, counts, (sawCpuContact && sawCpuHitOrGuard && cpuDamagedP1) ? Status::Pass : Status::Fail,
+        "cpu_can_damage_p1",
+        "contact=" + std::to_string(sawCpuContact ? 1 : 0)
+        + " hit_or_guard=" + std::to_string(sawCpuHitOrGuard ? 1 : 0)
+        + " p1_life_before=" + std::to_string(cpuHitBefore.p1.life)
+        + " p1_life_after=" + std::to_string(cpuHitAfter.p1.life)
+        + " last_hit=\"" + cpuHitAfter.lastHitText + "\"");
+
     runtime.positionFighters(-18.0f, 24.0f);
     waitForControllableIdle(runtime, 120);
     runtime.step({}, 3);
