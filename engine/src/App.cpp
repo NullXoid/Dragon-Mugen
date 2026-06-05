@@ -4,6 +4,7 @@
 #include "dragon/MugenText.h"
 #include "dragon/Sff.h"
 #include "dragon/Snd.h"
+#include "AppTypes.h"
 #include "Input.h"
 #include "VerificationScenario.h"
 
@@ -29,95 +30,10 @@
 namespace dragon {
 namespace {
 
-constexpr int kWindowWidth = 960;
-constexpr int kWindowHeight = 540;
-constexpr int kClassicLogicalWidth = 320;
-constexpr int kDefaultLogicalWidth = 426;
-constexpr int kExtraWideLogicalWidth = 480;
-constexpr int kLogicalHeight = 240;
-constexpr int kLogicalWidth = kDefaultLogicalWidth;
-constexpr int kTrainingOptionCount = 20;
-constexpr int kTrainingOptionRows = 10;
-constexpr int kTrainingP2ControlOption = 13;
-constexpr int kTrainingCommandHudOption = 14;
-constexpr int kTrainingInputHudOption = 15;
-constexpr int kTrainingPowerOption = 16;
-constexpr int kTrainingMoveTypeOption = 17;
-constexpr int kTrainingMoveListOption = 18;
-constexpr int kTrainingResetOption = 19;
-constexpr int kSingleFightPauseOptionCount = 5;
-constexpr int kMatchResultOptionCount = 4;
-constexpr int kMainSettingsCount = 7;
-constexpr int kVersusPrepareStartFrames = 2;
-constexpr int kCharacterSelectColumns = 5;
-constexpr int kCharacterSelectRows = 2;
-constexpr int kCharacterSelectPageSize = kCharacterSelectColumns * kCharacterSelectRows;
-
-enum class Screen {
-    ModeSelect,
-    CharacterSelect,
-    StageSelect,
-    VersusScreen,
-    FightView,
-    MainSettings,
-};
-
-enum class PendingMode {
-    Training,
-    SinglePlayer,
-    SingleFight,
-};
-
-enum class OpponentType {
-    Dummy,
-    Cpu,
-    LocalP2,
-};
-
-enum class MatchPhase {
-    RoundStart,
-    Fight,
-    RoundFinish,
-    RoundResult,
-    MatchResult,
-};
-
-enum class RoundEndReason {
-    None,
-    Ko,
-    TimeUp,
-    DoubleKo,
-};
-
-enum class DummyGuardMode {
-    Off,
-    Stand,
-    Crouch,
-    Auto,
-};
-
-enum class TrainingPowerMode {
-    Normal,
-    Max,
-};
-
-enum class TrainingMoveCategory {
-    All,
-    Normals,
-    Specials,
-    Supers,
-};
-
 enum class GuardStance {
     None,
     Stand,
     Crouch,
-};
-
-enum class GamepadPromptStyle {
-    Auto,
-    Xbox,
-    Playstation,
 };
 
 enum class CompareOp {
@@ -147,52 +63,6 @@ enum class MugenVariableBank {
 struct MugenVariableRef {
     MugenVariableBank bank = MugenVariableBank::Var;
     int index = 0;
-};
-
-struct TrainingOptions {
-    bool menuOpen = false;
-    bool moveListOpen = false;
-    int selectedOption = 0;
-    int selectedMoveListEntry = 0;
-    int moveListScroll = 0;
-    bool showHitboxes = false;
-    bool showOrigins = false;
-    bool showFloorLine = false;
-    bool showDebugReadout = false;
-    bool showHitFlash = true;
-    bool showHitSparks = true;
-    bool showHitLog = true;
-    bool playHitSounds = true;
-    bool dummyInvincible = false;
-    bool dummyAutoLife = false;
-    bool dummyFrozen = false;
-    DummyGuardMode dummyGuardMode = DummyGuardMode::Off;
-    bool guardDamage = true;
-    bool p2Controlled = false;
-    bool showCommandHud = true;
-    bool showInputHud = true;
-    TrainingPowerMode powerMode = TrainingPowerMode::Normal;
-    TrainingMoveCategory moveCategory = TrainingMoveCategory::All;
-};
-
-struct MainSettings {
-    int selectedOption = 0;
-    int matchTimerSeconds = 99;
-    int canvasWidth = kDefaultLogicalWidth;
-    int uiScalePercent = 80;
-    GamepadPromptStyle gamepadPromptStyle = GamepadPromptStyle::Auto;
-    int p1GamepadAssignment = 0;
-    int p2GamepadAssignment = 0;
-};
-
-struct LoadedContentSummary {
-    std::string characterName = "Unknown";
-    std::string characterAuthor = "Unknown";
-    std::string stageName = "Unknown";
-    int airActions = 0;
-    int cnsStates = 0;
-    int cmdCommands = 0;
-    int stageBackgrounds = 0;
 };
 
 struct TextureSprite {
@@ -1421,18 +1291,6 @@ struct FighterState {
     int targetTicks = 0;
     int boundByIndex = -1;
     int bindTicks = 0;
-};
-
-struct ComboCounterState {
-    int activeHits = 0;
-    int displayHits = 0;
-    int displayTicks = 0;
-};
-
-struct FightSessionSlots {
-    int p1Character = -1;
-    int opponentCharacter = -1;
-    OpponentType opponentType = OpponentType::Dummy;
 };
 
 struct AppState {

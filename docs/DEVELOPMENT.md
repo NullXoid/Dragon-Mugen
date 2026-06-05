@@ -43,6 +43,69 @@ python tools/check_file_sizes.py
 
 The guard warns above 350 lines and fails above 500 lines unless a file is explicitly allowlisted for a justified generated/vendor/data-only reason. `engine/src/App.cpp` is intentionally not allowlisted because it is the current known monolith and must stay visible as debt until it is extracted one responsibility at a time.
 
+## Pass 11 Type Dependency Map
+
+Pass 11 moved safe app/UI constants and pure data types from `engine/src/App.cpp` into `engine/src/AppTypes.h`. This was type prep only; no behavior, input, routing, loading, gameplay, controller, CMake, or sidecar policy changed.
+
+### Moved safe pure app/UI state
+
+Constants moved:
+
+- Window/logical size constants: `kWindowWidth`, `kWindowHeight`, `kClassicLogicalWidth`, `kDefaultLogicalWidth`, `kExtraWideLogicalWidth`, `kLogicalHeight`, `kLogicalWidth`.
+- Training option constants: `kTrainingOptionCount`, `kTrainingOptionRows`, `kTrainingP2ControlOption`, `kTrainingCommandHudOption`, `kTrainingInputHudOption`, `kTrainingPowerOption`, `kTrainingMoveTypeOption`, `kTrainingMoveListOption`, `kTrainingResetOption`.
+- Menu/result constants: `kSingleFightPauseOptionCount`, `kMatchResultOptionCount`, `kMainSettingsCount`.
+- Flow/layout constants: `kVersusPrepareStartFrames`, `kCharacterSelectColumns`, `kCharacterSelectRows`, `kCharacterSelectPageSize`.
+
+Enums moved:
+
+- `Screen`, `PendingMode`, `OpponentType`, `MatchPhase`, `RoundEndReason`.
+- `DummyGuardMode`, `TrainingPowerMode`, `TrainingMoveCategory`, `GamepadPromptStyle`.
+
+Structs moved:
+
+- `TrainingOptions`, `MainSettings`, `LoadedContentSummary`, `ComboCounterState`, `FightSessionSlots`.
+
+`ComboCounterState` moved because it contains only already-computed combo display counters. `FightSessionSlots` moved because it contains only character slot indices and opponent type, with no loaded resources or runtime ownership.
+
+### Planned types not moved
+
+None of the planned safe constants/enums/structs were skipped after inspection. Existing extracted input types remain owned by `engine/src/Input.h` and were not duplicated.
+
+### Left runtime-coupled state
+
+- `FighterState`
+- fight/session runtime
+- CMD/CNS runtime
+- hit/damage state
+- projectile/helper/effect state
+
+### Left resource-coupled state
+
+- `TextureSprite`
+- `SystemScreenAssets`
+- `AnimationClip`
+- `RuntimeEffect`
+- `RuntimeProjectile`
+- `AudioState`
+- SDL texture/audio/resource ownership
+- loaded sprite/stage/character caches and asset/cache structures
+
+### Left behavior-coupled state
+
+- `AppState`
+- `HitDefinition`
+- state controller and command/CNS types
+- parser/runtime helper types
+- routing-heavy state
+- loading-heavy state
+- anything depending on anonymous-namespace behavior helpers
+
+### Why AppState and FighterState remain
+
+`AppState` remains in `App.cpp` because it aggregates UI state, fight runtime state, resource-owned state, loaded content, routing state, verification state, and fight/session ownership.
+
+`FighterState` remains in `App.cpp` because it is runtime-heavy and tightly coupled to gameplay, animation, hit logic, CMD/CNS, and fight state.
+
 ## Git Hooks
 
 This repo uses a tracked hook directory:
