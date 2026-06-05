@@ -4,7 +4,7 @@
 // Display helpers remain read-only and drive no gameplay state changes.
 
 void drawTrainingCommandHud(SDL_Renderer* renderer, const AppState& state) {
-    if (!state.trainingOptions.showCommandHud && !state.trainingOptions.showInputHud) {
+    if (!state.training.options.showCommandHud && !state.training.options.showInputHud) {
         return;
     }
     if (state.fighters.empty()) {
@@ -22,7 +22,7 @@ void drawTrainingCommandHud(SDL_Renderer* renderer, const AppState& state) {
     const float panelW = std::min(194.0f, widthF - 16.0f);
     const float panelX = widthF - panelW - 8.0f;
     float panelY = 42.0f;
-    float panelH = state.trainingOptions.showInputHud && state.trainingOptions.showCommandHud ? 112.0f : 62.0f;
+    float panelH = state.training.options.showInputHud && state.training.options.showCommandHud ? 112.0f : 62.0f;
 
     setColor(renderer, 6, 8, 14, 216);
     fillScaledRect(renderer, scale, panelX, panelY, panelW, panelH);
@@ -30,7 +30,7 @@ void drawTrainingCommandHud(SDL_Renderer* renderer, const AppState& state) {
     drawScaledRect(renderer, scale, panelX, panelY, panelW, panelH);
 
     float y = panelY + 8.0f;
-    if (state.trainingOptions.showInputHud) {
+    if (state.training.options.showInputHud) {
         const std::string current = fighter.inputHistory.empty()
             ? "-"
             : inputDisplayToken(fighter.inputHistory.back().input, fighter.facing);
@@ -46,7 +46,7 @@ void drawTrainingCommandHud(SDL_Renderer* renderer, const AppState& state) {
         y += 20.0f;
     }
 
-    if (state.trainingOptions.showCommandHud) {
+    if (state.training.options.showCommandHud) {
         const auto entries = displayableMoveListEntries(state);
         setColor(renderer, 230, 220, 172);
         scaledDebugText(renderer, scale, panelX + 8.0f, y, "COMMANDS");

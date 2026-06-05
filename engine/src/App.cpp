@@ -9,6 +9,7 @@
 #include "FrontendState.h"
 #include "Input.h"
 #include "SelectionState.h"
+#include "TrainingState.h"
 #include "TrainingOptionsBehavior.h"
 #include "VerificationScenario.h"
 
@@ -1302,8 +1303,8 @@ struct AppState {
     LoadedContentSummary content;
     FrontendState frontend;
     SelectionState selection;
+    TrainingState training;
     bool running = true;
-    TrainingOptions trainingOptions;
     MainSettings mainSettings;
     FightRoundSettings fightRoundSettings;
     MatchPhase matchPhase = MatchPhase::Fight;
@@ -1473,7 +1474,7 @@ bool isMatchMode(const AppState& state) {
 }
 
 OpponentType activeOpponentType(const AppState& state) {
-    if (state.frontend.pendingMode == PendingMode::Training && state.trainingOptions.p2Controlled) {
+    if (state.frontend.pendingMode == PendingMode::Training && state.training.options.p2Controlled) {
         return OpponentType::LocalP2;
     }
     return state.selection.sessionSlots.opponentType;
@@ -7651,7 +7652,7 @@ void clearEnvShake(AppState& state);
 void clearPaletteRuntime(AppState& state);
 
 void applyTrainingPowerMode(AppState& state) {
-    if (state.frontend.pendingMode != PendingMode::Training || state.trainingOptions.powerMode != TrainingPowerMode::Max) {
+    if (state.frontend.pendingMode != PendingMode::Training || state.training.options.powerMode != TrainingPowerMode::Max) {
         return;
     }
     const int maxPower = std::max(0, state.characterConstants.maxPower);
@@ -7791,8 +7792,8 @@ void resetFightRound(AppState& state) {
     if (state.audio.stream) {
         SDL_ClearAudioStream(state.audio.stream);
     }
-    state.trainingOptions.menuOpen = false;
-    state.trainingOptions.moveListOpen = false;
+    state.training.options.menuOpen = false;
+    state.training.options.moveListOpen = false;
     state.frontend.singleFightPauseOpen = false;
     state.frontend.selectedSingleFightPauseOption = 0;
     state.frontend.selectedMatchResultOption = 0;
@@ -11258,7 +11259,7 @@ bool useTrainingDummyOptions(const AppState& state, size_t defenderIndex) {
 }
 
 bool shouldPlayFightSounds(const AppState& state) {
-    return state.frontend.pendingMode != PendingMode::Training || state.trainingOptions.playHitSounds;
+    return state.frontend.pendingMode != PendingMode::Training || state.training.options.playHitSounds;
 }
 
 int effectiveGuardDistance(const AppState& state, const FighterState& attacker, const HitDefinition& hitDef) {
@@ -11388,7 +11389,7 @@ void applyHitBetween(AppState& state, size_t attackerIndex, size_t defenderIndex
 
     const bool trainingDummy = useTrainingDummyOptions(state, defenderIndex);
     GuardStance guardStance = trainingDummy
-        ? chooseDummyGuardStance(state.trainingOptions, *hitDef, defender)
+        ? chooseDummyGuardStance(state.training.options, *hitDef, defender)
         : choosePlayerGuardStance(*hitDef, defender);
     if (guardStance != GuardStance::None
         && p2BodyDistXValue(attacker, defender) > static_cast<float>(effectiveGuardDistance(state, attacker, *hitDef))) {
@@ -11414,13 +11415,13 @@ void applyHitBetween(AppState& state, size_t attackerIndex, size_t defenderIndex
         attacker.moveGuarded = true;
         endActiveComboForDefender(state, defenderIndex);
         attacker.hitPauseTicks = std::max(1, hitDef->pausetimeP1);
-        const int guardDamageDone = state.trainingOptions.guardDamage
+        const int guardDamageDone = state.training.options.guardDamage
             ? scaleAttackThenDefenceDamage(hitDef->guardDamage, attacker, defender)
             : 0;
-        if (!state.trainingOptions.dummyInvincible && state.trainingOptions.guardDamage) {
+        if (!state.training.options.dummyInvincible && state.training.options.guardDamage) {
             defender.life = std::max(0, defender.life - guardDamageDone);
         }
-        if (state.trainingOptions.dummyFrozen) {
+        if (state.training.options.dummyFrozen) {
             clearFighterHitRuntime(defender);
             enterState(state, defender, 0);
         } else {
@@ -11440,13 +11441,13 @@ void applyHitBetween(AppState& state, size_t attackerIndex, size_t defenderIndex
     } else {
         attacker.moveHit = true;
         attacker.hitPauseTicks = std::max(1, hitDef->pausetimeP1);
-        const int damageDone = (!trainingDummy || !state.trainingOptions.dummyInvincible)
+        const int damageDone = (!trainingDummy || !state.training.options.dummyInvincible)
             ? scaleAttackThenDefenceDamage(hitDef->damage, attacker, defender)
             : 0;
         if (damageDone > 0) {
             defender.life = std::max(0, defender.life - damageDone);
         }
-        if (trainingDummy && state.trainingOptions.dummyFrozen) {
+        if (trainingDummy && state.training.options.dummyFrozen) {
             clearFighterHitRuntime(defender);
             enterState(state, defender, 0);
         } else if (hitOverride) {
@@ -11673,7 +11674,7 @@ void applyProjectileHit(AppState& state, RuntimeProjectile& projectile, size_t d
 
     const bool trainingDummy = useTrainingDummyOptions(state, defenderIndex);
     GuardStance guardStance = trainingDummy
-        ? chooseDummyGuardStance(state.trainingOptions, hitDef, defender)
+        ? chooseDummyGuardStance(state.training.options, hitDef, defender)
         : choosePlayerGuardStance(hitDef, defender);
     if (guardStance != GuardStance::None
         && p2BodyDistXValue(projectileActor, defender) > static_cast<float>(effectiveGuardDistance(state, owner, hitDef))) {
@@ -11697,13 +11698,13 @@ void applyProjectileHit(AppState& state, RuntimeProjectile& projectile, size_t d
         owner.projectileGuardedId = projectile.id;
         owner.projectileGuardedTicks = std::max(owner.projectileGuardedTicks, 32);
         owner.hitPauseTicks = std::max(1, hitDef.pausetimeP1);
-        const int guardDamageDone = state.trainingOptions.guardDamage
+        const int guardDamageDone = state.training.options.guardDamage
             ? scaleAttackThenDefenceDamage(hitDef.guardDamage, owner, defender)
             : 0;
-        if (!state.trainingOptions.dummyInvincible && state.trainingOptions.guardDamage) {
+        if (!state.training.options.dummyInvincible && state.training.options.guardDamage) {
             defender.life = std::max(0, defender.life - guardDamageDone);
         }
-        if (state.trainingOptions.dummyFrozen) {
+        if (state.training.options.dummyFrozen) {
             clearFighterHitRuntime(defender);
             enterState(state, defender, 0);
         } else {
@@ -11722,7 +11723,7 @@ void applyProjectileHit(AppState& state, RuntimeProjectile& projectile, size_t d
         owner.projectileHitId = projectile.id;
         owner.projectileHitTicks = std::max(owner.projectileHitTicks, 32);
         owner.hitPauseTicks = std::max(1, hitDef.pausetimeP1);
-        const int damageDone = (!trainingDummy || !state.trainingOptions.dummyInvincible)
+        const int damageDone = (!trainingDummy || !state.training.options.dummyInvincible)
             ? scaleAttackThenDefenceDamage(hitDef.damage, owner, defender)
             : 0;
         if (damageDone > 0) {
@@ -11733,7 +11734,7 @@ void applyProjectileHit(AppState& state, RuntimeProjectile& projectile, size_t d
             owner.targetHitId = hitDef.targetId;
             owner.targetTicks = std::max(owner.targetTicks, 90);
         }
-        if (trainingDummy && state.trainingOptions.dummyFrozen) {
+        if (trainingDummy && state.training.options.dummyFrozen) {
             clearFighterHitRuntime(defender);
             enterState(state, defender, 0);
         } else if (hitOverride) {
@@ -12880,7 +12881,7 @@ void updateControlledFighter(
 }
 
 void updateTrainingDummy(AppState& state, FighterState& dummy) {
-    if (state.trainingOptions.dummyFrozen) {
+    if (state.training.options.dummyFrozen) {
         if (dummy.moveType == 'H' || dummy.guarding) {
             clearFighterHitRuntime(dummy);
             enterState(state, dummy, 0);
@@ -12900,7 +12901,7 @@ void updateTrainingDummy(AppState& state, FighterState& dummy) {
         dummy.vy = 0.0f;
         dummy.y = 0.0f;
         dummy.onGround = true;
-        const GuardStance idleGuard = dummyGuardIdleStance(state.trainingOptions.dummyGuardMode);
+        const GuardStance idleGuard = dummyGuardIdleStance(state.training.options.dummyGuardMode);
         if (idleGuard != GuardStance::None) {
             if (!isGroundGuardCommonState(dummy.stateNo)
                 || guardStanceFromCommonState(dummy.stateNo) != idleGuard
@@ -13515,7 +13516,7 @@ void updateFight(AppState& state) {
     updateFightAssertSpecialControllers(state, stage);
     if (state.frontend.pendingMode == PendingMode::Training
         && activeOpponentType(state) == OpponentType::Dummy
-        && (state.trainingOptions.dummyAutoLife || state.trainingOptions.dummyInvincible)) {
+        && (state.training.options.dummyAutoLife || state.training.options.dummyInvincible)) {
         p2.life = 1000;
     }
     updateSingleFightRules(state);
@@ -13730,7 +13731,7 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
 
     const AnimationClip* clip = findClip(state, fighter.action);
     const AnimationFrame* frame = clip ? frameForClip(*clip, fighter.animTick) : nullptr;
-    const bool drawHitFeedback = (state.frontend.pendingMode != PendingMode::Training || state.trainingOptions.showHitFlash)
+    const bool drawHitFeedback = (state.frontend.pendingMode != PendingMode::Training || state.training.options.showHitFlash)
         && (fighter.moveType == 'H' || fighter.hitPauseTicks > 0);
 
     if (frame && frame->sprite.texture) {
@@ -13936,7 +13937,7 @@ void drawWorldActors(SDL_Renderer* renderer, const AppState& state, const StageS
     for (size_t i = 0; i < state.projectiles.size(); ++i) {
         items.push_back(DrawItem{ 3, 3, i });
     }
-    if (state.frontend.pendingMode != PendingMode::Training || state.trainingOptions.showHitSparks) {
+    if (state.frontend.pendingMode != PendingMode::Training || state.training.options.showHitSparks) {
         for (size_t i = 0; i < state.runtimeEffects.size(); ++i) {
             items.push_back(DrawItem{ state.runtimeEffects[i].sprPriority, 2, i });
         }
@@ -14124,7 +14125,7 @@ std::vector<const CommandStateEntry*> displayableMoveListEntries(const AppState&
         if (entry.requiredCommands.empty() && entry.commandOptionGroups.empty()) {
             continue;
         }
-        if (!commandEntryMatchesMoveCategory(entry, state.trainingOptions.moveCategory)) {
+        if (!commandEntryMatchesMoveCategory(entry, state.training.options.moveCategory)) {
             continue;
         }
         if (const auto literalTarget = parsePlainIntValue(entry.targetStateExpression)) {
@@ -14315,11 +14316,11 @@ void drawFightView(SDL_Renderer* renderer, const AppState& state) {
         drawFightHud(renderer, state);
     }
 
-    if (state.frontend.pendingMode == PendingMode::Training && !state.trainingOptions.menuOpen && !hideHud) {
+    if (state.frontend.pendingMode == PendingMode::Training && !state.training.options.menuOpen && !hideHud) {
         drawTrainingCommandHud(renderer, state);
     }
 
-    if (state.frontend.pendingMode == PendingMode::Training && state.trainingOptions.menuOpen) {
+    if (state.frontend.pendingMode == PendingMode::Training && state.training.options.menuOpen) {
         drawTrainingOptionsMenu(renderer, state);
     } else if (isMatchMode(state) && state.frontend.singleFightPauseOpen) {
         drawSingleFightPauseMenu(renderer, state);
@@ -14377,7 +14378,7 @@ void fixedUpdate(AppState& state) {
         beginFight(state);
     }
     const bool fightPaused =
-        (state.frontend.pendingMode == PendingMode::Training && state.trainingOptions.menuOpen)
+        (state.frontend.pendingMode == PendingMode::Training && state.training.options.menuOpen)
         || (isMatchMode(state) && state.frontend.singleFightPauseOpen);
     if (state.frontend.screen == Screen::FightView && !fightPaused) {
         updateFight(state);

@@ -267,8 +267,8 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
             return;
         }
 
-        if (state.trainingOptions.menuOpen) {
-            if (state.trainingOptions.moveListOpen) {
+        if (state.training.options.menuOpen) {
+            if (state.training.options.moveListOpen) {
                 const auto entries = displayableMoveListEntries(state);
                 constexpr int visibleRows = 7;
                 const int maxScroll = std::max(0, static_cast<int>(entries.size()) - visibleRows);
@@ -279,62 +279,62 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
                 case SDLK_RETURN:
                 case SDLK_KP_ENTER:
                 case SDLK_SPACE:
-                    state.trainingOptions.moveListOpen = false;
+                    state.training.options.moveListOpen = false;
                     break;
                 case SDLK_UP:
-                    state.trainingOptions.selectedMoveListEntry =
-                        std::max(0, state.trainingOptions.selectedMoveListEntry - 1);
-                    if (state.trainingOptions.selectedMoveListEntry < state.trainingOptions.moveListScroll) {
-                        state.trainingOptions.moveListScroll = state.trainingOptions.selectedMoveListEntry;
+                    state.training.options.selectedMoveListEntry =
+                        std::max(0, state.training.options.selectedMoveListEntry - 1);
+                    if (state.training.options.selectedMoveListEntry < state.training.options.moveListScroll) {
+                        state.training.options.moveListScroll = state.training.options.selectedMoveListEntry;
                     }
                     break;
                 case SDLK_DOWN:
-                    state.trainingOptions.selectedMoveListEntry =
-                        std::min(maxSelected, state.trainingOptions.selectedMoveListEntry + 1);
-                    if (state.trainingOptions.selectedMoveListEntry >= state.trainingOptions.moveListScroll + visibleRows) {
-                        state.trainingOptions.moveListScroll =
-                            std::min(maxScroll, state.trainingOptions.selectedMoveListEntry - visibleRows + 1);
+                    state.training.options.selectedMoveListEntry =
+                        std::min(maxSelected, state.training.options.selectedMoveListEntry + 1);
+                    if (state.training.options.selectedMoveListEntry >= state.training.options.moveListScroll + visibleRows) {
+                        state.training.options.moveListScroll =
+                            std::min(maxScroll, state.training.options.selectedMoveListEntry - visibleRows + 1);
                     }
                     break;
                 default:
                     break;
                 }
-                state.trainingOptions.moveListScroll = std::clamp(state.trainingOptions.moveListScroll, 0, maxScroll);
+                state.training.options.moveListScroll = std::clamp(state.training.options.moveListScroll, 0, maxScroll);
                 return;
             }
 
             switch (key) {
             case SDLK_ESCAPE:
             case SDLK_F2:
-                state.trainingOptions.menuOpen = false;
-                state.trainingOptions.moveListOpen = false;
+                state.training.options.menuOpen = false;
+                state.training.options.moveListOpen = false;
                 break;
             case SDLK_UP:
-                state.trainingOptions.selectedOption =
-                    (state.trainingOptions.selectedOption + kTrainingOptionCount - 1) % kTrainingOptionCount;
+                state.training.options.selectedOption =
+                    (state.training.options.selectedOption + kTrainingOptionCount - 1) % kTrainingOptionCount;
                 break;
             case SDLK_DOWN:
-                state.trainingOptions.selectedOption =
-                    (state.trainingOptions.selectedOption + 1) % kTrainingOptionCount;
+                state.training.options.selectedOption =
+                    (state.training.options.selectedOption + 1) % kTrainingOptionCount;
                 break;
             case SDLK_LEFT:
             case SDLK_RIGHT:
             case SDLK_RETURN:
             case SDLK_KP_ENTER:
             case SDLK_SPACE:
-                if (state.trainingOptions.selectedOption == kTrainingResetOption) {
+                if (state.training.options.selectedOption == kTrainingResetOption) {
                     resetTrainingPositions(state);
                 } else {
-                    const int toggledOption = state.trainingOptions.selectedOption;
-                    toggleTrainingOption(state.trainingOptions, state.trainingOptions.selectedOption);
+                    const int toggledOption = state.training.options.selectedOption;
+                    toggleTrainingOption(state.training.options, state.training.options.selectedOption);
                     if (toggledOption == kTrainingP2ControlOption) {
                         clearFighterHitRuntime(state.fighters[1]);
                         enterState(state, state.fighters[1], 0);
-                        state.lastHitText = state.trainingOptions.p2Controlled ? "P2 control enabled" : "P2 dummy enabled";
+                        state.lastHitText = state.training.options.p2Controlled ? "P2 control enabled" : "P2 dummy enabled";
                         state.lastHitTextTicks = 90;
                     } else if (toggledOption == kTrainingPowerOption) {
                         applyTrainingPowerMode(state);
-                        state.lastHitText = state.trainingOptions.powerMode == TrainingPowerMode::Max ? "Training power max" : "Training power normal";
+                        state.lastHitText = state.training.options.powerMode == TrainingPowerMode::Max ? "Training power max" : "Training power normal";
                         state.lastHitTextTicks = 90;
                     }
                 }
@@ -350,9 +350,9 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
             state.frontend.screen = Screen::StageSelect;
             state.frontend.screenFrame = 0;
         } else if (key == SDLK_F1) {
-            state.trainingOptions.showHitboxes = !state.trainingOptions.showHitboxes;
+            state.training.options.showHitboxes = !state.training.options.showHitboxes;
         } else if (key == SDLK_F2) {
-            state.trainingOptions.menuOpen = true;
+            state.training.options.menuOpen = true;
         } else if (key == SDLK_R) {
             resetFightState(state);
         }
@@ -363,7 +363,7 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
 std::optional<SDL_Keycode> gamepadMenuKeyForButton(const AppState& state, SDL_GamepadButton button) {
     const bool fightOverlayOpen =
         state.frontend.screen == Screen::FightView
-        && ((state.frontend.pendingMode == PendingMode::Training && state.trainingOptions.menuOpen)
+        && ((state.frontend.pendingMode == PendingMode::Training && state.training.options.menuOpen)
             || (isMatchMode(state) && state.frontend.singleFightPauseOpen));
 
     if (state.frontend.screen == Screen::FightView && !fightOverlayOpen) {

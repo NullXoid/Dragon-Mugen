@@ -7,10 +7,10 @@ void drawMoveListPage(SDL_Renderer* renderer, const AppState& state) {
     const auto entries = displayableMoveListEntries(state);
     constexpr int visibleRows = 7;
     const int maxScroll = std::max(0, static_cast<int>(entries.size()) - visibleRows);
-    const int scroll = std::clamp(state.trainingOptions.moveListScroll, 0, maxScroll);
+    const int scroll = std::clamp(state.training.options.moveListScroll, 0, maxScroll);
     const int selected = entries.empty()
         ? -1
-        : std::clamp(state.trainingOptions.selectedMoveListEntry, 0, static_cast<int>(entries.size()) - 1);
+        : std::clamp(state.training.options.selectedMoveListEntry, 0, static_cast<int>(entries.size()) - 1);
 
     ScopedUiScale scaledUi(renderer, state, 320.0f, 240.0f);
 
@@ -31,7 +31,7 @@ void drawMoveListPage(SDL_Renderer* renderer, const AppState& state) {
     setColor(renderer, 128, 171, 225);
     debugText(renderer, 184, 24, fitDebugText(selectedCharacterName(state.selection), 17));
     setColor(renderer, 174, 184, 196);
-    debugText(renderer, 20, 38, std::string(trainingMoveCategoryStatus(state.trainingOptions.moveCategory)));
+    debugText(renderer, 20, 38, std::string(trainingMoveCategoryStatus(state.training.options.moveCategory)));
 
     setColor(renderer, 16, 20, 28, 232);
     fillRect(renderer, 18, 54, 150, 116);
@@ -115,14 +115,14 @@ void drawMoveListPage(SDL_Renderer* renderer, const AppState& state) {
 }
 
 void drawTrainingOptionsMenu(SDL_Renderer* renderer, const AppState& state) {
-    if (state.trainingOptions.moveListOpen) {
+    if (state.training.options.moveListOpen) {
         drawMoveListPage(renderer, state);
         return;
     }
 
     ScopedUiScale scaledUi(renderer, state, 320.0f, 240.0f);
 
-    const auto& display = state.trainingOptions;
+    const auto& display = state.training.options;
     setColor(renderer, 8, 10, 12, 236);
     fillRect(renderer, 34, 24, 286, 202);
     setColor(renderer, 92, 104, 124);

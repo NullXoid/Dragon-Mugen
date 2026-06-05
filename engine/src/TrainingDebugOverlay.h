@@ -98,7 +98,7 @@ void drawFighterCollisionBoxes(SDL_Renderer* renderer, const AppState& state, co
 }
 
 void drawDebugOverlay(SDL_Renderer* renderer, const AppState& state, const StageSlot& stage) {
-    const auto& display = state.trainingOptions;
+    const auto& display = state.training.options;
     if (display.showFloorLine) {
         const float floorY = stage.zoffset - state.cameraY;
         setColor(renderer, 100, 230, 130);
