@@ -12919,22 +12919,57 @@ void updateTrainingDummy(AppState& state, FighterState& dummy) {
     }
 }
 
-void updateCpuOpponent(AppState& state, FighterState& opponent) {
-    if (opponent.guarding) {
-        updateGroundGuardState(state, opponent);
-    } else if (opponent.moveType == 'H' && opponent.customHitState) {
-        return;
-    } else if (opponent.moveType == 'H') {
-        updateGroundGetHitState(state, opponent);
+bool cpuCanChooseInput(const FighterState& cpu) {
+    return cpu.ctrl
+        && cpu.onGround
+        && cpu.stateType != 'A'
+        && cpu.moveType != 'H'
+        && !cpu.guarding
+        && cpu.hitPauseTicks <= 0;
+}
+
+void holdBackInput(FighterInputState& input, const FighterState& fighter) {
+    if (fighter.facing >= 0) {
+        input.left = true;
     } else {
-        opponent.vx = 0.0f;
-        opponent.vy = 0.0f;
-        opponent.y = 0.0f;
-        opponent.onGround = true;
-        if (opponent.stateNo == 130 || opponent.stateNo == 131) {
-            enterState(state, opponent, 0);
-        }
+        input.right = true;
     }
+}
+
+void holdTowardTargetInput(FighterInputState& input, const FighterState& fighter, const FighterState& target) {
+    if (target.x < fighter.x) {
+        input.left = true;
+    } else if (target.x > fighter.x) {
+        input.right = true;
+    } else if (fighter.facing >= 0) {
+        input.right = true;
+    } else {
+        input.left = true;
+    }
+}
+
+FighterInputState buildCpuOpponentInput(const AppState& state, const FighterState& cpu, const FighterState& target) {
+    FighterInputState input;
+    if (!cpuCanChooseInput(cpu)) {
+        return input;
+    }
+
+    const float distance = std::fabs(target.x - cpu.x);
+    constexpr float guardDistance = 56.0f;
+    constexpr float approachDistance = 48.0f;
+    if (target.moveType == 'A' && distance <= guardDistance) {
+        holdBackInput(input, cpu);
+    } else if (distance > approachDistance) {
+        holdTowardTargetInput(input, cpu, target);
+    } else if (state.frame % 45 < 2) {
+        input.x = true;
+    }
+    return input;
+}
+
+void updateCpuOpponent(AppState& state, FighterState& opponent, const FighterState& target) {
+    const FighterInputState input = buildCpuOpponentInput(state, opponent, target);
+    updateControlledFighter(state, opponent, &target, input);
 }
 
 std::string fighterResultName(const AppState& state, int winner) {
@@ -13410,7 +13445,7 @@ void updateFight(AppState& state) {
     } else if (activeOpponentType(state) == OpponentType::Dummy) {
         updateTrainingDummy(state, p2);
     } else {
-        updateCpuOpponent(state, p2);
+        updateCpuOpponent(state, p2, p1);
     }
 
     updateStateZeroFromMovement(state, p1);

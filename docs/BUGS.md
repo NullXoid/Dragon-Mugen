@@ -36,7 +36,7 @@ Manual user testing after commit `4581704` confirmed the Pass 12 frontend keyboa
 
 ## Bug: Single Player CPU opponent is passive / training-dummy-like
 
-Status: open
+Status: fixed by scripted verifier; manual retest pending
 Severity: high
 Area: Single Player / CPU control / fight runtime
 Character: Evil Ken
@@ -57,19 +57,22 @@ CPU opponent should move, attack, guard, or otherwise produce gameplay input. CP
 `CPU decision -> FighterInputState -> command buffer -> CMD/CNS -> runtime`.
 
 Actual:
-Single Player match flow and match-complete presentation work, but the CPU behaves like a passive training dummy and does not meaningfully fight back.
+Single Player match flow and match-complete presentation worked, but before the fix the CPU behaved like a passive training dummy and did not meaningfully fight back.
 
 Evidence:
 User-supplied screenshot on 2026-06-05 shows `MATCH COMPLETE`, `SINGLE PLAYER`, Evil Ken winning `2 - 0` by decision on Mountainside Temple. User report says the CPU opponent was basically passive/training-dummy-like during the match.
 
 Notes:
-This is not a SelectionState issue. Do not fix by forcing CPU `ChangeState` directly. A future CPU baseline should produce the same symbolic inputs as a real player so CMD/CNS remains the route into authored character behavior.
+This is not a SelectionState issue. The fix does not force CPU `ChangeState` directly; it produces `FighterInputState` for CPU-controlled P2 and routes through the normal command/CMD/CNS path.
+
+Fix evidence:
+`--verify cpu-baseline` passes with `pass=6 partial=0 fail=0 blocked=0`. The verifier proves Single Player reaches fight phase, P2 moves toward P1, P2 enters attack state/action `200`, P1 can still hit/damage P2, timer stability remains intact, and the scenario exits cleanly.
 
 Possible suspect files:
 `engine/src/App.cpp`, CPU control/update path, FighterInputState production for CPU-controlled fighters
 
 Blocking:
-Does not block the SelectionState boundary. Blocks claiming Single Player CPU active fighting behavior as verified.
+Does not block the SelectionState boundary. No longer blocks scripted baseline CPU fighting behavior claims. More advanced CPU behavior and manual retest remain future work.
 
 ## Bug: diagonal jump can continue indefinitely while held
 

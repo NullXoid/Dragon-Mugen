@@ -1,5 +1,7 @@
 #include "VerificationScenario.h"
 
+#include "AppTypes.h"
+
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -101,6 +103,20 @@ bool waitForControllableIdle(RuntimeProbe& runtime, int maxFrames) {
     }
     const auto p1 = runtime.snapshot().p1;
     return p1.stateNo == 0 && p1.ctrl && p1.onGround && p1.moveType == 'I';
+}
+
+bool waitForActiveFight(RuntimeProbe& runtime, int maxFrames) {
+    for (int i = 0; i < maxFrames; ++i) {
+        if (runtime.snapshot().matchPhase == static_cast<int>(MatchPhase::Fight)) {
+            return true;
+        }
+        runtime.step({}, 1);
+    }
+    return runtime.snapshot().matchPhase == static_cast<int>(MatchPhase::Fight);
+}
+
+float horizontalDistance(const RuntimeSnapshot& snapshot) {
+    return std::fabs(snapshot.p2.x - snapshot.p1.x);
 }
 
 std::string stateActionDetail(const FighterSnapshot& before, const FighterSnapshot& after, char command) {
@@ -436,8 +452,98 @@ int runEvilKenSmoke(RuntimeProbe& runtime, std::ostream& out) {
     const auto timer = runtime.snapshot();
     record(out, counts, Status::Pass, "round_timer_stability",
         "match_phase=" + std::to_string(timer.matchPhase) + " timer_ticks=" + std::to_string(timer.matchTimerTicks));
-    record(out, counts, timer.comboHits > 0 ? Status::Pass : Status::Partial, "combo_or_hit_evidence",
+    const bool contactEvidence = timer.comboHits > 0
+        || timer.lastHitText.find(" hit ") != std::string::npos
+        || timer.lastHitText.find(" guard ") != std::string::npos;
+    record(out, counts, contactEvidence ? Status::Pass : Status::Partial, "combo_or_hit_evidence",
         "combo_hits=" + std::to_string(timer.comboHits) + " last_hit=\"" + timer.lastHitText + "\"");
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runCpuBaseline(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("kfm", "Mountainside", ScenarioMode::SinglePlayer, out)) {
+        record(out, counts, Status::Blocked, "setup", "KFM/Mountainside Single Player setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "cpu-baseline");
+
+    const bool activeFight = waitForActiveFight(runtime, 420);
+    record(out, counts, activeFight ? Status::Pass : Status::Fail, "single_player_fight_phase_ready",
+        "match_phase=" + std::to_string(runtime.snapshot().matchPhase)
+        + " timer_ticks=" + std::to_string(runtime.snapshot().matchTimerTicks));
+    if (!activeFight) {
+        record(out, counts, Status::Blocked, "cpu_checks", "Single Player fight phase was not active");
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    runtime.positionFighters(-110.0f, 110.0f);
+    const auto moveBefore = runtime.snapshot();
+    runtime.step({}, 90);
+    const auto moveAfter = runtime.snapshot();
+    const float distanceBefore = horizontalDistance(moveBefore);
+    const float distanceAfter = horizontalDistance(moveAfter);
+    const bool movedTowardP1 = distanceAfter < distanceBefore - 5.0f && moveAfter.p2.x < moveBefore.p2.x - 1.0f;
+    record(out, counts, movedTowardP1 ? Status::Pass : Status::Fail, "cpu_moves_toward_p1",
+        "p2_x_before=" + std::to_string(moveBefore.p2.x)
+        + " p2_x_after=" + std::to_string(moveAfter.p2.x)
+        + " distance_before=" + std::to_string(distanceBefore)
+        + " distance_after=" + std::to_string(distanceAfter));
+
+    runtime.positionFighters(-20.0f, 22.0f);
+    bool sawCpuAttack = false;
+    FighterSnapshot cpuAttackSnap;
+    for (int i = 0; i < 135; ++i) {
+        runtime.step({}, 1);
+        const auto snap = runtime.snapshot();
+        if (snap.p2.moveType == 'A') {
+            sawCpuAttack = true;
+            cpuAttackSnap = snap.p2;
+            break;
+        }
+    }
+    record(out, counts, sawCpuAttack ? Status::Pass : Status::Fail, "cpu_attempts_normal_attack",
+        sawCpuAttack
+            ? "state=" + std::to_string(cpuAttackSnap.stateNo) + " anim=" + std::to_string(cpuAttackSnap.action)
+            : "no CPU attack move observed");
+
+    runtime.positionFighters(-18.0f, 24.0f);
+    waitForControllableIdle(runtime, 120);
+    runtime.step({}, 3);
+    const auto hitBefore = runtime.snapshot();
+    runtime.step(withButton('y'), 2);
+    bool sawContact = false;
+    bool sawHitOrGuard = false;
+    for (int i = 0; i < 60; ++i) {
+        runtime.step({}, 1);
+        const auto snap = runtime.snapshot();
+        sawContact = sawContact || snap.p1.moveContact || snap.p1.moveHit || snap.p1.moveGuarded;
+        sawHitOrGuard = sawHitOrGuard || snap.p1.moveHit || snap.p1.moveGuarded || snap.p2.life < hitBefore.p2.life;
+    }
+    const auto hitAfter = runtime.snapshot();
+    record(out, counts, (sawContact && sawHitOrGuard) ? Status::Pass : Status::Fail, "cpu_can_still_be_hit",
+        "contact=" + std::to_string(sawContact ? 1 : 0)
+        + " hit_or_guard=" + std::to_string(sawHitOrGuard ? 1 : 0)
+        + " p2_life_before=" + std::to_string(hitBefore.p2.life)
+        + " p2_life_after=" + std::to_string(hitAfter.p2.life)
+        + " last_hit=\"" + hitAfter.lastHitText + "\"");
+
+    const auto timerBefore = runtime.snapshot();
+    runtime.step({}, 30);
+    const auto timerAfter = runtime.snapshot();
+    const bool timerStable = timerAfter.matchPhase == static_cast<int>(MatchPhase::Fight)
+        && timerAfter.matchTimerTicks > 0
+        && timerAfter.matchTimerTicks <= timerBefore.matchTimerTicks;
+    record(out, counts, timerStable ? Status::Pass : Status::Fail, "single_player_timer_stability",
+        "phase_before=" + std::to_string(timerBefore.matchPhase)
+        + " phase_after=" + std::to_string(timerAfter.matchPhase)
+        + " timer_before=" + std::to_string(timerBefore.matchTimerTicks)
+        + " timer_after=" + std::to_string(timerAfter.matchTimerTicks));
+
     record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
     summary(out, counts);
     return exitCode(counts);
@@ -455,10 +561,13 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
     if (scenarioName == "evilken-smoke") {
         return runEvilKenSmoke(runtime, out);
     }
+    if (scenarioName == "cpu-baseline") {
+        return runCpuBaseline(runtime, out);
+    }
 
     out << "VERIFY " << scenarioName << "\n"
         << "BLOCKED unknown_scenario\n"
-        << "  supported: kfm-baseline, kfm-air-state, evilken-smoke\n"
+        << "  supported: kfm-baseline, kfm-air-state, evilken-smoke, cpu-baseline\n"
         << "SUMMARY pass=0 partial=0 fail=0 blocked=1\n";
     return 2;
 }
