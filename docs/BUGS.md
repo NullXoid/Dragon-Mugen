@@ -34,6 +34,41 @@ Computer Use could verify event-style keys such as `F1` and `F2`, but it could n
 
 Manual user testing after commit `4581704` confirmed the Pass 12 frontend keyboard/controller paths work, and surfaced two real air-state bugs below.
 
+## Bug: controller D-pad does not navigate match-complete win screen
+
+Status: fixed by code-path inspection; physical controller retest pending
+Severity: medium
+Area: controller input / match result menu
+Character: Evil Ken
+Mode: Single Player
+Stage: Mountainside Temple
+Input device: physical controller
+Build/commit: observed after `2c71808`
+
+Reproduction:
+1. Launch `build\dragon_mugen.exe`.
+2. Enter Single Player.
+3. Play through to the `MATCH COMPLETE` screen.
+4. Try to move the result-menu selection with controller D-pad Up/Down.
+
+Expected:
+Controller D-pad Up/Down should move the result-menu highlight the same way keyboard Up/Down does. Controller confirm/cancel buttons should keep working.
+
+Actual:
+Keyboard Up/Down moved the win-screen result menu, and controller buttons worked, but controller D-pad did not move the result-menu highlight.
+
+Notes:
+The match-result gamepad branch in `FrontendFlow.h` mapped confirm/cancel buttons before returning from the FightView path, so D-pad buttons never reached the shared D-pad mapping.
+
+Fix evidence:
+`gamepadMenuKeyForButton` now maps `SDL_GAMEPAD_BUTTON_DPAD_UP` and `SDL_GAMEPAD_BUTTON_DPAD_DOWN` to `SDLK_UP` and `SDLK_DOWN` while the match result screen is open. Build and scripted verifier regressions passed; physical controller retest is still needed to mark this live PASS.
+
+Possible suspect files:
+`engine/src/FrontendFlow.h`
+
+Blocking:
+Does not block CPU baseline or architecture recovery. Blocks claiming match-result controller D-pad navigation as live-verified until retested on hardware.
+
 ## Bug: Single Player CPU opponent is passive / training-dummy-like
 
 Status: fixed by scripted verifier; manual retest pending

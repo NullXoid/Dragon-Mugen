@@ -368,6 +368,12 @@ std::optional<SDL_Keycode> gamepadMenuKeyForButton(const AppState& state, SDL_Ga
 
     if (state.frontend.screen == Screen::FightView && !fightOverlayOpen) {
         if (isMatchMode(state) && state.matchPhase == MatchPhase::MatchResult) {
+            if (button == SDL_GAMEPAD_BUTTON_DPAD_UP) {
+                return SDLK_UP;
+            }
+            if (button == SDL_GAMEPAD_BUTTON_DPAD_DOWN) {
+                return SDLK_DOWN;
+            }
             if (button == SDL_GAMEPAD_BUTTON_SOUTH || button == SDL_GAMEPAD_BUTTON_START) {
                 return SDLK_RETURN;
             }
