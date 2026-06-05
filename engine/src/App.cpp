@@ -5,6 +5,7 @@
 #include "dragon/Sff.h"
 #include "dragon/Snd.h"
 #include "AppTypes.h"
+#include "FrontendMenu.h"
 #include "Input.h"
 #include "VerificationScenario.h"
 
@@ -6816,21 +6817,6 @@ std::string gamepadAssignmentText(const AppState& state, int playerIndex) {
     return "PAD " + std::to_string(assignment) + " " + gamepadFamilyName(device->type);
 }
 
-void cycleGamepadAssignment(MainSettings& settings, int playerIndex, int deviceCount, int direction) {
-    std::vector<int> values;
-    values.push_back(0);
-    values.push_back(-1);
-    for (int i = 1; i <= deviceCount; ++i) {
-        values.push_back(i);
-    }
-
-    int& assignment = playerIndex == 0 ? settings.p1GamepadAssignment : settings.p2GamepadAssignment;
-    auto current = std::find(values.begin(), values.end(), assignment);
-    int index = current == values.end() ? 0 : static_cast<int>(std::distance(values.begin(), current));
-    index = (index + direction + static_cast<int>(values.size())) % static_cast<int>(values.size());
-    assignment = values[static_cast<size_t>(index)];
-}
-
 std::string gamepadPromptStyleText(GamepadPromptStyle style) {
     switch (style) {
     case GamepadPromptStyle::Xbox:
@@ -6841,18 +6827,6 @@ std::string gamepadPromptStyleText(GamepadPromptStyle style) {
     default:
         return "AUTO";
     }
-}
-
-void cycleGamepadPromptStyle(MainSettings& settings, int direction) {
-    static constexpr std::array<GamepadPromptStyle, 3> values{
-        GamepadPromptStyle::Auto,
-        GamepadPromptStyle::Xbox,
-        GamepadPromptStyle::Playstation,
-    };
-    auto current = std::find(values.begin(), values.end(), settings.gamepadPromptStyle);
-    int index = current == values.end() ? 0 : static_cast<int>(std::distance(values.begin(), current));
-    index = (index + direction + static_cast<int>(values.size())) % static_cast<int>(values.size());
-    settings.gamepadPromptStyle = values[static_cast<size_t>(index)];
 }
 
 GamepadPromptStyle effectiveGamepadPromptStyle(const AppState& state, int playerIndex) {
@@ -6886,14 +6860,6 @@ std::string matchTimerSettingText(const MainSettings& settings) {
     return std::to_string(settings.matchTimerSeconds);
 }
 
-void cycleMatchTimerSetting(MainSettings& settings, int direction) {
-    static constexpr std::array<int, 6> values{ 30, 60, 90, 99, 120, 180 };
-    auto current = std::find(values.begin(), values.end(), settings.matchTimerSeconds);
-    int index = current == values.end() ? 3 : static_cast<int>(std::distance(values.begin(), current));
-    index = (index + direction + static_cast<int>(values.size())) % static_cast<int>(values.size());
-    settings.matchTimerSeconds = values[static_cast<size_t>(index)];
-}
-
 std::string canvasSizeSettingText(const MainSettings& settings) {
     switch (settings.canvasWidth) {
     case kClassicLogicalWidth:
@@ -6906,28 +6872,8 @@ std::string canvasSizeSettingText(const MainSettings& settings) {
     }
 }
 
-void cycleCanvasSizeSetting(MainSettings& settings, int direction) {
-    static constexpr std::array<int, 3> values{
-        kClassicLogicalWidth,
-        kDefaultLogicalWidth,
-        kExtraWideLogicalWidth,
-    };
-    auto current = std::find(values.begin(), values.end(), settings.canvasWidth);
-    int index = current == values.end() ? 1 : static_cast<int>(std::distance(values.begin(), current));
-    index = (index + direction + static_cast<int>(values.size())) % static_cast<int>(values.size());
-    settings.canvasWidth = values[static_cast<size_t>(index)];
-}
-
 std::string uiScaleSettingText(const MainSettings& settings) {
     return std::to_string(settings.uiScalePercent) + "%";
-}
-
-void cycleUiScaleSetting(MainSettings& settings, int direction) {
-    static constexpr std::array<int, 5> values{ 60, 70, 80, 90, 100 };
-    auto current = std::find(values.begin(), values.end(), settings.uiScalePercent);
-    int index = current == values.end() ? 2 : static_cast<int>(std::distance(values.begin(), current));
-    index = (index + direction + static_cast<int>(values.size())) % static_cast<int>(values.size());
-    settings.uiScalePercent = values[static_cast<size_t>(index)];
 }
 
 void drawTitleBackground(SDL_Renderer* renderer, const AppState& state) {
@@ -6997,35 +6943,6 @@ void drawSelectBackground(SDL_Renderer* renderer, const AppState& state) {
 }
 
 #include "MainMenuOverlay.h"
-
-bool moveCharacterSelectCursor(AppState& state, int deltaColumn, int deltaRow) {
-    const int characterCount = static_cast<int>(state.characters.size());
-    if (characterCount <= 0) {
-        return false;
-    }
-
-    const int current = std::clamp(state.selectedCharacter, 0, characterCount - 1);
-    const int pageFirst = (current / kCharacterSelectPageSize) * kCharacterSelectPageSize;
-    const int local = current - pageFirst;
-    const int column = local % kCharacterSelectColumns;
-    const int row = local / kCharacterSelectColumns;
-    const int targetColumn = column + deltaColumn;
-    const int targetRow = row + deltaRow;
-    if (targetColumn < 0
-        || targetColumn >= kCharacterSelectColumns
-        || targetRow < 0
-        || targetRow >= kCharacterSelectRows) {
-        return false;
-    }
-
-    const int target = pageFirst + targetRow * kCharacterSelectColumns + targetColumn;
-    if (target < 0 || target >= characterCount) {
-        return false;
-    }
-
-    state.selectedCharacter = target;
-    return true;
-}
 
 std::string_view opponentSlotLabel(PendingMode mode) {
     return opponentTypeLabel(defaultOpponentTypeForMode(mode));
@@ -14852,38 +14769,60 @@ void drawFightView(SDL_Renderer* renderer, const AppState& state) {
     SDL_RenderPresent(renderer);
 }
 
+FrontendKey frontendKeyFromSdl(SDL_Keycode key, bool spaceAccept = false) {
+    switch (key) {
+    case SDLK_ESCAPE:
+        return FrontendKey::Escape;
+    case SDLK_UP:
+        return FrontendKey::Up;
+    case SDLK_DOWN:
+        return FrontendKey::Down;
+    case SDLK_LEFT:
+        return FrontendKey::Left;
+    case SDLK_RIGHT:
+        return FrontendKey::Right;
+    case SDLK_RETURN:
+    case SDLK_KP_ENTER:
+        return FrontendKey::Accept;
+    case SDLK_SPACE:
+        return spaceAccept ? FrontendKey::Accept : FrontendKey::Other;
+    default:
+        return FrontendKey::Other;
+    }
+}
+
+int settingCycleDirection(FrontendKey key) {
+    if (key == FrontendKey::Left) {
+        return -1;
+    }
+    if (key == FrontendKey::Right || key == FrontendKey::Accept) {
+        return 1;
+    }
+    return 0;
+}
+
 void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
-    constexpr int modeCount = 5;
     if (state.screen == Screen::ModeSelect) {
-        switch (key) {
-        case SDLK_ESCAPE:
+        const FrontendKey frontendKey = frontendKeyFromSdl(key);
+        state.selectedMode = moveMainMenuSelection(state.selectedMode, frontendKey);
+        FrontendAction action;
+        if (frontendKey == FrontendKey::Escape) {
+            action = { FrontendActionKind::ExitApp };
+        } else if (frontendKey == FrontendKey::Accept) {
+            action = decideMainMenuAction(state.selectedMode);
+        }
+
+        switch (action.kind) {
+        case FrontendActionKind::ExitApp:
             state.running = false;
             break;
-        case SDLK_UP:
-            state.selectedMode = (state.selectedMode + modeCount - 1) % modeCount;
+        case FrontendActionKind::OpenMode:
+            unloadCharacterRuntime(state);
+            state.pendingMode = action.mode;
+            state.screen = Screen::CharacterSelect;
             break;
-        case SDLK_DOWN:
-            state.selectedMode = (state.selectedMode + 1) % modeCount;
-            break;
-        case SDLK_RETURN:
-        case SDLK_KP_ENTER:
-            if (state.selectedMode == 0) {
-                unloadCharacterRuntime(state);
-                state.pendingMode = PendingMode::Training;
-                state.screen = Screen::CharacterSelect;
-            } else if (state.selectedMode == 1) {
-                unloadCharacterRuntime(state);
-                state.pendingMode = PendingMode::SinglePlayer;
-                state.screen = Screen::CharacterSelect;
-            } else if (state.selectedMode == 2) {
-                unloadCharacterRuntime(state);
-                state.pendingMode = PendingMode::SingleFight;
-                state.screen = Screen::CharacterSelect;
-            } else if (state.selectedMode == 3) {
-                state.screen = Screen::MainSettings;
-            } else if (state.selectedMode == 4) {
-                state.running = false;
-            }
+        case FrontendActionKind::OpenOptions:
+            state.screen = Screen::MainSettings;
             break;
         default:
             break;
@@ -14892,100 +14831,39 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
     }
 
     if (state.screen == Screen::MainSettings) {
-        switch (key) {
-        case SDLK_ESCAPE:
+        const FrontendKey frontendKey = frontendKeyFromSdl(key, true);
+        state.mainSettings.selectedOption = moveOptionsSelection(state.mainSettings.selectedOption, frontendKey);
+        const int cycleDirection = settingCycleDirection(frontendKey);
+        if (cycleDirection != 0 && state.mainSettings.selectedOption < kMainSettingsCount - 1) {
+            state.mainSettings = cycleMainSetting(
+                state.mainSettings,
+                state.mainSettings.selectedOption,
+                cycleDirection,
+                static_cast<int>(state.gamepads.size()));
+        }
+
+        const FrontendAction action = decideOptionsAction(state.mainSettings, frontendKey);
+        if (action.kind == FrontendActionKind::BackToMain) {
             state.screen = Screen::ModeSelect;
-            break;
-        case SDLK_UP:
-            state.mainSettings.selectedOption =
-                (state.mainSettings.selectedOption + kMainSettingsCount - 1) % kMainSettingsCount;
-            break;
-        case SDLK_DOWN:
-            state.mainSettings.selectedOption =
-                (state.mainSettings.selectedOption + 1) % kMainSettingsCount;
-            break;
-        case SDLK_LEFT:
-            if (state.mainSettings.selectedOption == 0) {
-                cycleMatchTimerSetting(state.mainSettings, -1);
-            } else if (state.mainSettings.selectedOption == 1) {
-                cycleCanvasSizeSetting(state.mainSettings, -1);
-            } else if (state.mainSettings.selectedOption == 2) {
-                cycleUiScaleSetting(state.mainSettings, -1);
-            } else if (state.mainSettings.selectedOption == 3) {
-                cycleGamepadPromptStyle(state.mainSettings, -1);
-            } else if (state.mainSettings.selectedOption == 4) {
-                cycleGamepadAssignment(state.mainSettings, 0, static_cast<int>(state.gamepads.size()), -1);
-            } else if (state.mainSettings.selectedOption == 5) {
-                cycleGamepadAssignment(state.mainSettings, 1, static_cast<int>(state.gamepads.size()), -1);
-            }
-            break;
-        case SDLK_RIGHT:
-            if (state.mainSettings.selectedOption == 0) {
-                cycleMatchTimerSetting(state.mainSettings, 1);
-            } else if (state.mainSettings.selectedOption == 1) {
-                cycleCanvasSizeSetting(state.mainSettings, 1);
-            } else if (state.mainSettings.selectedOption == 2) {
-                cycleUiScaleSetting(state.mainSettings, 1);
-            } else if (state.mainSettings.selectedOption == 3) {
-                cycleGamepadPromptStyle(state.mainSettings, 1);
-            } else if (state.mainSettings.selectedOption == 4) {
-                cycleGamepadAssignment(state.mainSettings, 0, static_cast<int>(state.gamepads.size()), 1);
-            } else if (state.mainSettings.selectedOption == 5) {
-                cycleGamepadAssignment(state.mainSettings, 1, static_cast<int>(state.gamepads.size()), 1);
-            }
-            break;
-        case SDLK_RETURN:
-        case SDLK_KP_ENTER:
-        case SDLK_SPACE:
-            if (state.mainSettings.selectedOption == 0) {
-                cycleMatchTimerSetting(state.mainSettings, 1);
-            } else if (state.mainSettings.selectedOption == 1) {
-                cycleCanvasSizeSetting(state.mainSettings, 1);
-            } else if (state.mainSettings.selectedOption == 2) {
-                cycleUiScaleSetting(state.mainSettings, 1);
-            } else if (state.mainSettings.selectedOption == 3) {
-                cycleGamepadPromptStyle(state.mainSettings, 1);
-            } else if (state.mainSettings.selectedOption == 4) {
-                cycleGamepadAssignment(state.mainSettings, 0, static_cast<int>(state.gamepads.size()), 1);
-            } else if (state.mainSettings.selectedOption == 5) {
-                cycleGamepadAssignment(state.mainSettings, 1, static_cast<int>(state.gamepads.size()), 1);
-            } else {
-                state.screen = Screen::ModeSelect;
-            }
-            break;
-        default:
-            break;
         }
         return;
     }
 
     if (state.screen == Screen::CharacterSelect) {
         const int characterCount = static_cast<int>(state.characters.size());
-        switch (key) {
-        case SDLK_ESCAPE:
+        const FrontendKey frontendKey = frontendKeyFromSdl(key);
+        state.selectedCharacter = moveCharacterCursor(state.selectedCharacter, characterCount, frontendKey);
+        const FrontendAction action = decideCharacterSelectAction(state.selectedCharacter, characterCount, frontendKey);
+        switch (action.kind) {
+        case FrontendActionKind::BackToMain:
             unloadCharacterRuntime(state);
             state.screen = Screen::ModeSelect;
             break;
-        case SDLK_UP:
-            moveCharacterSelectCursor(state, 0, -1);
-            break;
-        case SDLK_DOWN:
-            moveCharacterSelectCursor(state, 0, 1);
-            break;
-        case SDLK_LEFT:
-            moveCharacterSelectCursor(state, -1, 0);
-            break;
-        case SDLK_RIGHT:
-            moveCharacterSelectCursor(state, 1, 0);
-            break;
-        case SDLK_RETURN:
-        case SDLK_KP_ENTER:
-            if (characterCount > 0) {
-                state.selectedCharacter = std::clamp(state.selectedCharacter, 0, characterCount - 1);
-                configureFightSessionSlotsFromSelection(state);
-                selectPreferredStage(state);
-                state.screen = Screen::StageSelect;
-            }
+        case FrontendActionKind::CharacterChosen:
+            state.selectedCharacter = action.index;
+            configureFightSessionSlotsFromSelection(state);
+            selectPreferredStage(state);
+            state.screen = Screen::StageSelect;
             break;
         default:
             break;
@@ -14995,33 +14873,24 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
 
     if (state.screen == Screen::StageSelect) {
         const int stageCount = static_cast<int>(state.stages.size());
-        switch (key) {
-        case SDLK_ESCAPE:
+        const FrontendKey frontendKey = frontendKeyFromSdl(key);
+        state.selectedStage = moveStageCursor(state.selectedStage, stageCount, frontendKey);
+        const FrontendAction action = decideStageSelectAction(state.selectedStage, stageCount, frontendKey);
+        switch (action.kind) {
+        case FrontendActionKind::BackToCharacterSelect:
             unloadCharacterRuntime(state);
             state.screen = Screen::CharacterSelect;
             break;
-        case SDLK_UP:
-            if (stageCount > 0) {
-                state.selectedStage = (state.selectedStage + stageCount - 1) % stageCount;
+        case FrontendActionKind::StageChosen:
+            state.selectedStage = action.index;
+            if (!characterSlotAt(state, state.sessionSlots.p1Character)) {
+                configureFightSessionSlotsFromSelection(state);
             }
-            break;
-        case SDLK_DOWN:
-            if (stageCount > 0) {
-                state.selectedStage = (state.selectedStage + 1) % stageCount;
-            }
-            break;
-        case SDLK_RETURN:
-        case SDLK_KP_ENTER:
-            if (stageCount > 0) {
-                if (!characterSlotAt(state, state.sessionSlots.p1Character)) {
-                    configureFightSessionSlotsFromSelection(state);
-                }
-                unloadCharacterRuntime(state);
-                state.screen = Screen::VersusScreen;
-                state.screenFrame = 0;
-                state.fightSessionPrepared = false;
-                state.fightSessionLoadFailed = false;
-            }
+            unloadCharacterRuntime(state);
+            state.screen = Screen::VersusScreen;
+            state.screenFrame = 0;
+            state.fightSessionPrepared = false;
+            state.fightSessionLoadFailed = false;
             break;
         default:
             break;
@@ -15030,14 +14899,14 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
     }
 
     if (state.screen == Screen::VersusScreen) {
-        switch (key) {
-        case SDLK_ESCAPE:
+        const FrontendAction action = decideVsScreenAction(frontendKeyFromSdl(key));
+        switch (action.kind) {
+        case FrontendActionKind::BackToStageSelect:
             unloadCharacterRuntime(state);
             state.screen = Screen::StageSelect;
             state.screenFrame = 0;
             break;
-        case SDLK_RETURN:
-        case SDLK_KP_ENTER:
+        case FrontendActionKind::StartFightRequested:
             if (state.fightSessionPrepared || prepareFightSession(renderer, state)) {
                 beginFight(state);
             }

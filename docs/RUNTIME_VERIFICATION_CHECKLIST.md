@@ -35,6 +35,7 @@ Statuses:
 | Post-fight-HUD extraction GUI smoke | PASS | After render-only Fight HUD extraction, GUI smoke clicked/focused the game window, reached Main -> Training -> KFM -> Mountainside Temple -> fight, confirmed P1/P2 names, lifebars, power gauges, `POWER` labels, bottom status/help line, command/input HUD, F1 hitboxes, F2 Training Options, `R`, visible normal-attack effect, Escape backout, and clean exit. Timer/round pips were not separately tested in a match mode during this pass. |
 | Post-fight-result-overlay extraction GUI smoke | PASS | After shared/result overlay extraction, GUI smoke clicked/focused the game window, reached Main -> Training -> KFM -> Mountainside Temple -> VS -> fight, confirmed Fight HUD names/lifebars/power gauges/`POWER` labels, command/input HUD, F1 hitboxes, F2 Training Options, `R`, normal-input smoke, Escape backout, and clean exit. Round/result overlay screens were not separately forced in this pass. |
 | Post-AppTypes extraction GUI smoke | PASS | After safe app/UI constants and pure-data structs were extracted to `engine/src/AppTypes.h`, GUI smoke clicked/focused the game window, reached Main -> Training -> KFM -> Mountainside Temple -> VS -> fight, confirmed Fight HUD, command/input HUD, F1 hitboxes, F2 Training Options, `R`, normal-input smoke, Escape backout, and clean exit. No behavior/input/routing/loading/gameplay/controller/CMake/sidecar changes were made. |
+| Post-FrontendMenu extraction GUI smoke | PARTIAL | After pure frontend decision helpers were extracted to `engine/src/FrontendMenu.h/.cpp`, build, `dev_check`, and both scripted verifiers passed. GUI smoke clicked/focused the game window and confirmed Main -> Training -> Character Select -> Stage Select -> VS/loading -> fight, Fight HUD, command/input HUD, F1 hitboxes, F2 Training Options, `R`, Escape backout, and clean exit. Computer Use delivered Return/Escape/F1/F2/R but did not visibly deliver SDL arrow or letter-key input, so Options navigation, selector/cursor movement, and normal-input GUI smoke remain automation-blocked for this pass. |
 
 ## 2. Character And Stage Selection
 
@@ -59,6 +60,8 @@ Statuses:
 | Fight loads selected stage | PASS | Fight view loaded Mountainside Temple. |
 | VS/loading render after extraction | PASS | `VsScreenOverlay.h` extraction preserved `TRAINING VS`, P1/opponent panels, portraits/placeholders, `VS`, stage label, and ready/auto-start text. |
 | VS/loading transition after extraction | PASS | Existing auto-start timing still transitioned from VS/loading to fight without changing timing. |
+| FrontendMenu route after extraction | PASS | `FrontendMenu` extraction preserved Return-driven Training route from Main -> Character Select -> Stage Select -> VS/loading -> fight. |
+| FrontendMenu selector/cursor movement after extraction | BLOCKED | Computer Use arrow-key injection did not visibly move SDL main, character, or stage selectors after clicking/focusing the window. This is recorded as automation-blocked, not runtime failure; manual keyboard/controller evidence remains separate. |
 
 ## 3. Keyboard P1 Input
 
@@ -108,6 +111,7 @@ Statuses:
 | Command HUD | PASS | Command panel visible in fight view. |
 | Input HUD | PASS | Input HUD area visible in fight view. |
 | Post-fight-HUD extraction Training HUD smoke | PASS | `FightHudOverlay.h` extraction preserved the existing Training command/input HUD, F1 hitboxes, F2 Training Options, `R`, visible normal-attack effect, Escape backout, and clean exit. Training command/input HUD code was not moved in this pass. |
+| Post-FrontendMenu extraction Training route smoke | PARTIAL | GUI smoke after `FrontendMenu` extraction confirmed fight HUD, command/input HUD, F1 hitboxes, F2 Training Options, `R`, Escape backout, and clean exit. Computer Use letter-key input did not visibly trigger a normal in this pass, so normal-input GUI smoke is automation-blocked here; `--verify kfm-baseline` still proves normal routing. |
 | Post-training-overlay extraction GUI smoke | PASS | After render-only overlay extraction, GUI smoke reached title -> character select -> stage select -> VS -> fight, command/input HUD rendered, F1 hitboxes toggled, F2 Training Options opened, `R` did not crash, and Escape backed out to main/exit. User-supplied screenshots on 2026-06-04 also confirm command/input HUD, F1 hitboxes, F2 Training Options, stage select backout, and Training overlay persistence after the pause-menu extraction. Computer Use could not perform a true held-key physical retest, so held input status remains based on scripted verification and prior user manual evidence. |
 | Post-main-menu extraction Training smoke | PASS | After render-only main menu extraction, GUI smoke reached Training fight view, command/input HUD rendered, a normal-attack effect was visible, F1 hitboxes toggled, F2 Training Options opened, `R` did not crash, and Escape backed out to main/exit. |
 | Training power mode | NOT TESTED |  |

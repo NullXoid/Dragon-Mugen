@@ -32,6 +32,7 @@ This audit is documentation-only. It records what remains in `engine/src/App.cpp
 | `FightPresentationShared.h` | shared fight presentation helpers | Transitional App.cpp internal | Shared render helpers for HUD/result overlays. |
 | `FightResultOverlay.h` | round/result presentation rendering | Transitional App.cpp internal | Render-only; round/match flow remains in App.cpp. |
 | `AppTypes.h` | safe app/UI constants, enums, pure-data structs | Normal header | Owns Pass 11 safe types; no SDL/resource ownership. |
+| `FrontendMenu.h` / `FrontendMenu.cpp` | pure frontend menu decision helpers | Normal module | Pass 12 moved requested-action decisions, pure cursor/index movement, and copied settings cycling. App.cpp still owns SDL conversion and all side effects. |
 
 ## Type Inventory
 
@@ -169,6 +170,7 @@ These areas should remain in `App.cpp` or current runtime files until more bound
 | Proposed Pass | Target | Estimated App.cpp Reduction | Risk | Preconditions | Test Focus |
 | --- | --- | ---: | --- | --- | --- |
 | Pass B1 | Extract non-fight front-end key handling: Mode Select, Options, Character Select, Stage Select, VS screen | 220-320 | MEDIUM | Frontend/selection state split preferred | main/options/select/stage/VS route smoke |
+| Pass B1a | Completed Pass 12 pure frontend decision boundary | 131 actual | MEDIUM | `AppTypes.h` public menu/settings types | build/verifiers passed; GUI route smoke passed; Options/cursor/normal GUI smoke remains automation-blocked |
 | Pass B2 | Extract settings mutation and gamepad assignment display/cycle behavior | 180-260 | MEDIUM | Keep SDL gamepad open/close in App.cpp | Options screen, controller smoke, verifier regression |
 | Pass B3 | Extract Training Options behavior only, leaving fight runtime untouched | 120-200 | MEDIUM | Training state split preferred | F1/F2/R, command HUD, KFM verifier |
 
@@ -238,4 +240,4 @@ Prefer a pass that:
 
 If two candidates are similar, prefer the one that unlocks more future modules.
 
-Recommended next pass: split or extract the front-end/menu boundary before touching runtime systems. The safest practical candidate is a scoped front-end behavior pass that targets non-fight screen routing and settings/select behavior, with `AppState` split work kept small and explicit.
+Pass 12 completed the first scoped front-end/menu boundary by moving pure decision helpers into `FrontendMenu.h/.cpp`; `App.cpp` still performs SDL conversion, routing mutation, loading, and fight startup. The next implementation pass should build on that boundary rather than moving runtime systems. Good candidates are a small `FrontendState` or `SelectionState` split, or a targeted pass that converts one or two transitional menu overlay headers into normal modules now that menu primitives are public enough.
