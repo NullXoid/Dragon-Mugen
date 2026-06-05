@@ -30,6 +30,7 @@ Statuses:
 | Post-main-menu extraction GUI smoke | PASS | After render-only main menu extraction, GUI smoke confirmed no-argument launch, M.U.G.E.N title art, `DRAGON MUGEN CORE`, Training highlight, footer/help text, Training -> character select -> stage select -> VS -> fight, visible normal-attack effect, F1 hitboxes, F2 Training Options, `R`, Escape backout, and clean exit. |
 | Post-options-menu extraction GUI smoke | PASS | After render-only Options menu extraction, user-supplied screenshot evidence confirmed the Options screen renders with title/header, selected-row highlight, timer/canvas/UI scale/pad/gamepad values, and Back row. |
 | Post-stage-select extraction GUI smoke | PASS | After render-only Stage Select extraction, GUI smoke clicked/focused the game window, reached Main -> Training -> KFM -> Stage Select, confirmed Stage Select title/arena counter/list/highlight/details/footer, confirmed Esc returned to Character Select, confirmed Enter reached fight, then confirmed command/input HUD, F1 hitboxes, F2 Training Options, `R`, Escape backout, and clean exit. |
+| Post-VS-loading extraction GUI smoke | PASS | After render-only VS/loading extraction, GUI smoke clicked/focused the game window, reached Main -> Training -> KFM -> Stage Select -> VS/loading, confirmed VS/loading title/panels/portraits/placeholders/VS/stage/ready text, confirmed auto-transition to fight, then confirmed command/input HUD, F1 hitboxes, F2 Training Options, `R`, Escape backout, and clean exit. |
 
 ## 2. Character And Stage Selection
 
@@ -47,6 +48,8 @@ Statuses:
 | Stage Select Esc routing after extraction | PASS | Escape from Stage Select returned to Character Select. |
 | Fight loads selected character | PASS | Fight view loaded Kung Fu Man in Training, and user-supplied VS/controller evidence loaded Evil Ryu. |
 | Fight loads selected stage | PASS | Fight view loaded Mountainside Temple. |
+| VS/loading render after extraction | PASS | `VsScreenOverlay.h` extraction preserved `TRAINING VS`, P1/opponent panels, portraits/placeholders, `VS`, stage label, and ready/auto-start text. |
+| VS/loading transition after extraction | PASS | Existing auto-start timing still transitioned from VS/loading to fight without changing timing. |
 
 ## 3. Keyboard P1 Input
 
