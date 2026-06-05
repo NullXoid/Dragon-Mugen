@@ -18,8 +18,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
-WARN_LINES = 350
-FAIL_LINES = 500
+SMALL_TARGET_LINES = 350
+MEDIUM_TARGET_LINES = 750
+FAIL_LINES = 1000
 
 SOURCE_EXTENSIONS = {
     ".py", ".js", ".jsx", ".ts", ".tsx",
@@ -134,22 +135,30 @@ def main() -> int:
 
     records.sort(reverse=True)
 
-    warnings = []
+    medium_warnings = []
+    large_warnings = []
     failures = []
 
     for lines, rel in records:
         if lines > FAIL_LINES and rel not in allowlist:
             failures.append((lines, rel))
-        elif lines > WARN_LINES:
-            warnings.append((lines, rel))
+        elif lines > MEDIUM_TARGET_LINES:
+            large_warnings.append((lines, rel))
+        elif lines > SMALL_TARGET_LINES:
+            medium_warnings.append((lines, rel))
 
     print("\nLargest source files:")
     for lines, rel in records[:20]:
         print(f"  {lines:5d}  {rel}")
 
-    if warnings:
-        print(f"\nWarnings: files over {WARN_LINES} lines:")
-        for lines, rel in warnings:
+    if medium_warnings:
+        print(f"\nMedium files over {SMALL_TARGET_LINES} lines:")
+        for lines, rel in medium_warnings:
+            print(f"  {lines:5d}  {rel}")
+
+    if large_warnings:
+        print(f"\nLarge files over {MEDIUM_TARGET_LINES} lines:")
+        for lines, rel in large_warnings:
             print(f"  {lines:5d}  {rel}")
 
     if failures:

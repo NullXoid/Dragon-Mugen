@@ -41,7 +41,14 @@ Run the source file-size audit before and after refactor or verification changes
 python tools/check_file_sizes.py
 ```
 
-The guard warns above 350 lines and fails above 500 lines unless a file is explicitly allowlisted for a justified generated/vendor/data-only reason. `engine/src/App.cpp` is intentionally not allowlisted because it is the current known monolith and must stay visible as debt until it is extracted one responsibility at a time.
+The guard uses tiers:
+
+- `<= 350` lines: small-file target for most focused modules.
+- `351-750` lines: medium file; acceptable for cohesive engine modules, but watch for mixed responsibilities.
+- `751-1000` lines: large file; keep visible as extraction debt unless the cohesion is clearly justified.
+- `> 1000` lines: hard failure unless explicitly allowlisted for a justified generated/vendor/data-only reason.
+
+New files should still prefer the small target, and transitional render/type headers should stay well below it when practical. `engine/src/App.cpp` is intentionally not allowlisted because it is the current known monolith and must stay visible as debt until it is extracted one responsibility at a time.
 
 See [TYPE_EXTRACTION_AUDIT.md](TYPE_EXTRACTION_AUDIT.md) for the current `App.cpp` type/dependency extraction map.
 
