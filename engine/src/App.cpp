@@ -1531,92 +1531,7 @@ std::string opponentDisplayName(const AppState& state) {
     }
 }
 
-void setColor(SDL_Renderer* renderer, Uint8 r, Uint8 g, Uint8 b, Uint8 a = 255) {
-    SDL_SetRenderDrawColor(renderer, r, g, b, a);
-}
-
-void fillRect(SDL_Renderer* renderer, float x, float y, float w, float h) {
-    SDL_FRect rect{ x, y, w, h };
-    SDL_RenderFillRect(renderer, &rect);
-}
-
-void drawRect(SDL_Renderer* renderer, float x, float y, float w, float h) {
-    SDL_FRect rect{ x, y, w, h };
-    SDL_RenderRect(renderer, &rect);
-}
-
-float uiScale(const AppState& state) {
-    return std::clamp(static_cast<float>(state.mainSettings.uiScalePercent) / 100.0f, 0.6f, 1.0f);
-}
-
-void fillScaledRect(SDL_Renderer* renderer, float scale, float x, float y, float w, float h) {
-    float oldX = 1.0f;
-    float oldY = 1.0f;
-    SDL_GetRenderScale(renderer, &oldX, &oldY);
-    SDL_SetRenderScale(renderer, scale, scale);
-    fillRect(renderer, x / scale, y / scale, w / scale, h / scale);
-    SDL_SetRenderScale(renderer, oldX, oldY);
-}
-
-void drawScaledRect(SDL_Renderer* renderer, float scale, float x, float y, float w, float h) {
-    float oldX = 1.0f;
-    float oldY = 1.0f;
-    SDL_GetRenderScale(renderer, &oldX, &oldY);
-    SDL_SetRenderScale(renderer, scale, scale);
-    drawRect(renderer, x / scale, y / scale, w / scale, h / scale);
-    SDL_SetRenderScale(renderer, oldX, oldY);
-}
-
-void debugText(SDL_Renderer* renderer, float x, float y, const std::string& text) {
-    SDL_RenderDebugText(renderer, x, y, text.c_str());
-}
-
-void debugText(SDL_Renderer* renderer, float x, float y, const char* text) {
-    SDL_RenderDebugText(renderer, x, y, text);
-}
-
-void scaledDebugText(SDL_Renderer* renderer, float scale, float x, float y, const std::string& text) {
-    float oldX = 1.0f;
-    float oldY = 1.0f;
-    SDL_GetRenderScale(renderer, &oldX, &oldY);
-    SDL_SetRenderScale(renderer, scale, scale);
-    debugText(renderer, x / scale, y / scale, text);
-    SDL_SetRenderScale(renderer, oldX, oldY);
-}
-
-struct ScopedUiScale {
-    SDL_Renderer* renderer = nullptr;
-    SDL_Rect oldViewport{};
-    float oldScaleX = 1.0f;
-    float oldScaleY = 1.0f;
-
-    ScopedUiScale(SDL_Renderer* renderTarget, const AppState& state, float virtualWidth, float virtualHeight)
-        : renderer(renderTarget) {
-        const float scale = uiScale(state);
-        SDL_GetRenderViewport(renderer, &oldViewport);
-        SDL_GetRenderScale(renderer, &oldScaleX, &oldScaleY);
-
-        const float width = virtualWidth * scale;
-        const float height = virtualHeight * scale;
-        SDL_Rect viewport{
-            static_cast<int>(std::lround((logicalWidthF(state) - width) * 0.5f)),
-            static_cast<int>(std::lround((static_cast<float>(kLogicalHeight) - height) * 0.5f)),
-            static_cast<int>(std::lround(width)),
-            static_cast<int>(std::lround(height)),
-        };
-        SDL_SetRenderViewport(renderer, &viewport);
-        SDL_SetRenderScale(renderer, scale, scale);
-    }
-
-    ~ScopedUiScale() {
-        SDL_SetRenderScale(renderer, oldScaleX, oldScaleY);
-        SDL_SetRenderViewport(renderer, &oldViewport);
-    }
-};
-
-void debugTextCentered(SDL_Renderer* renderer, float centerX, float y, const std::string& text) {
-    debugText(renderer, centerX - static_cast<float>(text.size()) * 4.0f, y, text);
-}
+#include "UiRenderPrimitives.h"
 
 void drawSpriteTopLeft(
     SDL_Renderer* renderer,
@@ -1752,13 +1667,6 @@ const TextureSprite* spriteAt(const std::vector<TextureSprite>& sprites, int ind
     }
     const auto& sprite = sprites[static_cast<size_t>(index)];
     return sprite.texture ? &sprite : nullptr;
-}
-
-void drawPanel(SDL_Renderer* renderer, float x, float y, float w, float h) {
-    setColor(renderer, 18, 20, 24, 232);
-    fillRect(renderer, x, y, w, h);
-    setColor(renderer, 78, 90, 112);
-    drawRect(renderer, x, y, w, h);
 }
 
 SDL_Texture* createTexture(SDL_Renderer* renderer, const DecodedSprite& sprite) {
@@ -6818,71 +6726,7 @@ std::string uiScaleSettingText(const MainSettings& settings) {
     return std::to_string(settings.uiScalePercent) + "%";
 }
 
-void drawTitleBackground(SDL_Renderer* renderer, const AppState& state) {
-    setColor(renderer, 0, 0, 0);
-    SDL_RenderClear(renderer);
-
-    const int width = logicalWidth(state);
-    const float widthF = static_cast<float>(width);
-    const float centerX = screenCenterX(state);
-    const float motifX = motifOriginX(state);
-    const auto& system = state.systemScreens;
-    if (!system.titleTop.texture) {
-        setColor(renderer, 14, 16, 20);
-        fillRect(renderer, 0, 0, widthF, static_cast<float>(kLogicalHeight));
-        return;
-    }
-
-    const float topScroll = static_cast<float>(state.frame % std::max(1, system.titleTop.width));
-    const float topX = centerX - static_cast<float>(system.titleTop.axisX) - topScroll;
-    drawTiledSpriteCoverX(renderer, system.titleTop, topX, 10, width, 2);
-
-    if (system.titleFloor.texture) {
-        drawParallaxFloorSprite(renderer, system.titleFloor, motifX, 145, 400.0f, 1200.0f, width, state.frame);
-    }
-    if (system.titleShade.texture) {
-        drawSpriteTopLeftWithBlend(renderer, system.titleShade, motifX - 160.0f, 145.0f, SDL_BLENDMODE_MUL, 180);
-    }
-
-    setColor(renderer, 0, 0, 0);
-    fillRect(renderer, 0, 0, widthF, 12);
-    fillRect(renderer, 0, 220, widthF, 20);
-}
-
-void drawSelectBackground(SDL_Renderer* renderer, const AppState& state) {
-    setColor(renderer, 0, 0, 0);
-    SDL_RenderClear(renderer);
-
-    const float widthF = logicalWidthF(state);
-    const auto& system = state.systemScreens;
-    if (system.selectBackdrop.texture) {
-        const float backdropOffset = -static_cast<float>((state.frame / 3) % std::max(1, system.selectBackdrop.width));
-        drawTiledSprite(renderer, system.selectBackdrop, backdropOffset, 0, 3, 2);
-    } else {
-        setColor(renderer, 18, 22, 30);
-        fillRect(renderer, 0, 0, widthF, static_cast<float>(kLogicalHeight));
-    }
-
-    if (system.selectShadow.texture) {
-        drawSpriteTopLeft(renderer, system.selectShadow, 0, 128);
-    }
-
-    if (system.selectTitleA.texture) {
-        const float stripOffset = -static_cast<float>(state.frame % std::max(1, system.selectTitleA.width));
-        drawTiledSprite(renderer, system.selectTitleA, stripOffset, 0, 4, 1);
-    }
-    if (system.selectTitleB.texture) {
-        const float stripOffset = -static_cast<float>((state.frame / 2) % std::max(1, system.selectTitleB.width));
-        drawTiledSprite(renderer, system.selectTitleB, stripOffset, 14, 4, 1);
-    }
-    if (system.selectTitleC.texture) {
-        const float stripOffset = -static_cast<float>((state.frame / 2) % std::max(1, system.selectTitleC.width));
-        drawTiledSprite(renderer, system.selectTitleC, stripOffset, 224, 2, 1);
-    }
-
-    setColor(renderer, 0, 0, 0, 150);
-    fillRect(renderer, 0, 160, widthF, 60);
-}
+#include "UiRenderHelpers.h"
 
 #include "MainMenuOverlay.h"
 
@@ -6892,28 +6736,6 @@ std::string_view opponentSlotLabel(PendingMode mode) {
 
 std::string_view opponentSlotLabel(const AppState& state) {
     return opponentTypeLabel(activeOpponentType(state));
-}
-
-void drawFixedOpponentSlot(
-    SDL_Renderer* renderer,
-    float x,
-    float y,
-    float width,
-    float height,
-    std::string_view label) {
-    setColor(renderer, 12, 14, 18);
-    fillRect(renderer, x, y, width, height);
-    setColor(renderer, 54, 62, 76);
-    drawRect(renderer, x, y, width, height);
-
-    setColor(renderer, 74, 82, 98);
-    fillRect(renderer, x + width * 0.38f, y + height * 0.18f, width * 0.24f, height * 0.22f);
-    fillRect(renderer, x + width * 0.28f, y + height * 0.44f, width * 0.44f, height * 0.38f);
-    setColor(renderer, 34, 38, 46);
-    fillRect(renderer, x + width * 0.34f, y + height * 0.50f, width * 0.32f, height * 0.30f);
-
-    setColor(renderer, 150, 160, 176);
-    debugTextCentered(renderer, x + width * 0.5f, y + height * 0.86f, std::string(label));
 }
 
 #include "OptionsMenuOverlay.h"
@@ -14103,16 +13925,6 @@ void drawWorldActors(SDL_Renderer* renderer, const AppState& state, const StageS
 }
 
 #include "TrainingDebugOverlay.h"
-
-std::string fitDebugText(const std::string& value, size_t maxChars) {
-    if (value.size() <= maxChars) {
-        return value;
-    }
-    if (maxChars <= 1) {
-        return value.substr(0, maxChars);
-    }
-    return value.substr(0, maxChars - 1) + "~";
-}
 
 std::string moveListTokenForCommand(std::string_view command) {
     if (command == "x") {
