@@ -29,6 +29,7 @@ Statuses:
 | Clean exit works | PASS | Escape from main closed the app; no Dragon MUGEN window remained. |
 | Post-main-menu extraction GUI smoke | PASS | After render-only main menu extraction, GUI smoke confirmed no-argument launch, M.U.G.E.N title art, `DRAGON MUGEN CORE`, Training highlight, footer/help text, Training -> character select -> stage select -> VS -> fight, visible normal-attack effect, F1 hitboxes, F2 Training Options, `R`, Escape backout, and clean exit. |
 | Post-options-menu extraction GUI smoke | PASS | After render-only Options menu extraction, user-supplied screenshot evidence confirmed the Options screen renders with title/header, selected-row highlight, timer/canvas/UI scale/pad/gamepad values, and Back row. |
+| Post-stage-select extraction GUI smoke | PASS | After render-only Stage Select extraction, GUI smoke clicked/focused the game window, reached Main -> Training -> KFM -> Stage Select, confirmed Stage Select title/arena counter/list/highlight/details/footer, confirmed Esc returned to Character Select, confirmed Enter reached fight, then confirmed command/input HUD, F1 hitboxes, F2 Training Options, `R`, Escape backout, and clean exit. |
 
 ## 2. Character And Stage Selection
 
@@ -41,6 +42,9 @@ Statuses:
 | `A.Ben` folder not selectable unless listed in `select.def` | PARTIAL | Not visible on observed first select page; exhaustive navigation blocked by automation arrow-key limitation. |
 | `I.Chie` folder not selectable unless listed in `select.def` | PARTIAL | Not visible on observed first select page; exhaustive navigation blocked by automation arrow-key limitation. |
 | Mountainside Temple selectable | PASS | Stage Select showed Mountainside Temple selected. |
+| Stage Select rendering after extraction | PASS | `StageSelectOverlay.h` extraction preserved Stage Select title, list, selected highlight, selected-stage details, fighter/opponent labels, and footer/help text. |
+| Stage Select Enter routing after extraction | PASS | Enter from Stage Select proceeded to VS/fight with Mountainside Temple. |
+| Stage Select Esc routing after extraction | PASS | Escape from Stage Select returned to Character Select. |
 | Fight loads selected character | PASS | Fight view loaded Kung Fu Man in Training, and user-supplied VS/controller evidence loaded Evil Ryu. |
 | Fight loads selected stage | PASS | Fight view loaded Mountainside Temple. |
 
