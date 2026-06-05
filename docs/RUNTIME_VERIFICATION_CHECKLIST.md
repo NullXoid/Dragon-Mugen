@@ -17,7 +17,7 @@ Statuses:
 | Launch with `build/dragon_mugen.exe game` | PASS | Verified live on 2026-06-04 with commit `33d86e3`. |
 | Launch `build/dragon_mugen.exe` with no game argument | PASS | Verified live on 2026-06-04 with commit `e0bc149`; runtime root auto-resolved and full title art loaded. |
 | Main/title screen appears | PASS | Main screen showed M.U.G.E.N motif and Training highlighted. |
-| Settings screen opens | BLOCKED | Automation could not move the SDL menu selector with Down; manual verification required. |
+| Settings screen opens | PASS | User manually navigated to Options and provided screenshot evidence after Options menu extraction. Computer Use still cannot move the SDL menu selector with Down, so manual evidence is the live proof. |
 | Training path opens | PASS | Enter from main opened Training character select. |
 | Single Player path opens | BLOCKED | Automation could not move the SDL menu selector with Down; manual verification required. |
 | VS path opens | BLOCKED | Automation could not move the SDL menu selector with Down; manual verification required. |
@@ -28,6 +28,7 @@ Statuses:
 | Escape/back routing works | PASS | Fight -> Stage Select -> Character Select -> Main observed. |
 | Clean exit works | PASS | Escape from main closed the app; no Dragon MUGEN window remained. |
 | Post-main-menu extraction GUI smoke | PASS | After render-only main menu extraction, GUI smoke confirmed no-argument launch, M.U.G.E.N title art, `DRAGON MUGEN CORE`, Training highlight, footer/help text, Training -> character select -> stage select -> VS -> fight, visible normal-attack effect, F1 hitboxes, F2 Training Options, `R`, Escape backout, and clean exit. |
+| Post-options-menu extraction GUI smoke | PASS | After render-only Options menu extraction, user-supplied screenshot evidence confirmed the Options screen renders with title/header, selected-row highlight, timer/canvas/UI scale/pad/gamepad values, and Back row. |
 
 ## 2. Character And Stage Selection
 
