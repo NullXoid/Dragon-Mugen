@@ -32,6 +32,7 @@ Statuses:
 | Post-stage-select extraction GUI smoke | PASS | After render-only Stage Select extraction, GUI smoke clicked/focused the game window, reached Main -> Training -> KFM -> Stage Select, confirmed Stage Select title/arena counter/list/highlight/details/footer, confirmed Esc returned to Character Select, confirmed Enter reached fight, then confirmed command/input HUD, F1 hitboxes, F2 Training Options, `R`, Escape backout, and clean exit. |
 | Post-VS-loading extraction GUI smoke | PASS | After render-only VS/loading extraction, GUI smoke clicked/focused the game window, reached Main -> Training -> KFM -> Stage Select -> VS/loading, confirmed VS/loading title/panels/portraits/placeholders/VS/stage/ready text, confirmed auto-transition to fight, then confirmed command/input HUD, F1 hitboxes, F2 Training Options, `R`, Escape backout, and clean exit. |
 | Post-character-select extraction GUI smoke | PASS | After render-only Character Select extraction, GUI smoke clicked/focused the game window, reached Main -> Training -> Character Select, confirmed title/roster icons/KFM portrait/Dummy panel/cursor/stage label/footer, confirmed Enter to Stage Select, Escape from Stage Select back to Character Select, Enter to VS/fight, command/input HUD, F1 hitboxes, F2 Training Options, `R`, Escape backout, and clean exit. Computer Use arrow-key cursor movement stayed blocked and was not marked PASS. |
+| Post-fight-HUD extraction GUI smoke | PASS | After render-only Fight HUD extraction, GUI smoke clicked/focused the game window, reached Main -> Training -> KFM -> Mountainside Temple -> fight, confirmed P1/P2 names, lifebars, power gauges, `POWER` labels, bottom status/help line, command/input HUD, F1 hitboxes, F2 Training Options, `R`, visible normal-attack effect, Escape backout, and clean exit. Timer/round pips were not separately tested in a match mode during this pass. |
 
 ## 2. Character And Stage Selection
 
@@ -104,6 +105,7 @@ Statuses:
 | P2-controlled training option | NOT TESTED |  |
 | Command HUD | PASS | Command panel visible in fight view. |
 | Input HUD | PASS | Input HUD area visible in fight view. |
+| Post-fight-HUD extraction Training HUD smoke | PASS | `FightHudOverlay.h` extraction preserved the existing Training command/input HUD, F1 hitboxes, F2 Training Options, `R`, visible normal-attack effect, Escape backout, and clean exit. Training command/input HUD code was not moved in this pass. |
 | Post-training-overlay extraction GUI smoke | PASS | After render-only overlay extraction, GUI smoke reached title -> character select -> stage select -> VS -> fight, command/input HUD rendered, F1 hitboxes toggled, F2 Training Options opened, `R` did not crash, and Escape backed out to main/exit. User-supplied screenshots on 2026-06-04 also confirm command/input HUD, F1 hitboxes, F2 Training Options, stage select backout, and Training overlay persistence after the pause-menu extraction. Computer Use could not perform a true held-key physical retest, so held input status remains based on scripted verification and prior user manual evidence. |
 | Post-main-menu extraction Training smoke | PASS | After render-only main menu extraction, GUI smoke reached Training fight view, command/input HUD rendered, a normal-attack effect was visible, F1 hitboxes toggled, F2 Training Options opened, `R` did not crash, and Escape backed out to main/exit. |
 | Training power mode | NOT TESTED |  |
@@ -142,6 +144,7 @@ Statuses:
 | `RoundStart` | PARTIAL | Fight loaded through VS; specific RoundStart callout/timing not independently verified. |
 | `Fight` | PASS | Fight view loaded and stayed active. |
 | Match pause menu rendering after extraction | PASS | Render-only pause menu functions were extracted and post-extraction build/scripted verifiers passed. User-supplied screenshots on 2026-06-04 confirm the Single Player and VS Mode pause menus render with all expected rows and selected-row highlight, and that Resume returns to fight. Restart/Fighter Select/Stage Select/Mode Select actions remain separate untested pause-menu actions. |
+| Timer/round pips after Fight HUD extraction | NOT TESTED | Fight HUD extraction GUI smoke was Training-only. Single Player/VS timer and round-pip rendering should be checked in a later match-mode smoke before marking this row PASS. |
 | `RoundFinish` | NOT TESTED |  |
 | `RoundResult` | NOT TESTED |  |
 | `MatchResult` | NOT TESTED |  |
