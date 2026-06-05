@@ -7492,6 +7492,7 @@ int animElemTimeForFighter(const AppState& state, const FighterState& fighter, i
 bool shouldPlayFightSounds(const AppState& state);
 bool fighterAnimationEnded(const AppState& state, const FighterState& fighter);
 void finishStateIfAnimationEnded(const AppState& state, FighterState& fighter);
+void enterCommonLandingState(const AppState& state, FighterState& fighter);
 
 void enterState(const AppState& state, FighterState& fighter, int stateNo) {
     fighter.guarding = false;
@@ -11005,15 +11006,20 @@ void updateFighterPhysics(const AppState& state, FighterState& fighter, const St
             : state.characterConstants.movementYAccel;
     }
     if (fighter.y >= 0.0f) {
-        if (fighter.stateType == 'A' && fighter.physics == 'N') {
-            fighter.onGround = true;
-            return;
-        }
+        const bool shouldUseCommonLanding =
+            !fighter.helper
+            && fighter.stateType == 'A'
+            && fighter.physics == 'A'
+            && fighter.moveType != 'H';
         fighter.y = 0.0f;
         fighter.vy = 0.0f;
         fighter.onGround = true;
         fighter.jumpBaseAction = 0;
         fighter.jumpPeakActionApplied = false;
+        if (shouldUseCommonLanding) {
+            enterCommonLandingState(state, fighter);
+            return;
+        }
     }
 }
 
@@ -12375,6 +12381,13 @@ void pushFighterInputFrame(FighterState& fighter, const FighterInputState& input
     }
 }
 
+bool previousFighterInputHeldUp(const FighterState& fighter) {
+    if (fighter.inputHistory.size() < 2) {
+        return false;
+    }
+    return fighter.inputHistory[fighter.inputHistory.size() - 2].input.up;
+}
+
 bool buttonAtomActive(const FighterInputState& input, std::string_view symbol) {
     if (symbol == "x") {
         return input.x;
@@ -13296,6 +13309,7 @@ void updateControlledFighter(
     const bool changedStateFromCommand = applyCommandState(state, fighter, opponent, commands);
     const bool movementLocked = fighterHasAssertSpecialFlag(fighter, "nowalk");
     const bool holdingHorizontal = input.left != input.right;
+    const bool holdingUp = input.up;
     const int heldWalkAction = ((fighter.facing >= 0 && input.right) || (fighter.facing < 0 && input.left)) ? 20 : 21;
 
     if (!changedStateFromCommand && fighter.stateNo == 20 && (!holdingHorizontal || holdingDown || !fighter.ctrl)) {
@@ -13311,7 +13325,7 @@ void updateControlledFighter(
             fighter.vx = 0.0f;
             fighter.jumpBaseAction = 0;
             fighter.jumpPeakActionApplied = false;
-            if (!changedStateFromCommand && !movementLocked && !holdingDown && fighter.ctrl && holdingHorizontal) {
+            if (!changedStateFromCommand && !movementLocked && !holdingDown && !holdingUp && fighter.ctrl && holdingHorizontal) {
                 if (findStateDefinition(state, 20)) {
                     enterState(state, fighter, 20);
                     if (findExactClip(state, heldWalkAction)) {
@@ -13326,7 +13340,8 @@ void updateControlledFighter(
                 }
             }
         }
-        if (!changedStateFromCommand && !movementLocked && !holdingDown && fighter.ctrl && input.up && fighter.onGround) {
+        const bool jumpPressedThisFrame = input.up && !previousFighterInputHeldUp(fighter);
+        if (!changedStateFromCommand && !movementLocked && !holdingDown && fighter.ctrl && jumpPressedThisFrame && fighter.onGround) {
             const int heldDirection = input.left == input.right ? 0 : (input.left ? -1 : 1);
             fighter.vy = -7.8f;
             fighter.onGround = false;

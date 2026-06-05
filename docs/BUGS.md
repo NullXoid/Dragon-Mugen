@@ -36,14 +36,14 @@ Manual user testing after commit `4581704` confirmed the Pass 12 frontend keyboa
 
 ## Bug: diagonal jump can continue indefinitely while held
 
-Status: open
+Status: fixed by scripted verifier; physical retest pending
 Severity: high
 Area: jump / air movement / input hold
 Character: Kung Fu Man, likely broader
 Mode: Training
 Stage: Mountainside Temple
 Input device: physical keyboard and controller
-Build/commit: 4581704
+Build/commit: 4581704; fixed in current air-state regression worktree
 
 Reproduction:
 1. Launch `build\dragon_mugen.exe`.
@@ -58,24 +58,27 @@ Actual:
 The diagonal jump has no end while Up + Forward/Back remains held. The character can keep moving in that direction indefinitely and can effectively perform infinite jumps in the air until the direction keys are released.
 
 Notes:
-User-supplied screenshot evidence on 2026-06-05 shows the Training fight after Pass 12 manual smoke, and user report confirms the issue with keyboard and controller. The immediate fix should restore a single-jump limit by default. A Main Settings double-jump option is a future feature and should not be added until the one-jump runtime is correct.
+User-supplied screenshot evidence on 2026-06-05 shows the Training fight after Pass 12 manual smoke, and user report confirms the issue with keyboard and controller. The immediate fix restores a single-jump limit by default. A Main Settings double-jump option remains a future feature and was not added in this fix.
+
+Fix evidence:
+`build\dragon_mugen.exe --verify kfm-air-state` now passes `diagonal_jump_forward_lands` and `diagonal_jump_back_lands` with `saw_air=1`, `landed=1`, `reentered_air_after_landing=0`, `final_y=0.000000`, `final_vy=0.000000`, `final_state=0`, `final_state_type=S`, and `final_on_ground=1`.
 
 Possible suspect files:
 `engine/src/App.cpp`, jump/air-state input and movement handling
 
 Blocking:
-Yes, for air-state correctness before broad runtime extraction.
+No for scripted runtime coverage. Physical keyboard/controller retest is still useful before the next broad architecture pass.
 
 ## Bug: air attack can leave character stuck at airborne height
 
-Status: open
+Status: fixed by scripted verifier; physical retest pending
 Severity: high
 Area: air attack / landing / ground position
 Character: Kung Fu Man, likely broader
 Mode: Training
 Stage: Mountainside Temple
 Input device: physical keyboard and controller
-Build/commit: 4581704
+Build/commit: 4581704; fixed in current air-state regression worktree
 
 Reproduction:
 1. Launch `build\dragon_mugen.exe`.
@@ -90,13 +93,16 @@ Actual:
 The character can get stuck in the air after the attack, as if the ground level became the height where the air attack occurred.
 
 Notes:
-User report on 2026-06-05 describes the fighter becoming a suspended state after an air attack. Screenshot evidence includes KFM airborne/combat states with hitbox/debug overlays active after Pass 12 manual smoke. This should be treated as an air-state/landing bug, not as a frontend extraction regression unless later bisect proves otherwise.
+User report on 2026-06-05 describes the fighter becoming a suspended state after an air attack. Screenshot evidence includes KFM airborne/combat states with hitbox/debug overlays active after Pass 12 manual smoke. This is treated as an air-state/landing bug, not as a frontend extraction regression.
+
+Fix evidence:
+`build\dragon_mugen.exe --verify kfm-air-state` now passes `air_attack_lands` with `saw_air=1`, `saw_air_attack=1`, `landed_after_attack=1`, `final_y=0.000000`, `final_vy=0.000000`, `final_state=0`, `final_state_type=S`, and `final_on_ground=1`.
 
 Possible suspect files:
 `engine/src/App.cpp`, air attack state handling, landing detection, position reset/ground clamp logic
 
 Blocking:
-Yes, for air-state correctness before broad runtime extraction.
+No for scripted runtime coverage. Physical keyboard/controller retest is still useful before the next broad architecture pass.
 
 ## Bug: state entry skips `Time = 0` transitions
 

@@ -134,6 +134,59 @@ bool tryNormal(RuntimeProbe& runtime, char& usedCommand, FighterSnapshot& before
     return false;
 }
 
+struct AirLandingObservation {
+    bool sawAir = false;
+    bool landed = false;
+    bool reenteredAirAfterLanding = false;
+    float yMin = 0.0f;
+    FighterSnapshot final;
+};
+
+bool snapshotIsAirborne(const FighterSnapshot& fighter) {
+    return !fighter.onGround || fighter.stateType == 'A' || fighter.y < -0.5f;
+}
+
+AirLandingObservation holdInputUntilLanding(RuntimeProbe& runtime, const SymbolicInput& input, int maxFrames) {
+    AirLandingObservation observation;
+    observation.yMin = runtime.snapshot().p1.y;
+    for (int i = 0; i < maxFrames; ++i) {
+        runtime.step(input, 1);
+        const auto p1 = runtime.snapshot().p1;
+        observation.yMin = std::min(observation.yMin, p1.y);
+        if (snapshotIsAirborne(p1)) {
+            if (observation.landed) {
+                observation.reenteredAirAfterLanding = true;
+            }
+            observation.sawAir = true;
+        } else if (observation.sawAir && p1.onGround) {
+            observation.landed = true;
+        }
+        observation.final = p1;
+    }
+    return observation;
+}
+
+std::string airLandingDetail(const AirLandingObservation& observation) {
+    return "saw_air=" + std::to_string(observation.sawAir ? 1 : 0)
+        + " landed=" + std::to_string(observation.landed ? 1 : 0)
+        + " reentered_air_after_landing=" + std::to_string(observation.reenteredAirAfterLanding ? 1 : 0)
+        + " y_min=" + std::to_string(observation.yMin)
+        + " final_y=" + std::to_string(observation.final.y)
+        + " final_vy=" + std::to_string(observation.final.vy)
+        + " final_state=" + std::to_string(observation.final.stateNo)
+        + " final_anim=" + std::to_string(observation.final.action)
+        + " final_state_type=" + std::string(1, observation.final.stateType)
+        + " final_on_ground=" + std::to_string(observation.final.onGround ? 1 : 0);
+}
+
+bool airLandingPassed(const AirLandingObservation& observation) {
+    return observation.sawAir
+        && observation.landed
+        && !observation.reenteredAirAfterLanding
+        && observation.final.onGround
+        && std::fabs(observation.final.y) <= 0.5f;
+}
+
 int runKfmBaseline(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
     if (!runtime.setup("kfm", "Mountainside", ScenarioMode::Training, out)) {
@@ -245,6 +298,87 @@ int runKfmBaseline(RuntimeProbe& runtime, std::ostream& out) {
     return exitCode(counts);
 }
 
+int runKfmAirState(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("kfm", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "KFM/Mountainside training setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "kfm-air-state");
+
+    const bool settled = waitForControllableIdle(runtime, 360);
+    record(out, counts, settled ? Status::Pass : Status::Fail, "controllable_idle_ready",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo)
+        + " anim=" + std::to_string(runtime.snapshot().p1.action)
+        + " ctrl=" + std::to_string(runtime.snapshot().p1.ctrl ? 1 : 0));
+    if (!settled) {
+        record(out, counts, Status::Blocked, "air_state_checks", "controllable idle gate failed");
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    runtime.step({}, 20);
+    const auto forwardJump = holdInputUntilLanding(runtime, SymbolicInput{ .right = true, .up = true }, 180);
+    record(out, counts, airLandingPassed(forwardJump) ? Status::Pass : Status::Fail,
+        "diagonal_jump_forward_lands", airLandingDetail(forwardJump));
+
+    runtime.step({}, 60);
+    const bool settledAfterForward = waitForControllableIdle(runtime, 240);
+    record(out, counts, settledAfterForward ? Status::Pass : Status::Fail, "idle_after_forward_diagonal",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo)
+        + " on_ground=" + std::to_string(runtime.snapshot().p1.onGround ? 1 : 0));
+
+    runtime.step({}, 20);
+    const auto backJump = holdInputUntilLanding(runtime, SymbolicInput{ .left = true, .up = true }, 180);
+    record(out, counts, airLandingPassed(backJump) ? Status::Pass : Status::Fail,
+        "diagonal_jump_back_lands", airLandingDetail(backJump));
+
+    runtime.step({}, 60);
+    const bool settledAfterBack = waitForControllableIdle(runtime, 240);
+    record(out, counts, settledAfterBack ? Status::Pass : Status::Fail, "idle_after_back_diagonal",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo)
+        + " on_ground=" + std::to_string(runtime.snapshot().p1.onGround ? 1 : 0));
+
+    runtime.step({}, 20);
+    bool sawAirAttack = false;
+    bool sawAir = false;
+    bool landedAfterAttack = false;
+    float yMin = runtime.snapshot().p1.y;
+    runtime.step(SymbolicInput{ .up = true }, 4);
+    runtime.step({}, 4);
+    runtime.step(withButton('x'), 2);
+    for (int i = 0; i < 240; ++i) {
+        runtime.step({}, 1);
+        const auto p1 = runtime.snapshot().p1;
+        yMin = std::min(yMin, p1.y);
+        sawAir = sawAir || snapshotIsAirborne(p1);
+        sawAirAttack = sawAirAttack || (p1.moveType == 'A' && p1.stateNo != 0);
+        landedAfterAttack = landedAfterAttack || (sawAirAttack && p1.onGround && std::fabs(p1.y) <= 0.5f);
+    }
+    const auto airAttackAfter = runtime.snapshot().p1;
+    const bool airAttackLanded = sawAir
+        && sawAirAttack
+        && landedAfterAttack
+        && airAttackAfter.onGround
+        && std::fabs(airAttackAfter.y) <= 0.5f;
+    record(out, counts, airAttackLanded ? Status::Pass : Status::Fail, "air_attack_lands",
+        "saw_air=" + std::to_string(sawAir ? 1 : 0)
+        + " saw_air_attack=" + std::to_string(sawAirAttack ? 1 : 0)
+        + " landed_after_attack=" + std::to_string(landedAfterAttack ? 1 : 0)
+        + " y_min=" + std::to_string(yMin)
+        + " final_y=" + std::to_string(airAttackAfter.y)
+        + " final_vy=" + std::to_string(airAttackAfter.vy)
+        + " final_state=" + std::to_string(airAttackAfter.stateNo)
+        + " final_anim=" + std::to_string(airAttackAfter.action)
+        + " final_state_type=" + std::string(1, airAttackAfter.stateType)
+        + " final_on_ground=" + std::to_string(airAttackAfter.onGround ? 1 : 0));
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
 int runEvilKenSmoke(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
     if (!runtime.setup("EvilKen", "Mountainside", ScenarioMode::SinglePlayer, out)) {
@@ -293,13 +427,16 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
     if (scenarioName == "kfm-baseline") {
         return runKfmBaseline(runtime, out);
     }
+    if (scenarioName == "kfm-air-state") {
+        return runKfmAirState(runtime, out);
+    }
     if (scenarioName == "evilken-smoke") {
         return runEvilKenSmoke(runtime, out);
     }
 
     out << "VERIFY " << scenarioName << "\n"
         << "BLOCKED unknown_scenario\n"
-        << "  supported: kfm-baseline, evilken-smoke\n"
+        << "  supported: kfm-baseline, kfm-air-state, evilken-smoke\n"
         << "SUMMARY pass=0 partial=0 fail=0 blocked=1\n";
     return 2;
 }

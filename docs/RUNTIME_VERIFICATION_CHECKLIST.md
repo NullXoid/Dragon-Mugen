@@ -129,7 +129,7 @@ Statuses:
 | Walk forward/back | PASS | Internal scripted input path verified movement deltas. Manual physical keyboard retest confirms walk animation now cycles correctly after the second targeted fix. |
 | Crouch | PASS | Internal scripted input path verified `state=11 anim=11`; manual physical keyboard report says crouch works. |
 | Jump | PASS | Internal scripted input path verified `y_min=-73.079994 grounded_final=true`; manual physical keyboard report says jump/land works. |
-| Diagonal held jump limit | FAIL | Manual user testing after `4581704` found holding Up + Forward/Back can continue the jump indefinitely and effectively allow infinite air jumps until the direction keys are released. Default behavior should be one jump arc; double jump should be a future explicit setting. |
+| Diagonal held jump limit | PASS | `--verify kfm-air-state` now proves held Up + Forward and held Up + Back each enter air, land by the frame limit, and finish grounded with `reentered_air_after_landing=0`, `final_y=0.000000`, `final_vy=0.000000`, `final_state=0`, and `final_state_type=S`. This restores one-jump default behavior; double jump remains a future explicit setting. Physical keyboard/controller retest is still useful but not claimed by automation here. |
 | Standing normals | PASS | Internal scripted CMD/CNS path verified `command=y state_after=210 anim_after=210`; manual physical keyboard report says standing normals work. |
 | Crouching normals | PASS | Internal scripted CMD/CNS path verified `command=y state_before=11 state_after=410 anim_after=410`; manual physical keyboard report says crouching normals work. |
 | Hit detection | PASS | Internal scripted path verified `contact=1`; manual physical keyboard report says hit/damage works. |
@@ -143,7 +143,7 @@ Statuses:
 | Guard sound | NOT TESTED | Depends on guard contact. |
 | Fall/get-hit routing | NOT TESTED | Depends on successful hit setup. |
 | Wake-up/recovery | NOT TESTED | Depends on successful fall/get-hit setup. |
-| Air attack landing | FAIL | Manual user testing after `4581704` found an air attack can leave the character stuck at airborne height, as if the ground became the attack height. |
+| Air attack landing | PASS | `--verify kfm-air-state` now proves jump -> air attack reaches an air attack state and lands with `saw_air_attack=1`, `landed_after_attack=1`, `final_y=0.000000`, `final_vy=0.000000`, `final_state=0`, and `final_on_ground=1`. Physical keyboard/controller retest is still useful but not claimed by automation here. |
 | KO | NOT TESTED | Depends on damage flow. |
 | Round reset/rematch or back out | PARTIAL | Back out from fight was verified; round reset/rematch was not. |
 
