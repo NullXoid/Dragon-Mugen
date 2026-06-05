@@ -7,6 +7,7 @@
 #include "AppTypes.h"
 #include "FrontendMenu.h"
 #include "Input.h"
+#include "SelectionState.h"
 #include "VerificationScenario.h"
 
 #include <SDL3/SDL.h>
@@ -1297,15 +1298,10 @@ struct FighterState {
 struct AppState {
     std::filesystem::path gameRoot;
     LoadedContentSummary content;
-    std::vector<CharacterSlot> characters;
-    std::vector<StageSlot> stages;
+    SelectionState selection;
     Screen screen = Screen::ModeSelect;
     PendingMode pendingMode = PendingMode::Training;
     int selectedMode = 0;
-    int selectedCharacter = 0;
-    int loadedP1Character = -1;
-    int selectedStage = 0;
-    FightSessionSlots sessionSlots;
     bool menuRailOnLeft = true;
     bool running = true;
     TrainingOptions trainingOptions;
@@ -1461,32 +1457,6 @@ std::filesystem::path resolveContentPath(const std::filesystem::path& base, std:
     return base / path;
 }
 
-const CharacterSlot* characterSlotAt(const AppState& state, int index) {
-    if (state.characters.empty()
-        || index < 0
-        || index >= static_cast<int>(state.characters.size())) {
-        return nullptr;
-    }
-    return &state.characters[static_cast<size_t>(index)];
-}
-
-const CharacterSlot* selectedCharacterSlot(const AppState& state) {
-    return characterSlotAt(state, state.selectedCharacter);
-}
-
-const CharacterSlot* sessionP1CharacterSlot(const AppState& state) {
-    if (const CharacterSlot* character = characterSlotAt(state, state.sessionSlots.p1Character)) {
-        return character;
-    }
-    return selectedCharacterSlot(state);
-}
-
-int sessionP1CharacterIndex(const AppState& state) {
-    return characterSlotAt(state, state.sessionSlots.p1Character)
-        ? state.sessionSlots.p1Character
-        : state.selectedCharacter;
-}
-
 OpponentType defaultOpponentTypeForMode(PendingMode mode) {
     switch (mode) {
     case PendingMode::Training:
@@ -1511,7 +1481,7 @@ OpponentType activeOpponentType(const AppState& state) {
     if (state.pendingMode == PendingMode::Training && state.trainingOptions.p2Controlled) {
         return OpponentType::LocalP2;
     }
-    return state.sessionSlots.opponentType;
+    return state.selection.sessionSlots.opponentType;
 }
 
 bool usesLocalP2Controls(const AppState& state) {
@@ -1543,16 +1513,16 @@ std::string_view opponentTypeLabel(OpponentType type) {
 }
 
 void configureFightSessionSlotsFromSelection(AppState& state) {
-    const int characterCount = static_cast<int>(state.characters.size());
-    state.sessionSlots.p1Character = characterCount > 0
-        ? std::clamp(state.selectedCharacter, 0, characterCount - 1)
+    const int characterCount = static_cast<int>(state.selection.characters.size());
+    state.selection.sessionSlots.p1Character = characterCount > 0
+        ? std::clamp(state.selection.selectedCharacter, 0, characterCount - 1)
         : -1;
-    state.sessionSlots.opponentType = defaultOpponentTypeForMode(state.pendingMode);
-    state.sessionSlots.opponentCharacter = -1;
+    state.selection.sessionSlots.opponentType = defaultOpponentTypeForMode(state.pendingMode);
+    state.selection.sessionSlots.opponentCharacter = -1;
 }
 
 std::string opponentDisplayName(const AppState& state) {
-    if (const CharacterSlot* character = characterSlotAt(state, state.sessionSlots.opponentCharacter)) {
+    if (const CharacterSlot* character = characterSlotAt(state.selection, state.selection.sessionSlots.opponentCharacter)) {
         return character->displayName;
     }
     switch (activeOpponentType(state)) {
@@ -6172,43 +6142,20 @@ LoadedContentSummary buildContentSummary(
     return summary;
 }
 
-const StageSlot* currentStageSlot(const AppState& state) {
-    if (state.stages.empty()
-        || state.selectedStage < 0
-        || state.selectedStage >= static_cast<int>(state.stages.size())) {
-        return nullptr;
-    }
-    return &state.stages[static_cast<size_t>(state.selectedStage)];
-}
-
-int findStageIndexByDefPath(const AppState& state, const std::filesystem::path& def) {
-    if (def.empty()) {
-        return -1;
-    }
-    const auto wanted = def.lexically_normal().generic_string();
-    for (int i = 0; i < static_cast<int>(state.stages.size()); ++i) {
-        const auto& stage = state.stages[static_cast<size_t>(i)];
-        if (equalsNoCase(stage.defPath.lexically_normal().generic_string(), wanted)) {
-            return i;
-        }
-    }
-    return -1;
-}
-
 void selectPreferredStage(AppState& state) {
-    const CharacterSlot* character = sessionP1CharacterSlot(state);
+    const CharacterSlot* character = sessionP1CharacterSlot(state.selection);
     if (!character) {
         return;
     }
-    const int stageIndex = findStageIndexByDefPath(state, character->preferredStagePath);
+    const int stageIndex = findStageIndexByDefPath(state.selection, character->preferredStagePath);
     if (stageIndex >= 0) {
-        state.selectedStage = stageIndex;
+        state.selection.selectedStage = stageIndex;
     }
 }
 
 bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
-    const int p1Index = sessionP1CharacterIndex(state);
-    const CharacterSlot* character = characterSlotAt(state, p1Index);
+    const int p1Index = sessionP1CharacterIndex(state.selection);
+    const CharacterSlot* character = characterSlotAt(state.selection, p1Index);
     if (!character) {
         return false;
     }
@@ -6254,8 +6201,8 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
             SDL_ClearAudioStream(state.audio.stream);
         }
         state.audio.characterSamples = std::move(characterSamples);
-        state.content = buildContentSummary(*character, files, currentStageSlot(state));
-        state.loadedP1Character = p1Index;
+        state.content = buildContentSummary(*character, files, selectedStageSlot(state.selection));
+        state.selection.loadedP1Character = p1Index;
 
         SDL_Log(
             "Character loaded: %s actions=%zu states=%zu hitdefs=%zu command-defs=%zu command-states=%zu sounds=%zu",
@@ -6295,7 +6242,7 @@ void unloadCharacterRuntime(AppState& state) {
     state.audio.characterSamples.clear();
     state.runtimeEffects.clear();
     state.content = LoadedContentSummary{};
-    state.loadedP1Character = -1;
+    state.selection.loadedP1Character = -1;
     state.fightSessionPrepared = false;
     state.fightSessionLoadFailed = false;
 }
@@ -6335,9 +6282,9 @@ void loadVisualAssets(SDL_Renderer* renderer, AppState& state) {
         }
         state.characterIconSprites.clear();
         state.characterFaceSprites.clear();
-        state.characterIconSprites.reserve(state.characters.size());
-        state.characterFaceSprites.reserve(state.characters.size());
-        for (const auto& character : state.characters) {
+        state.characterIconSprites.reserve(state.selection.characters.size());
+        state.characterFaceSprites.reserve(state.selection.characters.size());
+        for (const auto& character : state.selection.characters) {
             state.characterIconSprites.push_back(loadCharacterIconSprite(renderer, state.gameRoot, character));
             state.characterFaceSprites.push_back(loadCharacterFaceSprite(renderer, state.gameRoot, character));
         }
@@ -6974,44 +6921,9 @@ void drawFixedOpponentSlot(
     debugTextCentered(renderer, x + width * 0.5f, y + height * 0.86f, std::string(label));
 }
 
-std::string characterPreferredStageName(const AppState& state, int characterIndex) {
-    if (characterIndex < 0 || characterIndex >= static_cast<int>(state.characters.size())) {
-        return "stage select";
-    }
-    const auto& character = state.characters[static_cast<size_t>(characterIndex)];
-    const int preferredStage = findStageIndexByDefPath(state, character.preferredStagePath);
-    if (preferredStage >= 0 && preferredStage < static_cast<int>(state.stages.size())) {
-        return state.stages[static_cast<size_t>(preferredStage)].displayName;
-    }
-    return "stage select";
-}
-
 #include "OptionsMenuOverlay.h"
 
 #include "CharacterSelectOverlay.h"
-
-std::string selectedCharacterName(const AppState& state) {
-    if (const CharacterSlot* character = sessionP1CharacterSlot(state)) {
-        return character->displayName;
-    }
-    return "Unknown";
-}
-
-std::string selectedStageName(const AppState& state) {
-    if (state.stages.empty()) {
-        return "Unknown";
-    }
-    return state.stages[static_cast<size_t>(state.selectedStage)].displayName;
-}
-
-const StageSlot* selectedStageSlot(const AppState& state) {
-    if (state.stages.empty()
-        || state.selectedStage < 0
-        || state.selectedStage >= static_cast<int>(state.stages.size())) {
-        return nullptr;
-    }
-    return &state.stages[static_cast<size_t>(state.selectedStage)];
-}
 
 const AnimationClip* findClip(const AppState& state, int action) {
     for (const auto& clip : state.characterClips) {
@@ -8155,7 +8067,7 @@ void applyTrainingPowerMode(AppState& state) {
 
 void resetTrainingPositions(AppState& state) {
     const StageSlot fallbackStage;
-    const StageSlot& stage = selectedStageSlot(state) ? *selectedStageSlot(state) : fallbackStage;
+    const StageSlot& stage = selectedStageSlot(state.selection) ? *selectedStageSlot(state.selection) : fallbackStage;
 
     state.fighters[0].x = stage.p1startx;
     state.fighters[0].y = stage.p1starty;
@@ -8213,7 +8125,7 @@ void resetTrainingPositions(AppState& state) {
 
 void resetFightRound(AppState& state) {
     const StageSlot fallbackStage;
-    const StageSlot& stage = selectedStageSlot(state) ? *selectedStageSlot(state) : fallbackStage;
+    const StageSlot& stage = selectedStageSlot(state.selection) ? *selectedStageSlot(state.selection) : fallbackStage;
 
     state.fighters[0] = {};
     state.fighters[1] = {};
@@ -8314,7 +8226,7 @@ bool prepareFightSession(SDL_Renderer* renderer, AppState& state) {
     state.fightSessionPrepared = false;
     state.fightSessionLoadFailed = false;
 
-    if (const StageSlot* stage = currentStageSlot(state)) {
+    if (const StageSlot* stage = selectedStageSlot(state.selection)) {
         state.content.stageName = stage->displayName;
     }
 
@@ -8324,7 +8236,7 @@ bool prepareFightSession(SDL_Renderer* renderer, AppState& state) {
     }
 
     std::vector<StageBackgroundElement> selectedBackground;
-    if (const StageSlot* stage = currentStageSlot(state)) {
+    if (const StageSlot* stage = selectedStageSlot(state.selection)) {
         try {
             selectedBackground = loadStageBackground(renderer, *stage);
         } catch (const std::exception& ex) {
@@ -11876,7 +11788,7 @@ void applyHitBetween(AppState& state, size_t attackerIndex, size_t defenderIndex
         *hitDef,
         attacker,
         defender,
-        selectedStageSlot(state));
+        selectedStageSlot(state.selection));
     hitDef = &resolvedHitDef;
 
     const bool trainingDummy = useTrainingDummyOptions(state, defenderIndex);
@@ -12131,7 +12043,7 @@ void applyProjectileHit(AppState& state, RuntimeProjectile& projectile, size_t d
         projectile.hitDef,
         owner,
         defender,
-        selectedStageSlot(state));
+        selectedStageSlot(state.selection));
     const HitDefinition& hitDef = resolvedHitDef;
     if (!defenderCanBeHitBy(defender, hitDef)) {
         return;
@@ -13433,7 +13345,7 @@ void updateCpuOpponent(AppState& state, FighterState& opponent) {
 std::string fighterResultName(const AppState& state, int winner) {
     switch (winner) {
     case 1:
-        return selectedCharacterName(state);
+        return selectedCharacterName(state.selection);
     case 2:
         return opponentDisplayName(state);
     default:
@@ -13852,7 +13764,7 @@ void updateSingleFightPhaseTimers(AppState& state) {
 
 void updateFight(AppState& state) {
     const StageSlot fallbackStage;
-    const StageSlot& stage = selectedStageSlot(state) ? *selectedStageSlot(state) : fallbackStage;
+    const StageSlot& stage = selectedStageSlot(state.selection) ? *selectedStageSlot(state.selection) : fallbackStage;
     auto& p1 = state.fighters[0];
     auto& p2 = state.fighters[1];
     const int p1StateNoAtFrameStart = p1.stateNo;
@@ -14113,7 +14025,7 @@ void drawPaletteOverlay(SDL_Renderer* renderer, const AppState& state, const Act
 
 void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState& fighter, size_t actorIndex) {
     const StageSlot fallbackStage;
-    const StageSlot& stage = selectedStageSlot(state) ? *selectedStageSlot(state) : fallbackStage;
+    const StageSlot& stage = selectedStageSlot(state.selection) ? *selectedStageSlot(state.selection) : fallbackStage;
     if (fighterHasAssertSpecialFlag(fighter, "invisible")) {
         return;
     }
@@ -14261,7 +14173,7 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
     }
 
     const float originX = screenCenterX(state) + fighter.x - state.cameraX;
-    const float originY = (selectedStageSlot(state) ? selectedStageSlot(state)->zoffset : 168.0f) + fighter.y - state.cameraY;
+    const float originY = (selectedStageSlot(state.selection) ? selectedStageSlot(state.selection)->zoffset : 168.0f) + fighter.y - state.cameraY;
     if (actorIndex == 0) {
         setColor(renderer, 62, 118, 184);
     } else {
@@ -14729,7 +14641,7 @@ void drawFightView(SDL_Renderer* renderer, const AppState& state) {
     const float widthF = logicalWidthF(state);
     const float centerX = screenCenterX(state);
     const StageSlot fallbackStage;
-    const StageSlot& stage = selectedStageSlot(state) ? *selectedStageSlot(state) : fallbackStage;
+    const StageSlot& stage = selectedStageSlot(state.selection) ? *selectedStageSlot(state.selection) : fallbackStage;
     const bool hasStageBackground = hasSelectedStageBackground(state);
     const bool hideBackground = anyFighterHasAssertSpecialFlag(state, "nobg");
     const bool hideForeground = anyFighterHasAssertSpecialFlag(state, "nofg");
@@ -14885,17 +14797,17 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
     }
 
     if (state.screen == Screen::CharacterSelect) {
-        const int characterCount = static_cast<int>(state.characters.size());
+        const int characterCount = static_cast<int>(state.selection.characters.size());
         const FrontendKey frontendKey = frontendKeyFromSdl(key);
-        state.selectedCharacter = moveCharacterCursor(state.selectedCharacter, characterCount, frontendKey);
-        const FrontendAction action = decideCharacterSelectAction(state.selectedCharacter, characterCount, frontendKey);
+        state.selection.selectedCharacter = moveCharacterCursor(state.selection.selectedCharacter, characterCount, frontendKey);
+        const FrontendAction action = decideCharacterSelectAction(state.selection.selectedCharacter, characterCount, frontendKey);
         switch (action.kind) {
         case FrontendActionKind::BackToMain:
             unloadCharacterRuntime(state);
             state.screen = Screen::ModeSelect;
             break;
         case FrontendActionKind::CharacterChosen:
-            state.selectedCharacter = action.index;
+            state.selection.selectedCharacter = action.index;
             configureFightSessionSlotsFromSelection(state);
             selectPreferredStage(state);
             state.screen = Screen::StageSelect;
@@ -14907,18 +14819,18 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
     }
 
     if (state.screen == Screen::StageSelect) {
-        const int stageCount = static_cast<int>(state.stages.size());
+        const int stageCount = static_cast<int>(state.selection.stages.size());
         const FrontendKey frontendKey = frontendKeyFromSdl(key);
-        state.selectedStage = moveStageCursor(state.selectedStage, stageCount, frontendKey);
-        const FrontendAction action = decideStageSelectAction(state.selectedStage, stageCount, frontendKey);
+        state.selection.selectedStage = moveStageCursor(state.selection.selectedStage, stageCount, frontendKey);
+        const FrontendAction action = decideStageSelectAction(state.selection.selectedStage, stageCount, frontendKey);
         switch (action.kind) {
         case FrontendActionKind::BackToCharacterSelect:
             unloadCharacterRuntime(state);
             state.screen = Screen::CharacterSelect;
             break;
         case FrontendActionKind::StageChosen:
-            state.selectedStage = action.index;
-            if (!characterSlotAt(state, state.sessionSlots.p1Character)) {
+            state.selection.selectedStage = action.index;
+            if (!characterSlotAt(state.selection, state.selection.sessionSlots.p1Character)) {
                 configureFightSessionSlotsFromSelection(state);
             }
             unloadCharacterRuntime(state);
@@ -15306,8 +15218,8 @@ int runApp(const std::filesystem::path& gameRoot) {
     state.gameRoot = gameRoot;
     initAudio(state);
     state.fightRoundSettings = loadFightRoundSettings(gameRoot);
-    state.characters = loadCharacters(gameRoot);
-    state.stages = loadStages(gameRoot);
+    state.selection.characters = loadCharacters(gameRoot);
+    state.selection.stages = loadStages(gameRoot);
     selectPreferredStage(state);
     loadVisualAssets(renderer, state);
     openExistingGamepads(state);

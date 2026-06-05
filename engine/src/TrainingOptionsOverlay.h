@@ -29,7 +29,7 @@ void drawMoveListPage(SDL_Renderer* renderer, const AppState& state) {
     setColor(renderer, 230, 220, 172);
     debugText(renderer, 20, 24, "COMMAND TRAINING");
     setColor(renderer, 128, 171, 225);
-    debugText(renderer, 184, 24, fitDebugText(selectedCharacterName(state), 17));
+    debugText(renderer, 184, 24, fitDebugText(selectedCharacterName(state.selection), 17));
     setColor(renderer, 174, 184, 196);
     debugText(renderer, 20, 38, std::string(trainingMoveCategoryStatus(state.trainingOptions.moveCategory)));
 

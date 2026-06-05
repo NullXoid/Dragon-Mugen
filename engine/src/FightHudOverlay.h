@@ -149,7 +149,7 @@ void drawFightHud(SDL_Renderer* renderer, const AppState& state) {
     fillRect(renderer, p2BarX + kLifeBarWidth - 2.0f - p2LifeWidth, 12, p2LifeWidth, 5);
 
     setColor(renderer, 222, 226, 232);
-    debugText(renderer, 20, 24, selectedCharacterName(state));
+    debugText(renderer, 20, 24, selectedCharacterName(state.selection));
     debugText(renderer, widthF - 106.0f, 24, compactSettingText(opponentDisplayName(state), 12));
 
     if (isMatchMode(state)) {
@@ -166,7 +166,7 @@ void drawFightHud(SDL_Renderer* renderer, const AppState& state) {
 
     setColor(renderer, 155, 164, 174);
     debugText(renderer, 20, 206,
-        "P1 " + compactSettingText(selectedCharacterName(state), 11)
+        "P1 " + compactSettingText(selectedCharacterName(state.selection), 11)
         + " vs " + compactSettingText(opponentDisplayName(state), 9));
     if (state.pendingMode == PendingMode::Training
         && state.trainingOptions.showHitLog

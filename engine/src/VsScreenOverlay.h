@@ -26,7 +26,7 @@ void drawVersusScreen(SDL_Renderer* renderer, const AppState& state) {
 
     const TextureSprite* p1Portrait = state.characterLargePortrait.texture
         ? &state.characterLargePortrait
-        : spriteAt(state.characterFaceSprites, sessionP1CharacterIndex(state));
+        : spriteAt(state.characterFaceSprites, sessionP1CharacterIndex(state.selection));
 
     if (p1Portrait) {
         const float scale = std::min({ 1.0f, 92.0f / static_cast<float>(p1Portrait->width), 96.0f / static_cast<float>(p1Portrait->height) });
@@ -43,14 +43,14 @@ void drawVersusScreen(SDL_Renderer* renderer, const AppState& state) {
     drawFixedOpponentSlot(renderer, widthF - 122.0f, 72, 76, 76, opponentSlotLabel(state));
 
     setColor(renderer, 222, 226, 232);
-    debugText(renderer, 34, 144, compactSettingText(selectedCharacterName(state), 13));
+    debugText(renderer, 34, 144, compactSettingText(selectedCharacterName(state.selection), 13));
     debugText(renderer, widthF - 100.0f, 144, compactSettingText(opponentDisplayName(state), 10));
 
     setColor(renderer, 230, 130, 120);
     debugTextCentered(renderer, centerX, 98, "VS");
 
     setColor(renderer, 155, 164, 174);
-    debugText(renderer, 20, 184, "Stage: " + compactSettingText(selectedStageName(state), 26));
+    debugText(renderer, 20, 184, "Stage: " + compactSettingText(selectedStageName(state.selection), 26));
     if (state.fightSessionLoadFailed) {
         setColor(renderer, 230, 130, 120);
         debugText(renderer, 20, 204, "Load failed. ESC stage select");

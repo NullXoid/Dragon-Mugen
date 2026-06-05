@@ -50,6 +50,7 @@ add_library(dragon_core
     engine/src/MugenText.cpp
     engine/src/FightData.cpp
     engine/src/MugenData.cpp
+    engine/src/SelectionState.cpp
     engine/src/Sff.cpp
     engine/src/Snd.cpp
     engine/src/FrontendMenu.cpp

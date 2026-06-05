@@ -26,14 +26,14 @@ void drawStageSelect(SDL_Renderer* renderer, const AppState& state) {
 
     drawPanel(renderer, 18, 52, 284, 108);
 
-    if (state.stages.empty()) {
+    if (state.selection.stages.empty()) {
         setColor(renderer, 230, 130, 120);
         debugText(renderer, 32, 72, "No stages found in game/stages");
     } else {
-        for (int i = 0; i < static_cast<int>(state.stages.size()); ++i) {
+        for (int i = 0; i < static_cast<int>(state.selection.stages.size()); ++i) {
             const float y = 66.0f + static_cast<float>(i * 20);
-            const auto& stage = state.stages[static_cast<size_t>(i)];
-            if (i == state.selectedStage) {
+            const auto& stage = state.selection.stages[static_cast<size_t>(i)];
+            if (i == state.selection.selectedStage) {
                 const int pulse = 150 + ((state.frame / 8) % 55);
                 setColor(renderer, static_cast<Uint8>(pulse), 124, 58);
                 fillRect(renderer, 28, y - 3, 140, 15);
@@ -45,13 +45,13 @@ void drawStageSelect(SDL_Renderer* renderer, const AppState& state) {
             }
         }
 
-        const auto& selected = state.stages[static_cast<size_t>(state.selectedStage)];
+        const auto& selected = state.selection.stages[static_cast<size_t>(state.selection.selectedStage)];
         setColor(renderer, 222, 226, 232);
         debugText(renderer, 182, 68, selected.displayName);
         setColor(renderer, 155, 164, 174);
         debugText(renderer, 182, 84, "id: " + selected.id);
         debugText(renderer, 182, 96, "author: " + selected.author);
-        debugText(renderer, 182, 116, "fighter: " + selectedCharacterName(state));
+        debugText(renderer, 182, 116, "fighter: " + selectedCharacterName(state.selection));
         debugText(renderer, 182, 132, "opponent: " + compactSettingText(opponentDisplayName(state), 11));
     }
 

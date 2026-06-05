@@ -15,7 +15,7 @@ void drawCharacterSelect(SDL_Renderer* renderer, const AppState& state) {
     setColor(renderer, 246, 214, 92);
     debugTextCentered(renderer, centerX, 20, "SELECT YOUR FIGHTER");
 
-    if (state.characters.empty()) {
+    if (state.selection.characters.empty()) {
         setColor(renderer, 235, 110, 100);
         debugTextCentered(renderer, centerX, 96, "NO CHARACTERS IN SELECT.DEF");
         setColor(renderer, 156, 166, 180);
@@ -24,8 +24,8 @@ void drawCharacterSelect(SDL_Renderer* renderer, const AppState& state) {
         return;
     }
 
-    const int selected = std::clamp(state.selectedCharacter, 0, static_cast<int>(state.characters.size()) - 1);
-    const auto& character = state.characters[static_cast<size_t>(selected)];
+    const int selected = std::clamp(state.selection.selectedCharacter, 0, static_cast<int>(state.selection.characters.size()) - 1);
+    const auto& character = state.selection.characters[static_cast<size_t>(selected)];
     const TextureSprite* face = spriteAt(state.characterFaceSprites, selected);
     if (face) {
         const float portraitScale = std::min({ 1.0f, 120.0f / static_cast<float>(face->width), 140.0f / static_cast<float>(face->height) });
@@ -54,7 +54,7 @@ void drawCharacterSelect(SDL_Renderer* renderer, const AppState& state) {
 
     const int page = selected / kCharacterSelectPageSize;
     const int firstIndex = page * kCharacterSelectPageSize;
-    const int lastIndex = std::min(firstIndex + kCharacterSelectPageSize, static_cast<int>(state.characters.size()));
+    const int lastIndex = std::min(firstIndex + kCharacterSelectPageSize, static_cast<int>(state.selection.characters.size()));
 
     for (int i = firstIndex; i < lastIndex; ++i) {
         const int local = i - firstIndex;
@@ -94,7 +94,7 @@ void drawCharacterSelect(SDL_Renderer* renderer, const AppState& state) {
     setColor(renderer, 238, 210, 94);
     debugTextCentered(renderer, centerX, 208, "P1");
     setColor(renderer, 210, 218, 230);
-    debugTextCentered(renderer, centerX, 220, "STAGE: " + compactSettingText(characterPreferredStageName(state, selected), 22));
+    debugTextCentered(renderer, centerX, 220, "STAGE: " + compactSettingText(characterPreferredStageName(state.selection, selected), 22));
 
     setColor(renderer, 156, 166, 180);
     debugTextCentered(renderer, centerX, 232, "ARROWS choose  ENTER stage  ESC back");

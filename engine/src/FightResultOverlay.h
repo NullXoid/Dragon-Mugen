@@ -97,9 +97,9 @@ void drawMatchResultScreen(SDL_Renderer* renderer, const AppState& state) {
         : std::string{};
     if (!quote.empty()) {
         debugTextCentered(renderer, centerX, 128, fitDebugText("\"" + quote + "\"", 40));
-        debugTextCentered(renderer, centerX, 142, fitDebugText("Stage: " + selectedStageName(state), 34));
+        debugTextCentered(renderer, centerX, 142, fitDebugText("Stage: " + selectedStageName(state.selection), 34));
     } else {
-        debugTextCentered(renderer, centerX, 128, fitDebugText("Stage: " + selectedStageName(state), 34));
+        debugTextCentered(renderer, centerX, 128, fitDebugText("Stage: " + selectedStageName(state.selection), 34));
     }
 
     for (int i = 0; i < kMatchResultOptionCount; ++i) {

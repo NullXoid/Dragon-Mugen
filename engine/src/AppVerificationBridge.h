@@ -45,21 +45,21 @@ public:
         state_.gameRoot = gameRoot_;
         initAudio(state_);
         state_.fightRoundSettings = loadFightRoundSettings(gameRoot_);
-        state_.characters = loadCharacters(gameRoot_);
-        state_.stages = loadStages(gameRoot_);
-        if (state_.characters.empty() || state_.stages.empty()) {
+        state_.selection.characters = loadCharacters(gameRoot_);
+        state_.selection.stages = loadStages(gameRoot_);
+        if (state_.selection.characters.empty() || state_.selection.stages.empty()) {
             out << "runtime content missing characters or stages\n";
             return false;
         }
 
-        state_.selectedCharacter = findCharacterIndex(p1Id);
+        state_.selection.selectedCharacter = findCharacterIndex(p1Id);
         state_.pendingMode = mode == verification::ScenarioMode::SinglePlayer
             ? PendingMode::SinglePlayer
             : PendingMode::Training;
         configureFightSessionSlotsFromSelection(state_);
         selectPreferredStage(state_);
         if (!stageHint.empty()) {
-            state_.selectedStage = findStageIndex(stageHint);
+            state_.selection.selectedStage = findStageIndex(stageHint);
         }
 
         loadVisualAssets(renderer_, state_);
@@ -113,9 +113,9 @@ public:
     }
 
     std::string rootText() const override { return gameRoot_.string(); }
-    std::string stageName() const override { return selectedStageName(state_); }
+    std::string stageName() const override { return selectedStageName(state_.selection); }
     std::string p1Name() const override {
-        if (const CharacterSlot* character = sessionP1CharacterSlot(state_)) {
+        if (const CharacterSlot* character = sessionP1CharacterSlot(state_.selection)) {
             return character->displayName;
         }
         return {};
@@ -164,8 +164,8 @@ private:
 
     int findCharacterIndex(std::string_view hint) const {
         const std::string wanted = lowercaseCopy(hint);
-        for (int i = 0; i < static_cast<int>(state_.characters.size()); ++i) {
-            const auto& character = state_.characters[static_cast<size_t>(i)];
+        for (int i = 0; i < static_cast<int>(state_.selection.characters.size()); ++i) {
+            const auto& character = state_.selection.characters[static_cast<size_t>(i)];
             if (lowercaseCopy(character.id) == wanted
                 || lowercaseCopy(character.displayName) == wanted
                 || lowercaseCopy(character.folder.filename().string()) == wanted) {
@@ -177,15 +177,15 @@ private:
 
     int findStageIndex(std::string_view hint) const {
         const std::string wanted = lowercaseCopy(hint);
-        for (int i = 0; i < static_cast<int>(state_.stages.size()); ++i) {
-            const auto& stage = state_.stages[static_cast<size_t>(i)];
+        for (int i = 0; i < static_cast<int>(state_.selection.stages.size()); ++i) {
+            const auto& stage = state_.selection.stages[static_cast<size_t>(i)];
             if (lowercaseCopy(stage.id).find(wanted) != std::string::npos
                 || lowercaseCopy(stage.displayName).find(wanted) != std::string::npos
                 || lowercaseCopy(stage.defPath.filename().string()).find(wanted) != std::string::npos) {
                 return i;
             }
         }
-        return state_.selectedStage;
+        return state_.selection.selectedStage;
     }
 
     std::filesystem::path gameRoot_;

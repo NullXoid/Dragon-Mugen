@@ -162,7 +162,7 @@ These areas should remain in `App.cpp` or current runtime files until more bound
 | Proposed Pass | Target | Estimated App.cpp Reduction | Risk | Preconditions | Test Focus |
 | --- | --- | ---: | --- | --- | --- |
 | Pass A1 | Split `FrontendState` for screen, mode, pause/result menu indices, and route flags | 40-80 | MEDIUM | Keep field defaults exact; update references mechanically | verifiers, main/options/training route smoke |
-| Pass A2 | Split `SelectionState` for selected character/stage/session slots | 50-90 | MEDIUM | Keep loading behavior in App.cpp | character/stage select, Training route, Evil Ken smoke |
+| Pass A2 | Completed Pass 13 `SelectionState` split for selected character/stage/session slots | 88 actual | MEDIUM | `MugenData` catalog types and `AppTypes.h` session slots already public | build/verifiers passed; GUI route smoke passed; cursor movement remains automation-blocked |
 | Pass A3 | Extract UI render scope/helpers such as `ScopedUiScale` and basic debug/sprite helpers | 180-260 | MEDIUM | Public render helper types or internal transitional header | title/menu/training/fight GUI smoke |
 
 ### Phase B: Frontend/Menu Behavior
@@ -205,7 +205,7 @@ These areas should remain in `App.cpp` or current runtime files until more bound
 
 | Item | Estimate |
 | --- | ---: |
-| Current `App.cpp` count | 15456 |
+| Current `App.cpp` count | 15272 after Pass 13 |
 | Known extracted headers | 14 headers, about 1327 physical lines excluding `VerificationScenario.h` |
 | Estimated safe immediate extraction total | 300-600 lines |
 | Estimated medium-risk extraction total | 900-1700 lines |
@@ -240,4 +240,4 @@ Prefer a pass that:
 
 If two candidates are similar, prefer the one that unlocks more future modules.
 
-Pass 12 completed the first scoped front-end/menu boundary by moving pure decision helpers into `FrontendMenu.h/.cpp`; `App.cpp` still performs SDL conversion, routing mutation, loading, and fight startup. Manual keyboard/controller smoke after `4581704` upgraded the frontend rows, but found two high-severity air-state bugs: held diagonal jumps can continue indefinitely, and air attacks can leave a fighter stuck at airborne height. The next implementation pass should fix and verify those air-state bugs before another extraction. Once air-state correctness is stable, good extraction candidates are a small `FrontendState` or `SelectionState` split, or a targeted pass that converts one or two transitional menu overlay headers into normal modules now that menu primitives are public enough.
+Pass 12 completed the first scoped front-end/menu boundary by moving pure decision helpers into `FrontendMenu.h/.cpp`; `App.cpp` still performs SDL conversion, routing mutation, loading, and fight startup. The focused air-state sprint then fixed and verified held diagonal jump and air-attack landing regressions through `kfm-air-state`. Pass 13 split character/stage selection metadata into `SelectionState.h/.cpp` while leaving `MugenData`, runtime loading, preferred-stage mutation, routing, and fight startup unchanged. Good next candidates are a small `FrontendState` split, a settings state/behavior boundary, or a targeted pass that converts one or two transitional menu overlay headers into normal modules now that menu and selection primitives are public enough.
