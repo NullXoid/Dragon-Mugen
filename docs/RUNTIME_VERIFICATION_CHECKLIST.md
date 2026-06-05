@@ -31,6 +31,7 @@ Statuses:
 | Post-options-menu extraction GUI smoke | PASS | After render-only Options menu extraction, user-supplied screenshot evidence confirmed the Options screen renders with title/header, selected-row highlight, timer/canvas/UI scale/pad/gamepad values, and Back row. |
 | Post-stage-select extraction GUI smoke | PASS | After render-only Stage Select extraction, GUI smoke clicked/focused the game window, reached Main -> Training -> KFM -> Stage Select, confirmed Stage Select title/arena counter/list/highlight/details/footer, confirmed Esc returned to Character Select, confirmed Enter reached fight, then confirmed command/input HUD, F1 hitboxes, F2 Training Options, `R`, Escape backout, and clean exit. |
 | Post-VS-loading extraction GUI smoke | PASS | After render-only VS/loading extraction, GUI smoke clicked/focused the game window, reached Main -> Training -> KFM -> Stage Select -> VS/loading, confirmed VS/loading title/panels/portraits/placeholders/VS/stage/ready text, confirmed auto-transition to fight, then confirmed command/input HUD, F1 hitboxes, F2 Training Options, `R`, Escape backout, and clean exit. |
+| Post-character-select extraction GUI smoke | PASS | After render-only Character Select extraction, GUI smoke clicked/focused the game window, reached Main -> Training -> Character Select, confirmed title/roster icons/KFM portrait/Dummy panel/cursor/stage label/footer, confirmed Enter to Stage Select, Escape from Stage Select back to Character Select, Enter to VS/fight, command/input HUD, F1 hitboxes, F2 Training Options, `R`, Escape backout, and clean exit. Computer Use arrow-key cursor movement stayed blocked and was not marked PASS. |
 
 ## 2. Character And Stage Selection
 
@@ -39,6 +40,11 @@ Statuses:
 | KFM selectable | PASS | KFM was the selected live character. |
 | Evil Ryu selectable | PASS | Evil Ryu portrait/icon was visible, and user-supplied VS/controller evidence shows Evil Ryu loaded into fight. |
 | Evil Ken selectable | PARTIAL | Evil Ken portrait/icon visible; selection was not navigated due automation arrow-key limitation. |
+| Character Select rendering after extraction | PASS | `CharacterSelectOverlay.h` extraction preserved Character Select title, visible KFM/Evil Ryu/Evil Ken icons, KFM portrait/name, Dummy/opponent panel, cursor/highlight, stage label, and footer/help text. |
+| Character Select cursor Right/Left after extraction | BLOCKED | Computer Use `Right` and `d` key attempts did not move the Character Select cursor in this pass, while Enter/Escape routing still worked. Keep this as automation-blocked, not a runtime FAIL. |
+| Character Select invalid-slot rejection after extraction | NOT TESTED | Not attempted because cursor movement was blocked by automation. |
+| Character Select Enter routing after extraction | PASS | Enter from Character Select reached Stage Select; Enter from Stage Select and VS/loading reached the Training fight. |
+| Character Select Esc routing after extraction | PASS | Escape from Stage Select returned to Character Select during the post-extraction smoke. |
 | `DragonBench` folder not selectable unless listed in `select.def` | PARTIAL | Not visible on observed first select page; exhaustive navigation blocked by automation arrow-key limitation. |
 | `A.Ben` folder not selectable unless listed in `select.def` | PARTIAL | Not visible on observed first select page; exhaustive navigation blocked by automation arrow-key limitation. |
 | `I.Chie` folder not selectable unless listed in `select.def` | PARTIAL | Not visible on observed first select page; exhaustive navigation blocked by automation arrow-key limitation. |
