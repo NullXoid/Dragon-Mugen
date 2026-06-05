@@ -170,10 +170,10 @@ void drawFightHud(SDL_Renderer* renderer, const AppState& state) {
         + " vs " + compactSettingText(opponentDisplayName(state), 9));
     if (state.frontend.pendingMode == PendingMode::Training
         && state.training.options.showHitLog
-        && state.lastHitTextTicks > 0
-        && !state.lastHitText.empty()) {
+        && state.messages.lastHitTextTicks > 0
+        && !state.messages.lastHitText.empty()) {
         setColor(renderer, 230, 190, 105);
-        debugText(renderer, 20, 218, state.lastHitText);
+        debugText(renderer, 20, 218, state.messages.lastHitText);
     } else if (isMatchMode(state)) {
         const bool resultActive = isSingleFightResultPhase(state);
         setColor(renderer, resultActive ? 230 : 155, resultActive ? 190 : 164, resultActive ? 105 : 174);

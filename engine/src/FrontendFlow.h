@@ -330,12 +330,12 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
                     if (toggledOption == kTrainingP2ControlOption) {
                         clearFighterHitRuntime(state.fighters[1]);
                         enterState(state, state.fighters[1], 0);
-                        state.lastHitText = state.training.options.p2Controlled ? "P2 control enabled" : "P2 dummy enabled";
-                        state.lastHitTextTicks = 90;
+                        state.messages.lastHitText = state.training.options.p2Controlled ? "P2 control enabled" : "P2 dummy enabled";
+                        state.messages.lastHitTextTicks = 90;
                     } else if (toggledOption == kTrainingPowerOption) {
                         applyTrainingPowerMode(state);
-                        state.lastHitText = state.training.options.powerMode == TrainingPowerMode::Max ? "Training power max" : "Training power normal";
-                        state.lastHitTextTicks = 90;
+                        state.messages.lastHitText = state.training.options.powerMode == TrainingPowerMode::Max ? "Training power max" : "Training power normal";
+                        state.messages.lastHitTextTicks = 90;
                     }
                 }
                 break;

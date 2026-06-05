@@ -5,6 +5,7 @@
 #include "dragon/Sff.h"
 #include "dragon/Snd.h"
 #include "AppTypes.h"
+#include "FightMessageState.h"
 #include "FrontendMenu.h"
 #include "FrontendState.h"
 #include "Input.h"
@@ -1304,6 +1305,7 @@ struct AppState {
     FrontendState frontend;
     SelectionState selection;
     TrainingState training;
+    FightMessageState messages;
     bool running = true;
     MainSettings mainSettings;
     FightRoundSettings fightRoundSettings;
@@ -1344,8 +1346,6 @@ struct AppState {
     std::vector<StateDefinition> stateDefs;
     std::vector<CommandStateEntry> commandEntries;
     std::vector<CommandDefinition> commandDefinitions;
-    std::string lastHitText;
-    int lastHitTextTicks = 0;
     std::vector<AnimationClip> characterClips;
     std::vector<AnimationClip> fightFxClips;
     std::vector<RuntimeEffect> runtimeEffects;
@@ -7715,8 +7715,8 @@ void resetTrainingPositions(AppState& state) {
     clearComboCounters(state);
     enterRoundInitialState(state, state.fighters[0]);
     enterRoundInitialState(state, state.fighters[1]);
-    state.lastHitText = "Training positions reset";
-    state.lastHitTextTicks = 90;
+    state.messages.lastHitText = "Training positions reset";
+    state.messages.lastHitTextTicks = 90;
 }
 
 void resetFightRound(AppState& state) {
@@ -7781,8 +7781,8 @@ void resetFightRound(AppState& state) {
     state.fighters[1].moveHit = false;
     state.fighters[0].moveGuarded = false;
     state.fighters[1].moveGuarded = false;
-    state.lastHitText.clear();
-    state.lastHitTextTicks = 0;
+    state.messages.lastHitText.clear();
+    state.messages.lastHitTextTicks = 0;
     clearComboCounters(state);
     state.runtimeEffects.clear();
     clearGlobalPause(state);
@@ -11482,9 +11482,9 @@ void applyHitBetween(AppState& state, size_t attackerIndex, size_t defenderIndex
                 << " spark " << hitDef->sparkNo
                 << " snd " << soundPairText(hitDef->hitSoundGroup, hitDef->hitSoundIndex);
     }
-    state.lastHitText = hitText.str();
-    state.lastHitTextTicks = 150;
-    SDL_Log("%s", state.lastHitText.c_str());
+    state.messages.lastHitText = hitText.str();
+    state.messages.lastHitTextTicks = 150;
+    SDL_Log("%s", state.messages.lastHitText.c_str());
 }
 
 void applyHitIfNeeded(AppState& state) {
@@ -11774,9 +11774,9 @@ void applyProjectileHit(AppState& state, RuntimeProjectile& projectile, size_t d
         }
     }
     projectile.hitCooldownTicks = std::max(projectile.hitCooldownTicks, projectile.missTime);
-    state.lastHitText = hitText.str();
-    state.lastHitTextTicks = 150;
-    SDL_Log("%s", state.lastHitText.c_str());
+    state.messages.lastHitText = hitText.str();
+    state.messages.lastHitTextTicks = 150;
+    SDL_Log("%s", state.messages.lastHitText.c_str());
 }
 
 void updateRuntimeProjectiles(AppState& state, const StageSlot& stage) {
@@ -13145,7 +13145,7 @@ void finalizeSingleFightRoundAfterGrace(AppState& state) {
     if (state.fighters[0].life <= 0 && state.fighters[1].life <= 0) {
         state.roundWinner = 0;
         state.roundEndReason = RoundEndReason::DoubleKo;
-        state.lastHitText = roundFinishCalloutText(state);
+        state.messages.lastHitText = roundFinishCalloutText(state);
         state.roundPoseApplied = false;
     }
 }
@@ -13163,8 +13163,8 @@ void applySingleFightRoundScore(AppState& state) {
         state.matchComplete = false;
     }
     state.roundScoreApplied = true;
-    state.lastHitText = roundResultText(state);
-    state.lastHitTextTicks = singleFightRoundResultHoldTicks(state);
+    state.messages.lastHitText = roundResultText(state);
+    state.messages.lastHitTextTicks = singleFightRoundResultHoldTicks(state);
 }
 
 void startSingleFightRoundFinish(AppState& state, int winner, RoundEndReason reason) {
@@ -13175,8 +13175,8 @@ void startSingleFightRoundFinish(AppState& state, int winner, RoundEndReason rea
     state.roundScoreApplied = false;
     state.roundPoseApplied = false;
     state.matchComplete = false;
-    state.lastHitText = roundFinishCalloutText(state);
-    state.lastHitTextTicks = singleFightRoundFinishHoldTicks(state);
+    state.messages.lastHitText = roundFinishCalloutText(state);
+    state.messages.lastHitTextTicks = singleFightRoundFinishHoldTicks(state);
 }
 
 void updateSingleFightRules(AppState& state) {
@@ -13348,8 +13348,8 @@ void updateSingleFightRoundFinishWorld(AppState& state, const StageSlot& stage) 
 }
 
 void updateSingleFightPhaseTimers(AppState& state) {
-    if (state.lastHitTextTicks > 0) {
-        --state.lastHitTextTicks;
+    if (state.messages.lastHitTextTicks > 0) {
+        --state.messages.lastHitTextTicks;
     }
     updateComboDisplayTimers(state);
 
@@ -13522,8 +13522,8 @@ void updateFight(AppState& state) {
     updateSingleFightRules(state);
     updateCamera(state, stage);
     applyScreenBounds(state, stage);
-    if (state.lastHitTextTicks > 0) {
-        --state.lastHitTextTicks;
+    if (state.messages.lastHitTextTicks > 0) {
+        --state.messages.lastHitTextTicks;
     }
     updateComboDisplayTimers(state);
     const bool p1EnteredNewStateThisFrame = p1.stateNo != p1StateNoAtFrameStart && p1.stateTime == 0;
