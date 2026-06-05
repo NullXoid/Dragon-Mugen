@@ -21,7 +21,7 @@ This audit is documentation-only. It records what remains in `engine/src/App.cpp
 | `Input.h` | input controls, fighter input state, command input frame, gamepad device metadata | Normal/partial | Already owns `FighterInputState`, `FighterControls`, `CommandInputFrame`, and `GamepadDevice`. |
 | `TrainingDebugOverlay.h` | F1 hitbox/debug overlay rendering | Transitional App.cpp internal | Render-only; depends on App.cpp-local render helpers/state. |
 | `TrainingCommandOverlay.h` | Training command/input HUD rendering | Transitional App.cpp internal | Render-only; helper formatting remains partly in App.cpp. |
-| `TrainingOptionsOverlay.h` | F2 Training Options and move-list rendering | Transitional App.cpp internal | Render-only; option mutation remains in App.cpp. |
+| `TrainingOptionsOverlay.h` | F2 Training Options and move-list rendering | Transitional App.cpp internal | Render-only; pure option labels/status/toggle behavior now lives in `TrainingOptionsBehavior.h/.cpp`; runtime side effects remain outside the overlay. |
 | `PauseMenuOverlay.h` | match pause menu rendering | Transitional App.cpp internal | Render-only; pause behavior remains in App.cpp. |
 | `MainMenuOverlay.h` | main/title menu rendering | Transitional App.cpp internal | Render-only; menu selection/routing remains in App.cpp. |
 | `OptionsMenuOverlay.h` | Options screen rendering | Transitional App.cpp internal | Render-only; settings mutation and device behavior remain in App.cpp. |
@@ -36,6 +36,7 @@ This audit is documentation-only. It records what remains in `engine/src/App.cpp
 | `SelectionState.h` / `SelectionState.cpp` | character/stage selection metadata and pure lookup/display helpers | Normal module | Pass 13 moved selected character/stage/session metadata. `MugenData` still owns roster/stage catalog loading, and App.cpp still owns runtime loading and routing side effects. |
 | `FrontendState.h` | UI/front-end state storage | Normal header | Pass 14 moved screen, pending mode, selected mode, menu rail, pause/result selected indices, and `screenFrame` storage. Routing and `screenFrame` reset/increment behavior remain in App.cpp. |
 | `FrontendFlow.h` | existing key-flow dispatcher | Transitional App.cpp internal | Pass 15 moved `frontendKeyFromSdl`, `settingCycleDirection`, `handleKey`, and `gamepadMenuKeyForButton`. This removes physical lines from App.cpp but still depends on AppState and App.cpp-local helpers. |
+| `TrainingOptionsBehavior.h` / `TrainingOptionsBehavior.cpp` | pure Training Options labels/status/cycling/toggle behavior | Normal module | Pass 16 moved helpers that read/write only `TrainingOptions`. Runtime side effects, F1/F2/R dispatch, loading, routing, fighter mutation, CPU behavior, and sidecar policy remain outside the module. |
 
 ## Type Inventory
 
@@ -97,7 +98,7 @@ Future constants moved to normal headers should use `inline constexpr` when they
 | Audio scheduling/mixing | `initAudio`, `playSound`, `mixActiveSoundVoices`, `updateAudioMixer` | about 400 | `RESOURCE-COUPLED` | Audio audit or module later | MEDIUM | SDL audio stream ownership and fight sound policy are coupled. |
 | Gamepad/options behavior | gamepad open/close/assignment text/cycling, settings cycling | about 330 | `MODERATE DATA` | Frontend/settings behavior pass | MEDIUM | Safer than runtime systems; controller smoke exists but per-button matrix is incomplete. |
 | Selection behavior | `moveCharacterSelectCursor`, stage/character label helpers, preferred stage | about 220 | `MODERATE DATA` | Selection behavior pass | MEDIUM | Avoid asset loading and route mutation unless scoped. |
-| Training option behavior | `trainingOptionStatus`, `toggleTrainingOption`, mode cycling | about 210 | `MODERATE DATA` | Training state/behavior pass | MEDIUM | F1/F2/R smoke covers basic regressions. |
+| Training option behavior | `trainingOptionStatus`, `toggleTrainingOption`, mode cycling | 231 external cpp lines, 23 header lines, 221 App.cpp reduction | `MODERATE DATA` | Completed Pass 16 normal module extraction | HIGH | Pure `TrainingOptions` label/status/cycling/toggle behavior now lives in `TrainingOptionsBehavior.h/.cpp`; runtime side effects remain outside the module. |
 | Fight session reset/setup | `resetFightRound`, `resetFightState`, `prepareFightSession`, `beginFight` | about 230 | `RUNTIME-COUPLED` | Fight session setup later | MEDIUM | Central to verifiers; avoid until state split. |
 | State runtime execution | expression eval, runtime controller execution, helper/projectile/explod spawns | about 3100 | `BEHAVIOR-COUPLED` | Runtime systems later | LOW | Too risky before data/state boundaries. |
 | Hit/damage/guard runtime | `applyHitBetween`, guard/get-hit helpers, combo updates | about 1500 | `RUNTIME-COUPLED` | Runtime systems later | MEDIUM | Protected by KFM verifier but still high blast radius. |
@@ -178,7 +179,7 @@ These areas should remain in `App.cpp` or current runtime files until more bound
 | Pass B1 | Completed Pass 15 transitional key-flow extraction for existing key dispatcher | 398 actual | MEDIUM | `FrontendState`, `SelectionState`, and `FrontendMenu` already extracted | build/verifiers passed; route/fight key GUI smoke passed; Options/selector movement remains automation-blocked |
 | Pass B1a | Completed Pass 12 pure frontend decision boundary | 131 actual | MEDIUM | `AppTypes.h` public menu/settings types | build/verifiers passed; GUI route smoke passed; Options/cursor/normal GUI smoke remains automation-blocked |
 | Pass B2 | Extract settings mutation and gamepad assignment display/cycle behavior | 180-260 | MEDIUM | Keep SDL gamepad open/close in App.cpp | Options screen, controller smoke, verifier regression |
-| Pass B3 | Extract Training Options behavior only, leaving fight runtime untouched | 120-200 | MEDIUM | Training state split preferred | F1/F2/R, command HUD, KFM verifier |
+| Pass B3 | Completed Pass 16 Training Options behavior extraction, leaving fight runtime untouched | 221 actual | MEDIUM | `TrainingOptions` and related enums already public in `AppTypes.h` | build/verifiers passed; F2 labels/status/toggle GUI smoke passed |
 
 ### Phase C: State Splitting
 
@@ -211,10 +212,10 @@ These areas should remain in `App.cpp` or current runtime files until more bound
 
 | Item | Estimate |
 | --- | ---: |
-| Current `App.cpp` count | 14868 after Pass 15 |
-| Known extracted headers/modules | 18 extracted headers/modules, including transitional `FrontendFlow.h` |
-| Estimated safe immediate extraction total | 300-600 lines |
-| Estimated medium-risk extraction total | 900-1700 lines |
+| Current `App.cpp` count | 14647 after Pass 16 |
+| Known extracted headers/modules | 19 extracted headers/modules, including transitional `FrontendFlow.h` |
+| Estimated safe immediate extraction total | 250-500 lines |
+| Estimated medium-risk extraction total | 800-1500 lines |
 | Estimated high-risk extraction total | 7000+ lines |
 
 Top 10 largest remaining `App.cpp` responsibility clusters:
@@ -230,7 +231,7 @@ Top 10 largest remaining `App.cpp` responsibility clusters:
 | main event/key routing and front-end behavior | 500-650 | MEDIUM | MEDIUM |
 | match/round flow and result behavior | 450-650 | MEDIUM | HIGH |
 | audio scheduling/mixing | 300-450 | MEDIUM | HIGH |
-| gamepad/settings/selection behavior | 300-500 | MEDIUM | MEDIUM |
+| gamepad/settings/selection behavior | 200-350 | MEDIUM | MEDIUM |
 
 ## Next Pass Selection Rule
 
@@ -246,4 +247,4 @@ Prefer a pass that:
 
 If two candidates are similar, prefer the one that unlocks more future modules.
 
-Pass 12 completed the first scoped front-end/menu boundary by moving pure decision helpers into `FrontendMenu.h/.cpp`; `App.cpp` still performs SDL conversion, routing mutation, loading, and fight startup. The focused air-state sprint then fixed and verified held diagonal jump and air-attack landing regressions through `kfm-air-state`. Pass 13 split character/stage selection metadata into `SelectionState.h/.cpp` while leaving `MugenData`, runtime loading, preferred-stage mutation, routing, and fight startup unchanged. Pass 14 split UI/front-end state storage into `FrontendState.h` while leaving routing, transition behavior, `screenFrame` reset/increment behavior, loading, runtime, and CPU behavior in `App.cpp`. Pass 15 moved the existing key-flow dispatcher into transitional `FrontendFlow.h`; it is not a clean module yet because it still calls App.cpp-local helpers and depends on AppState. Good next candidates are a settings state/behavior boundary, a training state boundary, or a follow-up action-return boundary that reduces `FrontendFlow.h`'s App.cpp-local helper dependency before normal module conversion.
+Pass 12 completed the first scoped front-end/menu boundary by moving pure decision helpers into `FrontendMenu.h/.cpp`; `App.cpp` still performs SDL conversion, routing mutation, loading, and fight startup. The focused air-state sprint then fixed and verified held diagonal jump and air-attack landing regressions through `kfm-air-state`. Pass 13 split character/stage selection metadata into `SelectionState.h/.cpp` while leaving `MugenData`, runtime loading, preferred-stage mutation, routing, and fight startup unchanged. Pass 14 split UI/front-end state storage into `FrontendState.h` while leaving routing, transition behavior, `screenFrame` reset/increment behavior, loading, runtime, and CPU behavior in `App.cpp`. Pass 15 moved the existing key-flow dispatcher into transitional `FrontendFlow.h`; it is not a clean module yet because it still calls App.cpp-local helpers and depends on AppState. Pass 16 moved pure Training Options label/status/cycling/toggle helpers into `TrainingOptionsBehavior.h/.cpp` while leaving runtime side effects outside the module. Good next candidates are a settings state boundary, a training state boundary, or a follow-up action-return boundary that reduces `FrontendFlow.h`'s App.cpp-local helper dependency before normal module conversion.

@@ -54,6 +54,7 @@ add_library(dragon_core
     engine/src/Sff.cpp
     engine/src/Snd.cpp
     engine/src/FrontendMenu.cpp
+    engine/src/TrainingOptionsBehavior.cpp
     engine/src/Input.cpp
     engine/src/VerificationScenario.cpp
     engine/src/App.cpp
