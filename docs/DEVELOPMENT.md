@@ -43,6 +43,8 @@ python tools/check_file_sizes.py
 
 The guard warns above 350 lines and fails above 500 lines unless a file is explicitly allowlisted for a justified generated/vendor/data-only reason. `engine/src/App.cpp` is intentionally not allowlisted because it is the current known monolith and must stay visible as debt until it is extracted one responsibility at a time.
 
+See [TYPE_EXTRACTION_AUDIT.md](TYPE_EXTRACTION_AUDIT.md) for the current `App.cpp` type/dependency extraction map.
+
 ## Pass 11 Type Dependency Map
 
 Pass 11 moved safe app/UI constants and pure data types from `engine/src/App.cpp` into `engine/src/AppTypes.h`. This was type prep only; no behavior, input, routing, loading, gameplay, controller, CMake, or sidecar policy changed.
