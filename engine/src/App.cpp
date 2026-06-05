@@ -6,6 +6,7 @@
 #include "dragon/Snd.h"
 #include "AppTypes.h"
 #include "FrontendMenu.h"
+#include "FrontendState.h"
 #include "Input.h"
 #include "SelectionState.h"
 #include "VerificationScenario.h"
@@ -1298,18 +1299,12 @@ struct FighterState {
 struct AppState {
     std::filesystem::path gameRoot;
     LoadedContentSummary content;
+    FrontendState frontend;
     SelectionState selection;
-    Screen screen = Screen::ModeSelect;
-    PendingMode pendingMode = PendingMode::Training;
-    int selectedMode = 0;
-    bool menuRailOnLeft = true;
     bool running = true;
     TrainingOptions trainingOptions;
     MainSettings mainSettings;
     FightRoundSettings fightRoundSettings;
-    bool singleFightPauseOpen = false;
-    int selectedSingleFightPauseOption = 0;
-    int selectedMatchResultOption = 0;
     MatchPhase matchPhase = MatchPhase::Fight;
     RoundEndReason roundEndReason = RoundEndReason::None;
     int matchTimerTicks = 99 * 60;
@@ -1336,7 +1331,6 @@ struct AppState {
     EnvColorEffect envColor;
     double accumulator = 0.0;
     int frame = 0;
-    int screenFrame = 0;
     float cameraX = 0.0f;
     float cameraY = 0.0f;
     std::array<FighterState, 2> fighters;
@@ -1474,11 +1468,11 @@ bool isMatchMode(PendingMode mode) {
 }
 
 bool isMatchMode(const AppState& state) {
-    return isMatchMode(state.pendingMode);
+    return isMatchMode(state.frontend.pendingMode);
 }
 
 OpponentType activeOpponentType(const AppState& state) {
-    if (state.pendingMode == PendingMode::Training && state.trainingOptions.p2Controlled) {
+    if (state.frontend.pendingMode == PendingMode::Training && state.trainingOptions.p2Controlled) {
         return OpponentType::LocalP2;
     }
     return state.selection.sessionSlots.opponentType;
@@ -1517,7 +1511,7 @@ void configureFightSessionSlotsFromSelection(AppState& state) {
     state.selection.sessionSlots.p1Character = characterCount > 0
         ? std::clamp(state.selection.selectedCharacter, 0, characterCount - 1)
         : -1;
-    state.selection.sessionSlots.opponentType = defaultOpponentTypeForMode(state.pendingMode);
+    state.selection.sessionSlots.opponentType = defaultOpponentTypeForMode(state.frontend.pendingMode);
     state.selection.sessionSlots.opponentCharacter = -1;
 }
 
@@ -8056,7 +8050,7 @@ void clearEnvShake(AppState& state);
 void clearPaletteRuntime(AppState& state);
 
 void applyTrainingPowerMode(AppState& state) {
-    if (state.pendingMode != PendingMode::Training || state.trainingOptions.powerMode != TrainingPowerMode::Max) {
+    if (state.frontend.pendingMode != PendingMode::Training || state.trainingOptions.powerMode != TrainingPowerMode::Max) {
         return;
     }
     const int maxPower = std::max(0, state.characterConstants.maxPower);
@@ -8198,9 +8192,9 @@ void resetFightRound(AppState& state) {
     }
     state.trainingOptions.menuOpen = false;
     state.trainingOptions.moveListOpen = false;
-    state.singleFightPauseOpen = false;
-    state.selectedSingleFightPauseOption = 0;
-    state.selectedMatchResultOption = 0;
+    state.frontend.singleFightPauseOpen = false;
+    state.frontend.selectedSingleFightPauseOption = 0;
+    state.frontend.selectedMatchResultOption = 0;
     state.matchPhase = isMatchMode(state) ? MatchPhase::RoundStart : MatchPhase::Fight;
     state.roundEndReason = RoundEndReason::None;
     state.matchTimerTicks = matchTimerTicksFromSettings(state);
@@ -8247,7 +8241,7 @@ bool prepareFightSession(SDL_Renderer* renderer, AppState& state) {
     state.stageBackground = std::move(selectedBackground);
 
     resetFightState(state);
-    state.screenFrame = 0;
+    state.frontend.screenFrame = 0;
     state.fightSessionPrepared = true;
     return true;
 }
@@ -8256,8 +8250,8 @@ void beginFight(AppState& state) {
     if (!state.fightSessionPrepared) {
         return;
     }
-    state.screen = Screen::FightView;
-    state.screenFrame = 0;
+    state.frontend.screen = Screen::FightView;
+    state.frontend.screenFrame = 0;
 }
 
 bool isCrouchStateNo(int stateNo) {
@@ -10962,7 +10956,7 @@ void applyPlayerPush(AppState& state, const StageSlot& stage) {
 
     const float overlap = minSeparation - distance;
 
-    if (state.pendingMode == PendingMode::Training && activeOpponentType(state) == OpponentType::Dummy) {
+    if (state.frontend.pendingMode == PendingMode::Training && activeOpponentType(state) == OpponentType::Dummy) {
         p1.x = clampFighterOriginToStage(p1.x - direction * overlap, stage);
         return;
     }
@@ -11663,7 +11657,7 @@ bool useTrainingDummyOptions(const AppState& state, size_t defenderIndex) {
 }
 
 bool shouldPlayFightSounds(const AppState& state) {
-    return state.pendingMode != PendingMode::Training || state.trainingOptions.playHitSounds;
+    return state.frontend.pendingMode != PendingMode::Training || state.trainingOptions.playHitSounds;
 }
 
 int effectiveGuardDistance(const AppState& state, const FighterState& attacker, const HitDefinition& hitDef) {
@@ -13746,7 +13740,7 @@ void updateSingleFightPhaseTimers(AppState& state) {
             if (state.matchComplete) {
                 state.matchPhase = MatchPhase::MatchResult;
                 state.matchPhaseTicks = 0;
-                state.selectedMatchResultOption = 0;
+                state.frontend.selectedMatchResultOption = 0;
             } else {
                 ++state.currentRound;
                 resetFightRound(state);
@@ -13883,7 +13877,7 @@ void updateFight(AppState& state) {
         updateStateAudioControllers(state, p2, &p1, &stage);
     }
     updateFightAssertSpecialControllers(state, stage);
-    if (state.pendingMode == PendingMode::Training
+    if (state.frontend.pendingMode == PendingMode::Training
         && activeOpponentType(state) == OpponentType::Dummy
         && (state.trainingOptions.dummyAutoLife || state.trainingOptions.dummyInvincible)) {
         p2.life = 1000;
@@ -14100,7 +14094,7 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
 
     const AnimationClip* clip = findClip(state, fighter.action);
     const AnimationFrame* frame = clip ? frameForClip(*clip, fighter.animTick) : nullptr;
-    const bool drawHitFeedback = (state.pendingMode != PendingMode::Training || state.trainingOptions.showHitFlash)
+    const bool drawHitFeedback = (state.frontend.pendingMode != PendingMode::Training || state.trainingOptions.showHitFlash)
         && (fighter.moveType == 'H' || fighter.hitPauseTicks > 0);
 
     if (frame && frame->sprite.texture) {
@@ -14306,7 +14300,7 @@ void drawWorldActors(SDL_Renderer* renderer, const AppState& state, const StageS
     for (size_t i = 0; i < state.projectiles.size(); ++i) {
         items.push_back(DrawItem{ 3, 3, i });
     }
-    if (state.pendingMode != PendingMode::Training || state.trainingOptions.showHitSparks) {
+    if (state.frontend.pendingMode != PendingMode::Training || state.trainingOptions.showHitSparks) {
         for (size_t i = 0; i < state.runtimeEffects.size(); ++i) {
             items.push_back(DrawItem{ state.runtimeEffects[i].sprPriority, 2, i });
         }
@@ -14687,7 +14681,7 @@ void drawFightView(SDL_Renderer* renderer, const AppState& state) {
         fillRect(renderer, 0, 0, widthF, static_cast<float>(kLogicalHeight));
     }
 
-    if (!hideHud && state.pendingMode == PendingMode::Training) {
+    if (!hideHud && state.frontend.pendingMode == PendingMode::Training) {
         drawDebugOverlay(renderer, state, stage);
     }
 
@@ -14695,13 +14689,13 @@ void drawFightView(SDL_Renderer* renderer, const AppState& state) {
         drawFightHud(renderer, state);
     }
 
-    if (state.pendingMode == PendingMode::Training && !state.trainingOptions.menuOpen && !hideHud) {
+    if (state.frontend.pendingMode == PendingMode::Training && !state.trainingOptions.menuOpen && !hideHud) {
         drawTrainingCommandHud(renderer, state);
     }
 
-    if (state.pendingMode == PendingMode::Training && state.trainingOptions.menuOpen) {
+    if (state.frontend.pendingMode == PendingMode::Training && state.trainingOptions.menuOpen) {
         drawTrainingOptionsMenu(renderer, state);
-    } else if (isMatchMode(state) && state.singleFightPauseOpen) {
+    } else if (isMatchMode(state) && state.frontend.singleFightPauseOpen) {
         drawSingleFightPauseMenu(renderer, state);
     } else if (isMatchMode(state) && state.matchPhase == MatchPhase::RoundStart) {
         drawRoundStartOverlay(renderer, state);
@@ -14749,14 +14743,14 @@ int settingCycleDirection(FrontendKey key) {
 }
 
 void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
-    if (state.screen == Screen::ModeSelect) {
+    if (state.frontend.screen == Screen::ModeSelect) {
         const FrontendKey frontendKey = frontendKeyFromSdl(key);
-        state.selectedMode = moveMainMenuSelection(state.selectedMode, frontendKey);
+        state.frontend.selectedMode = moveMainMenuSelection(state.frontend.selectedMode, frontendKey);
         FrontendAction action;
         if (frontendKey == FrontendKey::Escape) {
             action = { FrontendActionKind::ExitApp };
         } else if (frontendKey == FrontendKey::Accept) {
-            action = decideMainMenuAction(state.selectedMode);
+            action = decideMainMenuAction(state.frontend.selectedMode);
         }
 
         switch (action.kind) {
@@ -14765,11 +14759,11 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
             break;
         case FrontendActionKind::OpenMode:
             unloadCharacterRuntime(state);
-            state.pendingMode = action.mode;
-            state.screen = Screen::CharacterSelect;
+            state.frontend.pendingMode = action.mode;
+            state.frontend.screen = Screen::CharacterSelect;
             break;
         case FrontendActionKind::OpenOptions:
-            state.screen = Screen::MainSettings;
+            state.frontend.screen = Screen::MainSettings;
             break;
         default:
             break;
@@ -14777,7 +14771,7 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
         return;
     }
 
-    if (state.screen == Screen::MainSettings) {
+    if (state.frontend.screen == Screen::MainSettings) {
         const FrontendKey frontendKey = frontendKeyFromSdl(key, true);
         state.mainSettings.selectedOption = moveOptionsSelection(state.mainSettings.selectedOption, frontendKey);
         const int cycleDirection = settingCycleDirection(frontendKey);
@@ -14791,12 +14785,12 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
 
         const FrontendAction action = decideOptionsAction(state.mainSettings, frontendKey);
         if (action.kind == FrontendActionKind::BackToMain) {
-            state.screen = Screen::ModeSelect;
+            state.frontend.screen = Screen::ModeSelect;
         }
         return;
     }
 
-    if (state.screen == Screen::CharacterSelect) {
+    if (state.frontend.screen == Screen::CharacterSelect) {
         const int characterCount = static_cast<int>(state.selection.characters.size());
         const FrontendKey frontendKey = frontendKeyFromSdl(key);
         state.selection.selectedCharacter = moveCharacterCursor(state.selection.selectedCharacter, characterCount, frontendKey);
@@ -14804,13 +14798,13 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
         switch (action.kind) {
         case FrontendActionKind::BackToMain:
             unloadCharacterRuntime(state);
-            state.screen = Screen::ModeSelect;
+            state.frontend.screen = Screen::ModeSelect;
             break;
         case FrontendActionKind::CharacterChosen:
             state.selection.selectedCharacter = action.index;
             configureFightSessionSlotsFromSelection(state);
             selectPreferredStage(state);
-            state.screen = Screen::StageSelect;
+            state.frontend.screen = Screen::StageSelect;
             break;
         default:
             break;
@@ -14818,7 +14812,7 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
         return;
     }
 
-    if (state.screen == Screen::StageSelect) {
+    if (state.frontend.screen == Screen::StageSelect) {
         const int stageCount = static_cast<int>(state.selection.stages.size());
         const FrontendKey frontendKey = frontendKeyFromSdl(key);
         state.selection.selectedStage = moveStageCursor(state.selection.selectedStage, stageCount, frontendKey);
@@ -14826,7 +14820,7 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
         switch (action.kind) {
         case FrontendActionKind::BackToCharacterSelect:
             unloadCharacterRuntime(state);
-            state.screen = Screen::CharacterSelect;
+            state.frontend.screen = Screen::CharacterSelect;
             break;
         case FrontendActionKind::StageChosen:
             state.selection.selectedStage = action.index;
@@ -14834,8 +14828,8 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
                 configureFightSessionSlotsFromSelection(state);
             }
             unloadCharacterRuntime(state);
-            state.screen = Screen::VersusScreen;
-            state.screenFrame = 0;
+            state.frontend.screen = Screen::VersusScreen;
+            state.frontend.screenFrame = 0;
             state.fightSessionPrepared = false;
             state.fightSessionLoadFailed = false;
             break;
@@ -14845,13 +14839,13 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
         return;
     }
 
-    if (state.screen == Screen::VersusScreen) {
+    if (state.frontend.screen == Screen::VersusScreen) {
         const FrontendAction action = decideVsScreenAction(frontendKeyFromSdl(key));
         switch (action.kind) {
         case FrontendActionKind::BackToStageSelect:
             unloadCharacterRuntime(state);
-            state.screen = Screen::StageSelect;
-            state.screenFrame = 0;
+            state.frontend.screen = Screen::StageSelect;
+            state.frontend.screenFrame = 0;
             break;
         case FrontendActionKind::StartFightRequested:
             if (state.fightSessionPrepared || prepareFightSession(renderer, state)) {
@@ -14864,49 +14858,49 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
         return;
     }
 
-    if (state.screen == Screen::FightView) {
+    if (state.frontend.screen == Screen::FightView) {
         if (isMatchMode(state)) {
-            if (state.singleFightPauseOpen) {
+            if (state.frontend.singleFightPauseOpen) {
                 switch (key) {
                 case SDLK_ESCAPE:
                 case SDLK_F2:
-                    state.singleFightPauseOpen = false;
+                    state.frontend.singleFightPauseOpen = false;
                     break;
                 case SDLK_UP:
-                    state.selectedSingleFightPauseOption =
-                        (state.selectedSingleFightPauseOption + kSingleFightPauseOptionCount - 1) % kSingleFightPauseOptionCount;
+                    state.frontend.selectedSingleFightPauseOption =
+                        (state.frontend.selectedSingleFightPauseOption + kSingleFightPauseOptionCount - 1) % kSingleFightPauseOptionCount;
                     break;
                 case SDLK_DOWN:
-                    state.selectedSingleFightPauseOption =
-                        (state.selectedSingleFightPauseOption + 1) % kSingleFightPauseOptionCount;
+                    state.frontend.selectedSingleFightPauseOption =
+                        (state.frontend.selectedSingleFightPauseOption + 1) % kSingleFightPauseOptionCount;
                     break;
                 case SDLK_RETURN:
                 case SDLK_KP_ENTER:
                 case SDLK_SPACE:
-                    switch (state.selectedSingleFightPauseOption) {
+                    switch (state.frontend.selectedSingleFightPauseOption) {
                     case 0:
-                        state.singleFightPauseOpen = false;
+                        state.frontend.singleFightPauseOpen = false;
                         break;
                     case 1:
                         resetFightState(state);
                         break;
                     case 2:
-                        state.singleFightPauseOpen = false;
+                        state.frontend.singleFightPauseOpen = false;
                         unloadCharacterRuntime(state);
-                        state.screen = Screen::CharacterSelect;
-                        state.screenFrame = 0;
+                        state.frontend.screen = Screen::CharacterSelect;
+                        state.frontend.screenFrame = 0;
                         break;
                     case 3:
-                        state.singleFightPauseOpen = false;
+                        state.frontend.singleFightPauseOpen = false;
                         unloadCharacterRuntime(state);
-                        state.screen = Screen::StageSelect;
-                        state.screenFrame = 0;
+                        state.frontend.screen = Screen::StageSelect;
+                        state.frontend.screenFrame = 0;
                         break;
                     case 4:
-                        state.singleFightPauseOpen = false;
+                        state.frontend.singleFightPauseOpen = false;
                         unloadCharacterRuntime(state);
-                        state.screen = Screen::ModeSelect;
-                        state.screenFrame = 0;
+                        state.frontend.screen = Screen::ModeSelect;
+                        state.frontend.screenFrame = 0;
                         break;
                     default:
                         break;
@@ -14921,12 +14915,12 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
             if (state.matchPhase == MatchPhase::MatchResult) {
                 switch (key) {
                 case SDLK_UP:
-                    state.selectedMatchResultOption =
-                        (state.selectedMatchResultOption + kMatchResultOptionCount - 1) % kMatchResultOptionCount;
+                    state.frontend.selectedMatchResultOption =
+                        (state.frontend.selectedMatchResultOption + kMatchResultOptionCount - 1) % kMatchResultOptionCount;
                     break;
                 case SDLK_DOWN:
-                    state.selectedMatchResultOption =
-                        (state.selectedMatchResultOption + 1) % kMatchResultOptionCount;
+                    state.frontend.selectedMatchResultOption =
+                        (state.frontend.selectedMatchResultOption + 1) % kMatchResultOptionCount;
                     break;
                 case SDLK_R:
                     resetFightState(state);
@@ -14934,24 +14928,24 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
                 case SDLK_RETURN:
                 case SDLK_KP_ENTER:
                 case SDLK_SPACE:
-                    switch (state.selectedMatchResultOption) {
+                    switch (state.frontend.selectedMatchResultOption) {
                     case 0:
                         resetFightState(state);
                         break;
                     case 1:
                         unloadCharacterRuntime(state);
-                        state.screen = Screen::CharacterSelect;
-                        state.screenFrame = 0;
+                        state.frontend.screen = Screen::CharacterSelect;
+                        state.frontend.screenFrame = 0;
                         break;
                     case 2:
                         unloadCharacterRuntime(state);
-                        state.screen = Screen::StageSelect;
-                        state.screenFrame = 0;
+                        state.frontend.screen = Screen::StageSelect;
+                        state.frontend.screenFrame = 0;
                         break;
                     case 3:
                         unloadCharacterRuntime(state);
-                        state.screen = Screen::ModeSelect;
-                        state.screenFrame = 0;
+                        state.frontend.screen = Screen::ModeSelect;
+                        state.frontend.screenFrame = 0;
                         break;
                     default:
                         break;
@@ -14960,8 +14954,8 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
                 case SDLK_ESCAPE:
                 case SDLK_F2:
                     unloadCharacterRuntime(state);
-                    state.screen = Screen::ModeSelect;
-                    state.screenFrame = 0;
+                    state.frontend.screen = Screen::ModeSelect;
+                    state.frontend.screenFrame = 0;
                     break;
                 default:
                     break;
@@ -14970,8 +14964,8 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
             }
 
             if (key == SDLK_ESCAPE || key == SDLK_F2) {
-                state.singleFightPauseOpen = true;
-                state.selectedSingleFightPauseOption = 0;
+                state.frontend.singleFightPauseOpen = true;
+                state.frontend.selectedSingleFightPauseOption = 0;
             } else if (key == SDLK_R) {
                 resetFightState(state);
             }
@@ -15058,8 +15052,8 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
 
         if (key == SDLK_ESCAPE) {
             unloadCharacterRuntime(state);
-            state.screen = Screen::StageSelect;
-            state.screenFrame = 0;
+            state.frontend.screen = Screen::StageSelect;
+            state.frontend.screenFrame = 0;
         } else if (key == SDLK_F1) {
             state.trainingOptions.showHitboxes = !state.trainingOptions.showHitboxes;
         } else if (key == SDLK_F2) {
@@ -15074,11 +15068,11 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
 
 std::optional<SDL_Keycode> gamepadMenuKeyForButton(const AppState& state, SDL_GamepadButton button) {
     const bool fightOverlayOpen =
-        state.screen == Screen::FightView
-        && ((state.pendingMode == PendingMode::Training && state.trainingOptions.menuOpen)
-            || (isMatchMode(state) && state.singleFightPauseOpen));
+        state.frontend.screen == Screen::FightView
+        && ((state.frontend.pendingMode == PendingMode::Training && state.trainingOptions.menuOpen)
+            || (isMatchMode(state) && state.frontend.singleFightPauseOpen));
 
-    if (state.screen == Screen::FightView && !fightOverlayOpen) {
+    if (state.frontend.screen == Screen::FightView && !fightOverlayOpen) {
         if (isMatchMode(state) && state.matchPhase == MatchPhase::MatchResult) {
             if (button == SDL_GAMEPAD_BUTTON_SOUTH || button == SDL_GAMEPAD_BUTTON_START) {
                 return SDLK_RETURN;
@@ -15150,14 +15144,14 @@ void pumpEvents(SDL_Renderer* renderer, AppState& state) {
 
 void fixedUpdate(AppState& state) {
     ++state.frame;
-    ++state.screenFrame;
-    if (state.screen == Screen::VersusScreen && state.fightSessionPrepared && state.screenFrame > 120) {
+    ++state.frontend.screenFrame;
+    if (state.frontend.screen == Screen::VersusScreen && state.fightSessionPrepared && state.frontend.screenFrame > 120) {
         beginFight(state);
     }
     const bool fightPaused =
-        (state.pendingMode == PendingMode::Training && state.trainingOptions.menuOpen)
-        || (isMatchMode(state) && state.singleFightPauseOpen);
-    if (state.screen == Screen::FightView && !fightPaused) {
+        (state.frontend.pendingMode == PendingMode::Training && state.trainingOptions.menuOpen)
+        || (isMatchMode(state) && state.frontend.singleFightPauseOpen);
+    if (state.frontend.screen == Screen::FightView && !fightPaused) {
         updateFight(state);
         applyTrainingPowerMode(state);
     }
@@ -15165,10 +15159,10 @@ void fixedUpdate(AppState& state) {
 }
 
 void prepareVersusSessionAfterPresent(SDL_Renderer* renderer, AppState& state) {
-    if (state.screen != Screen::VersusScreen
+    if (state.frontend.screen != Screen::VersusScreen
         || state.fightSessionPrepared
         || state.fightSessionLoadFailed
-        || state.screenFrame < kVersusPrepareStartFrames) {
+        || state.frontend.screenFrame < kVersusPrepareStartFrames) {
         return;
     }
 
@@ -15242,18 +15236,18 @@ int runApp(const std::filesystem::path& gameRoot) {
 
         applyLogicalPresentation(renderer, state);
 
-        if (state.screen == Screen::ModeSelect) {
+        if (state.frontend.screen == Screen::ModeSelect) {
             drawModeSelect(renderer, state);
-        } else if (state.screen == Screen::MainSettings) {
+        } else if (state.frontend.screen == Screen::MainSettings) {
             drawMainSettings(renderer, state);
-        } else if (state.screen == Screen::CharacterSelect) {
+        } else if (state.frontend.screen == Screen::CharacterSelect) {
             drawCharacterSelect(renderer, state);
-        } else if (state.screen == Screen::StageSelect) {
+        } else if (state.frontend.screen == Screen::StageSelect) {
             drawStageSelect(renderer, state);
-        } else if (state.screen == Screen::VersusScreen) {
+        } else if (state.frontend.screen == Screen::VersusScreen) {
             drawVersusScreen(renderer, state);
             prepareVersusSessionAfterPresent(renderer, state);
-        } else if (state.screen == Screen::FightView) {
+        } else if (state.frontend.screen == Screen::FightView) {
             drawFightView(renderer, state);
         }
 

@@ -33,12 +33,16 @@ This audit is documentation-only. It records what remains in `engine/src/App.cpp
 | `FightResultOverlay.h` | round/result presentation rendering | Transitional App.cpp internal | Render-only; round/match flow remains in App.cpp. |
 | `AppTypes.h` | safe app/UI constants, enums, pure-data structs | Normal header | Owns Pass 11 safe types; no SDL/resource ownership. |
 | `FrontendMenu.h` / `FrontendMenu.cpp` | pure frontend menu decision helpers | Normal module | Pass 12 moved requested-action decisions, pure cursor/index movement, and copied settings cycling. App.cpp still owns SDL conversion and all side effects. |
+| `SelectionState.h` / `SelectionState.cpp` | character/stage selection metadata and pure lookup/display helpers | Normal module | Pass 13 moved selected character/stage/session metadata. `MugenData` still owns roster/stage catalog loading, and App.cpp still owns runtime loading and routing side effects. |
+| `FrontendState.h` | UI/front-end state storage | Normal header | Pass 14 moved screen, pending mode, selected mode, menu rail, pause/result selected indices, and `screenFrame` storage. Routing and `screenFrame` reset/increment behavior remain in App.cpp. |
 
 ## Type Inventory
 
 | Name | Kind | Approx Lines | Current Location / Line Range | Dependencies | Risk | Suggested Target | Confidence | Notes |
 | --- | --- | ---: | --- | --- | --- | --- | --- | --- |
 | Pass 11 app/UI types | constants/enums/structs | 150 | `AppTypes.h` | standard library only | `SAFE PURE DATA` | Already owned by `AppTypes.h` | HIGH | Includes `Screen`, `PendingMode`, `TrainingOptions`, `MainSettings`, `ComboCounterState`, `FightSessionSlots`. Do not duplicate. |
+| `SelectionState` | struct/helpers | 88 actual reduction | `SelectionState.h/.cpp` | `MugenData`, `AppTypes.h` | `MODERATE DATA` | Already owned by `SelectionState.h/.cpp` | HIGH | Stores selection metadata and pure lookup/display helpers only; runtime loading and routing remain in App.cpp. |
+| `FrontendState` | struct | 14 | `FrontendState.h` | `AppTypes.h` | `MODERATE DATA` | Already owned by `FrontendState.h` | HIGH | Stores UI/front-end state only; routing, screen transitions, and `screenFrame` reset/increment behavior remain in App.cpp. |
 | Input boundary types | structs | 53 | `Input.h` | standard library, SDL handle metadata only | `SAFE PURE DATA` | Already owned by `Input.h` | HIGH | Includes `FighterInputState`; do not move to `AppTypes.h`. |
 | Guard/comparison/expression enums | enums/structs | 29 | `App.cpp:33-67` | guard logic, expression parsing, command/CNS evaluation | `BEHAVIOR-COUPLED` | `MugenExpressionTypes.h` or `StateRuntimeTypes.h` after parser split | MEDIUM | `GuardStance` is hit/guard runtime; `CompareOp`, `MugenVariableRef`, and related enums are parser/runtime expression support. |
 | Texture/resource handles | structs | 8 | `App.cpp:68-75` | SDL texture ownership | `RESOURCE-COUPLED` | `RenderResourceTypes.h` after resource ownership audit | HIGH | `TextureSprite` owns raw SDL texture pointer metadata and should not move alone without destroy/lifetime policy. |
@@ -107,7 +111,7 @@ Future constants moved to normal headers should use `inline constexpr` when they
 
 | Group | Fields | Rough Lines If Separable | Future Target | Risk | Can Split Before Moving AppState? |
 | --- | --- | ---: | --- | --- | --- |
-| UI/menu state | `screen`, `pendingMode`, `selectedMode`, `menuRailOnLeft`, `running`, pause/result selected options | 40-70 | `FrontendState.h` | MEDIUM | Yes, but update references carefully. |
+| UI/menu state | `screen`, `pendingMode`, `selectedMode`, `menuRailOnLeft`, pause/result selected options, `screenFrame` | 14 actual | `FrontendState.h` | MEDIUM | Completed Pass 14. `running` and all transition behavior remain in App.cpp. |
 | selection state | `characters`, `stages`, `selectedCharacter`, `loadedP1Character`, `selectedStage`, `sessionSlots` | 50-90 | `SelectionState.h` | MEDIUM | Yes, if loading behavior remains in App.cpp initially. |
 | settings state | `trainingOptions`, `mainSettings`, `fightRoundSettings` | 30-60 | `SettingsState.h` or `FrontendState.h` | LOW | Yes. Types already public enough for a small split. |
 | training state | `trainingOptions`, dummy mode effects, `lastHitText`, `lastHitTextTicks` | 40-80 | `TrainingState.h` | MEDIUM | Yes, but dummy behavior touches fighters. |
@@ -161,7 +165,7 @@ These areas should remain in `App.cpp` or current runtime files until more bound
 
 | Proposed Pass | Target | Estimated App.cpp Reduction | Risk | Preconditions | Test Focus |
 | --- | --- | ---: | --- | --- | --- |
-| Pass A1 | Split `FrontendState` for screen, mode, pause/result menu indices, and route flags | 40-80 | MEDIUM | Keep field defaults exact; update references mechanically | verifiers, main/options/training route smoke |
+| Pass A1 | Completed Pass 14 `FrontendState` split for screen, mode, pause/result selected indices, menu rail, and `screenFrame` storage | 6 actual from App.cpp | MEDIUM | Routing and `screenFrame` behavior stayed in App.cpp | build/verifiers passed; GUI route smoke passed |
 | Pass A2 | Completed Pass 13 `SelectionState` split for selected character/stage/session slots | 88 actual | MEDIUM | `MugenData` catalog types and `AppTypes.h` session slots already public | build/verifiers passed; GUI route smoke passed; cursor movement remains automation-blocked |
 | Pass A3 | Extract UI render scope/helpers such as `ScopedUiScale` and basic debug/sprite helpers | 180-260 | MEDIUM | Public render helper types or internal transitional header | title/menu/training/fight GUI smoke |
 
@@ -205,8 +209,8 @@ These areas should remain in `App.cpp` or current runtime files until more bound
 
 | Item | Estimate |
 | --- | ---: |
-| Current `App.cpp` count | 15272 after Pass 13 |
-| Known extracted headers | 14 headers, about 1327 physical lines excluding `VerificationScenario.h` |
+| Current `App.cpp` count | 15266 after Pass 14 |
+| Known extracted headers/modules | 17 extracted headers/modules, including normal `FrontendState.h` |
 | Estimated safe immediate extraction total | 300-600 lines |
 | Estimated medium-risk extraction total | 900-1700 lines |
 | Estimated high-risk extraction total | 7000+ lines |
@@ -240,4 +244,4 @@ Prefer a pass that:
 
 If two candidates are similar, prefer the one that unlocks more future modules.
 
-Pass 12 completed the first scoped front-end/menu boundary by moving pure decision helpers into `FrontendMenu.h/.cpp`; `App.cpp` still performs SDL conversion, routing mutation, loading, and fight startup. The focused air-state sprint then fixed and verified held diagonal jump and air-attack landing regressions through `kfm-air-state`. Pass 13 split character/stage selection metadata into `SelectionState.h/.cpp` while leaving `MugenData`, runtime loading, preferred-stage mutation, routing, and fight startup unchanged. Good next candidates are a small `FrontendState` split, a settings state/behavior boundary, or a targeted pass that converts one or two transitional menu overlay headers into normal modules now that menu and selection primitives are public enough.
+Pass 12 completed the first scoped front-end/menu boundary by moving pure decision helpers into `FrontendMenu.h/.cpp`; `App.cpp` still performs SDL conversion, routing mutation, loading, and fight startup. The focused air-state sprint then fixed and verified held diagonal jump and air-attack landing regressions through `kfm-air-state`. Pass 13 split character/stage selection metadata into `SelectionState.h/.cpp` while leaving `MugenData`, runtime loading, preferred-stage mutation, routing, and fight startup unchanged. Pass 14 split UI/front-end state storage into `FrontendState.h` while leaving routing, transition behavior, `screenFrame` reset/increment behavior, loading, runtime, and CPU behavior in `App.cpp`. Good next candidates are a settings state/behavior boundary, a training state boundary, or a targeted pass that converts one or two transitional menu overlay headers into normal modules now that menu, frontend, and selection primitives are public enough.

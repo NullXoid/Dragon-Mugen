@@ -53,7 +53,7 @@ public:
         }
 
         state_.selection.selectedCharacter = findCharacterIndex(p1Id);
-        state_.pendingMode = mode == verification::ScenarioMode::SinglePlayer
+        state_.frontend.pendingMode = mode == verification::ScenarioMode::SinglePlayer
             ? PendingMode::SinglePlayer
             : PendingMode::Training;
         configureFightSessionSlotsFromSelection(state_);
@@ -76,7 +76,7 @@ public:
         const FighterInputState p1 = toFighterInput(p1Input);
         for (int i = 0; i < frames; ++i) {
             ++state_.frame;
-            ++state_.screenFrame;
+            ++state_.frontend.screenFrame;
             FightInputOverride inputOverride;
             inputOverride.p1 = &p1;
             const FightInputOverride* previous = gFightInputOverride;

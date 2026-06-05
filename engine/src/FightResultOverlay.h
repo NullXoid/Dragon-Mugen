@@ -84,7 +84,7 @@ void drawMatchResultScreen(SDL_Renderer* renderer, const AppState& state) {
     setColor(renderer, 230, 220, 172);
     debugText(renderer, 22, 18, "MATCH COMPLETE");
     setColor(renderer, 128, 171, 225);
-    debugText(renderer, 198, 18, isMatchMode(state) ? std::string(pendingModeTitle(state.pendingMode)) : "");
+    debugText(renderer, 198, 18, isMatchMode(state) ? std::string(pendingModeTitle(state.frontend.pendingMode)) : "");
 
     setColor(renderer, 222, 226, 232);
     debugTextCentered(renderer, centerX, 72, fitDebugText(winnerText, 28));
@@ -104,7 +104,7 @@ void drawMatchResultScreen(SDL_Renderer* renderer, const AppState& state) {
 
     for (int i = 0; i < kMatchResultOptionCount; ++i) {
         const float y = (quote.empty() ? 154.0f : 166.0f) + static_cast<float>(i * 16);
-        if (i == state.selectedMatchResultOption) {
+        if (i == state.frontend.selectedMatchResultOption) {
             setColor(renderer, 74, 170, 134);
             fillRect(renderer, centerX - 64.0f, y - 3.0f, 128, 13);
             setColor(renderer, 8, 12, 16);

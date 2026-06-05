@@ -168,7 +168,7 @@ void drawFightHud(SDL_Renderer* renderer, const AppState& state) {
     debugText(renderer, 20, 206,
         "P1 " + compactSettingText(selectedCharacterName(state.selection), 11)
         + " vs " + compactSettingText(opponentDisplayName(state), 9));
-    if (state.pendingMode == PendingMode::Training
+    if (state.frontend.pendingMode == PendingMode::Training
         && state.trainingOptions.showHitLog
         && state.lastHitTextTicks > 0
         && !state.lastHitText.empty()) {
@@ -181,7 +181,7 @@ void drawFightHud(SDL_Renderer* renderer, const AppState& state) {
     } else {
         if (!state.gamepads.empty()) {
             debugText(renderer, 20, 218, "Keys A/S/D Z/X/C  Pad " + gamepadActionLayoutText(state, 0));
-        } else if (state.pendingMode == PendingMode::Training && state.trainingOptions.p2Controlled) {
+        } else if (state.frontend.pendingMode == PendingMode::Training && state.trainingOptions.p2Controlled) {
             debugText(renderer, 20, 218, "P1 arrows A/S/D Z/X/C  P2 I/J/K/L U/O/P N/M/,");
         } else {
             debugText(renderer, 20, 218, "A/S/D Z/X/C  R reset  F1 boxes  F2 options");

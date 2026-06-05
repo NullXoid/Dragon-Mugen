@@ -11,7 +11,7 @@ void drawCharacterSelect(SDL_Renderer* renderer, const AppState& state) {
     const float widthF = logicalWidthF(state);
     const float centerX = screenCenterX(state);
     setColor(renderer, 235, 240, 248);
-    debugTextCentered(renderer, centerX, 8, std::string(pendingModeTitle(state.pendingMode)));
+    debugTextCentered(renderer, centerX, 8, std::string(pendingModeTitle(state.frontend.pendingMode)));
     setColor(renderer, 246, 214, 92);
     debugTextCentered(renderer, centerX, 20, "SELECT YOUR FIGHTER");
 
@@ -37,10 +37,10 @@ void drawCharacterSelect(SDL_Renderer* renderer, const AppState& state) {
         drawRect(renderer, 18, 30, 120, 140);
     }
     const float opponentPortraitX = widthF - 138.0f;
-    drawFixedOpponentSlot(renderer, opponentPortraitX, 30, 120, 140, opponentSlotLabel(state.pendingMode));
+    drawFixedOpponentSlot(renderer, opponentPortraitX, 30, 120, 140, opponentSlotLabel(state.frontend.pendingMode));
 
     const std::string p1Name = compactSettingText(character.displayName, 15);
-    const std::string p2Name(opponentSlotLabel(state.pendingMode));
+    const std::string p2Name(opponentSlotLabel(state.frontend.pendingMode));
     setColor(renderer, 235, 240, 248);
     debugText(renderer, 10, 154, p1Name);
     debugText(renderer, widthF - 10.0f - static_cast<float>(p2Name.size() * 8), 154, p2Name);

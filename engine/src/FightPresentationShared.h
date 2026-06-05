@@ -24,7 +24,7 @@ std::string singleFightStatusLine(const AppState& state) {
     if (!state.gamepads.empty()) {
         return "Pads " + gamepadActionLayoutText(state, 0) + "  Start pause";
     }
-    if (state.pendingMode == PendingMode::SinglePlayer) {
+    if (state.frontend.pendingMode == PendingMode::SinglePlayer) {
         return "P1 arrows A/S/D Z/X/C  CPU opponent";
     }
     return "P1 arrows A/S/D Z/X/C  P2 I/J/K/L U/O/P N/M/,";

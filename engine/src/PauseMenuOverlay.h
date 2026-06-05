@@ -29,13 +29,13 @@ void drawSingleFightPauseMenu(SDL_Renderer* renderer, const AppState& state) {
     fillRect(renderer, 70, 72, 180, 2);
 
     setColor(renderer, 230, 220, 172);
-    debugText(renderer, 84, 52, std::string(pendingModeTitle(state.pendingMode)));
+    debugText(renderer, 84, 52, std::string(pendingModeTitle(state.frontend.pendingMode)));
     setColor(renderer, 128, 171, 225);
     debugText(renderer, 204, 52, "PAUSE");
 
     for (int i = 0; i < kSingleFightPauseOptionCount; ++i) {
         const float y = 88.0f + static_cast<float>(i * 18);
-        if (i == state.selectedSingleFightPauseOption) {
+        if (i == state.frontend.selectedSingleFightPauseOption) {
             setColor(renderer, 74, 170, 134);
             fillRect(renderer, 84, y - 3.0f, 132, 14);
             setColor(renderer, 8, 12, 16);

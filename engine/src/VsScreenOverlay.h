@@ -19,7 +19,7 @@ void drawVersusScreen(SDL_Renderer* renderer, const AppState& state) {
     setColor(renderer, 210, 224, 238);
     debugText(renderer, 18, 16, "DRAGON MUGEN CORE");
     setColor(renderer, 128, 171, 225);
-    debugText(renderer, 20, 30, std::string(pendingModeTitle(state.pendingMode)) + " VS");
+    debugText(renderer, 20, 30, std::string(pendingModeTitle(state.frontend.pendingMode)) + " VS");
 
     drawPanel(renderer, 22, 62, 108, 96);
     drawPanel(renderer, widthF - 130.0f, 62, 108, 96);

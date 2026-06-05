@@ -32,7 +32,7 @@ void drawModeSelect(SDL_Renderer* renderer, const AppState& state) {
         const std::string label(modes[static_cast<size_t>(i)]);
         const float textX = centerX - static_cast<float>(label.size()) * 4.0f;
 
-        if (i == state.selectedMode) {
+        if (i == state.frontend.selectedMode) {
             setColor(renderer, 226, 210, 78);
             drawRect(renderer, menuX + 8.0f, y - 9, 112, 13);
             setColor(renderer, 255, 238, 96);
@@ -44,7 +44,7 @@ void drawModeSelect(SDL_Renderer* renderer, const AppState& state) {
     }
 
     setColor(renderer, 220, 224, 232);
-    switch (state.selectedMode) {
+    switch (state.frontend.selectedMode) {
     case 0:
         debugTextCentered(renderer, centerX, 214, "TRAINING SANDBOX");
         break;
