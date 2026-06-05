@@ -157,6 +157,8 @@ Statuses:
 | `RoundStart` | PARTIAL | Fight loaded through VS; specific RoundStart callout/timing not independently verified. |
 | `Fight` | PASS | Fight view loaded and stayed active. |
 | Match pause menu rendering after extraction | PASS | Render-only pause menu functions were extracted and post-extraction build/scripted verifiers passed. User-supplied screenshots on 2026-06-04 confirm the Single Player and VS Mode pause menus render with all expected rows and selected-row highlight, and that Resume returns to fight. Restart/Fighter Select/Stage Select/Mode Select actions remain separate untested pause-menu actions. |
+| Single Player match-complete screen | PASS | User-supplied screenshot on 2026-06-05 confirms Single Player can reach `MATCH COMPLETE`, show Evil Ken winning `2 - 0` by decision, display Mountainside Temple, and render result-menu rows. This is match-flow evidence only. |
+| Single Player CPU active fighting | FAIL | User report says the CPU opponent behaves passive/training-dummy-like. Logged as an open high-severity runtime bug; do not count Single Player CPU gameplay as verified until CPU decisions feed FighterInputState/CMD/CNS and are live-tested. |
 | Timer/round pips after Fight HUD extraction | NOT TESTED | Fight HUD extraction GUI smoke was Training-only. Single Player/VS timer and round-pip rendering should be checked in a later match-mode smoke before marking this row PASS. |
 | Round/result overlay rendering after extraction | NOT TESTED | `FightResultOverlay.h` extraction built and scripted verifiers passed, and Training regression smoke passed. Dedicated RoundStart/RoundFinish/RoundResult/MatchResult screens were not forced or separately observed in this pass. |
 | `RoundFinish` | NOT TESTED |  |

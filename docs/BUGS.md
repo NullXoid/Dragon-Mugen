@@ -34,6 +34,43 @@ Computer Use could verify event-style keys such as `F1` and `F2`, but it could n
 
 Manual user testing after commit `4581704` confirmed the Pass 12 frontend keyboard/controller paths work, and surfaced two real air-state bugs below.
 
+## Bug: Single Player CPU opponent is passive / training-dummy-like
+
+Status: open
+Severity: high
+Area: Single Player / CPU control / fight runtime
+Character: Evil Ken
+Mode: Single Player
+Stage: Mountainside Temple
+Input device: physical keyboard/controller user smoke
+Build/commit: c7ea079 era; observed after SelectionState boundary work
+
+Reproduction:
+1. Launch `build\dragon_mugen.exe`.
+2. Enter Single Player.
+3. Select Evil Ken or the current tested fighter.
+4. Select Mountainside Temple.
+5. Start the match and play through to match completion.
+
+Expected:
+CPU opponent should move, attack, guard, or otherwise produce gameplay input. CPU behavior should route through the normal input/CMD/CNS path:
+`CPU decision -> FighterInputState -> command buffer -> CMD/CNS -> runtime`.
+
+Actual:
+Single Player match flow and match-complete presentation work, but the CPU behaves like a passive training dummy and does not meaningfully fight back.
+
+Evidence:
+User-supplied screenshot on 2026-06-05 shows `MATCH COMPLETE`, `SINGLE PLAYER`, Evil Ken winning `2 - 0` by decision on Mountainside Temple. User report says the CPU opponent was basically passive/training-dummy-like during the match.
+
+Notes:
+This is not a SelectionState issue. Do not fix by forcing CPU `ChangeState` directly. A future CPU baseline should produce the same symbolic inputs as a real player so CMD/CNS remains the route into authored character behavior.
+
+Possible suspect files:
+`engine/src/App.cpp`, CPU control/update path, FighterInputState production for CPU-controlled fighters
+
+Blocking:
+Does not block the SelectionState boundary. Blocks claiming Single Player CPU active fighting behavior as verified.
+
 ## Bug: diagonal jump can continue indefinitely while held
 
 Status: fixed by scripted verifier; physical retest pending
