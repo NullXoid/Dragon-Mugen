@@ -329,6 +329,17 @@ int runKfmAirState(RuntimeProbe& runtime, std::ostream& out) {
         "state=" + std::to_string(runtime.snapshot().p1.stateNo)
         + " on_ground=" + std::to_string(runtime.snapshot().p1.onGround ? 1 : 0));
 
+    runtime.step(SymbolicInput{ .right = true }, 20);
+    const auto forwardWalkJump = holdInputUntilLanding(runtime, SymbolicInput{ .right = true, .up = true }, 180);
+    record(out, counts, airLandingPassed(forwardWalkJump) ? Status::Pass : Status::Fail,
+        "diagonal_jump_forward_from_walk_lands", airLandingDetail(forwardWalkJump));
+
+    runtime.step({}, 60);
+    const bool settledAfterForwardWalk = waitForControllableIdle(runtime, 240);
+    record(out, counts, settledAfterForwardWalk ? Status::Pass : Status::Fail, "idle_after_forward_walk_diagonal",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo)
+        + " on_ground=" + std::to_string(runtime.snapshot().p1.onGround ? 1 : 0));
+
     runtime.step({}, 20);
     const auto backJump = holdInputUntilLanding(runtime, SymbolicInput{ .left = true, .up = true }, 180);
     record(out, counts, airLandingPassed(backJump) ? Status::Pass : Status::Fail,
@@ -337,6 +348,17 @@ int runKfmAirState(RuntimeProbe& runtime, std::ostream& out) {
     runtime.step({}, 60);
     const bool settledAfterBack = waitForControllableIdle(runtime, 240);
     record(out, counts, settledAfterBack ? Status::Pass : Status::Fail, "idle_after_back_diagonal",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo)
+        + " on_ground=" + std::to_string(runtime.snapshot().p1.onGround ? 1 : 0));
+
+    runtime.step(SymbolicInput{ .left = true }, 20);
+    const auto backWalkJump = holdInputUntilLanding(runtime, SymbolicInput{ .left = true, .up = true }, 180);
+    record(out, counts, airLandingPassed(backWalkJump) ? Status::Pass : Status::Fail,
+        "diagonal_jump_back_from_walk_lands", airLandingDetail(backWalkJump));
+
+    runtime.step({}, 60);
+    const bool settledAfterBackWalk = waitForControllableIdle(runtime, 240);
+    record(out, counts, settledAfterBackWalk ? Status::Pass : Status::Fail, "idle_after_back_walk_diagonal",
         "state=" + std::to_string(runtime.snapshot().p1.stateNo)
         + " on_ground=" + std::to_string(runtime.snapshot().p1.onGround ? 1 : 0));
 

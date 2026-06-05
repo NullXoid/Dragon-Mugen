@@ -61,7 +61,7 @@ Notes:
 User-supplied screenshot evidence on 2026-06-05 shows the Training fight after Pass 12 manual smoke, and user report confirms the issue with keyboard and controller. The immediate fix restores a single-jump limit by default. A Main Settings double-jump option remains a future feature and was not added in this fix.
 
 Fix evidence:
-`build\dragon_mugen.exe --verify kfm-air-state` now passes `diagonal_jump_forward_lands` and `diagonal_jump_back_lands` with `saw_air=1`, `landed=1`, `reentered_air_after_landing=0`, `final_y=0.000000`, `final_vy=0.000000`, `final_state=0`, `final_state_type=S`, and `final_on_ground=1`.
+`build\dragon_mugen.exe --verify kfm-air-state` now passes `diagonal_jump_forward_lands`, `diagonal_jump_back_lands`, `diagonal_jump_forward_from_walk_lands`, and `diagonal_jump_back_from_walk_lands` with `saw_air=1`, `landed=1`, `reentered_air_after_landing=0`, `final_y=0.000000`, `final_vy=0.000000`, `final_state=0`, `final_state_type=S`, and `final_on_ground=1`.
 
 Possible suspect files:
 `engine/src/App.cpp`, jump/air-state input and movement handling
