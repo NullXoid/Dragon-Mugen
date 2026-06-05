@@ -32,6 +32,72 @@ Blocking:
 
 Computer Use could verify event-style keys such as `F1` and `F2`, but it could not reliably exercise SDL polled gameplay controls such as held movement or `A/S/D/Z/X/C` attacks. That is recorded as a verification limitation in `docs/LIVE_VERIFICATION_MATRIX.md`, not as a Dragon MUGEN runtime bug.
 
+Manual user testing after commit `4581704` confirmed the Pass 12 frontend keyboard/controller paths work, and surfaced two real air-state bugs below.
+
+## Bug: diagonal jump can continue indefinitely while held
+
+Status: open
+Severity: high
+Area: jump / air movement / input hold
+Character: Kung Fu Man, likely broader
+Mode: Training
+Stage: Mountainside Temple
+Input device: physical keyboard and controller
+Build/commit: 4581704
+
+Reproduction:
+1. Launch `build\dragon_mugen.exe`.
+2. Enter Training with Kung Fu Man on Mountainside Temple.
+3. Hold Up + Forward or Up + Back.
+4. Keep holding the direction pair while airborne.
+
+Expected:
+The character should perform one jump arc by default, then land. Holding Up + Forward/Back should not keep extending the jump or allow repeated air jumps. Double jump should be a separate future setting with an explicit default and limit.
+
+Actual:
+The diagonal jump has no end while Up + Forward/Back remains held. The character can keep moving in that direction indefinitely and can effectively perform infinite jumps in the air until the direction keys are released.
+
+Notes:
+User-supplied screenshot evidence on 2026-06-05 shows the Training fight after Pass 12 manual smoke, and user report confirms the issue with keyboard and controller. The immediate fix should restore a single-jump limit by default. A Main Settings double-jump option is a future feature and should not be added until the one-jump runtime is correct.
+
+Possible suspect files:
+`engine/src/App.cpp`, jump/air-state input and movement handling
+
+Blocking:
+Yes, for air-state correctness before broad runtime extraction.
+
+## Bug: air attack can leave character stuck at airborne height
+
+Status: open
+Severity: high
+Area: air attack / landing / ground position
+Character: Kung Fu Man, likely broader
+Mode: Training
+Stage: Mountainside Temple
+Input device: physical keyboard and controller
+Build/commit: 4581704
+
+Reproduction:
+1. Launch `build\dragon_mugen.exe`.
+2. Enter Training with Kung Fu Man on Mountainside Temple.
+3. Jump.
+4. Perform an air attack.
+
+Expected:
+The character should complete the air attack, continue the normal fall/landing path, and return to the real stage floor.
+
+Actual:
+The character can get stuck in the air after the attack, as if the ground level became the height where the air attack occurred.
+
+Notes:
+User report on 2026-06-05 describes the fighter becoming a suspended state after an air attack. Screenshot evidence includes KFM airborne/combat states with hitbox/debug overlays active after Pass 12 manual smoke. This should be treated as an air-state/landing bug, not as a frontend extraction regression unless later bisect proves otherwise.
+
+Possible suspect files:
+`engine/src/App.cpp`, air attack state handling, landing detection, position reset/ground clamp logic
+
+Blocking:
+Yes, for air-state correctness before broad runtime extraction.
+
 ## Bug: state entry skips `Time = 0` transitions
 
 Status: fixed in current verification pass

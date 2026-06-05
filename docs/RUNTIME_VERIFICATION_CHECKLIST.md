@@ -36,6 +36,7 @@ Statuses:
 | Post-fight-result-overlay extraction GUI smoke | PASS | After shared/result overlay extraction, GUI smoke clicked/focused the game window, reached Main -> Training -> KFM -> Mountainside Temple -> VS -> fight, confirmed Fight HUD names/lifebars/power gauges/`POWER` labels, command/input HUD, F1 hitboxes, F2 Training Options, `R`, normal-input smoke, Escape backout, and clean exit. Round/result overlay screens were not separately forced in this pass. |
 | Post-AppTypes extraction GUI smoke | PASS | After safe app/UI constants and pure-data structs were extracted to `engine/src/AppTypes.h`, GUI smoke clicked/focused the game window, reached Main -> Training -> KFM -> Mountainside Temple -> VS -> fight, confirmed Fight HUD, command/input HUD, F1 hitboxes, F2 Training Options, `R`, normal-input smoke, Escape backout, and clean exit. No behavior/input/routing/loading/gameplay/controller/CMake/sidecar changes were made. |
 | Post-FrontendMenu extraction GUI smoke | PARTIAL | After pure frontend decision helpers were extracted to `engine/src/FrontendMenu.h/.cpp`, build, `dev_check`, and both scripted verifiers passed. GUI smoke clicked/focused the game window and confirmed Main -> Training -> Character Select -> Stage Select -> VS/loading -> fight, Fight HUD, command/input HUD, F1 hitboxes, F2 Training Options, `R`, Escape backout, and clean exit. Computer Use delivered Return/Escape/F1/F2/R but did not visibly deliver SDL arrow or letter-key input, so Options navigation, selector/cursor movement, and normal-input GUI smoke remain automation-blocked for this pass. |
+| Post-FrontendMenu manual keyboard/controller smoke | PASS | User manual testing after `4581704` confirmed the keyboard and controller frontend/menu smoke works. Evidence includes Character Select movement to Evil Ken and Evil Ryu, Stage Select, VS/loading, Training fight, command/input HUD, F1 hitboxes, F2 Training Options, normal/hit evidence, and controller operation. Two air-state bugs were found and recorded separately in `docs/BUGS.md`. |
 
 ## 2. Character And Stage Selection
 
@@ -62,6 +63,7 @@ Statuses:
 | VS/loading transition after extraction | PASS | Existing auto-start timing still transitioned from VS/loading to fight without changing timing. |
 | FrontendMenu route after extraction | PASS | `FrontendMenu` extraction preserved Return-driven Training route from Main -> Character Select -> Stage Select -> VS/loading -> fight. |
 | FrontendMenu selector/cursor movement after extraction | BLOCKED | Computer Use arrow-key injection did not visibly move SDL main, character, or stage selectors after clicking/focusing the window. This is recorded as automation-blocked, not runtime failure; manual keyboard/controller evidence remains separate. |
+| FrontendMenu selector/cursor manual smoke | PASS | User manual testing after `4581704` confirms keyboard/controller selector movement worked; screenshots show Character Select cursor movement to Evil Ken and Evil Ryu. |
 
 ## 3. Keyboard P1 Input
 
@@ -127,6 +129,7 @@ Statuses:
 | Walk forward/back | PASS | Internal scripted input path verified movement deltas. Manual physical keyboard retest confirms walk animation now cycles correctly after the second targeted fix. |
 | Crouch | PASS | Internal scripted input path verified `state=11 anim=11`; manual physical keyboard report says crouch works. |
 | Jump | PASS | Internal scripted input path verified `y_min=-73.079994 grounded_final=true`; manual physical keyboard report says jump/land works. |
+| Diagonal held jump limit | FAIL | Manual user testing after `4581704` found holding Up + Forward/Back can continue the jump indefinitely and effectively allow infinite air jumps until the direction keys are released. Default behavior should be one jump arc; double jump should be a future explicit setting. |
 | Standing normals | PASS | Internal scripted CMD/CNS path verified `command=y state_after=210 anim_after=210`; manual physical keyboard report says standing normals work. |
 | Crouching normals | PASS | Internal scripted CMD/CNS path verified `command=y state_before=11 state_after=410 anim_after=410`; manual physical keyboard report says crouching normals work. |
 | Hit detection | PASS | Internal scripted path verified `contact=1`; manual physical keyboard report says hit/damage works. |
@@ -140,6 +143,7 @@ Statuses:
 | Guard sound | NOT TESTED | Depends on guard contact. |
 | Fall/get-hit routing | NOT TESTED | Depends on successful hit setup. |
 | Wake-up/recovery | NOT TESTED | Depends on successful fall/get-hit setup. |
+| Air attack landing | FAIL | Manual user testing after `4581704` found an air attack can leave the character stuck at airborne height, as if the ground became the attack height. |
 | KO | NOT TESTED | Depends on damage flow. |
 | Round reset/rematch or back out | PARTIAL | Back out from fight was verified; round reset/rematch was not. |
 
