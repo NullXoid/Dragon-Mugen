@@ -17,10 +17,10 @@ Statuses:
 | Launch with `build/dragon_mugen.exe game` | PASS | Verified live on 2026-06-04 with commit `33d86e3`. |
 | Launch `build/dragon_mugen.exe` with no game argument | PASS | Verified live on 2026-06-04 with commit `e0bc149`; runtime root auto-resolved and full title art loaded. |
 | Main/title screen appears | PASS | Main screen showed M.U.G.E.N motif and Training highlighted. |
-| Settings screen opens | PASS | User manually navigated to Options and provided screenshot evidence after Options menu extraction. Computer Use still cannot move the SDL menu selector with Down, so manual evidence is the live proof. |
+| Settings screen opens | PASS | User manually navigated to Options and provided screenshot evidence after Options menu extraction. Prior automation did not navigate there; user later clarified the game window must be clicked/focused before automation keyboard input registers. |
 | Training path opens | PASS | Enter from main opened Training character select. |
-| Single Player path opens | BLOCKED | Automation could not move the SDL menu selector with Down; manual verification required. |
-| VS path opens | BLOCKED | Automation could not move the SDL menu selector with Down; manual verification required. |
+| Single Player path opens | PASS | User-supplied pause/resume screenshots confirm Single Player reaches fight/pause presentation. |
+| VS path opens | PASS | User-supplied VS pause and controller/P2 fight screenshots confirm VS reaches fight presentation. |
 | Character select opens | PASS | KFM, Evil Ryu, and Evil Ken portraits/icons visible. |
 | Stage select opens | PASS | Enter from character select opened Stage Select. |
 | VS screen opens | PASS | Enter from stage select opened Training VS screen. |
@@ -35,13 +35,13 @@ Statuses:
 | Check | Status | Notes |
 | --- | --- | --- |
 | KFM selectable | PASS | KFM was the selected live character. |
-| Evil Ryu selectable | PARTIAL | Evil Ryu portrait/icon visible; selection was not navigated due automation arrow-key limitation. |
+| Evil Ryu selectable | PASS | Evil Ryu portrait/icon was visible, and user-supplied VS/controller evidence shows Evil Ryu loaded into fight. |
 | Evil Ken selectable | PARTIAL | Evil Ken portrait/icon visible; selection was not navigated due automation arrow-key limitation. |
 | `DragonBench` folder not selectable unless listed in `select.def` | PARTIAL | Not visible on observed first select page; exhaustive navigation blocked by automation arrow-key limitation. |
 | `A.Ben` folder not selectable unless listed in `select.def` | PARTIAL | Not visible on observed first select page; exhaustive navigation blocked by automation arrow-key limitation. |
 | `I.Chie` folder not selectable unless listed in `select.def` | PARTIAL | Not visible on observed first select page; exhaustive navigation blocked by automation arrow-key limitation. |
 | Mountainside Temple selectable | PASS | Stage Select showed Mountainside Temple selected. |
-| Fight loads selected character | PASS | Fight view loaded Kung Fu Man. |
+| Fight loads selected character | PASS | Fight view loaded Kung Fu Man in Training, and user-supplied VS/controller evidence loaded Evil Ryu. |
 | Fight loads selected stage | PASS | Fight view loaded Mountainside Temple. |
 
 ## 3. Keyboard P1 Input
@@ -72,8 +72,8 @@ Statuses:
 | `x/y/z` buttons | PASS | User tested P2 keyboard in a real P2 mode after input boundary extraction and reported working; detailed per-button matrix can be expanded later. |
 | `a/b/c` buttons | PASS | User tested P2 keyboard in a real P2 mode after input boundary extraction and reported working; detailed per-button matrix can be expanded later. |
 | P2 can be controlled where expected | PASS | Manual physical keyboard evidence in a real P2 mode. |
-| P1/P2 face each other | PARTIAL | User reported P2 keyboard mode works; a dedicated facing-only check was not separately recorded. |
-| Collision/player push works | PARTIAL | User reported P2 keyboard mode works; a dedicated player-push/collision-only check was not separately recorded. |
+| P1/P2 face each other | PASS | User-supplied VS/P2 fight screenshot shows both fighters facing in local Player 2 fight. |
+| Collision/player push works | PARTIAL | User-supplied console logs show P1/P2 hit contact in local fight; player-push-only behavior was not isolated. |
 
 ## 5. Training Mode
 
@@ -165,16 +165,18 @@ Statuses:
 | Round intro overlay | PASS | Screenshot-backed visual evidence shows `ROUND 1`. |
 | Timer countdown | PASS | Screenshot-backed visual evidence plus scripted timer stability `timer_ticks=5650`. |
 | Combo counter display | PASS | Screenshot-backed `4 Rush!` plus scripted `combo_hits=1`; full Evil Ken damage compatibility remains unproven because smoke hit damage was `0`. |
+| Evil Ryu local VS load | PASS | User-supplied controller/P2 evidence shows Evil Ryu loaded into VS/local Player 2 fight. |
+| Evil Ryu local VS hit logs | PASS | User-supplied console output shows P1 and P2 Evil Ryu hit events with damage, spark, and sound fields. This is a local fight smoke pass, not full Evil Ryu compatibility. |
 
 ## 9. Controller Input
 
 | Check | Status | Notes |
 | --- | --- | --- |
-| P1 gamepad assignment | BLOCKED | No controller verified in this pass yet. |
-| P2 gamepad assignment | BLOCKED | No controller verified in this pass yet. |
-| Xbox labels | BLOCKED | No controller verified in this pass yet. |
-| PlayStation labels | BLOCKED | No controller verified in this pass yet. |
-| Movement | BLOCKED | No controller verified in this pass yet. |
-| Face buttons | BLOCKED | No controller verified in this pass yet. |
-| Start/pause | BLOCKED | No controller verified in this pass yet. |
-| Back/cancel | BLOCKED | No controller verified in this pass yet. |
+| P1 gamepad assignment | PASS | User-supplied Options screenshot shows a PlayStation/DualSense pad assigned for P1, and console output detects `DualSense Edge Wireless Controller (PlayStation)`. |
+| P2 gamepad assignment | PARTIAL | User verified a local Player 2 fight and controller smoke; a separate screenshot of P2 gamepad assignment was not recorded. |
+| Xbox labels | NOT TESTED | PlayStation labels were tested; Xbox label mode still needs hardware/manual verification. |
+| PlayStation labels | PASS | Options and fight HUD screenshots show PlayStation-style labels such as `Sq/Tri/L1` and `Cross/Cir/R1`. |
+| Movement | PASS | User reported controller works in live fight; VS screenshot shows active Evil Ryu vs Player 2 fight. Detailed per-axis matrix can be expanded later. |
+| Face buttons | PASS | User-supplied console logs show P1/P2 hit events during controller/P2 fight smoke. Detailed per-button matrix can be expanded later. |
+| Start/pause | PARTIAL | Fight HUD renders `Start pause`; the Start button pause action was not separately captured. |
+| Back/cancel | NOT TESTED | No separate controller back/cancel evidence recorded yet. |
