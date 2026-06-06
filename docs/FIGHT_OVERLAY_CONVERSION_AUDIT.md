@@ -25,8 +25,17 @@ Pass 32 update:
 
 - `FightPresentationView.h` now provides display-only prepared view structs for future fight HUD/result module conversion.
 - `App.cpp` compile-checks the header, but no fight overlay call sites changed.
-- `FightHudOverlay.h`, `FightResultOverlay.h`, and `FightPresentationShared.h` remain transitional until the next conversion pass.
+- `FightResultOverlay.h` and `FightPresentationShared.h` remain transitional until their conversion passes.
 - `App.cpp` still owns all runtime-derived view assembly, hit/damage, round flow, result routing, loading, resources, CPU behavior, controller behavior, and sidecar policy.
+
+Pass 33 update:
+
+- `FightHudOverlay.h` is now a normal declaration header and `FightHudOverlay.cpp` owns render-only HUD drawing.
+- `App.cpp` assembles `FightHudView` from existing runtime state, fight settings, labels, messages, and display state, then calls the normal module.
+- The module has no `AppState`, `FighterState`, `FightRoundSettings`, `FightPowerbarSettings`, training options, gamepad device, resource ownership, CMD/CNS, hit/damage, or round-flow dependency.
+- `App.cpp` changed from `14705` to `14795` file-size-guard lines because explicit view assembly replaced hidden App.cpp-internal header coupling.
+- `FightHudOverlay.h` is 10 lines and `FightHudOverlay.cpp` is 197 lines.
+- Build, `dev_check`, `kfm-baseline`, `evilken-smoke`, `kfm-air-state`, and `cpu-baseline` passed. Manual GUI smoke was not rerun.
 
 ## Readiness Labels
 
@@ -41,9 +50,9 @@ Pass 32 update:
 
 | Header | Current Lines | Responsibility | Main Dependencies | Minimum View Seam | Conversion Readiness | Recommended Order | Notes |
 |---|---:|---|---|---|---|---:|---|
-| `FightPresentationShared.h` | 60 | Shared fight presentation helpers: single-fight status line text and round-win pip rendering | `singleFightStatusLine` reads match phase, phase ticks, round settings, gamepad state, pending mode, and result-text helpers. `drawRoundWinPips` is render-only after primitive inputs. | `FightPresentationView.h` now supplies prepared round-pip inputs; keep status-line assembly in `App.cpp` until HUD/result conversion. | `NEEDS SMALL VIEW SEAM` | 1 | The view seam exists, but this header is still transitional because the drawing helpers and status-line helper have not been split yet. |
-| `FightHudOverlay.h` | 190 | Fight HUD rendering: life bars, power gauges, timer, round wins, combo counters, bottom status/hit-log lines, input/footer hints | `AppState`, `FighterState` life/power, `FightRoundSettings`, `FightDisplayState`, `FightMessageState`, match timer/round wins, selected/opponent labels, gamepad labels, and shared status-line helpers. | Use the new `FightHudView`, `FighterHudView`, `FightPowerGaugeView`, `FightComboCounterView`, and `FightRoundPipsView`; assemble all values in `App.cpp`. | `NEEDS FIGHT HUD CONVERSION` | 2 | This is now the recommended next implementation pass. `App.cpp` must still compute strings, read runtime state, and own combo mutation/timer logic. |
-| `FightResultOverlay.h` | 119 | Round start/finish/result overlays and match-complete result menu rendering | `AppState`, match phase/ticks, round settings, round wins, result text helpers, fighters, victory quote helper, selected stage name, match winner/method/score helpers, and result-menu selection. | Use the new `FightRoundCalloutView`, `FightRoundResultView`, `FightMatchResultView`, and `FightResultMenuRowView`; assemble all values in `App.cpp`. | `NEEDS RESULT VIEW ASSEMBLY` | 3 | Convert after the HUD conversion or after the shared render helper split proves stable. Keep round-flow decisions, match-completion logic, rematch/routing behavior, and result-menu actions in `App.cpp`. |
+| `FightHudOverlay.h` / `FightHudOverlay.cpp` | 10 / 197 | Fight HUD rendering: life bars, power gauges, timer, round wins, combo counters, bottom status/hit-log lines, input/footer hints | Prepared `FightHudView`, `UiRenderContext`, public UI primitives, and standard library headers. `App.cpp` still assembles runtime-derived values. | No remaining HUD render seam; future refinements can reduce App.cpp view assembly when broader fight state boundaries exist. | `READY` | 0 | Pass 33 converted the HUD to a normal module. Runtime state, mutation, labels, timer, combo data, and gamepad text remain assembled in `App.cpp`. |
+| `FightPresentationShared.h` | 60 | Shared fight presentation helpers: single-fight status line text and round-win pip rendering | `singleFightStatusLine` reads match phase, phase ticks, round settings, gamepad state, pending mode, and result-text helpers. | Keep status-line assembly in `App.cpp`; result conversion may retire or shrink the remaining shared helper header. | `NEEDS RESULT VIEW ASSEMBLY` | 1 | Round-pip rendering moved into the normal HUD module as a private prepared-view helper. The status-line helper remains transitional until result conversion. |
+| `FightResultOverlay.h` | 119 | Round start/finish/result overlays and match-complete result menu rendering | `AppState`, match phase/ticks, round settings, round wins, result text helpers, fighters, victory quote helper, selected stage name, match winner/method/score helpers, and result-menu selection. | Use the new `FightRoundCalloutView`, `FightRoundResultView`, `FightMatchResultView`, and `FightResultMenuRowView`; assemble all values in `App.cpp`. | `NEEDS RESULT VIEW ASSEMBLY` | 2 | Convert after the HUD conversion. Keep round-flow decisions, match-completion logic, rematch/routing behavior, and result-menu actions in `App.cpp`. |
 
 ## Boundaries For Future Conversion
 
@@ -72,31 +81,30 @@ Do not move or expose as part of fight overlay conversion:
 Recommendation:
 
 ```text
-Pass 33: Convert FightHudOverlay using prepared FightHudView
+Pass 34: Convert FightResultOverlay using prepared result views
 ```
 
 Reason:
 
-- `FightPresentationView.h` now provides the display-only view types needed by the HUD path.
-- `FightHudOverlay.h` is less result/routing-adjacent than `FightResultOverlay.h`, so it is the safer first fight overlay conversion.
-- The conversion should keep `App.cpp` as the only place that reads `AppState`, `FighterState`, fight settings, match timer, training options, gamepad state, and selection labels.
+- `FightHudOverlay` now proves the prepared fight-presentation view pattern as a normal module.
+- `FightResultOverlay.h` is the remaining fight presentation overlay that is still App.cpp-internal.
+- The conversion should keep `App.cpp` as the only place that reads match phase, round settings, fighters, victory quotes, selected stage data, match result helpers, result-menu selection, and routing state.
 
 Required seam:
 
-The required view seam now exists:
+The required result view seam now exists:
 
-- `FightHudView`
-- `FighterHudView`
-- `FightPowerGaugeView`
-- `FightComboCounterView`
-- `FightRoundPipsView`
+- `FightRoundCalloutView`
+- `FightRoundResultView`
+- `FightMatchResultView`
+- `FightResultMenuRowView`
 - `App.cpp` remains the only place that reads runtime state and calls match/result/status helper logic.
 
-Expected files for Pass 33:
+Expected files for Pass 34:
 
-- convert `engine/src/FightHudOverlay.h` to a normal declaration header
-- create `engine/src/FightHudOverlay.cpp`
-- update `engine/src/App.cpp` to assemble `FightHudView` and call the normal module
+- convert `engine/src/FightResultOverlay.h` to a normal declaration header
+- create `engine/src/FightResultOverlay.cpp`
+- update `engine/src/App.cpp` to assemble round callout/result/match result views and call the normal module
 - update CMake for the new `.cpp`
 - update normal progress docs after evidence
 
@@ -113,8 +121,8 @@ Expected `App.cpp` line reduction:
 
 Expected hidden-coupling reduction:
 
-- Removes `FightHudOverlay` from the App.cpp-internal include-order group.
-- Proves fight overlays can follow the prepared-view module pattern without taking `AppState` or `FighterState` dependencies.
+- Removes `FightResultOverlay` from the App.cpp-internal include-order group.
+- Completes the main fight-presentation overlay conversion pair without taking `AppState` or `FighterState` dependencies.
 
 Verification focus:
 

@@ -49,6 +49,7 @@ add_custom_target(dragon_dev_check
 add_library(dragon_core
     engine/src/MugenText.cpp
     engine/src/FightData.cpp
+    engine/src/FightHudOverlay.cpp
     engine/src/CharacterSelectOverlay.cpp
     engine/src/MugenData.cpp
     engine/src/SelectionState.cpp

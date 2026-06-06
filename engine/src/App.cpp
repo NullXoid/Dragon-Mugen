@@ -6,6 +6,7 @@
 #include "dragon/Snd.h"
 #include "AppTypes.h"
 #include "FightDisplayState.h"
+#include "FightHudOverlay.h"
 #include "FightMessageState.h"
 #include "FightPresentationView.h"
 #include "FrontendMenu.h"
@@ -14456,9 +14457,98 @@ std::string commandEntryTargetLabel(const CommandStateEntry& entry) {
 
 #include "FightPresentationShared.h"
 
-#include "FightHudOverlay.h"
-
 #include "FightResultOverlay.h"
+
+FightComboCounterView fightComboCounterView(const AppState& state, size_t attackerIndex) {
+    FightComboCounterView view;
+    if (attackerIndex >= state.display.comboCounters.size()) {
+        return view;
+    }
+
+    const auto& combo = state.display.comboCounters[attackerIndex];
+    const auto& settings = state.fightRoundSettings.combo;
+    view.displayHits = combo.displayHits;
+    view.displayTicks = combo.displayTicks;
+    view.displayTime = std::max(1, settings.displayTime);
+    view.frame = state.frame;
+    view.posX = settings.posX;
+    view.posY = settings.posY;
+    view.startX = settings.startX;
+    view.counterFontPalette = settings.counterFontPalette;
+    view.counterShake = settings.counterShake;
+    view.text = settings.text;
+    view.textFontPalette = settings.textFontPalette;
+    view.textOffsetX = settings.textOffsetX;
+    view.textOffsetY = settings.textOffsetY;
+    return view;
+}
+
+FightPowerGaugeView fightPowerGaugeView(const AppState& state, size_t fighterIndex) {
+    FightPowerGaugeView view;
+    if (fighterIndex >= state.fighters.size()) {
+        return view;
+    }
+
+    const bool p2 = fighterIndex == 1;
+    const auto& settings = state.fightRoundSettings.powerbar;
+    view.value = state.fighters[fighterIndex].power;
+    view.maxValue = std::max(1, state.characterConstants.maxPower);
+    view.anchorX = motifOriginX(state) + (p2 ? settings.p2PosX : settings.p1PosX);
+    view.y = p2 ? settings.p2PosY : settings.p1PosY;
+    view.rangeStart = p2 ? settings.p2RangeStart : settings.p1RangeStart;
+    view.rangeEnd = p2 ? settings.p2RangeEnd : settings.p1RangeEnd;
+    return view;
+}
+
+FightHudView fightHudView(const AppState& state) {
+    FightHudView view;
+    view.p1.name = selectedCharacterName(state.selection);
+    view.p1.life = state.fighters[0].life;
+    view.p1.maxLife = 1000;
+    view.p1.power = fightPowerGaugeView(state, 0);
+
+    view.p2.name = compactSettingText(opponentDisplayName(state), 12);
+    view.p2.life = state.fighters[1].life;
+    view.p2.maxLife = 1000;
+    view.p2.power = fightPowerGaugeView(state, 1);
+
+    view.comboCounters[0] = fightComboCounterView(state, 0);
+    view.comboCounters[1] = fightComboCounterView(state, 1);
+    view.showMatchTimer = isMatchMode(state);
+    view.currentRound = state.currentRound;
+    view.versusLine =
+        "P1 " + compactSettingText(selectedCharacterName(state.selection), 11)
+        + " vs " + compactSettingText(opponentDisplayName(state), 9);
+
+    if (view.showMatchTimer) {
+        const int winsRequired = matchWinsRequired(state);
+        view.timerSeconds = std::max(0, (state.matchTimerTicks + 59) / 60);
+        view.p1.roundPips = FightRoundPipsView{ state.roundWins[0], winsRequired };
+        view.p2.roundPips = FightRoundPipsView{ state.roundWins[1], winsRequired, true };
+    }
+
+    if (state.frontend.pendingMode == PendingMode::Training
+        && state.training.options.showHitLog
+        && state.messages.lastHitTextTicks > 0
+        && !state.messages.lastHitText.empty()) {
+        view.bottomLine = state.messages.lastHitText;
+        view.bottomLineHighlighted = true;
+    } else if (isMatchMode(state)) {
+        view.bottomLine = singleFightStatusLine(state);
+        view.bottomLineHighlighted = isSingleFightResultPhase(state);
+    } else if (!state.gamepads.empty()) {
+        view.bottomLine = "Keys A/S/D Z/X/C  Pad " + gamepadActionLayoutText(state, 0);
+    } else if (state.frontend.pendingMode == PendingMode::Training && state.training.options.p2Controlled) {
+        view.bottomLine = "P1 arrows A/S/D Z/X/C  P2 I/J/K/L U/O/P N/M/,";
+    } else {
+        view.bottomLine = "A/S/D Z/X/C  R reset  F1 boxes  F2 options";
+    }
+    return view;
+}
+
+void drawFightHudView(SDL_Renderer* renderer, const AppState& state) {
+    drawFightHud(uiRenderContext(renderer, state), fightHudView(state));
+}
 
 void drawFightView(SDL_Renderer* renderer, const AppState& state) {
     setColor(renderer, 10, 12, 16);
@@ -14518,7 +14608,7 @@ void drawFightView(SDL_Renderer* renderer, const AppState& state) {
     }
 
     if (!hideHud) {
-        drawFightHud(renderer, state);
+        drawFightHudView(renderer, state);
     }
 
     if (state.frontend.pendingMode == PendingMode::Training && !state.training.options.menuOpen && !hideHud) {
