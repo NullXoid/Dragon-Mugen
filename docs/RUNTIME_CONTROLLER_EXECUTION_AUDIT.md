@@ -26,12 +26,20 @@ Completed body cuts now include:
 
 The remaining `App.cpp` code is now mostly runtime core. The next moves must separate read-only evaluation from live mutation before moving broader CNS/controller execution.
 
+Expression evaluation move update:
+
+- `engine/src/RuntimeExpressionEvaluation.h` now owns read-only runtime expression and trigger evaluation.
+- `App.cpp` dropped from `9922` to `9135` file-size-guard lines in the committed expression-evaluation cut.
+- `RuntimeExpressionEvaluation.h` is 795 lines and remains App.cpp-internal.
+- Controller fired-history helpers, `shouldRunStateRuntimeController`, controller execution bodies, state transitions, hit/damage, helper/projectile/explod lifecycle, target mutation, round flow, sidecar policy, boss intro behavior, and `.dragon/*.json` stayed out of the moved header.
+- Build, `dev_check`, `kfm-baseline`, `evilken-smoke`, `kfm-air-state`, and `cpu-baseline` passed after the move.
+
 ## Runtime Core Inventory
 
 | Area | Current Responsibility | Mutation | Readiness | Notes |
 |---|---|---|---|---|
-| Expression value helpers | M.U.G.E.N expression parsing/evaluation, variable reads, helper/projectile/target lookup, constants, distance values, `GetHitVar`, `NumHelper`, `NumProj`, `ProjContact`, `RoundState` | Read-only | Ready for internal body move | Uses `AppState`, `FighterState`, `StageSlot`, helper/projectile lookup helpers, and command/history reads, but does not mutate state. |
-| Trigger evaluation helpers | Trigger groups, `triggerall`, command `=` / `!=` groups, subject comparisons, boolean expressions, `stateControllerTriggerActive`, `simpleControllerTriggerActive` | Read-only | Ready for internal body move | This is the safest next cut if include order preserves early forward declarations. |
+| Expression value helpers | M.U.G.E.N expression parsing/evaluation, variable reads, helper/projectile/target lookup, constants, distance values, `GetHitVar`, `NumHelper`, `NumProj`, `ProjContact`, `RoundState` | Read-only | Moved | Now lives in `RuntimeExpressionEvaluation.h`. |
+| Trigger evaluation helpers | Trigger groups, `triggerall`, command `=` / `!=` groups, subject comparisons, boolean expressions, `stateControllerTriggerActive`, `simpleControllerTriggerActive` | Read-only | Moved | Now lives in `RuntimeExpressionEvaluation.h`. |
 | Controller persistence gate | `stateRuntimeControllerAlreadyFired`, `markStateRuntimeControllerFired`, `shouldRunStateRuntimeController` | Mutates fired-controller history | Defer | This is not pure evaluation because it writes to `fighter.firedStateRuntimeControllerIds`. Keep with controller execution for now. |
 | Audio and Ctrl controllers | PlaySnd/StopSnd dispatch, `CtrlSet`, audio channel stop, state sound fire keys | Mutates audio and fighter controller history/ctrl flags | Defer | Audio runtime body is separate, but gameplay decides when sounds fire here. |
 | AssertSpecial controllers | Adds/clears per-fighter assert flags and fight-wide flags | Mutates fighter flags | Defer | This belongs to live controller execution, not read-only trigger evaluation. |
@@ -70,51 +78,31 @@ Runtime mutation must stay in `App.cpp` for now:
 Recommendation:
 
 ```text
-Recovery Pass: Move Runtime Expression Evaluation Body Out Of App.cpp
+Runtime Controller Execution Breakdown Audit
 ```
 
 Reason:
 
-- It is the largest safe read-only runtime-core cut left.
-- It separates expression/trigger evaluation from controller execution without moving gameplay side effects.
-- It should reduce `App.cpp` while preserving the live controller mutation boundary.
+- The read-only expression/trigger evaluation body has moved.
+- The next remaining controller area is mutation-heavy and must not be moved as one broad cut.
+- A focused audit should classify controller execution into safe/simple helpers, state-transition helpers, hit/damage helpers, helper/projectile/explod lifecycle helpers, target helpers, and pause/superpause helpers before the next implementation pass.
 
-Move into an App.cpp-internal implementation header, suggested name:
+The audit should choose exactly one next completed code cut. Candidate cuts to evaluate:
 
-```text
-engine/src/RuntimeExpressionEvaluation.h
-```
-
-Move only read-only evaluation helpers:
-
-- `compareIntValue`
-- `compareFloatValue`
-- `animationTimeValue`
-- `stateTriggerSubjectValue`
-- `mugenRoundStateValue`
-- `parseMugenFloatRangeExpression`
-- `evalMugenFunctionExpression`
-- `evalMugenExpression`
-- `evalMugenExpressionCondition`
-- `stateTriggerGroupActive`
-- `anyStateTriggerGroupActive`
-- `stateControllerTriggerActive`
-- `simpleControllerTriggerActive`
-
-Keep early forward declarations in `App.cpp` for helpers used before the include point, then include the header where the existing expression/evaluation body currently lives.
+- controller fired-history and persistence gate extraction
+- simple visual/movement controller helpers only if they can move without changing mutation order
+- pause/superpause body extraction
+- defer all controller execution and instead audit hit/damage or helper/projectile/explod lifecycle
 
 Do not move:
 
-- `stateRuntimeControllerAlreadyFired`
-- `markStateRuntimeControllerFired`
-- `shouldRunStateRuntimeController`
-- any `updateState*Controllers` body
-- `applyParsedChangeState`
+- broad controller execution
+- `ChangeState` / `SelfState`
 - `enterState`
-- hit/damage/guard helpers
-- helper/projectile/explod lifecycle helpers
-- target controller helpers
-- round/match flow helpers
+- hit/damage/guard
+- helper/projectile/explod lifecycle
+- target mutation
+- round/match flow
 - CPU/controller/input routing
 - sidecar policy
 - boss intro behavior
