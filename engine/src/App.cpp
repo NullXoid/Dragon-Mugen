@@ -10,6 +10,7 @@
 #include "FrontendMenu.h"
 #include "FrontendState.h"
 #include "Input.h"
+#include "CharacterSelectOverlay.h"
 #include "MainMenuOverlay.h"
 #include "OptionsMenuOverlay.h"
 #include "PauseMenuOverlay.h"
@@ -1682,6 +1683,19 @@ const TextureSprite* spriteAt(const std::vector<TextureSprite>& sprites, int ind
     }
     const auto& sprite = sprites[static_cast<size_t>(index)];
     return sprite.texture ? &sprite : nullptr;
+}
+
+UiSpriteView uiSpriteView(const TextureSprite* sprite) {
+    if (!sprite || !sprite->texture) {
+        return {};
+    }
+    return UiSpriteView{
+        sprite->texture,
+        sprite->width,
+        sprite->height,
+        sprite->axisX,
+        sprite->axisY,
+    };
 }
 
 SDL_Texture* createTexture(SDL_Renderer* renderer, const DecodedSprite& sprite) {
@@ -6831,7 +6845,58 @@ std::string_view opponentSlotLabel(const AppState& state) {
     return opponentTypeLabel(activeOpponentType(state));
 }
 
-#include "CharacterSelectOverlay.h"
+void drawCharacterSelect(SDL_Renderer* renderer, const AppState& state) {
+    drawSelectBackground(renderer, state);
+
+    std::vector<CharacterCellView> cells;
+    int selectedCell = 0;
+    std::string selectedName;
+    std::string preferredStageLabel;
+    UiSpriteView selectedPortrait;
+
+    if (!state.selection.characters.empty()) {
+        const int selected = std::clamp(
+            state.selection.selectedCharacter,
+            0,
+            static_cast<int>(state.selection.characters.size()) - 1);
+        const int page = selected / kCharacterSelectPageSize;
+        const int firstIndex = page * kCharacterSelectPageSize;
+        const int lastIndex = std::min(
+            firstIndex + kCharacterSelectPageSize,
+            static_cast<int>(state.selection.characters.size()));
+
+        cells.reserve(static_cast<size_t>(lastIndex - firstIndex));
+        for (int i = firstIndex; i < lastIndex; ++i) {
+            cells.push_back(CharacterCellView{
+                uiSpriteView(spriteAt(state.characterIconSprites, i)),
+                true,
+            });
+        }
+
+        selectedCell = selected - firstIndex;
+        const auto& character = state.selection.characters[static_cast<size_t>(selected)];
+        selectedName = compactSettingText(character.displayName, 15);
+        preferredStageLabel = compactSettingText(characterPreferredStageName(state.selection, selected), 22);
+        selectedPortrait = uiSpriteView(spriteAt(state.characterFaceSprites, selected));
+    }
+
+    drawCharacterSelectOverlay(
+        uiRenderContext(renderer, state),
+        CharacterSelectView{
+            cells,
+            std::string(pendingModeTitle(state.frontend.pendingMode)),
+            selectedName,
+            std::string(opponentSlotLabel(state.frontend.pendingMode)),
+            preferredStageLabel,
+            selectedPortrait,
+            uiSpriteView(&state.systemScreens.selectCell),
+            uiSpriteView(&state.systemScreens.selectP1Cursor),
+            selectedCell,
+            kCharacterSelectColumns,
+            state.frame,
+        });
+    SDL_RenderPresent(renderer);
+}
 
 const AnimationClip* findClip(const AppState& state, int action) {
     for (const auto& clip : state.characterClips) {
@@ -13657,19 +13722,6 @@ void drawStageSelect(SDL_Renderer* renderer, const AppState& state) {
 
     drawStageSelectOverlay(uiRenderContext(renderer, state), view);
     SDL_RenderPresent(renderer);
-}
-
-UiSpriteView uiSpriteView(const TextureSprite* sprite) {
-    if (!sprite || !sprite->texture) {
-        return {};
-    }
-    return UiSpriteView{
-        sprite->texture,
-        sprite->width,
-        sprite->height,
-        sprite->axisX,
-        sprite->axisY,
-    };
 }
 
 VsScreenLoadStatus vsScreenLoadStatus(const AppState& state) {

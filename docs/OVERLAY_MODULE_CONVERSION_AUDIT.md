@@ -61,7 +61,14 @@ Pass 29 update:
 - `UiSpriteView.h/.cpp` now provides a public non-owning sprite view and top-left sprite drawing helper for overlay modules.
 - `VsScreenOverlay` now uses `UiSpriteView` instead of a private portrait view.
 - `TextureSprite`, texture creation/destruction, sprite caches, sprite loading, and resource ownership remain in `App.cpp`.
-- `CharacterSelectOverlay.h` remains transitional, but the sprite-view seam needed for its conversion now exists.
+- `CharacterSelectOverlay.h` remained transitional after this pass, but the sprite-view seam needed for its conversion now existed.
+
+Pass 30 update:
+
+- `CharacterSelectOverlay.h` is now a normal declaration header with `CharacterSelectView` and `CharacterCellView`.
+- `CharacterSelectOverlay.cpp` now owns AppState-free Character Select foreground rendering using prepared display data, `UiRenderContext`, public UI primitives, and non-owning `UiSpriteView` handles.
+- `App.cpp` still owns roster state, `select.def` authority, selected-character/page assembly, sprite/resource lookup, select-background drawing, routing, loading, and `SDL_RenderPresent`.
+- `CharacterSelectOverlay` no longer depends on App.cpp-local `AppState`, `FighterState`, `SelectionState`, `CharacterSlot`, `StageSlot`, `TextureSprite`, `SystemScreenAssets`, or include order.
 
 ## Readiness Labels
 
@@ -79,7 +86,7 @@ Pass 29 update:
 | `MainMenuOverlay.h` / `MainMenuOverlay.cpp` | 14 / 78 | Main menu foreground rendering | `READY` | None for current foreground API; App.cpp still owns resource-backed title background and logo drawing | No remaining seam for foreground menu rendering; title background/logo resource seam remains separate | 0 | Pass 25 converted the AppState-free foreground menu module. Full title screen resource drawing intentionally stays in App.cpp. |
 | `OptionsMenuOverlay.h` / `OptionsMenuOverlay.cpp` | 24 / 59 | Options menu foreground rendering | `READY` | None for current prepared-view API; App.cpp still owns settings row assembly, gamepad status text, behavior, title background, and `SDL_RenderPresent` | No remaining seam for Options foreground rendering; title-background and gamepad ownership seams remain separate | 0 | Pass 27 converted this overlay to a normal module. No `AppState`, `FighterState`, `MainSettings`, gamepad device objects, resource ownership, or controller behavior. |
 | `VsScreenOverlay.h` / `VsScreenOverlay.cpp` | 28 / 101 | VS/loading screen rendering | `READY` | None for current prepared-view API; App.cpp still owns portrait/resource selection, load-status mapping, selected metadata assembly, routing, loading, and `SDL_RenderPresent` | No remaining seam for VS/loading presentation; broader sprite/resource ownership seams remain separate | 0 | Pass 28 converted this overlay to a normal module. Pass 29 migrated its portrait field to public non-owning `UiSpriteView`. |
-| `CharacterSelectOverlay.h` | 102 | Character Select rendering | `NEEDS SMALL SEAM` | Takes `AppState`; reads selection state and resource-owned character/system sprites, but the public non-owning sprite view now exists | Prepared `CharacterSelectView` with rows, labels, selected index/page data, and `UiSpriteView` handles for face/icon/cell/cursor art | 5 | Pass 30 candidate. Keep select.def authority, cursor mutation, routing, loading, and resource ownership outside. |
+| `CharacterSelectOverlay.h` / `CharacterSelectOverlay.cpp` | 32 / 132 | Character Select foreground rendering | `READY` | None for current prepared-view API; App.cpp still owns roster state, selected-character/page assembly, sprite/resource lookup, select-background drawing, routing, loading, and `SDL_RenderPresent` | No remaining seam for Character Select foreground rendering; select-background and resource ownership seams remain separate | 0 | Pass 30 converted this overlay to a normal module. No `AppState`, `FighterState`, `SelectionState`, `CharacterSlot`, `StageSlot`, `TextureSprite`, `SystemScreenAssets`, resource ownership, or gameplay behavior. |
 | `FightHudOverlay.h` | 190 | Fight HUD rendering | `DEFER` | Reads `FighterState` life/power, fight round settings, match state, combo display, messages, gamepads, and helper labels | Public fight HUD view/read-only fight snapshot after fight runtime boundaries improve | 7 | Render-only today, but data source is runtime-heavy. Do not move hit/damage, combo mutation, timer, or round flow. |
 | `FightResultOverlay.h` | 119 | Round/result overlay rendering | `DEFER` | Depends on match phase/ticks, round wins, result text helpers, fighters, victory quote helper, and result menu state | Public match/result presentation view after `MatchState`/`RoundState` audit | 8 | Keep round-flow decisions, result routing, rematch actions, and match-completion logic in App.cpp. |
 | `FightPresentationShared.h` | 60 | Shared fight presentation helpers | `DEFER` | Reads match phase, round wins, gamepads, and fight round settings | Public fight presentation view or match-state seam | 9 | Shared by HUD/result overlays; convert with those modules, not before. |
@@ -114,48 +121,41 @@ Pass 29 update:
    - Proves the prepared-view pattern for a resource-adjacent loading screen while keeping resource selection and ownership in App.cpp.
    - Migrated to `UiSpriteView` in Pass 29.
 
-6. `CharacterSelectOverlay.h`
-   - Next likely candidate area, but it is more resource-coupled than the completed menu overlays.
-   - Now has the required sprite-view seam.
-   - Needs a prepared view conversion that keeps selection semantics and resource ownership in App.cpp.
+6. `CharacterSelectOverlay.h` / `CharacterSelectOverlay.cpp`
+   - Converted in Pass 30.
+   - Proves the prepared-view plus `UiSpriteView` pattern for a resource-adjacent selection screen while keeping roster semantics and resource ownership in App.cpp.
 
 ## Recommended Next Implementation Pass
 
-Pass 23 completed option 2 for low-level UI primitives. Pass 24 converted the first overlay. Pass 25 converted the main-menu foreground while leaving resource-backed title background/logo drawing in App.cpp. Pass 26 converted Stage Select foreground rendering using a prepared view. Pass 27 converted Options foreground rendering using prepared rows. Pass 28 converted VS/loading presentation using prepared labels and a non-owning portrait texture view. Pass 29 created the public non-owning sprite-view seam and migrated VS/loading to it.
+Pass 23 completed option 2 for low-level UI primitives. Pass 24 converted the first overlay. Pass 25 converted the main-menu foreground while leaving resource-backed title background/logo drawing in App.cpp. Pass 26 converted Stage Select foreground rendering using a prepared view. Pass 27 converted Options foreground rendering using prepared rows. Pass 28 converted VS/loading presentation using prepared labels and a non-owning portrait texture view. Pass 29 created the public non-owning sprite-view seam and migrated VS/loading to it. Pass 30 converted Character Select foreground rendering using prepared view data plus `UiSpriteView`.
 
 Recommended next pass:
 
 ```text
-Pass 30: Convert Character Select overlay to normal module
+Pass 31: Fight HUD / Result Overlay Conversion Audit
 ```
 
 Expected files to create or modify:
 
-- create a normal `CharacterSelectOverlay.cpp`
-- convert `CharacterSelectOverlay.h` to a normal declaration header with a prepared view struct
-- update App.cpp to assemble prepared labels, selected/page data, and `UiSpriteView` handles for face/icon/cell/cursor art
-- update CMake for the new `.cpp`
-- keep character icons/faces, `SystemScreenAssets`, selection mutation, routing, loading, and resource ownership in App.cpp
+- create or update docs describing Fight HUD, Fight Result, and shared fight-presentation conversion blockers
+- inspect `FightHudOverlay.h`, `FightResultOverlay.h`, and `FightPresentationShared.h`
+- identify the smallest public view seams needed before normal module conversion
+- keep `FighterState`, hit/damage, round flow, match/result decisions, CMD/CNS, loading, audio, and resource ownership out of scope
 
-Estimated risk: low to medium.
+Estimated risk: low, docs-only; medium if followed by implementation without a view audit.
 
-Expected `App.cpp` line reduction: likely zero or a small increase, because prepared view assembly is more explicit than hidden App.cpp-internal include coupling.
+Expected `App.cpp` line reduction: none for the audit.
 
 Expected hidden-coupling reduction:
 
-- converts another frontend overlay from App.cpp-internal to normal module shape
-- uses `UiSpriteView` without moving `TextureSprite`, `SystemScreenAssets`, loading ownership, `FighterState`, CMD/CNS, hit/damage, or round flow
+- identifies whether fight overlays can become normal modules with prepared view data
+- prevents accidental movement of runtime-heavy fight state, hit/damage, round flow, or match/result behavior
 
 Verification focus:
 
-- build
-- `dev_check`
-- file-size guard expected App.cpp debt only
-- `kfm-baseline`
-- `evilken-smoke`
-- `kfm-air-state`
-- `cpu-baseline`
-- GUI smoke for Character Select rendering if practical, plus Stage Select -> VS/loading -> fight
+- docs-only validation
+- no source, CMake, content, sidecar, or runtime changes
+- no gameplay, loading, controller, CPU, CMD/CNS, hit/damage, or round-flow claims
 
 ## Explicit Non-Goals
 
