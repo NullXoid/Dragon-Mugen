@@ -203,6 +203,8 @@ These areas should remain in `App.cpp` or current runtime files until more bound
 
 ### Phase D: Real Module Conversion
 
+See `docs/OVERLAY_MODULE_CONVERSION_AUDIT.md` before starting overlay conversion. It maps the current App.cpp-internal overlay headers, exact blockers, minimum seams, and recommends creating a public UI render/view seam before converting a specific overlay.
+
 | Proposed Pass | Target | Estimated App.cpp Reduction | Risk | Preconditions | Test Focus |
 | --- | --- | ---: | --- | --- | --- |
 | Pass D1 | Convert small menu overlays to normal `.cpp` modules | 0 physical App.cpp lines, removes hidden coupling | LOW | Public frontend/render types | main/options/stage GUI smoke |
