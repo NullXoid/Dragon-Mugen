@@ -42,11 +42,11 @@ void setFightFontPaletteColor(SDL_Renderer* renderer, int palette, bool counter)
 }
 
 void drawComboCounter(SDL_Renderer* renderer, const AppState& state, size_t attackerIndex) {
-    if (attackerIndex >= state.comboCounters.size()) {
+    if (attackerIndex >= state.display.comboCounters.size()) {
         return;
     }
 
-    const auto& combo = state.comboCounters[attackerIndex];
+    const auto& combo = state.display.comboCounters[attackerIndex];
     if (combo.displayTicks <= 0 || combo.displayHits < 2) {
         return;
     }

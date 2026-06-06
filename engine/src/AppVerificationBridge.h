@@ -105,7 +105,7 @@ public:
         out.matchPhase = static_cast<int>(state_.matchPhase);
         out.activeEffects = static_cast<int>(state_.runtimeEffects.size());
         out.activeSounds = static_cast<int>(state_.audio.activeVoices.size());
-        out.comboHits = state_.comboCounters[0].displayHits;
+        out.comboHits = state_.display.comboCounters[0].displayHits;
         out.lastHitText = state_.messages.lastHitText;
         out.p1 = fighterSnapshot(state_.fighters[0]);
         out.p2 = fighterSnapshot(state_.fighters[1]);

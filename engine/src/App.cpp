@@ -5,6 +5,7 @@
 #include "dragon/Sff.h"
 #include "dragon/Snd.h"
 #include "AppTypes.h"
+#include "FightDisplayState.h"
 #include "FightMessageState.h"
 #include "FrontendMenu.h"
 #include "FrontendState.h"
@@ -1306,6 +1307,7 @@ struct AppState {
     SelectionState selection;
     TrainingState training;
     FightMessageState messages;
+    FightDisplayState display;
     bool running = true;
     MainSettings mainSettings;
     FightRoundSettings fightRoundSettings;
@@ -1325,12 +1327,6 @@ struct AppState {
     int globalPauseOwnerIndex = -1;
     int globalPauseOwnerMoveTicks = 0;
     bool globalPauseIsSuper = false;
-    int envShakeTicks = 0;
-    int envShakeTotalTicks = 0;
-    int envShakeFrequency = 60;
-    float envShakeAmplitude = 0.0f;
-    int envShakePhase = 0;
-    float envShakeOffsetY = 0.0f;
     ActivePaletteEffect backgroundPaletteEffect;
     EnvColorEffect envColor;
     double accumulator = 0.0;
@@ -1340,7 +1336,6 @@ struct AppState {
     std::array<FighterState, 2> fighters;
     std::vector<FighterState> helpers;
     std::vector<RuntimeProjectile> projectiles;
-    std::array<ComboCounterState, 2> comboCounters;
     CharacterConstants characterConstants;
     std::vector<HitDefinition> hitDefs;
     std::vector<StateDefinition> stateDefs;
@@ -8938,12 +8933,12 @@ void clearGlobalPause(AppState& state) {
 }
 
 void clearEnvShake(AppState& state) {
-    state.envShakeTicks = 0;
-    state.envShakeTotalTicks = 0;
-    state.envShakeFrequency = 60;
-    state.envShakeAmplitude = 0.0f;
-    state.envShakePhase = 0;
-    state.envShakeOffsetY = 0.0f;
+    state.display.envShakeTicks = 0;
+    state.display.envShakeTotalTicks = 0;
+    state.display.envShakeFrequency = 60;
+    state.display.envShakeAmplitude = 0.0f;
+    state.display.envShakePhase = 0;
+    state.display.envShakeOffsetY = 0.0f;
 }
 
 void clearPaletteRuntime(AppState& state) {
@@ -10608,14 +10603,14 @@ void startEnvShake(AppState& state, const EnvShakeSpec& shake) {
     if (!shake.enabled || shake.time <= 0 || std::abs(shake.amplitude) <= 0.001f) {
         return;
     }
-    if (shake.time < state.envShakeTicks && std::abs(shake.amplitude) <= std::abs(state.envShakeAmplitude)) {
+    if (shake.time < state.display.envShakeTicks && std::abs(shake.amplitude) <= std::abs(state.display.envShakeAmplitude)) {
         return;
     }
-    state.envShakeTicks = shake.time;
-    state.envShakeTotalTicks = shake.time;
-    state.envShakeFrequency = std::max(1, shake.frequency);
-    state.envShakeAmplitude = shake.amplitude;
-    state.envShakePhase = shake.phase;
+    state.display.envShakeTicks = shake.time;
+    state.display.envShakeTotalTicks = shake.time;
+    state.display.envShakeFrequency = std::max(1, shake.frequency);
+    state.display.envShakeAmplitude = shake.amplitude;
+    state.display.envShakePhase = shake.phase;
 }
 
 void startPaletteEffect(ActivePaletteEffect& active, const PaletteEffectSpec& effect) {
@@ -10660,20 +10655,20 @@ void updateEnvColor(AppState& state) {
 }
 
 void updateEnvShake(AppState& state) {
-    if (state.envShakeTicks <= 0) {
-        state.envShakeTicks = 0;
-        state.envShakeOffsetY = 0.0f;
+    if (state.display.envShakeTicks <= 0) {
+        state.display.envShakeTicks = 0;
+        state.display.envShakeOffsetY = 0.0f;
         return;
     }
 
-    const int elapsed = std::max(0, state.envShakeTotalTicks - state.envShakeTicks);
-    const float progress = state.envShakeTotalTicks > 0
-        ? static_cast<float>(state.envShakeTicks) / static_cast<float>(state.envShakeTotalTicks)
+    const int elapsed = std::max(0, state.display.envShakeTotalTicks - state.display.envShakeTicks);
+    const float progress = state.display.envShakeTotalTicks > 0
+        ? static_cast<float>(state.display.envShakeTicks) / static_cast<float>(state.display.envShakeTotalTicks)
         : 0.0f;
     constexpr float tau = 6.28318530718f;
-    const float phase = (static_cast<float>(elapsed + state.envShakePhase) * static_cast<float>(state.envShakeFrequency) / 60.0f) * tau;
-    state.envShakeOffsetY = std::sin(phase) * state.envShakeAmplitude * progress;
-    --state.envShakeTicks;
+    const float phase = (static_cast<float>(elapsed + state.display.envShakePhase) * static_cast<float>(state.display.envShakeFrequency) / 60.0f) * tau;
+    state.display.envShakeOffsetY = std::sin(phase) * state.display.envShakeAmplitude * progress;
+    --state.display.envShakeTicks;
 }
 
 std::string soundPairText(int group, int index) {
@@ -11292,24 +11287,24 @@ int scaleAttackThenDefenceDamage(int damage, const FighterState& attacker, const
 }
 
 void clearComboCounters(AppState& state) {
-    state.comboCounters = {};
+    state.display.comboCounters = {};
 }
 
 void endActiveComboForDefender(AppState& state, size_t defenderIndex) {
-    if (defenderIndex >= state.comboCounters.size()) {
+    if (defenderIndex >= state.display.comboCounters.size()) {
         return;
     }
     const size_t attackerIndex = defenderIndex == 0 ? 1 : 0;
-    auto& combo = state.comboCounters[attackerIndex];
+    auto& combo = state.display.comboCounters[attackerIndex];
     combo.activeHits = 0;
 }
 
 void registerComboHit(AppState& state, size_t attackerIndex) {
-    if (attackerIndex >= state.comboCounters.size()) {
+    if (attackerIndex >= state.display.comboCounters.size()) {
         return;
     }
 
-    auto& combo = state.comboCounters[attackerIndex];
+    auto& combo = state.display.comboCounters[attackerIndex];
     ++combo.activeHits;
     combo.displayHits = combo.activeHits;
     combo.displayTicks = std::max(1, state.fightRoundSettings.combo.displayTime);
@@ -11325,7 +11320,7 @@ void updateComboCounterBreaks(AppState& state) {
 }
 
 void updateComboDisplayTimers(AppState& state) {
-    for (auto& combo : state.comboCounters) {
+    for (auto& combo : state.display.comboCounters) {
         if (combo.displayTicks <= 0) {
             combo.displayHits = 0;
             continue;
@@ -14269,7 +14264,7 @@ void drawFightView(SDL_Renderer* renderer, const AppState& state) {
     const bool hideHud = anyFighterHasAssertSpecialFlag(state, "nobardisplay");
     SDL_Rect defaultViewport;
     SDL_GetRenderViewport(renderer, &defaultViewport);
-    const int shakeOffsetY = static_cast<int>(std::lround(state.envShakeOffsetY));
+    const int shakeOffsetY = static_cast<int>(std::lround(state.display.envShakeOffsetY));
     if (shakeOffsetY != 0) {
         SDL_Rect shakeViewport{ 0, shakeOffsetY, logicalWidth(state), kLogicalHeight };
         SDL_SetRenderViewport(renderer, &shakeViewport);
