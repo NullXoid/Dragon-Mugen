@@ -1188,10 +1188,17 @@ struct AudioState {
     SDL_AudioStream* stream = nullptr;
     bool subsystemInitialized = false;
     std::vector<DecodedSoundSample> characterSamples;
+    std::vector<DecodedSoundSample> systemSamples;
     std::vector<DecodedSoundSample> commonSamples;
     std::vector<DecodedSoundSample> fightSamples;
     std::vector<ActiveSoundVoice> activeVoices;
     std::vector<float> mixBuffer;
+    int menuCursorMoveSoundGroup = 100;
+    int menuCursorMoveSoundIndex = 0;
+    int menuCursorDoneSoundGroup = 100;
+    int menuCursorDoneSoundIndex = 1;
+    int menuCancelSoundGroup = 100;
+    int menuCancelSoundIndex = 2;
 };
 
 struct ParsedSoundValue {

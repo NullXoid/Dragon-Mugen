@@ -40,11 +40,17 @@ int settingCycleDirection(FrontendKey key) {
 void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
     if (state.frontend.screen == Screen::ModeSelect) {
         const FrontendKey frontendKey = frontendKeyFromSdl(key);
+        const int previousSelection = state.frontend.selectedMode;
         state.frontend.selectedMode = moveMainMenuSelection(state.frontend.selectedMode, frontendKey);
+        if (state.frontend.selectedMode != previousSelection) {
+            playMenuCursorMoveSound(state);
+        }
         FrontendAction action;
         if (frontendKey == FrontendKey::Escape) {
+            playMenuCancelSound(state);
             action = { FrontendActionKind::ExitApp };
         } else if (frontendKey == FrontendKey::Accept) {
+            playMenuCursorDoneSound(state);
             action = decideMainMenuAction(state.frontend.selectedMode);
         }
 
