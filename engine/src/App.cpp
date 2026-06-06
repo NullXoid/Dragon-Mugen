@@ -1478,22 +1478,6 @@ std::filesystem::path resolveContentPath(const std::filesystem::path& base, std:
     return base / path;
 }
 
-OpponentType defaultOpponentTypeForMode(PendingMode mode) {
-    switch (mode) {
-    case PendingMode::Training:
-        return OpponentType::Dummy;
-    case PendingMode::SinglePlayer:
-        return OpponentType::Cpu;
-    case PendingMode::SingleFight:
-    default:
-        return OpponentType::LocalP2;
-    }
-}
-
-bool isMatchMode(PendingMode mode) {
-    return mode == PendingMode::SinglePlayer || mode == PendingMode::SingleFight;
-}
-
 bool isMatchMode(const AppState& state) {
     return isMatchMode(state.frontend.pendingMode);
 }
@@ -1507,30 +1491,6 @@ OpponentType activeOpponentType(const AppState& state) {
 
 bool usesLocalP2Controls(const AppState& state) {
     return activeOpponentType(state) == OpponentType::LocalP2;
-}
-
-std::string_view pendingModeTitle(PendingMode mode) {
-    switch (mode) {
-    case PendingMode::Training:
-        return "TRAINING";
-    case PendingMode::SinglePlayer:
-        return "SINGLE PLAYER";
-    case PendingMode::SingleFight:
-    default:
-        return "VS MODE";
-    }
-}
-
-std::string_view opponentTypeLabel(OpponentType type) {
-    switch (type) {
-    case OpponentType::Dummy:
-        return "DUMMY";
-    case OpponentType::Cpu:
-        return "CPU";
-    case OpponentType::LocalP2:
-    default:
-        return "P2";
-    }
 }
 
 void configureFightSessionSlotsFromSelection(AppState& state) {
@@ -6574,34 +6534,6 @@ const GamepadDevice* findGamepadDevice(const AppState& state, SDL_JoystickID id)
     return it == state.gamepads.end() ? nullptr : &*it;
 }
 
-bool isPlaystationGamepad(SDL_GamepadType type) {
-    return type == SDL_GAMEPAD_TYPE_PS3 || type == SDL_GAMEPAD_TYPE_PS4 || type == SDL_GAMEPAD_TYPE_PS5;
-}
-
-bool isXboxGamepad(SDL_GamepadType type) {
-    return type == SDL_GAMEPAD_TYPE_XBOX360 || type == SDL_GAMEPAD_TYPE_XBOXONE;
-}
-
-std::string gamepadFamilyName(SDL_GamepadType type) {
-    if (isPlaystationGamepad(type)) {
-        return "PlayStation";
-    }
-    if (isXboxGamepad(type)) {
-        return "Xbox";
-    }
-    return "Standard";
-}
-
-std::string compactSettingText(const std::string& value, size_t maxChars) {
-    if (value.size() <= maxChars) {
-        return value;
-    }
-    if (maxChars <= 1) {
-        return value.substr(0, maxChars);
-    }
-    return value.substr(0, maxChars - 1) + "~";
-}
-
 void openGamepadDevice(AppState& state, SDL_JoystickID id) {
     if (findGamepadDevice(state, id) || !SDL_IsGamepad(id)) {
         return;
@@ -6704,18 +6636,6 @@ std::string gamepadAssignmentText(const AppState& state, int playerIndex) {
     return "PAD " + std::to_string(assignment) + " " + gamepadFamilyName(device->type);
 }
 
-std::string gamepadPromptStyleText(GamepadPromptStyle style) {
-    switch (style) {
-    case GamepadPromptStyle::Xbox:
-        return "XBOX";
-    case GamepadPromptStyle::Playstation:
-        return "PLAYSTATION";
-    case GamepadPromptStyle::Auto:
-    default:
-        return "AUTO";
-    }
-}
-
 GamepadPromptStyle effectiveGamepadPromptStyle(const AppState& state, int playerIndex) {
     if (state.mainSettings.gamepadPromptStyle != GamepadPromptStyle::Auto) {
         return state.mainSettings.gamepadPromptStyle;
@@ -6736,47 +6656,7 @@ std::string contentLine(const LoadedContentSummary& content) {
     return out.str();
 }
 
-int matchTimerTicksFromSettings(const AppState& state) {
-    return std::max(1, state.mainSettings.matchTimerSeconds) * 60;
-}
-
-std::string matchTimerSettingText(const MainSettings& settings) {
-    if (settings.matchTimerSeconds <= 0) {
-        return "OFF";
-    }
-    return std::to_string(settings.matchTimerSeconds);
-}
-
-std::string canvasSizeSettingText(const MainSettings& settings) {
-    switch (settings.canvasWidth) {
-    case kClassicLogicalWidth:
-        return "320x240 CLASSIC";
-    case kExtraWideLogicalWidth:
-        return "480x240 EXTRA";
-    case kDefaultLogicalWidth:
-    default:
-        return "426x240 WIDE";
-    }
-}
-
-std::string uiScaleSettingText(const MainSettings& settings) {
-    return std::to_string(settings.uiScalePercent) + "%";
-}
-
 #include "UiRenderHelpers.h"
-
-std::string_view mainSettingLabel(int option) {
-    static constexpr std::array<std::string_view, kMainSettingsCount> labels{
-        "MATCH TIMER",
-        "CANVAS SIZE",
-        "UI SCALE",
-        "PAD LABELS",
-        "P1 GAMEPAD",
-        "P2 GAMEPAD",
-        "BACK",
-    };
-    return labels[static_cast<size_t>(std::clamp(option, 0, kMainSettingsCount - 1))];
-}
 
 std::string mainSettingStatus(const AppState& state, int option) {
     switch (option) {
@@ -7962,7 +7842,7 @@ void resetFightRound(AppState& state) {
     state.frontend.selectedMatchResultOption = 0;
     state.matchPhase = isMatchMode(state) ? MatchPhase::RoundStart : MatchPhase::Fight;
     state.roundEndReason = RoundEndReason::None;
-    state.matchTimerTicks = matchTimerTicksFromSettings(state);
+    state.matchTimerTicks = matchTimerTicksFromSettings(state.mainSettings);
     state.matchPhaseTicks = 0;
     state.roundWinner = 0;
     state.roundScoreApplied = false;

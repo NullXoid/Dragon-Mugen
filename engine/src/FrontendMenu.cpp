@@ -55,6 +55,46 @@ int cycleValue(int value, int direction, const int* begin, const int* end, int f
 
 } // namespace
 
+OpponentType defaultOpponentTypeForMode(PendingMode mode) {
+    switch (mode) {
+    case PendingMode::Training:
+        return OpponentType::Dummy;
+    case PendingMode::SinglePlayer:
+        return OpponentType::Cpu;
+    case PendingMode::SingleFight:
+    default:
+        return OpponentType::LocalP2;
+    }
+}
+
+bool isMatchMode(PendingMode mode) {
+    return mode == PendingMode::SinglePlayer || mode == PendingMode::SingleFight;
+}
+
+std::string_view pendingModeTitle(PendingMode mode) {
+    switch (mode) {
+    case PendingMode::Training:
+        return "TRAINING";
+    case PendingMode::SinglePlayer:
+        return "SINGLE PLAYER";
+    case PendingMode::SingleFight:
+    default:
+        return "VS MODE";
+    }
+}
+
+std::string_view opponentTypeLabel(OpponentType type) {
+    switch (type) {
+    case OpponentType::Dummy:
+        return "DUMMY";
+    case OpponentType::Cpu:
+        return "CPU";
+    case OpponentType::LocalP2:
+    default:
+        return "P2";
+    }
+}
+
 int moveMainMenuSelection(int selected, FrontendKey key) {
     if (key == FrontendKey::Up) {
         return wrapSelection(selected, kMainMenuOptionCount, -1);
@@ -157,6 +197,68 @@ FrontendAction decideOptionsAction(const MainSettings& settings, FrontendKey key
         return { FrontendActionKind::BackToMain };
     }
     return {};
+}
+
+std::string_view mainSettingLabel(int option) {
+    static constexpr std::array<std::string_view, kMainSettingsCount> labels{
+        "MATCH TIMER",
+        "CANVAS SIZE",
+        "UI SCALE",
+        "PAD LABELS",
+        "P1 GAMEPAD",
+        "P2 GAMEPAD",
+        "BACK",
+    };
+    return labels[static_cast<size_t>(std::clamp(option, 0, kMainSettingsCount - 1))];
+}
+
+std::string matchTimerSettingText(const MainSettings& settings) {
+    if (settings.matchTimerSeconds <= 0) {
+        return "OFF";
+    }
+    return std::to_string(settings.matchTimerSeconds);
+}
+
+std::string canvasSizeSettingText(const MainSettings& settings) {
+    switch (settings.canvasWidth) {
+    case kClassicLogicalWidth:
+        return "320x240 CLASSIC";
+    case kExtraWideLogicalWidth:
+        return "480x240 EXTRA";
+    case kDefaultLogicalWidth:
+    default:
+        return "426x240 WIDE";
+    }
+}
+
+std::string uiScaleSettingText(const MainSettings& settings) {
+    return std::to_string(settings.uiScalePercent) + "%";
+}
+
+std::string gamepadPromptStyleText(GamepadPromptStyle style) {
+    switch (style) {
+    case GamepadPromptStyle::Xbox:
+        return "XBOX";
+    case GamepadPromptStyle::Playstation:
+        return "PLAYSTATION";
+    case GamepadPromptStyle::Auto:
+    default:
+        return "AUTO";
+    }
+}
+
+int matchTimerTicksFromSettings(const MainSettings& settings) {
+    return std::max(1, settings.matchTimerSeconds) * 60;
+}
+
+std::string compactSettingText(const std::string& value, size_t maxChars) {
+    if (value.size() <= maxChars) {
+        return value;
+    }
+    if (maxChars <= 1) {
+        return value.substr(0, maxChars);
+    }
+    return value.substr(0, maxChars - 1) + "~";
 }
 
 int moveCharacterCursor(int selected, int characterCount, FrontendKey key) {

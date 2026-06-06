@@ -46,6 +46,10 @@ struct GamepadDevice {
     SDL_GamepadType type = SDL_GAMEPAD_TYPE_UNKNOWN;
 };
 
+bool isPlaystationGamepad(SDL_GamepadType type);
+bool isXboxGamepad(SDL_GamepadType type);
+std::string gamepadFamilyName(SDL_GamepadType type);
+
 FighterControls p1Controls();
 FighterControls p2Controls();
 FighterInputState collectFighterInput(const bool* keys, const FighterControls& controls, const GamepadDevice* gamepad);

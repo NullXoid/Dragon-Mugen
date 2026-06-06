@@ -39,6 +39,24 @@ FighterControls p2Controls() {
     return controls;
 }
 
+bool isPlaystationGamepad(SDL_GamepadType type) {
+    return type == SDL_GAMEPAD_TYPE_PS3 || type == SDL_GAMEPAD_TYPE_PS4 || type == SDL_GAMEPAD_TYPE_PS5;
+}
+
+bool isXboxGamepad(SDL_GamepadType type) {
+    return type == SDL_GAMEPAD_TYPE_XBOX360 || type == SDL_GAMEPAD_TYPE_XBOXONE;
+}
+
+std::string gamepadFamilyName(SDL_GamepadType type) {
+    if (isPlaystationGamepad(type)) {
+        return "PlayStation";
+    }
+    if (isXboxGamepad(type)) {
+        return "Xbox";
+    }
+    return "Standard";
+}
+
 FighterInputState collectFighterInput(const bool* keys, const FighterControls& controls, const GamepadDevice* gamepad) {
     FighterInputState input;
     input.left = keys[controls.left]
