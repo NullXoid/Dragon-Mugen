@@ -12,7 +12,7 @@ void drawMoveListPage(SDL_Renderer* renderer, const AppState& state) {
         ? -1
         : std::clamp(state.training.options.selectedMoveListEntry, 0, static_cast<int>(entries.size()) - 1);
 
-    ScopedUiScale scaledUi(renderer, state, 320.0f, 240.0f);
+    ScopedUiScale scaledUi(uiRenderContext(renderer, state), 320.0f, 240.0f);
 
     setColor(renderer, 6, 8, 14, 244);
     fillRect(renderer, 10, 16, 300, 216);
@@ -120,7 +120,7 @@ void drawTrainingOptionsMenu(SDL_Renderer* renderer, const AppState& state) {
         return;
     }
 
-    ScopedUiScale scaledUi(renderer, state, 320.0f, 240.0f);
+    ScopedUiScale scaledUi(uiRenderContext(renderer, state), 320.0f, 240.0f);
 
     const auto& display = state.training.options;
     setColor(renderer, 8, 10, 12, 236);

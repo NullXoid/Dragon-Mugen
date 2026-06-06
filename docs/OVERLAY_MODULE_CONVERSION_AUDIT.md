@@ -14,6 +14,13 @@ Baseline:
 
 This pass does not change source code. It only maps module-conversion blockers and the smallest seams needed before Phase D implementation.
 
+Pass 23 update:
+
+- `UiRenderContext.h` now provides a resource-free render context for primitive UI drawing.
+- `UiRenderPrimitives.h/.cpp` is now a normal module for AppState-free color, rectangle, debug text, panel, fit-text, scaled-text, and scoped-scale helpers.
+- `UiRenderHelpers.h`, sprite helpers, title/select backgrounds, `TextureSprite`, `SystemScreenAssets`, and overlay headers remain transitional.
+- `PauseMenuOverlay.h` remains the recommended first overlay conversion target.
+
 ## Readiness Labels
 
 - `READY`: can become a normal `.h/.cpp` module with existing public headers and no App.cpp-local dependencies.
@@ -37,7 +44,7 @@ This pass does not change source code. It only maps module-conversion blockers a
 | `TrainingOptionsOverlay.h` | 155 | F2 Training Options and move-list rendering | `DEFER` | Reads training options plus command entry metadata and App.cpp-local command display helpers | Public training-options view and command display view; keep command/CNS runtime out | 10 | Pure option labels are already in `TrainingOptionsBehavior`; move-list display still depends on command data/helpers. |
 | `TrainingCommandOverlay.h` | 80 | Command/input HUD rendering | `DEFER` | Reads `FighterState` input history, command definitions, active command entries, and App.cpp-local command helpers | Public command HUD snapshot after input/command display seam | 11 | Keep CMD/CNS routing and command matching behavior in App.cpp. |
 | `TrainingDebugOverlay.h` | 178 | Hitbox/debug overlay rendering | `DEFER` | Reads `FighterState`, camera, collision boxes, current animation frames, hit state, and debug clipboard | Public debug snapshot after fighter/render debug boundary | 12 | High runtime coupling despite being render-only. Do not convert first. |
-| `UiRenderPrimitives.h` | 110 | Color/rect/text/panel/scale helpers | `NEEDS SMALL SEAM` | Mixed AppState-free primitives with `uiScale`/`ScopedUiScale` that depend on App.cpp-local `AppState`, `logicalWidthF`, and render constants | Split AppState-free primitives into a normal module; introduce `UiScaleContext` for scaled UI | 0 | This is the enabling seam for pause/stage/menu conversion. |
+| `UiRenderContext.h` / `UiRenderPrimitives.h` / `UiRenderPrimitives.cpp` | 10 / 31 / 87 | Color/rect/text/panel/scale helpers and resource-free UI render context | `READY` | No App.cpp-local dependency for primitive drawing; `App.cpp` still has a thin `uiRenderContext(...)` bridge because `AppState` is local | First overlay conversion needs a small view struct, starting with `PauseMenuView`; no primitive seam remains | 0 | Pass 23 completed the primitive seam. `debugText` is dependency-clean because it uses SDL debug text only. |
 | `UiRenderHelpers.h` | 94 | Title/select background and fixed opponent slot rendering | `NEEDS PUBLIC RENDER SEAM` | Depends on `AppState`, `SystemScreenAssets`, `TextureSprite`, and App.cpp-local sprite helpers | Public sprite/background render seam or view structs with already-selected sprite references | 13 | Keep resource ownership and texture lifetime in App.cpp or a later resource module. |
 | `FrontendFlow.h` | 411 | Existing key-flow dispatcher | `DEFER` | Behavior-coupled; calls App.cpp-local side-effect helpers for routing, loading, fight startup, reset, pause/result, and training behavior | Action-return boundary before normal module conversion | 14 | Not an overlay. Convert only after side effects are represented as actions and App.cpp remains executor. |
 
@@ -56,30 +63,30 @@ This pass does not change source code. It only maps module-conversion blockers a
 
 ## Recommended Next Implementation Pass
 
-Choose option 2: create a small public UI render/view seam first.
+Pass 23 completed option 2 for low-level UI primitives. The remaining work is the first overlay conversion, not another primitive seam.
 
 Recommended next pass:
 
 ```text
-Pass 23: Public UI Render Primitive Seam
+Pass 24: Convert PauseMenuOverlay to normal module
 ```
 
 Expected files to create or modify:
 
-- create or convert a normal public/internal engine module for AppState-free UI primitives, such as `engine/src/UiRenderPrimitives.h` plus `engine/src/UiRenderPrimitives.cpp`
+- create a normal `PauseMenuOverlay.cpp`
+- keep `PauseMenuOverlay.h` as a normal declaration header
+- add a small `PauseMenuView` or equivalent view struct so the module does not take App.cpp-local `AppState`
 - update CMake for the new `.cpp`
-- keep resource-backed helpers such as title/select backgrounds and sprite drawing transitional for now
-- optionally introduce a small `UiScaleContext` so scaled overlays do not need `AppState`
-- do not convert any overlay in the same pass unless the primitive seam is trivial and fully verified
+- keep pause input, selected-option mutation, route actions, fight reset, rematch, and runtime behavior in `App.cpp` / `FrontendFlow.h`
 
 Estimated risk: low to medium.
 
-Expected `App.cpp` line reduction: likely zero or small. The value is hidden-coupling reduction, not physical line removal.
+Expected `App.cpp` line reduction: likely zero physical App.cpp lines, because the overlay body already lives outside App.cpp. The value is hidden-coupling reduction and removal of an App.cpp-internal header dependency.
 
 Expected hidden-coupling reduction:
 
-- removes the lowest-level SDL UI primitive dependency from App.cpp include order
-- gives `PauseMenuOverlay.h` and `StageSelectOverlay.h` a path toward normal `.cpp` modules
+- converts the easiest overlay from App.cpp-internal to normal module shape
+- validates the view-struct pattern before resource-backed overlays
 - avoids pulling `TextureSprite`, `SystemScreenAssets`, `FighterState`, CMD/CNS, hit/damage, loading, or round flow into public module boundaries
 
 Verification focus:
@@ -91,7 +98,7 @@ Verification focus:
 - `evilken-smoke`
 - `kfm-air-state`
 - `cpu-baseline`
-- GUI smoke for Main -> Training -> Stage Select -> fight, F1/F2/R, Esc backout if implementation touches visible rendering
+- GUI smoke for Single Fight or Single Player pause render/resume if practical, plus Main -> Training -> fight, F1/F2/R, and Esc backout
 
 ## Explicit Non-Goals
 

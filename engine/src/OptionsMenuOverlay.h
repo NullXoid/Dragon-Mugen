@@ -40,7 +40,7 @@ std::string mainSettingStatus(const AppState& state, int option) {
 void drawMainSettings(SDL_Renderer* renderer, const AppState& state) {
     drawTitleBackground(renderer, state);
 
-    ScopedUiScale scaledUi(renderer, state, 320.0f, 240.0f);
+    ScopedUiScale scaledUi(uiRenderContext(renderer, state), 320.0f, 240.0f);
 
     constexpr float centerX = 160.0f;
     constexpr float menuTop = 76.0f;

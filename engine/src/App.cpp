@@ -13,6 +13,8 @@
 #include "SelectionState.h"
 #include "TrainingState.h"
 #include "TrainingOptionsBehavior.h"
+#include "UiRenderContext.h"
+#include "UiRenderPrimitives.h"
 #include "VerificationScenario.h"
 
 #include <SDL3/SDL.h>
@@ -1370,6 +1372,19 @@ float motifOriginX(const AppState& state) {
     return (logicalWidthF(state) - static_cast<float>(kClassicLogicalWidth)) * 0.5f;
 }
 
+float uiScale(const AppState& state) {
+    return uiScaleFromPercent(state.mainSettings.uiScalePercent);
+}
+
+UiRenderContext uiRenderContext(SDL_Renderer* renderer, const AppState& state) {
+    return UiRenderContext{
+        renderer,
+        logicalWidth(state),
+        kLogicalHeight,
+        uiScale(state),
+    };
+}
+
 void clearComboCounters(AppState& state);
 void startEnvShake(AppState& state, const EnvShakeSpec& shake);
 void startPaletteEffect(ActivePaletteEffect& active, const PaletteEffectSpec& effect);
@@ -1526,8 +1541,6 @@ std::string opponentDisplayName(const AppState& state) {
         return "Player 2";
     }
 }
-
-#include "UiRenderPrimitives.h"
 
 void drawSpriteTopLeft(
     SDL_Renderer* renderer,

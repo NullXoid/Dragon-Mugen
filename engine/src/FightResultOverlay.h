@@ -16,7 +16,7 @@ std::string_view matchResultLabel(int option) {
 }
 
 void drawRoundCalloutBand(SDL_Renderer* renderer, const AppState& state, const std::string& text, Uint8 r, Uint8 g, Uint8 b) {
-    ScopedUiScale scaledUi(renderer, state, 320.0f, 240.0f);
+    ScopedUiScale scaledUi(uiRenderContext(renderer, state), 320.0f, 240.0f);
 
     constexpr float centerX = 160.0f;
     setColor(renderer, 6, 8, 14, 210);
@@ -47,7 +47,7 @@ void drawRoundFinishOverlay(SDL_Renderer* renderer, const AppState& state) {
 }
 
 void drawRoundResultOverlay(SDL_Renderer* renderer, const AppState& state) {
-    ScopedUiScale scaledUi(renderer, state, 320.0f, 240.0f);
+    ScopedUiScale scaledUi(uiRenderContext(renderer, state), 320.0f, 240.0f);
 
     constexpr float centerX = 160.0f;
     setColor(renderer, 6, 8, 14, 224);

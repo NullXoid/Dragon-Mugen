@@ -79,6 +79,7 @@ Statuses:
 | FrontendFlow boundary route after extraction | PASS | `FrontendFlow.h` extraction preserved Main -> Training -> Character Select -> Stage Select -> VS/loading -> fight and the FightView F1/F2/R/normal/Escape key paths. |
 | FrontendFlow selector/options movement after extraction | BLOCKED | Computer Use `Down` still did not visibly move the SDL main selector into Options after clicking/focusing the game window. This remains an automation limitation; manual keyboard/controller evidence remains separate. |
 | UiRenderHelpers route/render after extraction | PASS | Shared UI helper extraction preserved the title background, Character Select background, roster icons, fixed Dummy slot, labels/footer, Stage Select, VS/loading, and fight route. |
+| UiRenderPrimitives normal seam | PASS | `UiRenderContext.h` and normal `UiRenderPrimitives.h/.cpp` now provide AppState-free UI primitives. Build, `dev_check`, `kfm-baseline`, `evilken-smoke`, `kfm-air-state`, and `cpu-baseline` passed. Manual GUI smoke was not rerun for this primitive-only pass. |
 
 ## 3. Keyboard P1 Input
 

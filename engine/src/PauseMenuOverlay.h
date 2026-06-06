@@ -17,7 +17,7 @@ std::string_view singleFightPauseLabel(int option) {
 }
 
 void drawSingleFightPauseMenu(SDL_Renderer* renderer, const AppState& state) {
-    ScopedUiScale scaledUi(renderer, state, 320.0f, 240.0f);
+    ScopedUiScale scaledUi(uiRenderContext(renderer, state), 320.0f, 240.0f);
 
     setColor(renderer, 6, 8, 14, 238);
     fillRect(renderer, 68, 42, 184, 156);
