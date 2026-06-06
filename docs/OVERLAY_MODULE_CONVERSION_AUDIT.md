@@ -130,6 +130,13 @@ Pass 39 update:
 - The seam contains only prepared lines, rectangles, readout strings, colors, and visibility flags, with no `AppState`, `FighterState`, `StageSlot`, animation frame, collision-box, camera/stage runtime, debug clipboard, CMD/CNS, hit/damage, loading, resource, or sidecar dependency.
 - The next recommended pass is converting `TrainingDebugOverlay.h` to a normal module using prepared `TrainingDebugView` data assembled in `App.cpp`.
 
+Pass 40 update:
+
+- `TrainingDebugOverlay.h` is now a normal declaration header and `TrainingDebugOverlay.cpp` owns render-only F1 debug overlay drawing from prepared `TrainingDebugView` data.
+- `TrainingDebugViewAssembly.h` remains App.cpp-internal and assembles screen-space lines, collision boxes, and readout strings from fighter/stage/animation/camera/debug clipboard data.
+- The debug overlay module no longer depends on App.cpp-local `AppState`, `FighterState`, `StageSlot`, `AnimationFrame`, `CollisionBox`, debug clipboard behavior, command runtime, or include order.
+- The next recommended pass is a boundary audit for remaining transitional helpers before converting another App.cpp-internal seam.
+
 ## Readiness Labels
 
 - `READY`: can become a normal `.h/.cpp` module with existing public headers and no App.cpp-local dependencies.
@@ -152,7 +159,8 @@ Pass 39 update:
 | `FightPresentationShared.h` | 60 | Shared fight presentation helpers | `DEFER` | Remaining shared status-line helper reads match phase, gamepads, and fight round settings | Keep status-line assembly in App.cpp; reassess with later match/round state boundaries | 8 | Round-pip rendering moved private in normal fight overlay modules. Do not clean this up during overlay conversion. |
 | `TrainingOptionsOverlay.h` / `TrainingOptionsOverlay.cpp` | 48 / 138 | F2 Training Options and move-list rendering | `READY` | None for current prepared-view API; App.cpp still owns option state, command-entry inspection, move-list filtering, and view assembly | No remaining seam for F2 options/move-list rendering; command HUD and debug view seams remain separate | 0 | Pass 36 converted this overlay to a normal module. No `AppState`, `FighterState`, `CommandStateEntry`, command runtime, or gameplay behavior enters the module. |
 | `TrainingCommandOverlay.h` / `TrainingCommandOverlay.cpp` | 10 / 72 | Command/input HUD rendering | `READY` | None for current prepared-view API; App.cpp still owns input history reading, command matching, displayable move-list entries, and view assembly | No remaining seam for command/input HUD rendering; debug view seam remains separate | 0 | Pass 38 converted this overlay to a normal module. No `AppState`, `FighterState`, `CommandStateEntry`, input history object, command definition, command runtime, or gameplay behavior enters the module. |
-| `TrainingDebugOverlay.h` | 178 | Hitbox/debug overlay rendering | `NEEDS SMALL SEAM` | Still reads `FighterState`, camera, collision boxes, current animation frames, hit state, and debug clipboard in the transitional header | `TrainingDebugView` now exists; Pass 40 should add App.cpp-local projection/view assembly and convert the overlay | 1 | Pass 39 created the public screen-space debug view seam. Keep runtime projection and debug clipboard behavior in App.cpp during conversion. |
+| `TrainingDebugOverlay.h` / `TrainingDebugOverlay.cpp` | 10 / 72 | Hitbox/debug overlay rendering | `READY` | None for current prepared-view API; `TrainingDebugViewAssembly.h` remains App.cpp-internal for projection and readout assembly | No remaining seam for F1 debug overlay rendering; later debug/runtime boundaries may replace the internal assembly bridge | 0 | Pass 40 converted this overlay to a normal module. No `AppState`, `FighterState`, `StageSlot`, `AnimationFrame`, `CollisionBox`, debug clipboard behavior, command runtime, or gameplay behavior enters the module. |
+| `TrainingDebugViewAssembly.h` | 215 | App.cpp-internal F1 debug view assembly and screen-space projection | `DEFER` | Depends on `AppState`, `FighterState`, `StageSlot`, animation frame lookup, raw collision boxes, camera/stage offsets, and debug clipboard behavior | Fighter/debug projection boundary after broader runtime state seams exist | 12 | Transitional assembly bridge, not a normal module. It exists to keep the overlay normal without moving runtime projection semantics. |
 | `UiRenderContext.h` / `UiRenderPrimitives.h` / `UiRenderPrimitives.cpp` | 10 / 31 / 87 | Color/rect/text/panel/scale helpers and resource-free UI render context | `READY` | No App.cpp-local dependency for primitive drawing; `App.cpp` still has a thin `uiRenderContext(...)` bridge because `AppState` is local | First overlay conversion needs a small view struct, starting with `PauseMenuView`; no primitive seam remains | 0 | Pass 23 completed the primitive seam. `debugText` is dependency-clean because it uses SDL debug text only. |
 | `UiSpriteView.h` / `UiSpriteView.cpp` | 25 / 32 | Non-owning sprite view and top-left sprite drawing for overlays | `READY` | No ownership or App.cpp-local dependency; `App.cpp` still adapts local `TextureSprite` to `UiSpriteView` | Character Select conversion still needs a prepared view struct and App.cpp-owned sprite selection | 0 | Pass 29 completed the public sprite-view seam. It does not create, load, cache, or destroy textures. |
 | `UiRenderHelpers.h` | 94 | Title/select background and fixed opponent slot rendering | `NEEDS PUBLIC RENDER SEAM` | Depends on `AppState`, `SystemScreenAssets`, `TextureSprite`, and App.cpp-local sprite helpers | Public sprite/background render seam or view structs with already-selected sprite references | 13 | Keep resource ownership and texture lifetime in App.cpp or a later resource module. |
@@ -192,26 +200,23 @@ Pass 23 completed option 2 for low-level UI primitives. Pass 24 converted the fi
 Recommended next pass:
 
 ```text
-Pass 40: Convert TrainingDebugOverlay to normal module
+Pass 41: Remaining Transitional Helper Boundary Audit
 ```
 
 Expected files to create or modify:
 
-- update `engine/src/App.cpp`
-- update `engine/src/TrainingDebugOverlay.h`
-- create `engine/src/TrainingDebugOverlay.cpp`
-- update `CMakeLists.txt`
-- update docs after build/verifier evidence
+- docs-only audit covering `TrainingDebugViewAssembly.h`, `UiRenderHelpers.h`, `FightPresentationShared.h`, `FrontendFlow.h`, and `AppVerificationBridge.h`
+- optional updates to `docs/TYPE_EXTRACTION_AUDIT.md` and this overlay audit
 - keep `FighterState`, command/CNS runtime, hitbox/debug runtime data mutation, hit/damage, loading, audio, and resource ownership out of scope
 
-Estimated risk: medium if `App.cpp` assembles only prepared screen-space debug values; high if the normal module receives `FighterState`, animation frame internals, raw collision boxes, stage/camera runtime, or debug clipboard behavior.
+Estimated risk: low for docs-only; medium/high for any implementation that touches runtime-heavy helpers without a fresh audit.
 
-Expected `App.cpp` line reduction: small or neutral; explicit screen-space view assembly may offset removed hidden internal-header drawing.
+Expected `App.cpp` line reduction: none for the audit.
 
 Expected hidden-coupling reduction:
 
-- converts the last training overlay to the same prepared-view pattern used by the menu, fight, and other training overlays
-- keeps hitbox/debug rendering on the same prepared-view path as other overlay modules
+- identifies the safest remaining transitional helper to convert after the easy overlay cluster is complete
+- prevents blindly converting helpers that still depend on routing, resource ownership, runtime projection, or verifier state
 
 Verification focus:
 
@@ -221,7 +226,7 @@ Verification focus:
 - `evilken-smoke`
 - `kfm-air-state`
 - `cpu-baseline`
-- F1 debug overlay manual smoke if practical after implementation
+- manual smoke not required for a docs-only audit
 - no gameplay, loading, controller, CPU, CMD/CNS, hit/damage, or round-flow claims
 
 ## Explicit Non-Goals

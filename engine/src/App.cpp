@@ -23,6 +23,7 @@
 #include "TrainingCommandView.h"
 #include "TrainingCommandOverlay.h"
 #include "TrainingDebugView.h"
+#include "TrainingDebugOverlay.h"
 #include "TrainingOptionsBehavior.h"
 #include "TrainingOptionsOverlay.h"
 #include "UiRenderContext.h"
@@ -14173,7 +14174,7 @@ void drawWorldActors(SDL_Renderer* renderer, const AppState& state, const StageS
     }
 }
 
-#include "TrainingDebugOverlay.h"
+#include "TrainingDebugViewAssembly.h"
 
 std::string moveListTokenForCommand(std::string_view command) {
     if (command == "x") {
