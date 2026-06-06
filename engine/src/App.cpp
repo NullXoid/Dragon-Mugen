@@ -20,6 +20,7 @@
 #include "SelectionState.h"
 #include "StageSelectOverlay.h"
 #include "TrainingState.h"
+#include "TrainingCommandView.h"
 #include "TrainingOptionsBehavior.h"
 #include "TrainingOptionsOverlay.h"
 #include "UiRenderContext.h"

@@ -110,6 +110,12 @@ Pass 36 update:
 - The module no longer depends on App.cpp-local `AppState`, `FighterState`, `CommandStateEntry`, command runtime, or include order.
 - The next recommended pass is creating a `TrainingCommandHudView` seam before converting `TrainingCommandOverlay.h`.
 
+Pass 37 update:
+
+- `TrainingCommandView.h` now provides a display-only command/input HUD seam with `TrainingCommandRowView`, `TrainingInputHudView`, and `TrainingCommandHudView`.
+- `App.cpp` compile-checks the new seam only; `TrainingCommandOverlay.h` remains transitional and no rendering call sites changed.
+- The next recommended pass is converting `TrainingCommandOverlay.h` to a normal module using prepared `TrainingCommandHudView` data assembled in `App.cpp`.
+
 ## Readiness Labels
 
 - `READY`: can become a normal `.h/.cpp` module with existing public headers and no App.cpp-local dependencies.
@@ -131,7 +137,7 @@ Pass 36 update:
 | `FightResultOverlay.h` / `FightResultOverlay.cpp` | 13 / 133 | Round/result overlay rendering | `READY` | None for current prepared-view API; App.cpp still owns match/result semantics, victory quote selection, result-menu state, routing, and runtime-derived view assembly | No remaining seam for result rendering; broader match/round state seams may shrink App.cpp view assembly later | 0 | Pass 34 converted this overlay to a normal module. No `AppState`, `FighterState`, match settings structs, resource ownership, hit/damage, CMD/CNS, CPU behavior, or round-flow logic enters the module. |
 | `FightPresentationShared.h` | 60 | Shared fight presentation helpers | `DEFER` | Remaining shared status-line helper reads match phase, gamepads, and fight round settings | Keep status-line assembly in App.cpp; reassess with later match/round state boundaries | 8 | Round-pip rendering moved private in normal fight overlay modules. Do not clean this up during overlay conversion. |
 | `TrainingOptionsOverlay.h` / `TrainingOptionsOverlay.cpp` | 48 / 138 | F2 Training Options and move-list rendering | `READY` | None for current prepared-view API; App.cpp still owns option state, command-entry inspection, move-list filtering, and view assembly | No remaining seam for F2 options/move-list rendering; command HUD and debug view seams remain separate | 0 | Pass 36 converted this overlay to a normal module. No `AppState`, `FighterState`, `CommandStateEntry`, command runtime, or gameplay behavior enters the module. |
-| `TrainingCommandOverlay.h` | 80 | Command/input HUD rendering | `DEFER` | Reads `FighterState` input history, command definitions, active command entries, and App.cpp-local command helpers | Public command HUD snapshot after input/command display seam | 11 | Keep CMD/CNS routing and command matching behavior in App.cpp. |
+| `TrainingCommandOverlay.h` | 80 | Command/input HUD rendering | `NEEDS SMALL SEAM` | Still reads `FighterState` input history, command definitions, active command entries, and App.cpp-local command helpers | `TrainingCommandView.h` exists; Pass 38 should add App.cpp view assembly and convert the overlay | 1 | Keep CMD/CNS routing, command matching, input history ownership, and runtime behavior in App.cpp. |
 | `TrainingDebugOverlay.h` | 178 | Hitbox/debug overlay rendering | `DEFER` | Reads `FighterState`, camera, collision boxes, current animation frames, hit state, and debug clipboard | Public debug snapshot after fighter/render debug boundary | 12 | High runtime coupling despite being render-only. Do not convert first. |
 | `UiRenderContext.h` / `UiRenderPrimitives.h` / `UiRenderPrimitives.cpp` | 10 / 31 / 87 | Color/rect/text/panel/scale helpers and resource-free UI render context | `READY` | No App.cpp-local dependency for primitive drawing; `App.cpp` still has a thin `uiRenderContext(...)` bridge because `AppState` is local | First overlay conversion needs a small view struct, starting with `PauseMenuView`; no primitive seam remains | 0 | Pass 23 completed the primitive seam. `debugText` is dependency-clean because it uses SDL debug text only. |
 | `UiSpriteView.h` / `UiSpriteView.cpp` | 25 / 32 | Non-owning sprite view and top-left sprite drawing for overlays | `READY` | No ownership or App.cpp-local dependency; `App.cpp` still adapts local `TextureSprite` to `UiSpriteView` | Character Select conversion still needs a prepared view struct and App.cpp-owned sprite selection | 0 | Pass 29 completed the public sprite-view seam. It does not create, load, cache, or destroy textures. |
@@ -172,23 +178,25 @@ Pass 23 completed option 2 for low-level UI primitives. Pass 24 converted the fi
 Recommended next pass:
 
 ```text
-Pass 37: Create TrainingCommandHudView seam
+Pass 38: Convert TrainingCommandOverlay to normal module
 ```
 
 Expected files to create or modify:
 
-- create a small command/input HUD view header if inspection confirms that should be public
 - update `engine/src/App.cpp`
+- update `engine/src/TrainingCommandOverlay.h`
+- create `engine/src/TrainingCommandOverlay.cpp`
+- update `CMakeLists.txt`
 - update docs after build/verifier evidence
 - keep `FighterState`, command/CNS runtime, hitbox/debug runtime data, hit/damage, loading, audio, and resource ownership out of scope
 
-Estimated risk: low to medium if the seam stores only prepared command/input display values; high if it exposes `FighterState`, command runtime, or command matching behavior.
+Estimated risk: medium if `App.cpp` assembles prepared strings and flags only; high if the conversion exposes `FighterState`, command runtime, or command matching behavior.
 
-Expected `App.cpp` line reduction: none or small increase for the seam pass.
+Expected `App.cpp` line reduction: likely small or neutral because explicit view assembly may offset extracted drawing lines.
 
 Expected hidden-coupling reduction:
 
-- prepares `TrainingCommandOverlay.h` for normal-module conversion without leaking `FighterState` or command runtime into the module
+- converts `TrainingCommandOverlay.h` to the same prepared-view module pattern without leaking `FighterState` or command runtime into the module
 - keeps command/input HUD rendering on the same prepared-view path as other overlay modules
 
 Verification focus:
