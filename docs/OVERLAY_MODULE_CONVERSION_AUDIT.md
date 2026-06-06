@@ -21,6 +21,13 @@ Pass 23 update:
 - `UiRenderHelpers.h`, sprite helpers, title/select backgrounds, `TextureSprite`, `SystemScreenAssets`, and overlay headers remain transitional.
 - `PauseMenuOverlay.h` remains the recommended first overlay conversion target.
 
+Pass 24 update:
+
+- `PauseMenuOverlay.h` is now a normal declaration header with `PauseMenuView`.
+- `PauseMenuOverlay.cpp` now owns render-only pause menu labels and drawing.
+- `App.cpp` builds `PauseMenuView` from `FrontendState` and still owns pause state, option mutation, route actions, fight runtime, input handling, and screen transitions.
+- `PauseMenuOverlay` no longer depends on App.cpp-local `AppState`, `FighterState`, or include order.
+
 ## Readiness Labels
 
 - `READY`: can become a normal `.h/.cpp` module with existing public headers and no App.cpp-local dependencies.
@@ -32,7 +39,7 @@ Pass 23 update:
 
 | Header | Lines | Responsibility | Readiness | Main Blocker | Minimum Seam Needed | Recommended Priority | Notes |
 |---|---:|---|---|---|---|---|---|
-| `PauseMenuOverlay.h` | 50 | Single-fight pause menu rendering | `NEEDS SMALL SEAM` | Takes App.cpp-local `AppState`; uses `ScopedUiScale`, render primitives, and `pendingModeTitle` | Public `PauseMenuView`, public UI primitives, and a small UI scale context that does not require `AppState` | 1 | Best first overlay candidate after the UI seam. No texture/resource ownership and no gameplay behavior. |
+| `PauseMenuOverlay.h` / `PauseMenuOverlay.cpp` | 16 / 63 | Single-fight pause menu rendering | `READY` | None for current render-only API; `App.cpp` still supplies a ready mode label and selected option | No remaining seam for pause rendering; future unification may replace private render labels with shared pause action metadata | 0 | Pass 24 converted this overlay to a normal module. No texture/resource ownership and no gameplay behavior. |
 | `StageSelectOverlay.h` | 61 | Stage Select rendering | `NEEDS SMALL SEAM` | Takes App.cpp-local `AppState`; uses selection fields plus App.cpp-local label helpers and render primitives | Public `StageSelectView` assembled by App.cpp plus public UI primitives/text helpers | 2 | Good second candidate. Avoid moving stage selection, routing, preferred-stage mutation, or loading. |
 | `MainMenuOverlay.h` | 71 | Main/title menu rendering | `NEEDS PUBLIC RENDER SEAM` | Takes `AppState`; uses `drawTitleBackground`, `systemScreens.titleLogo`, and sprite helpers | Public menu view plus public title-background/sprite drawing seam or a title-background view | 3 | Visually simple but resource-backed title background/logo makes it harder than pause/stage. |
 | `OptionsMenuOverlay.h` | 92 | Options menu rendering | `NEEDS PUBLIC RENDER SEAM` | Takes `AppState`; uses `drawTitleBackground`, `ScopedUiScale`, gamepad/status helpers, and App.cpp-local setting text helpers | Public options view, public settings status helpers, public UI primitives, and title-background render seam | 4 | Do not move gamepad open/close, assignment ownership, persistence, or SDL resource behavior. |
@@ -50,9 +57,9 @@ Pass 23 update:
 
 ## Closest Conversion Candidates
 
-1. `PauseMenuOverlay.h`
-   - Smallest render-only overlay with no texture ownership and no resource-backed background.
-   - Still blocked by App.cpp-local `AppState` and UI scale/render helpers.
+1. `PauseMenuOverlay.h` / `PauseMenuOverlay.cpp`
+   - Converted in Pass 24.
+   - Proves the view-struct pattern for low-risk overlays.
 
 2. `StageSelectOverlay.h`
    - Small and mostly selection metadata plus text/panel primitives.
@@ -63,21 +70,21 @@ Pass 23 update:
 
 ## Recommended Next Implementation Pass
 
-Pass 23 completed option 2 for low-level UI primitives. The remaining work is the first overlay conversion, not another primitive seam.
+Pass 23 completed option 2 for low-level UI primitives. Pass 24 converted the first overlay, proving the primitive seam and view-struct pattern.
 
 Recommended next pass:
 
 ```text
-Pass 24: Convert PauseMenuOverlay to normal module
+Pass 25: Convert StageSelectOverlay to normal module
 ```
 
 Expected files to create or modify:
 
-- create a normal `PauseMenuOverlay.cpp`
-- keep `PauseMenuOverlay.h` as a normal declaration header
-- add a small `PauseMenuView` or equivalent view struct so the module does not take App.cpp-local `AppState`
+- create a normal `StageSelectOverlay.cpp`
+- keep `StageSelectOverlay.h` as a normal declaration header
+- add a small `StageSelectView` or equivalent view struct so the module does not take App.cpp-local `AppState`
 - update CMake for the new `.cpp`
-- keep pause input, selected-option mutation, route actions, fight reset, rematch, and runtime behavior in `App.cpp` / `FrontendFlow.h`
+- keep stage cursor mutation, preferred-stage mutation, stage selection routing, loading, and runtime behavior in `App.cpp` / `FrontendFlow.h`
 
 Estimated risk: low to medium.
 
@@ -85,8 +92,8 @@ Expected `App.cpp` line reduction: likely zero physical App.cpp lines, because t
 
 Expected hidden-coupling reduction:
 
-- converts the easiest overlay from App.cpp-internal to normal module shape
-- validates the view-struct pattern before resource-backed overlays
+- converts another small text/list overlay from App.cpp-internal to normal module shape
+- extends the view-struct pattern before resource-backed overlays
 - avoids pulling `TextureSprite`, `SystemScreenAssets`, `FighterState`, CMD/CNS, hit/damage, loading, or round flow into public module boundaries
 
 Verification focus:
@@ -98,7 +105,7 @@ Verification focus:
 - `evilken-smoke`
 - `kfm-air-state`
 - `cpu-baseline`
-- GUI smoke for Single Fight or Single Player pause render/resume if practical, plus Main -> Training -> fight, F1/F2/R, and Esc backout
+- GUI smoke for Main -> Training -> Character Select -> Stage Select rendering if practical, plus fight route, F1/F2/R, and Esc backout
 
 ## Explicit Non-Goals
 

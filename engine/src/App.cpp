@@ -10,6 +10,7 @@
 #include "FrontendMenu.h"
 #include "FrontendState.h"
 #include "Input.h"
+#include "PauseMenuOverlay.h"
 #include "SelectionState.h"
 #include "TrainingState.h"
 #include "TrainingOptionsBehavior.h"
@@ -14255,8 +14256,6 @@ std::string commandEntryTargetLabel(const CommandStateEntry& entry) {
 
 #include "TrainingOptionsOverlay.h"
 
-#include "PauseMenuOverlay.h"
-
 #include "FightPresentationShared.h"
 
 #include "FightHudOverlay.h"
@@ -14331,7 +14330,12 @@ void drawFightView(SDL_Renderer* renderer, const AppState& state) {
     if (state.frontend.pendingMode == PendingMode::Training && state.training.options.menuOpen) {
         drawTrainingOptionsMenu(renderer, state);
     } else if (isMatchMode(state) && state.frontend.singleFightPauseOpen) {
-        drawSingleFightPauseMenu(renderer, state);
+        drawSingleFightPauseMenu(
+            uiRenderContext(renderer, state),
+            PauseMenuView{
+                pendingModeTitle(state.frontend.pendingMode),
+                state.frontend.selectedSingleFightPauseOption,
+            });
     } else if (isMatchMode(state) && state.matchPhase == MatchPhase::RoundStart) {
         drawRoundStartOverlay(renderer, state);
     } else if (isMatchMode(state) && state.matchPhase == MatchPhase::RoundFinish) {
