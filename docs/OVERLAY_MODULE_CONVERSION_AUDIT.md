@@ -137,6 +137,13 @@ Pass 40 update:
 - The debug overlay module no longer depends on App.cpp-local `AppState`, `FighterState`, `StageSlot`, `AnimationFrame`, `CollisionBox`, debug clipboard behavior, command runtime, or include order.
 - The next recommended pass is a boundary audit for remaining transitional helpers before converting another App.cpp-internal seam.
 
+Pass 41 update:
+
+- `docs/TRANSITIONAL_HELPER_BOUNDARY_AUDIT.md` now records the remaining App.cpp-internal helper/bridge headers after the overlay conversions.
+- The audit covers `UiRenderHelpers.h`, `FightPresentationShared.h`, `TrainingDebugViewAssembly.h`, `FrontendFlow.h`, and `AppVerificationBridge.h`.
+- The next recommended implementation pass is retiring `FightPresentationShared.h` by keeping the live status-line helper App.cpp-local and removing the unused round-pip renderer if a fresh reference check still confirms it is unused.
+- `UiRenderHelpers.h` remains the next render/presentation candidate after that, but it needs a public background/sprite presentation seam before normal conversion.
+
 ## Readiness Labels
 
 - `READY`: can become a normal `.h/.cpp` module with existing public headers and no App.cpp-local dependencies.
@@ -195,28 +202,30 @@ Pass 40 update:
 
 ## Recommended Next Implementation Pass
 
-Pass 23 completed option 2 for low-level UI primitives. Pass 24 converted the first overlay. Pass 25 converted the main-menu foreground while leaving resource-backed title background/logo drawing in App.cpp. Pass 26 converted Stage Select foreground rendering using a prepared view. Pass 27 converted Options foreground rendering using prepared rows. Pass 28 converted VS/loading presentation using prepared labels and a non-owning portrait texture view. Pass 29 created the public non-owning sprite-view seam and migrated VS/loading to it. Pass 30 converted Character Select foreground rendering using prepared view data plus `UiSpriteView`. Pass 31 audited fight overlays, Pass 32 created the fight presentation view seam, Pass 33 converted Fight HUD, Pass 34 converted Fight Result, Pass 35 audited training overlays, and Pass 36 converted Training Options.
+Pass 23 completed option 2 for low-level UI primitives. Pass 24 converted the first overlay. Pass 25 converted the main-menu foreground while leaving resource-backed title background/logo drawing in App.cpp. Pass 26 converted Stage Select foreground rendering using a prepared view. Pass 27 converted Options foreground rendering using prepared rows. Pass 28 converted VS/loading presentation using prepared labels and a non-owning portrait texture view. Pass 29 created the public non-owning sprite-view seam and migrated VS/loading to it. Pass 30 converted Character Select foreground rendering using prepared view data plus `UiSpriteView`. Pass 31 audited fight overlays, Pass 32 created the fight presentation view seam, Pass 33 converted Fight HUD, Pass 34 converted Fight Result, Pass 35 audited training overlays, Pass 36 converted Training Options, Pass 37 created the Training Command view seam, Pass 38 converted Training Command, Pass 39 created the Training Debug view seam, Pass 40 converted Training Debug, and Pass 41 audited the remaining transitional helpers.
 
 Recommended next pass:
 
 ```text
-Pass 41: Remaining Transitional Helper Boundary Audit
+Pass 42: Retire FightPresentationShared transitional helper
 ```
 
 Expected files to create or modify:
 
-- docs-only audit covering `TrainingDebugViewAssembly.h`, `UiRenderHelpers.h`, `FightPresentationShared.h`, `FrontendFlow.h`, and `AppVerificationBridge.h`
-- optional updates to `docs/TYPE_EXTRACTION_AUDIT.md` and this overlay audit
+- `engine/src/App.cpp`
+- `engine/src/FightPresentationShared.h`
+- docs updated after evidence
 - keep `FighterState`, command/CNS runtime, hitbox/debug runtime data mutation, hit/damage, loading, audio, and resource ownership out of scope
 
-Estimated risk: low for docs-only; medium/high for any implementation that touches runtime-heavy helpers without a fresh audit.
+Estimated risk: low if `singleFightStatusLine(...)` stays App.cpp-local and the pass only removes unused shared render helper code.
 
-Expected `App.cpp` line reduction: none for the audit.
+Expected `App.cpp` line reduction: none. `App.cpp` may stay flat or increase slightly because the live AppState-coupled status helper belongs locally.
 
 Expected hidden-coupling reduction:
 
-- identifies the safest remaining transitional helper to convert after the easy overlay cluster is complete
-- prevents blindly converting helpers that still depend on routing, resource ownership, runtime projection, or verifier state
+- removes one transitional helper include from App.cpp
+- makes fight status-line assembly ownership explicit
+- avoids converting AppState-coupled status logic into a misleading normal module
 
 Verification focus:
 
@@ -226,7 +235,7 @@ Verification focus:
 - `evilken-smoke`
 - `kfm-air-state`
 - `cpu-baseline`
-- manual smoke not required for a docs-only audit
+- manual smoke optional because the pass is a local helper cleanup
 - no gameplay, loading, controller, CPU, CMD/CNS, hit/damage, or round-flow claims
 
 ## Explicit Non-Goals

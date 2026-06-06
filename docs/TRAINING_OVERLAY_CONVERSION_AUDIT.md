@@ -132,24 +132,25 @@ Future normal training overlay modules must not take:
 Recommendation:
 
 ```text
-Pass 41: Remaining Transitional Helper Boundary Audit
+Pass 42: Retire FightPresentationShared transitional helper
 ```
 
 Reason:
 
 - The training overlay cluster is now converted to normal render modules.
-- The remaining risk is in transitional App.cpp-internal helpers and assembly bridges, not training overlay drawing.
-- The next pass should audit what remains before converting another boundary.
+- Pass 41 completed the remaining transitional helper audit in `docs/TRANSITIONAL_HELPER_BOUNDARY_AUDIT.md`.
+- The audit found `FightPresentationShared.h` is the smallest safe cleanup because the only live helper is AppState-coupled status-line assembly and the old round-pip renderer is unused.
+- Larger helpers such as `UiRenderHelpers.h`, `FrontendFlow.h`, `TrainingDebugViewAssembly.h`, and `AppVerificationBridge.h` still need presentation/action/runtime seams before conversion.
 
-Expected files for Pass 41:
+Expected files for Pass 42:
 
-- `docs/OVERLAY_MODULE_CONVERSION_AUDIT.md`
-- `docs/TYPE_EXTRACTION_AUDIT.md`
-- optional focused audit doc for transitional helpers
+- `engine/src/App.cpp`
+- `engine/src/FightPresentationShared.h`
+- docs updated after evidence
 
 Expected `App.cpp` line reduction:
 
-- None for a docs-only audit.
+- None expected; the value is retiring a transitional helper and deleting unused helper code.
 
 Verification focus:
 
@@ -163,5 +164,5 @@ Verification focus:
 
 Do not convert:
 
-- `TrainingDebugViewAssembly.h`, `FrontendFlow.h`, `UiRenderHelpers.h`, `FightPresentationShared.h`, or `AppVerificationBridge.h` until the audit chooses a safe target.
+- `TrainingDebugViewAssembly.h`, `FrontendFlow.h`, `UiRenderHelpers.h`, or `AppVerificationBridge.h` until their required seams are defined.
 - command/CNS runtime, hit/damage, input behavior, loading, resources, or sidecar policy.
