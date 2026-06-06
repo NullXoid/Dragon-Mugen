@@ -457,6 +457,11 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
                             std::min(maxScroll, state.training.options.selectedMoveListEntry - visibleRows + 1);
                     }
                     break;
+                case SDLK_H:
+                    beginTrainingCommandDemo(state);
+                    state.training.options.menuOpen = false;
+                    state.training.options.moveListOpen = false;
+                    break;
                 default:
                     break;
                 }
@@ -516,6 +521,8 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
             state.training.options.menuOpen = true;
         } else if (key == SDLK_R) {
             resetFightState(state);
+        } else if (key == SDLK_H) {
+            beginTrainingCommandDemo(state);
         }
         return;
     }
@@ -570,6 +577,14 @@ std::optional<SDL_Keycode> gamepadMenuKeyForButton(const AppState& state, SDL_Ga
             return SDLK_ESCAPE;
         }
         return std::nullopt;
+    }
+
+    if (state.frontend.screen == Screen::FightView
+        && state.frontend.pendingMode == PendingMode::Training
+        && state.training.options.menuOpen
+        && state.training.options.moveListOpen
+        && button == SDL_GAMEPAD_BUTTON_WEST) {
+        return SDLK_H;
     }
 
     switch (button) {

@@ -63,6 +63,7 @@ void resetTrainingPositions(AppState& state) {
     const StageSlot fallbackStage;
     const StageSlot& stage = selectedStageSlot(state.selection) ? *selectedStageSlot(state.selection) : fallbackStage;
 
+    state.training.commandDemo = {};
     state.fighters[0].x = stage.p1startx;
     state.fighters[0].y = stage.p1starty;
     state.fighters[1].x = stage.p2startx;
@@ -192,6 +193,7 @@ void resetFightRound(AppState& state) {
     }
     state.training.options.menuOpen = false;
     state.training.options.moveListOpen = false;
+    state.training.commandDemo = {};
     state.frontend.singleFightPauseOpen = false;
     state.frontend.selectedSingleFightPauseOption = 0;
     state.frontend.selectedMatchResultOption = 0;

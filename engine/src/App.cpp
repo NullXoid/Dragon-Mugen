@@ -7660,6 +7660,9 @@ void updateCpuOpponent(AppState& state, FighterState& opponent, const FighterSta
     updateControlledFighter(state, opponent, &target, input);
 }
 
+bool trainingCommandDemoActive(const AppState& state);
+FighterInputState nextTrainingCommandDemoInput(AppState& state, FighterState& demoFighter);
+
 std::string fighterResultName(const AppState& state, int winner) {
     switch (winner) {
     case 1:
@@ -8130,6 +8133,9 @@ void updateFight(AppState& state) {
             ? *gFightInputOverride->p2
             : collectFighterInput(keys, p2Controls(), assignedGamepad(state, 1));
         updateControlledFighter(state, p2, &p1, p2Input);
+    } else if (activeOpponentType(state) == OpponentType::Dummy && trainingCommandDemoActive(state)) {
+        const FighterInputState demoInput = nextTrainingCommandDemoInput(state, p2);
+        updateControlledFighter(state, p2, &p1, demoInput);
     } else if (activeOpponentType(state) == OpponentType::Dummy) {
         updateTrainingDummy(state, p2);
     } else {
@@ -8568,8 +8574,14 @@ std::string moveListEntryName(const CommandStateEntry& entry) {
     return entry.label.empty() ? "State " + commandEntryTargetLabel(entry) : entry.label;
 }
 
-TrainingCommandHudView trainingCommandHudView(const AppState& state, std::vector<TrainingCommandRowView>& rows) {
+#include "TrainingCommandPracticeAssembly.h"
+
+TrainingCommandHudView trainingCommandHudView(
+    const AppState& state,
+    std::vector<TrainingCommandRowView>& rows,
+    std::vector<TrainingCommandStepView>& steps) {
     rows.clear();
+    steps.clear();
     TrainingCommandHudView view;
     view.input.visible = state.training.options.showInputHud;
     view.commandsVisible = state.training.options.showCommandHud;
@@ -8600,31 +8612,70 @@ TrainingCommandHudView trainingCommandHudView(const AppState& state, std::vector
 
     if (view.commandsVisible) {
         const auto entries = displayableMoveListEntries(state);
-        rows.reserve(5);
-        int drawn = 0;
-        for (const auto* entry : entries) {
-            if (!entry || drawn >= 5) {
+        const int selected = entries.empty()
+            ? -1
+            : std::clamp(state.training.options.selectedMoveListEntry, 0, static_cast<int>(entries.size()) - 1);
+
+        constexpr int visibleRows = 7;
+        const int maxStart = std::max(0, static_cast<int>(entries.size()) - visibleRows);
+        const int firstRow = selected < 0 ? 0 : std::clamp(selected - 2, 0, maxStart);
+
+        rows.reserve(visibleRows);
+        for (int row = 0; row < visibleRows; ++row) {
+            const int index = firstRow + row;
+            if (index >= static_cast<int>(entries.size())) {
                 break;
             }
+            const auto* entry = entries[static_cast<size_t>(index)];
+            if (!entry) {
+                continue;
+            }
+            const CommandDefinition* definition = practiceCommandDefinitionForEntry(state, *entry, commands);
             rows.push_back(TrainingCommandRowView{
-                fitDebugText(moveListEntryName(*entry), 15),
-                fitDebugText(moveListInputText(*entry), 10),
+                fitDebugText(moveListEntryName(*entry), 16),
+                fitDebugText(definition ? commandDefinitionInputLabel(*definition) : moveListInputText(*entry), 10),
                 activeEntry == entry,
+                index == selected,
             });
-            ++drawn;
         }
+
+        view.categoryLabel = std::string(trainingMoveCategoryStatus(state.training.options.moveCategory));
+        view.pageLabel = entries.empty()
+            ? "0/0"
+            : std::to_string(selected + 1) + "/" + std::to_string(entries.size());
+        view.showMeLabel = "H SHOW ME";
+        view.demoActive = trainingCommandDemoActive(state);
         if (activeEntry) {
             view.activeCommandLabel = fitDebugText(activeEntry->label, 19);
+        }
+        if (selected >= 0) {
+            const auto& entry = *entries[static_cast<size_t>(selected)];
+            const bool complete = activeEntry == &entry;
+            const CommandDefinition* definition = practiceCommandDefinitionForEntry(state, entry, commands);
+            view.currentMoveName = fitDebugText(moveListEntryName(entry), 20);
+            view.currentMoveInput = fitDebugText(definition ? commandDefinitionInputLabel(*definition) : moveListInputText(entry), 25);
+            view.completeFlash = complete;
+
+            if (definition) {
+                appendDefinitionPracticeSteps(steps, fighter, *definition, complete || commandDefinitionActive(*definition, fighter));
+            } else {
+                appendEntryPracticeSteps(steps, entry, commands, complete);
+            }
+        } else {
+            view.currentMoveName = "No loaded moves";
+            view.currentMoveInput = "-";
         }
     }
 
     view.commandRows = rows;
+    view.practiceSteps = steps;
     return view;
 }
 
 void drawTrainingCommandHud(SDL_Renderer* renderer, const AppState& state) {
     std::vector<TrainingCommandRowView> rows;
-    const TrainingCommandHudView view = trainingCommandHudView(state, rows);
+    std::vector<TrainingCommandStepView> steps;
+    const TrainingCommandHudView view = trainingCommandHudView(state, rows, steps);
     dragon::drawTrainingCommandOverlay(uiRenderContext(renderer, state), view);
 }
 
