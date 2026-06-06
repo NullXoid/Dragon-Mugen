@@ -11,6 +11,7 @@
 #include "FrontendState.h"
 #include "Input.h"
 #include "MainMenuOverlay.h"
+#include "OptionsMenuOverlay.h"
 #include "PauseMenuOverlay.h"
 #include "SelectionState.h"
 #include "StageSelectOverlay.h"
@@ -6740,6 +6741,60 @@ std::string uiScaleSettingText(const MainSettings& settings) {
 
 #include "UiRenderHelpers.h"
 
+std::string_view mainSettingLabel(int option) {
+    static constexpr std::array<std::string_view, kMainSettingsCount> labels{
+        "MATCH TIMER",
+        "CANVAS SIZE",
+        "UI SCALE",
+        "PAD LABELS",
+        "P1 GAMEPAD",
+        "P2 GAMEPAD",
+        "BACK",
+    };
+    return labels[static_cast<size_t>(std::clamp(option, 0, kMainSettingsCount - 1))];
+}
+
+std::string mainSettingStatus(const AppState& state, int option) {
+    switch (option) {
+    case 0:
+        return matchTimerSettingText(state.mainSettings);
+    case 1:
+        return canvasSizeSettingText(state.mainSettings);
+    case 2:
+        return uiScaleSettingText(state.mainSettings);
+    case 3:
+        return gamepadPromptStyleText(state.mainSettings.gamepadPromptStyle);
+    case 4:
+        return gamepadAssignmentText(state, 0);
+    case 5:
+        return gamepadAssignmentText(state, 1);
+    default:
+        return "";
+    }
+}
+
+std::string mainSettingsPadSummary(const AppState& state) {
+    if (state.gamepads.empty()) {
+        return "PADS NONE";
+    }
+    return "PADS " + std::to_string(state.gamepads.size()) + "  " + compactSettingText(state.gamepads.front().name, 18);
+}
+
+std::vector<OptionsMenuRowView> buildOptionsMenuRows(const AppState& state) {
+    std::vector<OptionsMenuRowView> rows;
+    rows.reserve(kMainSettingsCount);
+    for (int i = 0; i < kMainSettingsCount; ++i) {
+        const bool adjustable = i < kMainSettingsCount - 1;
+        rows.push_back(OptionsMenuRowView{
+            std::string(mainSettingLabel(i)),
+            adjustable ? compactSettingText(mainSettingStatus(state, i), 16) : "",
+            i == state.mainSettings.selectedOption,
+            adjustable,
+        });
+    }
+    return rows;
+}
+
 void drawModeSelect(SDL_Renderer* renderer, const AppState& state) {
     drawTitleBackground(renderer, state);
     const UiRenderContext ui = uiRenderContext(renderer, state);
@@ -6752,6 +6807,20 @@ void drawModeSelect(SDL_Renderer* renderer, const AppState& state) {
     SDL_RenderPresent(renderer);
 }
 
+void drawMainSettings(SDL_Renderer* renderer, const AppState& state) {
+    drawTitleBackground(renderer, state);
+
+    std::vector<OptionsMenuRowView> rows = buildOptionsMenuRows(state);
+    drawOptionsMenuOverlay(
+        uiRenderContext(renderer, state),
+        OptionsMenuView{
+            rows,
+            mainSettingsPadSummary(state),
+        });
+
+    SDL_RenderPresent(renderer);
+}
+
 std::string_view opponentSlotLabel(PendingMode mode) {
     return opponentTypeLabel(defaultOpponentTypeForMode(mode));
 }
@@ -6759,8 +6828,6 @@ std::string_view opponentSlotLabel(PendingMode mode) {
 std::string_view opponentSlotLabel(const AppState& state) {
     return opponentTypeLabel(activeOpponentType(state));
 }
-
-#include "OptionsMenuOverlay.h"
 
 #include "CharacterSelectOverlay.h"
 

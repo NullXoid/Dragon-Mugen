@@ -54,6 +54,7 @@ add_library(dragon_core
     engine/src/Sff.cpp
     engine/src/Snd.cpp
     engine/src/MainMenuOverlay.cpp
+    engine/src/OptionsMenuOverlay.cpp
     engine/src/PauseMenuOverlay.cpp
     engine/src/StageSelectOverlay.cpp
     engine/src/UiRenderPrimitives.cpp
