@@ -50,6 +50,14 @@ def main() -> int:
         )
         exe = exe_path(repo)
         checks.append(("console roster check", [str(exe), "game", "--console"]))
+        checks.extend(
+            [
+                ("verify kfm-baseline", [str(exe), "--verify", "kfm-baseline"]),
+                ("verify evilken-smoke", [str(exe), "--verify", "evilken-smoke"]),
+                ("verify kfm-air-state", [str(exe), "--verify", "kfm-air-state"]),
+                ("verify cpu-baseline", [str(exe), "--verify", "cpu-baseline"]),
+            ]
+        )
 
     for label, command in checks:
         code = run_step(label, command, repo)

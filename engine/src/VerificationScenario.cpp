@@ -293,11 +293,19 @@ int runKfmBaseline(RuntimeProbe& runtime, std::ostream& out) {
     runtime.step(hitInput, 2);
     bool sawContact = false;
     bool sawHitPause = false;
+    bool sawActiveEffect = false;
+    bool sawActiveSound = false;
+    int peakActiveEffects = 0;
+    int peakActiveSounds = 0;
     for (int i = 0; i < 50; ++i) {
         runtime.step({}, 1);
         const auto snap = runtime.snapshot();
         sawContact = sawContact || snap.p1.moveContact || snap.p1.moveHit || snap.p1.hitCount > hitBefore.p1.hitCount;
         sawHitPause = sawHitPause || snap.p1.hitPauseTicks > 0 || snap.p2.hitPauseTicks > 0;
+        sawActiveEffect = sawActiveEffect || snap.activeEffects > 0;
+        sawActiveSound = sawActiveSound || snap.activeSounds > 0;
+        peakActiveEffects = std::max(peakActiveEffects, snap.activeEffects);
+        peakActiveSounds = std::max(peakActiveSounds, snap.activeSounds);
     }
     const auto hitAfter = runtime.snapshot();
     record(out, counts, sawContact ? Status::Pass : Status::Fail, "hit_contact",
@@ -306,9 +314,12 @@ int runKfmBaseline(RuntimeProbe& runtime, std::ostream& out) {
     record(out, counts, hitAfter.p2.life < hitBefore.p2.life ? Status::Pass : Status::Fail, "damage",
         "p2_life_before=" + std::to_string(hitBefore.p2.life) + " p2_life_after=" + std::to_string(hitAfter.p2.life)
         + " delta=" + std::to_string(hitAfter.p2.life - hitBefore.p2.life));
-    record(out, counts, sawHitPause || hitAfter.activeEffects > 0 || hitAfter.activeSounds > 0 ? Status::Partial : Status::Partial,
+    record(out, counts, (sawHitPause && sawActiveEffect && sawActiveSound) ? Status::Pass : Status::Fail,
         "hitpause_spark_sound", "hitpause_observed=" + std::to_string(sawHitPause ? 1 : 0)
-        + " active_effects=" + std::to_string(hitAfter.activeEffects) + " active_sounds=" + std::to_string(hitAfter.activeSounds));
+        + " active_effect_observed=" + std::to_string(sawActiveEffect ? 1 : 0)
+        + " active_sound_observed=" + std::to_string(sawActiveSound ? 1 : 0)
+        + " peak_active_effects=" + std::to_string(peakActiveEffects)
+        + " peak_active_sounds=" + std::to_string(peakActiveSounds));
     record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
     summary(out, counts);
     return exitCode(counts);
@@ -425,10 +436,35 @@ int runEvilKenSmoke(RuntimeProbe& runtime, std::ostream& out) {
         return 2;
     }
     header(out, runtime, "evilken-smoke");
-    waitForControllableIdle(runtime, 360);
+    const bool activeFight = waitForActiveFight(runtime, 420);
+    const auto fightReady = runtime.snapshot();
+    record(out, counts, activeFight ? Status::Pass : Status::Fail, "single_player_fight_phase_ready",
+        "match_phase=" + std::to_string(fightReady.matchPhase)
+        + " timer_ticks=" + std::to_string(fightReady.matchTimerTicks));
+    if (!activeFight) {
+        record(out, counts, Status::Blocked, "evilken_smoke_checks", "Single Player fight phase was not active");
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    const bool settled = waitForControllableIdle(runtime, 360);
+    const auto idle = runtime.snapshot().p1;
+    record(out, counts, settled ? Status::Pass : Status::Fail, "controllable_idle_ready",
+        "state=" + std::to_string(idle.stateNo)
+        + " anim=" + std::to_string(idle.action)
+        + " ctrl=" + std::to_string(idle.ctrl ? 1 : 0));
+    if (!settled) {
+        record(out, counts, Status::Blocked, "evilken_smoke_checks", "controllable idle gate failed");
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
     runtime.step({}, 150);
-    record(out, counts, runtime.snapshot().p1.life > 0 ? Status::Pass : Status::Fail, "load_idle_stance",
-        "state=" + std::to_string(runtime.snapshot().p1.stateNo) + " anim=" + std::to_string(runtime.snapshot().p1.action));
+    const auto stance = runtime.snapshot().p1;
+    record(out, counts, (stance.life > 0 && stance.stateNo == 0) ? Status::Pass : Status::Fail, "load_idle_stance",
+        "state=" + std::to_string(stance.stateNo)
+        + " anim=" + std::to_string(stance.action)
+        + " life=" + std::to_string(stance.life));
     const float xBefore = runtime.snapshot().p1.x;
     runtime.step(SymbolicInput{ .right = true }, 45);
     const float xAfter = runtime.snapshot().p1.x;
@@ -449,14 +485,36 @@ int runEvilKenSmoke(RuntimeProbe& runtime, std::ostream& out) {
     const bool normal = tryNormal(runtime, command, before, after, false);
     record(out, counts, normal ? Status::Pass : Status::Fail, "normal_attack",
         normal ? stateActionDetail(before, after, command) : "no x/y/z/a/b/c state or animation change");
-    const auto timer = runtime.snapshot();
-    record(out, counts, Status::Pass, "round_timer_stability",
-        "match_phase=" + std::to_string(timer.matchPhase) + " timer_ticks=" + std::to_string(timer.matchTimerTicks));
-    const bool contactEvidence = timer.comboHits > 0
-        || timer.lastHitText.find(" hit ") != std::string::npos
-        || timer.lastHitText.find(" guard ") != std::string::npos;
-    record(out, counts, contactEvidence ? Status::Pass : Status::Partial, "combo_or_hit_evidence",
-        "combo_hits=" + std::to_string(timer.comboHits) + " last_hit=\"" + timer.lastHitText + "\"");
+    bool sawContactEvidence = false;
+    int peakComboHits = 0;
+    std::string lastHitText;
+    for (int i = 0; i < 90; ++i) {
+        runtime.step({}, 1);
+        const auto snap = runtime.snapshot();
+        peakComboHits = std::max(peakComboHits, snap.comboHits);
+        lastHitText = snap.lastHitText.empty() ? lastHitText : snap.lastHitText;
+        sawContactEvidence = sawContactEvidence
+            || snap.comboHits > 0
+            || snap.p1.moveContact
+            || snap.p1.moveHit
+            || snap.p1.moveGuarded
+            || snap.lastHitText.find(" hit ") != std::string::npos
+            || snap.lastHitText.find(" guard ") != std::string::npos;
+    }
+    record(out, counts, sawContactEvidence ? Status::Pass : Status::Fail, "combo_or_hit_evidence",
+        "peak_combo_hits=" + std::to_string(peakComboHits) + " last_hit=\"" + lastHitText + "\"");
+
+    const auto timerBefore = runtime.snapshot();
+    runtime.step({}, 30);
+    const auto timerAfter = runtime.snapshot();
+    const bool timerStable = timerAfter.matchPhase == static_cast<int>(MatchPhase::Fight)
+        && timerAfter.matchTimerTicks > 0
+        && timerAfter.matchTimerTicks <= timerBefore.matchTimerTicks;
+    record(out, counts, timerStable ? Status::Pass : Status::Fail, "round_timer_stability",
+        "phase_before=" + std::to_string(timerBefore.matchPhase)
+        + " phase_after=" + std::to_string(timerAfter.matchPhase)
+        + " timer_before=" + std::to_string(timerBefore.matchTimerTicks)
+        + " timer_after=" + std::to_string(timerAfter.matchTimerTicks));
     record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
     summary(out, counts);
     return exitCode(counts);

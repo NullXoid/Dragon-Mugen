@@ -10,6 +10,8 @@ From a Visual Studio developer shell:
 python engine/tools/dev_check.py .
 ```
 
+The full check configures/builds the executable, runs the console roster check, and then runs the scripted runtime verifiers: `kfm-baseline`, `evilken-smoke`, `kfm-air-state`, and `cpu-baseline`.
+
 For a faster source-only pass:
 
 ```powershell
@@ -29,6 +31,8 @@ Run these after changes that touch input, CMD/CNS routing, movement, hit detecti
 ```powershell
 build\dragon_mugen.exe --verify kfm-baseline
 build\dragon_mugen.exe --verify evilken-smoke
+build\dragon_mugen.exe --verify kfm-air-state
+build\dragon_mugen.exe --verify cpu-baseline
 ```
 
 These scenarios use internal symbolic input to verify the runtime path. They do not prove physical keyboard or controller hardware mapping.

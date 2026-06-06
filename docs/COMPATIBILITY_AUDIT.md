@@ -90,8 +90,8 @@ Results:
 
 | Scenario | Character | Mode | Status | Evidence |
 | --- | --- | --- | --- | --- |
-| `kfm-baseline` | Kung Fu Man | Training | Pass with optional partial | `SUMMARY pass=11 partial=1 fail=0 blocked=0`; proved controllable idle, held movement, crouch, jump, standing normal `y` to state `210`, crouching normal `y` to state `410`, hit contact, P2 life `1000 -> 943`, hitpause, active hit sound, and clean exit. |
-| `evilken-smoke` | Evil Ken | Single Player | Pass | `SUMMARY pass=7 partial=0 fail=0 blocked=0`; proved load/idle, movement, jump, normal `x` to state `206`, timer stability, combo/hit evidence, and clean exit. |
+| `kfm-baseline` | Kung Fu Man | Training | Pass | Current expected summary has `partial=0 fail=0 blocked=0`; proves controllable idle, held movement, crouch, jump, standing normal `y` to state `210`, crouching normal `y` to state `410`, hit contact, P2 life `1000 -> 943`, hitpause, active spark/effect, active sound playback state, and clean exit. |
+| `evilken-smoke` | Evil Ken | Single Player | Pass | Current expected summary has `partial=0 fail=0 blocked=0`; proves Single Player reaches fight phase, Evil Ken reaches controllable idle, movement, jump, normal `x` to state `206`, hit/guard evidence, timer stability, and clean exit. |
 
 The KFM verifier found and fixed two compatibility blockers during this pass:
 
