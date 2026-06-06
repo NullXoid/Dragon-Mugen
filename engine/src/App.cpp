@@ -21,6 +21,7 @@
 #include "StageSelectOverlay.h"
 #include "TrainingState.h"
 #include "TrainingOptionsBehavior.h"
+#include "TrainingOptionsOverlay.h"
 #include "UiRenderContext.h"
 #include "UiRenderPrimitives.h"
 #include "UiSpriteView.h"
@@ -14454,7 +14455,95 @@ std::string commandEntryTargetLabel(const CommandStateEntry& entry) {
 
 #include "TrainingCommandOverlay.h"
 
-#include "TrainingOptionsOverlay.h"
+TrainingOptionsMenuView trainingOptionsMenuView(const AppState& state, std::vector<TrainingOptionRowView>& rows) {
+    rows.clear();
+    rows.reserve(kTrainingOptionCount);
+    const auto& options = state.training.options;
+    for (int i = 0; i < kTrainingOptionCount; ++i) {
+        rows.push_back(TrainingOptionRowView{
+            std::string(trainingOptionLabel(i)),
+            trainingOptionStatus(options, i),
+            i == options.selectedOption,
+        });
+    }
+
+    TrainingOptionsMenuView view;
+    view.rows = rows;
+    return view;
+}
+
+std::string moveListEntryName(const CommandStateEntry& entry) {
+    return entry.label.empty() ? "State " + commandEntryTargetLabel(entry) : entry.label;
+}
+
+TrainingMoveListView trainingMoveListView(const AppState& state, std::vector<TrainingMoveRowView>& rows) {
+    rows.clear();
+    constexpr int visibleRows = 7;
+
+    const auto entries = displayableMoveListEntries(state);
+    const int maxScroll = std::max(0, static_cast<int>(entries.size()) - visibleRows);
+    const int scroll = std::clamp(state.training.options.moveListScroll, 0, maxScroll);
+    const int selected = entries.empty()
+        ? -1
+        : std::clamp(state.training.options.selectedMoveListEntry, 0, static_cast<int>(entries.size()) - 1);
+
+    rows.reserve(visibleRows);
+    for (int row = 0; row < visibleRows; ++row) {
+        const int index = scroll + row;
+        if (index >= static_cast<int>(entries.size())) {
+            break;
+        }
+        const auto& entry = *entries[static_cast<size_t>(index)];
+        rows.push_back(TrainingMoveRowView{
+            (index + 1 < 10 ? "0" : "") + std::to_string(index + 1),
+            fitDebugText(moveListEntryName(entry), 19),
+            index == selected,
+        });
+    }
+
+    TrainingMoveListView view;
+    view.rows = rows;
+    view.selectedCharacterLabel = fitDebugText(selectedCharacterName(state.selection), 17);
+    view.categoryLabel = std::string(trainingMoveCategoryStatus(state.training.options.moveCategory));
+    view.pageLabel = entries.empty()
+        ? "0/0"
+        : std::to_string(selected + 1) + "/" + std::to_string(entries.size());
+    view.empty = entries.empty();
+
+    if (selected >= 0) {
+        const auto& entry = *entries[static_cast<size_t>(selected)];
+        const std::string inputText = moveListInputText(entry);
+        const int requiredPower = commandEntryRequiredPower(entry);
+        view.detail = TrainingMoveDetailView{
+            fitDebugText(moveListEntryName(entry), 17),
+            commandEntryTargetLabel(entry),
+            fitDebugText(inputText, 16),
+            std::string(trainingMoveCategoryStatus(commandEntryCategory(entry))),
+            requiredPower > 0 ? "POWER " + std::to_string(requiredPower) : "LOADED",
+            fitDebugText(inputText, 26),
+            true,
+        };
+    }
+
+    return view;
+}
+
+void drawTrainingMoveListPage(SDL_Renderer* renderer, const AppState& state) {
+    std::vector<TrainingMoveRowView> rows;
+    const TrainingMoveListView view = trainingMoveListView(state, rows);
+    dragon::drawTrainingMoveListPage(uiRenderContext(renderer, state), view);
+}
+
+void drawTrainingOptionsMenu(SDL_Renderer* renderer, const AppState& state) {
+    if (state.training.options.moveListOpen) {
+        drawTrainingMoveListPage(renderer, state);
+        return;
+    }
+
+    std::vector<TrainingOptionRowView> rows;
+    const TrainingOptionsMenuView view = trainingOptionsMenuView(state, rows);
+    dragon::drawTrainingOptionsMenu(uiRenderContext(renderer, state), view);
+}
 
 #include "FightPresentationShared.h"
 

@@ -21,6 +21,15 @@ The front-end and fight overlay conversion pattern is now proven:
 
 Training overlays are more runtime-adjacent than menu overlays because they touch training options, command display, input history, and debug hitbox data. They should be converted only through prepared display views.
 
+Pass 36 update:
+
+- `TrainingOptionsOverlay.h` is now a normal declaration header and `TrainingOptionsOverlay.cpp` owns render-only F2 Training Options and command move-list drawing.
+- `App.cpp` assembles `TrainingOptionsMenuView` and `TrainingMoveListView` from training options and command-entry display helpers, then calls the normal module.
+- `TrainingOptionsOverlay` no longer depends on `AppState`, `FighterState`, `CommandStateEntry`, include order, command runtime, or training runtime behavior.
+- `App.cpp` changed from `14886` to `14975` file-size-guard lines because explicit view assembly replaced hidden internal-header coupling.
+- `TrainingOptionsOverlay.h` is 48 lines and `TrainingOptionsOverlay.cpp` is 138 lines.
+- Build passed. Manual F2/move-list GUI smoke was not rerun in this pass.
+
 ## Readiness Labels
 
 - `NEEDS SMALL VIEW SEAM`: needs prepared view structs and App.cpp-local view assembly, with no runtime/resource ownership change.
@@ -32,7 +41,7 @@ Training overlays are more runtime-adjacent than menu overlays because they touc
 
 | Header | Lines | Responsibility | Main Dependencies | Readiness | Main Blocker | Minimum View Seam Needed | Recommended Priority | Notes |
 |---|---:|---|---|---|---|---|---|---|
-| `TrainingOptionsOverlay.h` | 155 | F2 Training Options menu and command move-list page rendering | `AppState`, `TrainingOptions`, `displayableMoveListEntries`, command entry display helpers, selected character label, UI primitives | `NEEDS SMALL VIEW SEAM` | Move-list rendering currently reads command entry metadata and App.cpp-local command display helpers directly | `TrainingOptionsMenuView` plus `TrainingMoveListView`, assembled by `App.cpp` from training options and command display data | 1 | Closest conversion candidate. Option rows are low risk; move-list rows need prepared command labels/input/status strings so the module does not take `CommandStateEntry`. |
+| `TrainingOptionsOverlay.h` / `TrainingOptionsOverlay.cpp` | 48 / 138 | F2 Training Options menu and command move-list page rendering | Prepared `TrainingOptionsMenuView`, prepared `TrainingMoveListView`, `UiRenderContext`, public UI primitives | `READY` | None for current prepared-view API; App.cpp still owns training option state, command-entry inspection, move-list filtering, and view assembly | No remaining seam for F2 options/move-list rendering; future command HUD/debug seams remain separate | 0 | Pass 36 converted this overlay to a normal module. No `AppState`, `FighterState`, `CommandStateEntry`, resource ownership, command runtime, or gameplay behavior enters the module. |
 | `TrainingCommandOverlay.h` | 80 | Training command/input HUD rendering | `AppState`, first `FighterState`, opponent `FighterState`, input history, command definitions, active command matching, command display helpers | `NEEDS COMMAND HUD VIEW` | Current drawing computes command history and active command state from live fighter/runtime data | `TrainingCommandHudView`, assembled by `App.cpp` after command/input matching remains in place | 2 | Convert after the options overlay proves the training view pattern. Do not move command matching or CMD/CNS behavior. |
 | `TrainingDebugOverlay.h` | 178 | F1 debug overlay, floor line, origins, collision boxes, fighter readout | `AppState`, `FighterState`, `StageSlot`, `AnimationClip`, `AnimationFrame`, `CollisionBox`, camera/stage offsets, debug clipboard | `NEEDS FIGHTER DEBUG VIEW` | Current drawing projects collision boxes and origins from live fighter/stage/animation data | `TrainingDebugView` with precomputed screen-space floor/origins/boxes/readout lines | 3 | Defer until a debug view seam exists. This overlay is render-only but strongly coupled to runtime state shape. |
 
@@ -83,29 +92,26 @@ Future normal training overlay modules must not take:
 Recommendation:
 
 ```text
-Pass 36: Convert TrainingOptionsOverlay to normal module using prepared TrainingOptionsMenuView and TrainingMoveListView
+Pass 37: Create TrainingCommandHudView seam
 ```
 
 Reason:
 
-- `TrainingOptionsOverlay` is the least runtime-coupled remaining training overlay.
-- Training option labels/status text already live in `TrainingOptionsBehavior`.
-- The command move-list page can be converted safely if `App.cpp` prepares move rows and detail strings instead of passing command entries into the module.
-- `TrainingCommandOverlay` should wait until a command/input HUD view seam exists.
+- `TrainingOptionsOverlay` is now converted, proving the training prepared-view pattern.
+- `TrainingCommandOverlay` is the next practical conversion target but currently reads fighter input history, command definitions, active command matching, and App.cpp-local command display helpers.
+- A command/input HUD view seam should be created before moving `TrainingCommandOverlay` into a normal module.
 - `TrainingDebugOverlay` should wait until a screen-space fighter debug view seam exists.
 
-Expected files for Pass 36:
+Expected files for Pass 37:
 
-- `engine/src/TrainingOptionsOverlay.h`
-- `engine/src/TrainingOptionsOverlay.cpp`
+- a small public `TrainingCommandHudView` header if inspection confirms it is useful
 - `engine/src/App.cpp`
-- `CMakeLists.txt`
 - documentation updates after build/verifier evidence
 
 Expected `App.cpp` line reduction:
 
-- Small to moderate.
-- Explicit view assembly may offset some extracted drawing lines, as in prior overlay conversions.
+- Likely none or small increase for the seam pass.
+- Explicit command/input HUD view assembly may offset later extracted drawing lines.
 
 Verification focus:
 
@@ -117,5 +123,5 @@ Verification focus:
 
 Do not convert:
 
-- `TrainingCommandOverlay` until a command/input HUD view seam exists.
+- `TrainingCommandOverlay` until the command/input HUD view seam exists.
 - `TrainingDebugOverlay` until a fighter debug/screen-space hitbox view seam exists.
