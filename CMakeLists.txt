@@ -63,6 +63,7 @@ add_library(dragon_core
     engine/src/UiRenderPrimitives.cpp
     engine/src/UiSpriteView.cpp
     engine/src/FrontendMenu.cpp
+    engine/src/TrainingCommandOverlay.cpp
     engine/src/TrainingOptionsBehavior.cpp
     engine/src/TrainingOptionsOverlay.cpp
     engine/src/VsScreenOverlay.cpp

@@ -21,6 +21,7 @@
 #include "StageSelectOverlay.h"
 #include "TrainingState.h"
 #include "TrainingCommandView.h"
+#include "TrainingCommandOverlay.h"
 #include "TrainingOptionsBehavior.h"
 #include "TrainingOptionsOverlay.h"
 #include "UiRenderContext.h"
@@ -14454,7 +14455,69 @@ std::string commandEntryTargetLabel(const CommandStateEntry& entry) {
     return fitDebugText(entry.targetStateExpression.empty() ? std::to_string(entry.targetState) : entry.targetStateExpression, 17);
 }
 
-#include "TrainingCommandOverlay.h"
+std::string moveListEntryName(const CommandStateEntry& entry) {
+    return entry.label.empty() ? "State " + commandEntryTargetLabel(entry) : entry.label;
+}
+
+TrainingCommandHudView trainingCommandHudView(const AppState& state, std::vector<TrainingCommandRowView>& rows) {
+    rows.clear();
+    TrainingCommandHudView view;
+    view.input.visible = state.training.options.showInputHud;
+    view.commandsVisible = state.training.options.showCommandHud;
+
+    if (!view.input.visible && !view.commandsVisible) {
+        return view;
+    }
+    if (state.fighters.empty()) {
+        view.input.visible = false;
+        view.commandsVisible = false;
+        return view;
+    }
+
+    const auto& fighter = state.fighters[0];
+    const FighterState* opponent = state.fighters.size() > 1 ? &state.fighters[1] : nullptr;
+    const std::vector<std::string> commands = fighter.inputHistory.empty()
+        ? std::vector<std::string>{}
+        : collectFighterCommands(fighter.inputHistory.back().input, fighter, state.commandDefinitions);
+    const CommandStateEntry* activeEntry = activeCommandEntry(state, fighter, opponent, commands);
+
+    if (view.input.visible) {
+        const std::string current = fighter.inputHistory.empty()
+            ? "-"
+            : inputDisplayToken(fighter.inputHistory.back().input, fighter.facing);
+        view.input.currentInput = fitDebugText(current, 18);
+        view.input.recentInputs = fitDebugText(joinTokens(recentInputDisplayTokens(fighter, 8), " "), 27);
+    }
+
+    if (view.commandsVisible) {
+        const auto entries = displayableMoveListEntries(state);
+        rows.reserve(5);
+        int drawn = 0;
+        for (const auto* entry : entries) {
+            if (!entry || drawn >= 5) {
+                break;
+            }
+            rows.push_back(TrainingCommandRowView{
+                fitDebugText(moveListEntryName(*entry), 15),
+                fitDebugText(moveListInputText(*entry), 10),
+                activeEntry == entry,
+            });
+            ++drawn;
+        }
+        if (activeEntry) {
+            view.activeCommandLabel = fitDebugText(activeEntry->label, 19);
+        }
+    }
+
+    view.commandRows = rows;
+    return view;
+}
+
+void drawTrainingCommandHud(SDL_Renderer* renderer, const AppState& state) {
+    std::vector<TrainingCommandRowView> rows;
+    const TrainingCommandHudView view = trainingCommandHudView(state, rows);
+    dragon::drawTrainingCommandOverlay(uiRenderContext(renderer, state), view);
+}
 
 TrainingOptionsMenuView trainingOptionsMenuView(const AppState& state, std::vector<TrainingOptionRowView>& rows) {
     rows.clear();
@@ -14471,10 +14534,6 @@ TrainingOptionsMenuView trainingOptionsMenuView(const AppState& state, std::vect
     TrainingOptionsMenuView view;
     view.rows = rows;
     return view;
-}
-
-std::string moveListEntryName(const CommandStateEntry& entry) {
-    return entry.label.empty() ? "State " + commandEntryTargetLabel(entry) : entry.label;
 }
 
 TrainingMoveListView trainingMoveListView(const AppState& state, std::vector<TrainingMoveRowView>& rows) {
