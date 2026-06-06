@@ -15,7 +15,8 @@ struct SelectionState {
 
     int selectedCharacter = 0;
     int selectedP2Character = 0;
-    bool selectingP2Character = false;
+    bool p1CharacterConfirmed = false;
+    bool p2CharacterConfirmed = false;
     int loadedP1Character = -1;
     int selectedStage = 0;
 

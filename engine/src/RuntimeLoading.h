@@ -220,6 +220,7 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
     }
 
     std::vector<AnimationClip> clips;
+    std::vector<AnimationClip> opponentClips;
     TextureSprite largePortrait;
     std::vector<StateDefinition> stateDefs;
     std::vector<HitDefinition> hitDefs;
@@ -242,11 +243,23 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
         }
         clips = loadCharacterClips(renderer, files);
         largePortrait = loadCharacterSprite(renderer, files, 9000, 1);
+        if (state.frontend.pendingMode == PendingMode::SingleFight) {
+            if (const CharacterSlot* opponent = characterSlotAt(state.selection, state.selection.sessionSlots.opponentCharacter)) {
+                try {
+                    const CharacterFiles opponentFiles = resolveCharacterFiles(state.gameRoot, *opponent);
+                    opponentClips = loadCharacterClips(renderer, opponentFiles);
+                } catch (const std::exception& ex) {
+                    SDL_Log("Opponent visual load failed %s: %s", opponent->displayName.c_str(), ex.what());
+                }
+            }
+        }
 
         destroyAnimationClips(state.characterClips);
+        destroyAnimationClips(state.opponentCharacterClips);
         destroyTextureSprite(state.characterLargePortrait);
         state.runtimeEffects.clear();
         state.characterClips = std::move(clips);
+        state.opponentCharacterClips = std::move(opponentClips);
         state.characterLargePortrait = largePortrait;
         largePortrait = {};
         state.stateDefs = std::move(stateDefs);
@@ -272,9 +285,13 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
             state.commandDefinitions.size(),
             state.commandEntries.size(),
             state.audio.characterSamples.size());
+        if (const CharacterSlot* opponent = characterSlotAt(state.selection, state.selection.sessionSlots.opponentCharacter)) {
+            SDL_Log("Opponent visuals loaded: %s actions=%zu", opponent->displayName.c_str(), state.opponentCharacterClips.size());
+        }
         return true;
     } catch (const std::exception& ex) {
         destroyAnimationClips(clips);
+        destroyAnimationClips(opponentClips);
         destroyTextureSprite(largePortrait);
         SDL_Log("Selected character load failed %s: %s", character->displayName.c_str(), ex.what());
         return false;
@@ -283,6 +300,7 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
 
 void unloadCharacterRuntime(AppState& state) {
     destroyAnimationClips(state.characterClips);
+    destroyAnimationClips(state.opponentCharacterClips);
     destroyTextureSprite(state.characterLargePortrait);
     for (auto& element : state.stageBackground) {
         destroyTextureSprite(element.sprite);
@@ -370,6 +388,7 @@ void destroyAnimationClips(std::vector<AnimationClip>& clips) {
 
 void destroyVisualAssets(AppState& state) {
     destroyAnimationClips(state.characterClips);
+    destroyAnimationClips(state.opponentCharacterClips);
     destroyAnimationClips(state.fightFxClips);
     state.runtimeEffects.clear();
     destroySystemScreenAssets(state.systemScreens);

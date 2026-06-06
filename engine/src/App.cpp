@@ -1366,6 +1366,7 @@ struct AppState {
     std::vector<CommandStateEntry> commandEntries;
     std::vector<CommandDefinition> commandDefinitions;
     std::vector<AnimationClip> characterClips;
+    std::vector<AnimationClip> opponentCharacterClips;
     std::vector<AnimationClip> fightFxClips;
     std::vector<RuntimeEffect> runtimeEffects;
     std::vector<std::string> victoryQuotes;
@@ -5678,6 +5679,7 @@ void drawCharacterSelect(SDL_Renderer* renderer, const AppState& state) {
 
     std::vector<CharacterCellView> cells;
     int selectedCell = 0;
+    int p2SelectedCell = 0;
     std::string activePlayerLabel = "P1";
     std::string selectedName;
     std::string opponentName = std::string(opponentSlotLabel(state.frontend.pendingMode));
@@ -5686,18 +5688,12 @@ void drawCharacterSelect(SDL_Renderer* renderer, const AppState& state) {
     UiSpriteView opponentPortrait;
 
     if (!state.selection.characters.empty()) {
-        const bool selectingP2 =
-            state.frontend.pendingMode == PendingMode::SingleFight
-            && state.selection.selectingP2Character;
-        const int selected = std::clamp(
-            selectingP2 ? state.selection.selectedP2Character : state.selection.selectedCharacter,
-            0,
-            static_cast<int>(state.selection.characters.size()) - 1);
-        const int p1Index = selectingP2
-            ? safeCharacterIndex(state.selection, state.selection.sessionSlots.p1Character)
-            : selected;
-        const int p1DisplayIndex = p1Index >= 0 ? p1Index : selected;
-        const int page = selected / kCharacterSelectPageSize;
+        const bool vsSelect = state.frontend.pendingMode == PendingMode::SingleFight;
+        const int p1Selected = safeCharacterIndex(state.selection, state.selection.selectedCharacter);
+        const int p2Selected = safeCharacterIndex(state.selection, state.selection.selectedP2Character);
+        const int p1DisplayIndex = p1Selected >= 0 ? p1Selected : 0;
+        const int p2DisplayIndex = p2Selected >= 0 ? p2Selected : p1DisplayIndex;
+        const int page = p1DisplayIndex / kCharacterSelectPageSize;
         const int firstIndex = page * kCharacterSelectPageSize;
         const int lastIndex = std::min(
             firstIndex + kCharacterSelectPageSize,
@@ -5711,17 +5707,18 @@ void drawCharacterSelect(SDL_Renderer* renderer, const AppState& state) {
             });
         }
 
-        selectedCell = selected - firstIndex;
+        selectedCell = p1DisplayIndex - firstIndex;
+        p2SelectedCell = p2DisplayIndex - firstIndex;
         const auto& p1Character = state.selection.characters[static_cast<size_t>(p1DisplayIndex)];
         selectedName = compactSettingText(p1Character.displayName, 15);
         preferredStageLabel = compactSettingText(characterPreferredStageName(state.selection, p1DisplayIndex), 22);
         selectedPortrait = uiSpriteView(spriteAt(state.characterFaceSprites, p1DisplayIndex));
 
-        if (selectingP2) {
-            activePlayerLabel = "P2";
-            const auto& p2Character = state.selection.characters[static_cast<size_t>(selected)];
+        if (vsSelect) {
+            activePlayerLabel = "P1 / P2";
+            const auto& p2Character = state.selection.characters[static_cast<size_t>(p2DisplayIndex)];
             opponentName = compactSettingText(p2Character.displayName, 15);
-            opponentPortrait = uiSpriteView(spriteAt(state.characterFaceSprites, selected));
+            opponentPortrait = uiSpriteView(spriteAt(state.characterFaceSprites, p2DisplayIndex));
         }
     }
 
@@ -5739,8 +5736,12 @@ void drawCharacterSelect(SDL_Renderer* renderer, const AppState& state) {
             uiSpriteView(&state.systemScreens.selectCell),
             uiSpriteView(&state.systemScreens.selectP1Cursor),
             selectedCell,
+            p2SelectedCell,
             kCharacterSelectColumns,
             state.frame,
+            state.frontend.pendingMode == PendingMode::SingleFight,
+            state.selection.p1CharacterConfirmed,
+            state.selection.p2CharacterConfirmed,
         });
     SDL_RenderPresent(renderer);
 }
@@ -5757,6 +5758,27 @@ const AnimationClip* findClip(const AppState& state, int action) {
         }
     }
     return state.characterClips.empty() ? nullptr : &state.characterClips.front();
+}
+
+const AnimationClip* findClipInSet(const std::vector<AnimationClip>& clips, int action) {
+    for (const auto& clip : clips) {
+        if (clip.action == action) {
+            return &clip;
+        }
+    }
+    for (const auto& clip : clips) {
+        if (clip.action == 0) {
+            return &clip;
+        }
+    }
+    return clips.empty() ? nullptr : &clips.front();
+}
+
+const AnimationClip* findClipForFighter(const AppState& state, size_t fighterIndex, int action) {
+    if (fighterIndex == 1 && !state.opponentCharacterClips.empty()) {
+        return findClipInSet(state.opponentCharacterClips, action);
+    }
+    return findClip(state, action);
 }
 
 const AnimationClip* findExactClip(const AppState& state, int action) {
@@ -13338,9 +13360,11 @@ void pumpEvents(SDL_Renderer* renderer, AppState& state) {
             refreshGamepadDevice(state, event.gdevice.which);
             break;
         case SDL_EVENT_GAMEPAD_BUTTON_DOWN:
-            if (const auto key = gamepadMenuKeyForButton(state, static_cast<SDL_GamepadButton>(event.gbutton.button))) {
-                handleKey(renderer, state, *key);
-            }
+            handleGamepadButton(
+                renderer,
+                state,
+                event.gbutton.which,
+                static_cast<SDL_GamepadButton>(event.gbutton.button));
             break;
         default:
             break;

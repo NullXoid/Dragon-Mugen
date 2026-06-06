@@ -115,7 +115,7 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
     }
 
     auto drawActorSprite = [&](int action, int animTick, float x, float y, int facing, int alpha, bool additive, const ActivePaletteEffect* palette) -> bool {
-        const AnimationClip* clip = findClip(state, action);
+        const AnimationClip* clip = findClipForFighter(state, actorIndex, action);
         const AnimationFrame* frame = clip ? frameForClip(*clip, animTick) : nullptr;
         if (!frame || !frame->sprite.texture) {
             return false;
@@ -182,7 +182,7 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
         }
     }
 
-    const AnimationClip* clip = findClip(state, fighter.action);
+    const AnimationClip* clip = findClipForFighter(state, actorIndex, fighter.action);
     const AnimationFrame* frame = clip ? frameForClip(*clip, fighter.animTick) : nullptr;
     const bool drawHitFeedback = (state.frontend.pendingMode != PendingMode::Training || state.training.options.showHitFlash)
         && (fighter.moveType == 'H' || fighter.hitPauseTicks > 0);

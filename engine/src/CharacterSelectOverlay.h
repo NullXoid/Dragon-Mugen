@@ -25,8 +25,12 @@ struct CharacterSelectView {
     UiSpriteView cellSprite;
     UiSpriteView cursorSprite;
     int selectedCell = 0;
+    int p2SelectedCell = 0;
     int columns = 5;
     int frame = 0;
+    bool showP2Cursor = false;
+    bool p1Confirmed = false;
+    bool p2Confirmed = false;
 };
 
 void drawCharacterSelectOverlay(const UiRenderContext& ui, const CharacterSelectView& view);

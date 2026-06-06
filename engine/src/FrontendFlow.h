@@ -27,6 +27,55 @@ FrontendKey frontendKeyFromSdl(SDL_Keycode key, bool spaceAccept = false) {
     }
 }
 
+FrontendKey p2CharacterSelectKeyFromSdl(SDL_Keycode key) {
+    switch (key) {
+    case SDLK_I:
+        return FrontendKey::Up;
+    case SDLK_K:
+        return FrontendKey::Down;
+    case SDLK_J:
+        return FrontendKey::Left;
+    case SDLK_L:
+        return FrontendKey::Right;
+    case SDLK_SEMICOLON:
+        return FrontendKey::Accept;
+    default:
+        return FrontendKey::Other;
+    }
+}
+
+FrontendKey frontendKeyFromGamepadButton(SDL_GamepadButton button) {
+    switch (button) {
+    case SDL_GAMEPAD_BUTTON_DPAD_UP:
+        return FrontendKey::Up;
+    case SDL_GAMEPAD_BUTTON_DPAD_DOWN:
+        return FrontendKey::Down;
+    case SDL_GAMEPAD_BUTTON_DPAD_LEFT:
+        return FrontendKey::Left;
+    case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
+        return FrontendKey::Right;
+    case SDL_GAMEPAD_BUTTON_SOUTH:
+    case SDL_GAMEPAD_BUTTON_START:
+        return FrontendKey::Accept;
+    case SDL_GAMEPAD_BUTTON_EAST:
+    case SDL_GAMEPAD_BUTTON_BACK:
+        return FrontendKey::Escape;
+    default:
+        return FrontendKey::Other;
+    }
+}
+
+int gamepadPlayerIndexForId(const AppState& state, SDL_JoystickID id) {
+    for (int playerIndex = 0; playerIndex < 2; ++playerIndex) {
+        if (const GamepadDevice* gamepad = assignedGamepad(state, playerIndex)) {
+            if (gamepad->id == id) {
+                return playerIndex;
+            }
+        }
+    }
+    return -1;
+}
+
 int settingCycleDirection(FrontendKey key) {
     if (key == FrontendKey::Left) {
         return -1;
@@ -35,6 +84,56 @@ int settingCycleDirection(FrontendKey key) {
         return 1;
     }
     return 0;
+}
+
+void resetSingleFightCharacterConfirms(AppState& state) {
+    state.selection.p1CharacterConfirmed = false;
+    state.selection.p2CharacterConfirmed = false;
+}
+
+void finishSingleFightCharacterSelect(AppState& state) {
+    configureFightSessionSlotsFromSelection(state);
+    selectPreferredStage(state);
+    state.frontend.screen = Screen::StageSelect;
+}
+
+bool handleSingleFightCharacterSelectKey(AppState& state, int playerIndex, FrontendKey frontendKey) {
+    if (frontendKey == FrontendKey::Other) {
+        return false;
+    }
+
+    const int characterCount = static_cast<int>(state.selection.characters.size());
+    if (frontendKey == FrontendKey::Escape) {
+        unloadCharacterRuntime(state);
+        resetSingleFightCharacterConfirms(state);
+        state.frontend.screen = Screen::ModeSelect;
+        playMenuCancelSound(state);
+        return true;
+    }
+
+    if (playerIndex < 0 || playerIndex > 1 || characterCount <= 0) {
+        return true;
+    }
+
+    int& selected = playerIndex == 0 ? state.selection.selectedCharacter : state.selection.selectedP2Character;
+    bool& confirmed = playerIndex == 0 ? state.selection.p1CharacterConfirmed : state.selection.p2CharacterConfirmed;
+    const int previousSelection = selected;
+    selected = moveCharacterCursor(selected, characterCount, frontendKey);
+    if (selected != previousSelection) {
+        confirmed = false;
+        playMenuCursorMoveSound(state);
+    }
+
+    if (frontendKey == FrontendKey::Accept) {
+        selected = safeCharacterIndex(state.selection, selected);
+        confirmed = true;
+        playMenuCursorDoneSound(state);
+    }
+
+    if (state.selection.p1CharacterConfirmed && state.selection.p2CharacterConfirmed) {
+        finishSingleFightCharacterSelect(state);
+    }
+    return true;
 }
 
 void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
@@ -63,7 +162,7 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
         case FrontendActionKind::OpenMode:
             unloadCharacterRuntime(state);
             state.frontend.pendingMode = action.mode;
-            state.selection.selectingP2Character = false;
+            resetSingleFightCharacterConfirms(state);
             if (action.mode == PendingMode::SingleFight) {
                 state.selection.selectedP2Character =
                     defaultP2CharacterIndex(state.selection, state.selection.selectedCharacter);
@@ -113,39 +212,26 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
     if (state.frontend.screen == Screen::CharacterSelect) {
         const int characterCount = static_cast<int>(state.selection.characters.size());
         const FrontendKey frontendKey = frontendKeyFromSdl(key);
-        const bool selectingP2 =
-            state.frontend.pendingMode == PendingMode::SingleFight
-            && state.selection.selectingP2Character;
-        int& activeSelection = selectingP2 ? state.selection.selectedP2Character : state.selection.selectedCharacter;
-        activeSelection = moveCharacterCursor(activeSelection, characterCount, frontendKey);
-        const FrontendAction action = decideCharacterSelectAction(activeSelection, characterCount, frontendKey);
+        if (state.frontend.pendingMode == PendingMode::SingleFight) {
+            if (handleSingleFightCharacterSelectKey(state, 0, frontendKey)) {
+                return;
+            }
+            handleSingleFightCharacterSelectKey(state, 1, p2CharacterSelectKeyFromSdl(key));
+            return;
+        }
+
+        state.selection.selectedCharacter = moveCharacterCursor(state.selection.selectedCharacter, characterCount, frontendKey);
+        const FrontendAction action = decideCharacterSelectAction(state.selection.selectedCharacter, characterCount, frontendKey);
         switch (action.kind) {
         case FrontendActionKind::BackToMain:
-            if (selectingP2) {
-                state.selection.selectingP2Character = false;
-                if (characterSlotAt(state.selection, state.selection.sessionSlots.p1Character)) {
-                    state.selection.selectedCharacter = state.selection.sessionSlots.p1Character;
-                }
-            } else {
-                unloadCharacterRuntime(state);
-                state.frontend.screen = Screen::ModeSelect;
-            }
+            unloadCharacterRuntime(state);
+            state.frontend.screen = Screen::ModeSelect;
             break;
         case FrontendActionKind::CharacterChosen:
-            activeSelection = action.index;
-            if (state.frontend.pendingMode == PendingMode::SingleFight && !selectingP2) {
-                state.selection.sessionSlots.p1Character = action.index;
-                state.selection.sessionSlots.opponentType = OpponentType::LocalP2;
-                if (!characterSlotAt(state.selection, state.selection.selectedP2Character)) {
-                    state.selection.selectedP2Character = defaultP2CharacterIndex(state.selection, action.index);
-                }
-                state.selection.selectingP2Character = true;
-            } else {
-                configureFightSessionSlotsFromSelection(state);
-                state.selection.selectingP2Character = false;
-                selectPreferredStage(state);
-                state.frontend.screen = Screen::StageSelect;
-            }
+            state.selection.selectedCharacter = action.index;
+            configureFightSessionSlotsFromSelection(state);
+            selectPreferredStage(state);
+            state.frontend.screen = Screen::StageSelect;
             break;
         default:
             break;
@@ -162,7 +248,7 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
         case FrontendActionKind::BackToCharacterSelect:
             unloadCharacterRuntime(state);
             state.frontend.screen = Screen::CharacterSelect;
-            state.selection.selectingP2Character = state.frontend.pendingMode == PendingMode::SingleFight;
+            resetSingleFightCharacterConfirms(state);
             break;
         case FrontendActionKind::StageChosen:
             state.selection.selectedStage = action.index;
@@ -229,7 +315,7 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
                     case 2:
                         state.frontend.singleFightPauseOpen = false;
                         unloadCharacterRuntime(state);
-                        state.selection.selectingP2Character = false;
+                        resetSingleFightCharacterConfirms(state);
                         state.frontend.screen = Screen::CharacterSelect;
                         state.frontend.screenFrame = 0;
                         break;
@@ -277,7 +363,7 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
                         break;
                     case 1:
                         unloadCharacterRuntime(state);
-                        state.selection.selectingP2Character = false;
+                        resetSingleFightCharacterConfirms(state);
                         state.frontend.screen = Screen::CharacterSelect;
                         state.frontend.screenFrame = 0;
                         break;
@@ -406,6 +492,27 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
             resetFightState(state);
         }
         return;
+    }
+}
+
+std::optional<SDL_Keycode> gamepadMenuKeyForButton(const AppState& state, SDL_GamepadButton button);
+
+void handleGamepadButton(
+    SDL_Renderer* renderer,
+    AppState& state,
+    SDL_JoystickID gamepadId,
+    SDL_GamepadButton button) {
+    if (state.frontend.screen == Screen::CharacterSelect
+        && state.frontend.pendingMode == PendingMode::SingleFight) {
+        const int playerIndex = gamepadPlayerIndexForId(state, gamepadId);
+        if (playerIndex >= 0) {
+            handleSingleFightCharacterSelectKey(state, playerIndex, frontendKeyFromGamepadButton(button));
+        }
+        return;
+    }
+
+    if (const auto key = gamepadMenuKeyForButton(state, button)) {
+        handleKey(renderer, state, *key);
     }
 }
 

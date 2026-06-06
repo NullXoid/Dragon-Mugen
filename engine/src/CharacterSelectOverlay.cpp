@@ -33,6 +33,24 @@ void drawFixedOpponentSlot(
     debugTextCentered(renderer, x + width * 0.5f, y + height * 0.86f, label);
 }
 
+void drawCellCursor(
+    SDL_Renderer* renderer,
+    float x,
+    float y,
+    Uint8 r,
+    Uint8 g,
+    Uint8 b,
+    bool confirmed,
+    int frame,
+    float inset = 0.0f) {
+    const int pulse = confirmed ? 255 : 180 + ((frame / 6) % 40);
+    setColor(renderer, r, static_cast<Uint8>(std::min<int>(pulse, g)), b);
+    drawRect(renderer, x + inset, y + inset, 29.0f - inset * 2.0f, 29.0f - inset * 2.0f);
+    if (confirmed) {
+        drawRect(renderer, x + 1.0f + inset, y + 1.0f + inset, 27.0f - inset * 2.0f, 27.0f - inset * 2.0f);
+    }
+}
+
 } // namespace
 
 void drawCharacterSelectOverlay(const UiRenderContext& ui, const CharacterSelectView& view) {
@@ -43,7 +61,7 @@ void drawCharacterSelectOverlay(const UiRenderContext& ui, const CharacterSelect
     setColor(renderer, 235, 240, 248);
     debugTextCentered(renderer, centerX, 8, view.modeTitle);
     setColor(renderer, 246, 214, 92);
-    debugTextCentered(renderer, centerX, 20, view.activePlayerLabel + " SELECT YOUR FIGHTER");
+    debugTextCentered(renderer, centerX, 20, view.showP2Cursor ? "P1 / P2 SELECT YOUR FIGHTERS" : view.activePlayerLabel + " SELECT YOUR FIGHTER");
 
     if (view.cells.empty()) {
         setColor(renderer, 235, 110, 100);
@@ -124,18 +142,36 @@ void drawCharacterSelectOverlay(const UiRenderContext& ui, const CharacterSelect
     if (hasTexture(view.cursorSprite)) {
         drawSpriteTopLeft(renderer, view.cursorSprite, cursorX, cursorY);
     } else {
-        const int pulse = 180 + ((view.frame / 6) % 40);
-        setColor(renderer, 240, static_cast<Uint8>(pulse), 70);
-        drawRect(renderer, cursorX, cursorY, 29, 29);
+        drawCellCursor(renderer, cursorX, cursorY, 240, 220, 70, view.p1Confirmed, view.frame);
+    }
+
+    if (view.showP2Cursor) {
+        const int safeP2Cell = std::clamp(view.p2SelectedCell, 0, static_cast<int>(view.cells.size()) - 1);
+        const float p2CursorX = gridX + static_cast<float>(safeP2Cell % columns) * (kCellSize + kCellSpacing) - 1.0f;
+        const float p2CursorY = kGridY + static_cast<float>(safeP2Cell / columns) * (kCellSize + kCellSpacing) - 1.0f;
+        const float inset = safeP2Cell == safeSelectedCell ? 3.0f : 0.0f;
+        drawCellCursor(renderer, p2CursorX, p2CursorY, 80, 175, 255, view.p2Confirmed, view.frame, inset);
     }
 
     setColor(renderer, 238, 210, 94);
-    debugTextCentered(renderer, centerX, 208, view.activePlayerLabel);
+    if (view.showP2Cursor) {
+        debugTextCentered(
+            renderer,
+            centerX,
+            208,
+            std::string("P1 ") + (view.p1Confirmed ? "OK" : "choose") + "   P2 " + (view.p2Confirmed ? "OK" : "choose"));
+    } else {
+        debugTextCentered(renderer, centerX, 208, view.activePlayerLabel);
+    }
     setColor(renderer, 210, 218, 230);
     debugTextCentered(renderer, centerX, 220, "STAGE: " + view.preferredStageLabel);
 
     setColor(renderer, 156, 166, 180);
-    debugTextCentered(renderer, centerX, 232, "ARROWS choose  ENTER stage  ESC back");
+    debugTextCentered(
+        renderer,
+        centerX,
+        232,
+        view.showP2Cursor ? "P1 arrows/ENTER  P2 IJKL/;  ESC back" : "ARROWS choose  ENTER stage  ESC back");
 }
 
 } // namespace dragon
