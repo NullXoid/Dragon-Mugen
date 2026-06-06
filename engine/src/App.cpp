@@ -7,6 +7,7 @@
 #include "AppTypes.h"
 #include "FightDisplayState.h"
 #include "FightMessageState.h"
+#include "FightPresentationView.h"
 #include "FrontendMenu.h"
 #include "FrontendState.h"
 #include "Input.h"

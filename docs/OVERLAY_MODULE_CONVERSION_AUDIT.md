@@ -76,6 +76,12 @@ Pass 31 update:
 - The audit recommends creating a small `FightPresentationView` seam before converting `FightHudOverlay.h` or `FightResultOverlay.h`.
 - Fight overlay conversion must keep `App.cpp` responsible for assembling runtime-derived display data and must not move `FighterState`, CMD/CNS, hit/damage, round flow, loading, audio, resource ownership, CPU behavior, or sidecar policy.
 
+Pass 32 update:
+
+- `FightPresentationView.h` now declares display-only prepared view structs for future fight HUD/result normal modules.
+- `App.cpp` compile-checks the header, but fight overlay call sites and runtime behavior did not change.
+- The next recommended implementation pass is converting `FightHudOverlay.h` to a normal module using prepared `FightHudView` data assembled in `App.cpp`.
+
 ## Readiness Labels
 
 - `READY`: can become a normal `.h/.cpp` module with existing public headers and no App.cpp-local dependencies.
@@ -93,9 +99,9 @@ Pass 31 update:
 | `OptionsMenuOverlay.h` / `OptionsMenuOverlay.cpp` | 24 / 59 | Options menu foreground rendering | `READY` | None for current prepared-view API; App.cpp still owns settings row assembly, gamepad status text, behavior, title background, and `SDL_RenderPresent` | No remaining seam for Options foreground rendering; title-background and gamepad ownership seams remain separate | 0 | Pass 27 converted this overlay to a normal module. No `AppState`, `FighterState`, `MainSettings`, gamepad device objects, resource ownership, or controller behavior. |
 | `VsScreenOverlay.h` / `VsScreenOverlay.cpp` | 28 / 101 | VS/loading screen rendering | `READY` | None for current prepared-view API; App.cpp still owns portrait/resource selection, load-status mapping, selected metadata assembly, routing, loading, and `SDL_RenderPresent` | No remaining seam for VS/loading presentation; broader sprite/resource ownership seams remain separate | 0 | Pass 28 converted this overlay to a normal module. Pass 29 migrated its portrait field to public non-owning `UiSpriteView`. |
 | `CharacterSelectOverlay.h` / `CharacterSelectOverlay.cpp` | 32 / 132 | Character Select foreground rendering | `READY` | None for current prepared-view API; App.cpp still owns roster state, selected-character/page assembly, sprite/resource lookup, select-background drawing, routing, loading, and `SDL_RenderPresent` | No remaining seam for Character Select foreground rendering; select-background and resource ownership seams remain separate | 0 | Pass 30 converted this overlay to a normal module. No `AppState`, `FighterState`, `SelectionState`, `CharacterSlot`, `StageSlot`, `TextureSprite`, `SystemScreenAssets`, resource ownership, or gameplay behavior. |
-| `FightHudOverlay.h` | 190 | Fight HUD rendering | `DEFER` | Reads `FighterState` life/power, fight round settings, match state, combo display, messages, gamepads, and helper labels | Public fight HUD view/read-only fight snapshot after fight runtime boundaries improve | 7 | Render-only today, but data source is runtime-heavy. Do not move hit/damage, combo mutation, timer, or round flow. |
+| `FightHudOverlay.h` | 190 | Fight HUD rendering | `NEEDS SMALL SEAM` | Reads `FighterState` life/power, fight round settings, match state, combo display, messages, gamepads, and helper labels | Use `FightPresentationView.h` view structs and assemble `FightHudView` in App.cpp | 7 | Recommended next conversion target. Render-only today, but data source is runtime-heavy. Do not move hit/damage, combo mutation, timer, or round flow. |
 | `FightResultOverlay.h` | 119 | Round/result overlay rendering | `DEFER` | Depends on match phase/ticks, round wins, result text helpers, fighters, victory quote helper, and result menu state | Public match/result presentation view after `MatchState`/`RoundState` audit | 8 | Keep round-flow decisions, result routing, rematch actions, and match-completion logic in App.cpp. |
-| `FightPresentationShared.h` | 60 | Shared fight presentation helpers | `DEFER` | Reads match phase, round wins, gamepads, and fight round settings | Public fight presentation view or match-state seam | 9 | Shared by HUD/result overlays; convert with those modules, not before. |
+| `FightPresentationShared.h` | 60 | Shared fight presentation helpers | `NEEDS SMALL SEAM` | Reads match phase, round wins, gamepads, and fight round settings | Use `FightPresentationView.h` for prepared pips/status inputs; keep status-line assembly in App.cpp | 9 | Shared by HUD/result overlays; split with the HUD/result module conversions, not before. |
 | `TrainingOptionsOverlay.h` | 155 | F2 Training Options and move-list rendering | `DEFER` | Reads training options plus command entry metadata and App.cpp-local command display helpers | Public training-options view and command display view; keep command/CNS runtime out | 10 | Pure option labels are already in `TrainingOptionsBehavior`; move-list display still depends on command data/helpers. |
 | `TrainingCommandOverlay.h` | 80 | Command/input HUD rendering | `DEFER` | Reads `FighterState` input history, command definitions, active command entries, and App.cpp-local command helpers | Public command HUD snapshot after input/command display seam | 11 | Keep CMD/CNS routing and command matching behavior in App.cpp. |
 | `TrainingDebugOverlay.h` | 178 | Hitbox/debug overlay rendering | `DEFER` | Reads `FighterState`, camera, collision boxes, current animation frames, hit state, and debug clipboard | Public debug snapshot after fighter/render debug boundary | 12 | High runtime coupling despite being render-only. Do not convert first. |
@@ -138,19 +144,20 @@ Pass 23 completed option 2 for low-level UI primitives. Pass 24 converted the fi
 Recommended next pass:
 
 ```text
-Pass 32: Create FightPresentationView seam
+Pass 33: Convert FightHudOverlay using prepared FightHudView
 ```
 
 Expected files to create or modify:
 
-- create a small public prepared-view header for fight presentation data
-- optionally isolate render-only round-pip inputs if inspection confirms no runtime dependency
+- convert `FightHudOverlay.h` to a normal declaration header
+- create `FightHudOverlay.cpp`
+- assemble `FightHudView` in App.cpp from existing runtime state
 - update the fight overlay audit after evidence
 - keep `FighterState`, hit/damage, round flow, match/result decisions, CMD/CNS, loading, audio, and resource ownership out of scope
 
-Estimated risk: low to medium if kept to prepared view structs; high if it attempts to move HUD/result drawing before runtime-derived data is assembled by `App.cpp`.
+Estimated risk: medium if the module receives only prepared view data; high if it takes direct `AppState`, `FighterState`, or fight settings dependencies.
 
-Expected `App.cpp` line reduction: small or none for the seam pass.
+Expected `App.cpp` line reduction: small to moderate; view assembly may offset some extracted drawing lines.
 
 Expected hidden-coupling reduction:
 
