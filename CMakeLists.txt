@@ -60,6 +60,7 @@ add_library(dragon_core
     engine/src/UiRenderPrimitives.cpp
     engine/src/FrontendMenu.cpp
     engine/src/TrainingOptionsBehavior.cpp
+    engine/src/VsScreenOverlay.cpp
     engine/src/Input.cpp
     engine/src/VerificationScenario.cpp
     engine/src/App.cpp

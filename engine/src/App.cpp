@@ -19,6 +19,7 @@
 #include "TrainingOptionsBehavior.h"
 #include "UiRenderContext.h"
 #include "UiRenderPrimitives.h"
+#include "VsScreenOverlay.h"
 #include "VerificationScenario.h"
 
 #include <SDL3/SDL.h>
@@ -13657,7 +13658,45 @@ void drawStageSelect(SDL_Renderer* renderer, const AppState& state) {
     SDL_RenderPresent(renderer);
 }
 
-#include "VsScreenOverlay.h"
+VsPortraitView vsPortraitView(const TextureSprite* sprite) {
+    if (!sprite || !sprite->texture) {
+        return {};
+    }
+    return VsPortraitView{
+        sprite->texture,
+        sprite->width,
+        sprite->height,
+    };
+}
+
+VsScreenLoadStatus vsScreenLoadStatus(const AppState& state) {
+    if (state.fightSessionLoadFailed) {
+        return VsScreenLoadStatus::Failed;
+    }
+    if (state.fightSessionPrepared) {
+        return VsScreenLoadStatus::Ready;
+    }
+    return VsScreenLoadStatus::Loading;
+}
+
+void drawVersusScreen(SDL_Renderer* renderer, const AppState& state) {
+    const TextureSprite* p1Portrait = state.characterLargePortrait.texture
+        ? &state.characterLargePortrait
+        : spriteAt(state.characterFaceSprites, sessionP1CharacterIndex(state.selection));
+
+    drawVersusScreenOverlay(
+        uiRenderContext(renderer, state),
+        VsScreenView{
+            std::string(pendingModeTitle(state.frontend.pendingMode)),
+            compactSettingText(selectedCharacterName(state.selection), 13),
+            compactSettingText(opponentDisplayName(state), 10),
+            std::string(opponentSlotLabel(state)),
+            compactSettingText(selectedStageName(state.selection), 26),
+            vsScreenLoadStatus(state),
+            vsPortraitView(p1Portrait),
+        });
+    SDL_RenderPresent(renderer);
+}
 
 bool hasSelectedStageBackground(const AppState& state) {
     return !state.stageBackground.empty();
