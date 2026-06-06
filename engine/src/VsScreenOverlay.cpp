@@ -70,7 +70,21 @@ void drawVersusScreenOverlay(const UiRenderContext& ui, const VsScreenView& view
         setColor(renderer, 70, 132, 190);
         fillRect(renderer, 50, 86, 52, 48);
     }
-    drawFixedOpponentSlot(renderer, widthF - 122.0f, 72, 76, 76, view.opponentSlotLabel);
+    if (hasTexture(view.opponentPortrait) && view.opponentPortrait.width > 0 && view.opponentPortrait.height > 0) {
+        const float scale = std::min({
+            1.0f,
+            76.0f / static_cast<float>(view.opponentPortrait.width),
+            76.0f / static_cast<float>(view.opponentPortrait.height),
+        });
+        drawSpriteTopLeft(
+            renderer,
+            view.opponentPortrait,
+            widthF - 76.0f - static_cast<float>(view.opponentPortrait.width) * scale * 0.5f,
+            76,
+            scale);
+    } else {
+        drawFixedOpponentSlot(renderer, widthF - 122.0f, 72, 76, 76, view.opponentSlotLabel);
+    }
 
     setColor(renderer, 222, 226, 232);
     debugText(renderer, 34, 144, view.p1Name);

@@ -43,7 +43,7 @@ void drawCharacterSelectOverlay(const UiRenderContext& ui, const CharacterSelect
     setColor(renderer, 235, 240, 248);
     debugTextCentered(renderer, centerX, 8, view.modeTitle);
     setColor(renderer, 246, 214, 92);
-    debugTextCentered(renderer, centerX, 20, "SELECT YOUR FIGHTER");
+    debugTextCentered(renderer, centerX, 20, view.activePlayerLabel + " SELECT YOUR FIGHTER");
 
     if (view.cells.empty()) {
         setColor(renderer, 235, 110, 100);
@@ -67,7 +67,16 @@ void drawCharacterSelectOverlay(const UiRenderContext& ui, const CharacterSelect
         drawRect(renderer, 18, 30, 120, 140);
     }
     const float opponentPortraitX = widthF - 138.0f;
-    drawFixedOpponentSlot(renderer, opponentPortraitX, 30, 120, 140, view.opponentName);
+    if (hasTexture(view.opponentPortrait) && view.opponentPortrait.width > 0 && view.opponentPortrait.height > 0) {
+        const float portraitScale = std::min({
+            1.0f,
+            120.0f / static_cast<float>(view.opponentPortrait.width),
+            140.0f / static_cast<float>(view.opponentPortrait.height),
+        });
+        drawSpriteTopLeft(renderer, view.opponentPortrait, opponentPortraitX, 30, portraitScale);
+    } else {
+        drawFixedOpponentSlot(renderer, opponentPortraitX, 30, 120, 140, view.opponentName);
+    }
 
     setColor(renderer, 235, 240, 248);
     debugText(renderer, 10, 154, view.selectedName);
@@ -121,7 +130,7 @@ void drawCharacterSelectOverlay(const UiRenderContext& ui, const CharacterSelect
     }
 
     setColor(renderer, 238, 210, 94);
-    debugTextCentered(renderer, centerX, 208, "P1");
+    debugTextCentered(renderer, centerX, 208, view.activePlayerLabel);
     setColor(renderer, 210, 218, 230);
     debugTextCentered(renderer, centerX, 220, "STAGE: " + view.preferredStageLabel);
 

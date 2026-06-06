@@ -53,6 +53,23 @@ int sessionP1CharacterIndex(const SelectionState& selection) {
         : selection.selectedCharacter;
 }
 
+int safeCharacterIndex(const SelectionState& selection, int index) {
+    const int characterCount = static_cast<int>(selection.characters.size());
+    return characterCount > 0 ? std::clamp(index, 0, characterCount - 1) : -1;
+}
+
+int defaultP2CharacterIndex(const SelectionState& selection, int p1Index) {
+    const int characterCount = static_cast<int>(selection.characters.size());
+    if (characterCount <= 0) {
+        return -1;
+    }
+    if (characterCount == 1) {
+        return 0;
+    }
+    const int safeP1 = std::clamp(p1Index, 0, characterCount - 1);
+    return (safeP1 + 1) % characterCount;
+}
+
 const StageSlot* stageSlotAt(const SelectionState& selection, int index) {
     if (selection.stages.empty()
         || index < 0

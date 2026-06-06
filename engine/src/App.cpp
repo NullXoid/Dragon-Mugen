@@ -1506,7 +1506,16 @@ void configureFightSessionSlotsFromSelection(AppState& state) {
         ? std::clamp(state.selection.selectedCharacter, 0, characterCount - 1)
         : -1;
     state.selection.sessionSlots.opponentType = defaultOpponentTypeForMode(state.frontend.pendingMode);
-    state.selection.sessionSlots.opponentCharacter = -1;
+    if (state.frontend.pendingMode == PendingMode::SingleFight) {
+        if (!characterSlotAt(state.selection, state.selection.selectedP2Character)) {
+            state.selection.selectedP2Character =
+                defaultP2CharacterIndex(state.selection, state.selection.sessionSlots.p1Character);
+        }
+        state.selection.sessionSlots.opponentCharacter =
+            safeCharacterIndex(state.selection, state.selection.selectedP2Character);
+    } else {
+        state.selection.sessionSlots.opponentCharacter = -1;
+    }
 }
 
 std::string opponentDisplayName(const AppState& state) {
@@ -5669,15 +5678,25 @@ void drawCharacterSelect(SDL_Renderer* renderer, const AppState& state) {
 
     std::vector<CharacterCellView> cells;
     int selectedCell = 0;
+    std::string activePlayerLabel = "P1";
     std::string selectedName;
+    std::string opponentName = std::string(opponentSlotLabel(state.frontend.pendingMode));
     std::string preferredStageLabel;
     UiSpriteView selectedPortrait;
+    UiSpriteView opponentPortrait;
 
     if (!state.selection.characters.empty()) {
+        const bool selectingP2 =
+            state.frontend.pendingMode == PendingMode::SingleFight
+            && state.selection.selectingP2Character;
         const int selected = std::clamp(
-            state.selection.selectedCharacter,
+            selectingP2 ? state.selection.selectedP2Character : state.selection.selectedCharacter,
             0,
             static_cast<int>(state.selection.characters.size()) - 1);
+        const int p1Index = selectingP2
+            ? safeCharacterIndex(state.selection, state.selection.sessionSlots.p1Character)
+            : selected;
+        const int p1DisplayIndex = p1Index >= 0 ? p1Index : selected;
         const int page = selected / kCharacterSelectPageSize;
         const int firstIndex = page * kCharacterSelectPageSize;
         const int lastIndex = std::min(
@@ -5693,10 +5712,17 @@ void drawCharacterSelect(SDL_Renderer* renderer, const AppState& state) {
         }
 
         selectedCell = selected - firstIndex;
-        const auto& character = state.selection.characters[static_cast<size_t>(selected)];
-        selectedName = compactSettingText(character.displayName, 15);
-        preferredStageLabel = compactSettingText(characterPreferredStageName(state.selection, selected), 22);
-        selectedPortrait = uiSpriteView(spriteAt(state.characterFaceSprites, selected));
+        const auto& p1Character = state.selection.characters[static_cast<size_t>(p1DisplayIndex)];
+        selectedName = compactSettingText(p1Character.displayName, 15);
+        preferredStageLabel = compactSettingText(characterPreferredStageName(state.selection, p1DisplayIndex), 22);
+        selectedPortrait = uiSpriteView(spriteAt(state.characterFaceSprites, p1DisplayIndex));
+
+        if (selectingP2) {
+            activePlayerLabel = "P2";
+            const auto& p2Character = state.selection.characters[static_cast<size_t>(selected)];
+            opponentName = compactSettingText(p2Character.displayName, 15);
+            opponentPortrait = uiSpriteView(spriteAt(state.characterFaceSprites, selected));
+        }
     }
 
     drawCharacterSelectOverlay(
@@ -5704,10 +5730,12 @@ void drawCharacterSelect(SDL_Renderer* renderer, const AppState& state) {
         CharacterSelectView{
             cells,
             std::string(pendingModeTitle(state.frontend.pendingMode)),
+            activePlayerLabel,
             selectedName,
-            std::string(opponentSlotLabel(state.frontend.pendingMode)),
+            opponentName,
             preferredStageLabel,
             selectedPortrait,
+            opponentPortrait,
             uiSpriteView(&state.systemScreens.selectCell),
             uiSpriteView(&state.systemScreens.selectP1Cursor),
             selectedCell,
@@ -12557,6 +12585,8 @@ void drawVersusScreen(SDL_Renderer* renderer, const AppState& state) {
     const TextureSprite* p1Portrait = state.characterLargePortrait.texture
         ? &state.characterLargePortrait
         : spriteAt(state.characterFaceSprites, sessionP1CharacterIndex(state.selection));
+    const TextureSprite* opponentPortrait =
+        spriteAt(state.characterFaceSprites, state.selection.sessionSlots.opponentCharacter);
 
     drawVersusScreenOverlay(
         uiRenderContext(renderer, state),
@@ -12568,6 +12598,7 @@ void drawVersusScreen(SDL_Renderer* renderer, const AppState& state) {
             compactSettingText(selectedStageName(state.selection), 26),
             vsScreenLoadStatus(state),
             uiSpriteView(p1Portrait),
+            uiSpriteView(opponentPortrait),
         });
     SDL_RenderPresent(renderer);
 }

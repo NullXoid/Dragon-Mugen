@@ -16,10 +16,12 @@ struct CharacterCellView {
 struct CharacterSelectView {
     std::span<const CharacterCellView> cells;
     std::string modeTitle;
+    std::string activePlayerLabel = "P1";
     std::string selectedName;
     std::string opponentName;
     std::string preferredStageLabel;
     UiSpriteView selectedPortrait;
+    UiSpriteView opponentPortrait;
     UiSpriteView cellSprite;
     UiSpriteView cursorSprite;
     int selectedCell = 0;

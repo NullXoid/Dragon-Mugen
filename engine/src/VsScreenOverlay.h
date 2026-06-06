@@ -21,6 +21,7 @@ struct VsScreenView {
     std::string stageName;
     VsScreenLoadStatus loadStatus = VsScreenLoadStatus::Loading;
     UiSpriteView p1Portrait;
+    UiSpriteView opponentPortrait;
 };
 
 void drawVersusScreenOverlay(const UiRenderContext& ui, const VsScreenView& view);
