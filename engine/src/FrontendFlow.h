@@ -50,8 +50,10 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
             playMenuCancelSound(state);
             action = { FrontendActionKind::ExitApp };
         } else if (frontendKey == FrontendKey::Accept) {
-            playMenuCursorDoneSound(state);
             action = decideMainMenuAction(state.frontend.selectedMode);
+            if (action.kind != FrontendActionKind::None) {
+                playMenuCursorDoneSound(state);
+            }
         }
 
         switch (action.kind) {
@@ -74,18 +76,30 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
 
     if (state.frontend.screen == Screen::MainSettings) {
         const FrontendKey frontendKey = frontendKeyFromSdl(key, true);
+        const int previousSelection = state.mainSettings.selectedOption;
         state.mainSettings.selectedOption = moveOptionsSelection(state.mainSettings.selectedOption, frontendKey);
+        if (state.mainSettings.selectedOption != previousSelection) {
+            playMenuCursorMoveSound(state);
+        }
+
         const int cycleDirection = settingCycleDirection(frontendKey);
-        if (cycleDirection != 0 && state.mainSettings.selectedOption < kMainSettingsCount - 1) {
+        const bool selectedAdjustableRow = state.mainSettings.selectedOption < kMainSettingsCount - 1;
+        if (cycleDirection != 0 && selectedAdjustableRow) {
             state.mainSettings = cycleMainSetting(
                 state.mainSettings,
                 state.mainSettings.selectedOption,
                 cycleDirection,
                 static_cast<int>(state.gamepads.size()));
+            playMenuCursorDoneSound(state);
         }
 
         const FrontendAction action = decideOptionsAction(state.mainSettings, frontendKey);
         if (action.kind == FrontendActionKind::BackToMain) {
+            if (frontendKey == FrontendKey::Escape) {
+                playMenuCancelSound(state);
+            } else if (frontendKey == FrontendKey::Accept) {
+                playMenuCursorDoneSound(state);
+            }
             state.frontend.screen = Screen::ModeSelect;
         }
         return;
