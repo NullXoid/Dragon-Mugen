@@ -9,6 +9,7 @@
 #include "FightHudOverlay.h"
 #include "FightMessageState.h"
 #include "FightPresentationView.h"
+#include "FightResultOverlay.h"
 #include "FrontendMenu.h"
 #include "FrontendState.h"
 #include "Input.h"
@@ -14457,8 +14458,6 @@ std::string commandEntryTargetLabel(const CommandStateEntry& entry) {
 
 #include "FightPresentationShared.h"
 
-#include "FightResultOverlay.h"
-
 FightComboCounterView fightComboCounterView(const AppState& state, size_t attackerIndex) {
     FightComboCounterView view;
     if (attackerIndex >= state.display.comboCounters.size()) {
@@ -14548,6 +14547,98 @@ FightHudView fightHudView(const AppState& state) {
 
 void drawFightHudView(SDL_Renderer* renderer, const AppState& state) {
     drawFightHud(uiRenderContext(renderer, state), fightHudView(state));
+}
+
+std::string_view matchResultLabel(int option) {
+    static constexpr std::array<std::string_view, kMatchResultOptionCount> labels{
+        "REMATCH",
+        "FIGHTER SELECT",
+        "STAGE SELECT",
+        "MODE SELECT",
+    };
+    return labels[static_cast<size_t>(std::clamp(option, 0, kMatchResultOptionCount - 1))];
+}
+
+FightRoundCalloutView roundStartOverlayView(const AppState& state) {
+    FightRoundCalloutView view;
+    if (state.matchPhaseTicks < state.fightRoundSettings.startWaitTime) {
+        return view;
+    }
+
+    const bool fightText = state.matchPhaseTicks >= singleFightRoundDisplayEndTick(state);
+    view.visible = true;
+    view.text = fightText ? "FIGHT" : roundStartCalloutText(state);
+    view.r = 230;
+    view.g = 220;
+    view.b = 172;
+    return view;
+}
+
+FightRoundCalloutView roundFinishOverlayView(const AppState& state) {
+    FightRoundCalloutView view;
+    if (state.matchPhaseTicks < singleFightRoundFinishCalloutTicks(state)) {
+        view.visible = true;
+        view.text = roundFinishCalloutText(state);
+        view.r = 230;
+        view.g = 190;
+        view.b = 105;
+        return view;
+    }
+    if (state.matchPhaseTicks >= state.fightRoundSettings.winTime) {
+        view.visible = true;
+        view.text = roundResultText(state);
+        view.r = 222;
+        view.g = 226;
+        view.b = 232;
+    }
+    return view;
+}
+
+FightRoundResultView roundResultOverlayView(const AppState& state) {
+    const int winsRequired = matchWinsRequired(state);
+    FightRoundResultView view;
+    view.visible = true;
+    view.resultText = roundResultText(state);
+    view.p1RoundPips = FightRoundPipsView{ state.roundWins[0], winsRequired, false, 6.0f };
+    view.p2RoundPips = FightRoundPipsView{ state.roundWins[1], winsRequired, true, 6.0f };
+    view.footerText = state.matchComplete ? "MATCH COMPLETE" : "NEXT ROUND";
+    return view;
+}
+
+FightMatchResultView matchResultScreenView(const AppState& state) {
+    FightMatchResultView view;
+    const int winner = matchWinner(state);
+    view.modeLabel = isMatchMode(state) ? std::string(pendingModeTitle(state.frontend.pendingMode)) : "";
+    view.winnerText = winner == 0 ? "DRAW GAME" : uppercaseCopy(fighterResultName(state, winner));
+    view.scoreText = singleFightScoreText(state);
+    view.methodText = matchWinMethodText(state);
+    view.quoteText = winner > 0 && winner <= static_cast<int>(state.fighters.size())
+        ? selectedVictoryQuoteText(state, state.fighters[static_cast<size_t>(winner - 1)])
+        : std::string{};
+    view.stageText = "Stage: " + selectedStageName(state.selection);
+    view.menuRowCount = kMatchResultOptionCount;
+    for (int i = 0; i < kMatchResultOptionCount; ++i) {
+        auto& row = view.menuRows[static_cast<size_t>(i)];
+        row.label = std::string(matchResultLabel(i));
+        row.selected = i == state.frontend.selectedMatchResultOption;
+    }
+    return view;
+}
+
+void drawRoundStartOverlay(SDL_Renderer* renderer, const AppState& state) {
+    drawRoundStartOverlay(uiRenderContext(renderer, state), roundStartOverlayView(state));
+}
+
+void drawRoundFinishOverlay(SDL_Renderer* renderer, const AppState& state) {
+    drawRoundFinishOverlay(uiRenderContext(renderer, state), roundFinishOverlayView(state));
+}
+
+void drawRoundResultOverlay(SDL_Renderer* renderer, const AppState& state) {
+    drawRoundResultOverlay(uiRenderContext(renderer, state), roundResultOverlayView(state));
+}
+
+void drawMatchResultScreen(SDL_Renderer* renderer, const AppState& state) {
+    drawMatchResultScreen(uiRenderContext(renderer, state), matchResultScreenView(state));
 }
 
 void drawFightView(SDL_Renderer* renderer, const AppState& state) {

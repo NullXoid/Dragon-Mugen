@@ -89,6 +89,13 @@ Pass 33 update:
 - The HUD module no longer depends on App.cpp-local `AppState`, `FighterState`, fight settings structs, training options, gamepad device objects, resource ownership, hit/damage, CMD/CNS, or round-flow logic.
 - The next recommended implementation pass is converting `FightResultOverlay.h` to a normal module using prepared fight result views.
 
+Pass 34 update:
+
+- `FightResultOverlay.h` is now a normal declaration header and `FightResultOverlay.cpp` owns render-only round/result/match-result drawing from prepared `FightPresentationView` data.
+- `App.cpp` still assembles all runtime-derived result values from match phase, round settings, result helpers, fighters, victory quote text, selected stage label, and result-menu selection.
+- The result module no longer depends on App.cpp-local `AppState`, `FighterState`, match settings structs, routing state, resource ownership, hit/damage, CMD/CNS, CPU behavior, loading, audio, controller behavior, or round-flow logic.
+- The next recommended pass is a training overlay conversion audit before converting the remaining training overlays.
+
 ## Readiness Labels
 
 - `READY`: can become a normal `.h/.cpp` module with existing public headers and no App.cpp-local dependencies.
@@ -107,8 +114,8 @@ Pass 33 update:
 | `VsScreenOverlay.h` / `VsScreenOverlay.cpp` | 28 / 101 | VS/loading screen rendering | `READY` | None for current prepared-view API; App.cpp still owns portrait/resource selection, load-status mapping, selected metadata assembly, routing, loading, and `SDL_RenderPresent` | No remaining seam for VS/loading presentation; broader sprite/resource ownership seams remain separate | 0 | Pass 28 converted this overlay to a normal module. Pass 29 migrated its portrait field to public non-owning `UiSpriteView`. |
 | `CharacterSelectOverlay.h` / `CharacterSelectOverlay.cpp` | 32 / 132 | Character Select foreground rendering | `READY` | None for current prepared-view API; App.cpp still owns roster state, selected-character/page assembly, sprite/resource lookup, select-background drawing, routing, loading, and `SDL_RenderPresent` | No remaining seam for Character Select foreground rendering; select-background and resource ownership seams remain separate | 0 | Pass 30 converted this overlay to a normal module. No `AppState`, `FighterState`, `SelectionState`, `CharacterSlot`, `StageSlot`, `TextureSprite`, `SystemScreenAssets`, resource ownership, or gameplay behavior. |
 | `FightHudOverlay.h` / `FightHudOverlay.cpp` | 10 / 197 | Fight HUD rendering | `READY` | None for current prepared-view API; App.cpp still owns runtime-derived view assembly, labels, combo/timer data, and gamepad text | No remaining seam for HUD rendering; broader fight-state seams may shrink App.cpp view assembly later | 0 | Pass 33 converted this overlay to a normal module. No `AppState`, `FighterState`, fight settings structs, resource ownership, hit/damage, CMD/CNS, or round-flow logic enters the module. |
-| `FightResultOverlay.h` | 119 | Round/result overlay rendering | `NEEDS SMALL SEAM` | Depends on match phase/ticks, round wins, result text helpers, fighters, victory quote helper, selected stage name, result menu state, and routing context | Use `FightPresentationView.h` result structs and assemble result/callout views in App.cpp | 7 | Recommended next conversion target. Keep round-flow decisions, result routing, rematch actions, and match-completion logic in App.cpp. |
-| `FightPresentationShared.h` | 60 | Shared fight presentation helpers | `NEEDS SMALL SEAM` | Remaining shared status-line helper reads match phase, gamepads, and fight round settings | Keep status-line assembly in App.cpp; result conversion may retire or shrink this header | 8 | Round-pip rendering moved private in the normal HUD module. Split remaining shared helpers with result conversion, not before. |
+| `FightResultOverlay.h` / `FightResultOverlay.cpp` | 13 / 133 | Round/result overlay rendering | `READY` | None for current prepared-view API; App.cpp still owns match/result semantics, victory quote selection, result-menu state, routing, and runtime-derived view assembly | No remaining seam for result rendering; broader match/round state seams may shrink App.cpp view assembly later | 0 | Pass 34 converted this overlay to a normal module. No `AppState`, `FighterState`, match settings structs, resource ownership, hit/damage, CMD/CNS, CPU behavior, or round-flow logic enters the module. |
+| `FightPresentationShared.h` | 60 | Shared fight presentation helpers | `DEFER` | Remaining shared status-line helper reads match phase, gamepads, and fight round settings | Keep status-line assembly in App.cpp; reassess with later match/round state boundaries | 8 | Round-pip rendering moved private in normal fight overlay modules. Do not clean this up during overlay conversion. |
 | `TrainingOptionsOverlay.h` | 155 | F2 Training Options and move-list rendering | `DEFER` | Reads training options plus command entry metadata and App.cpp-local command display helpers | Public training-options view and command display view; keep command/CNS runtime out | 10 | Pure option labels are already in `TrainingOptionsBehavior`; move-list display still depends on command data/helpers. |
 | `TrainingCommandOverlay.h` | 80 | Command/input HUD rendering | `DEFER` | Reads `FighterState` input history, command definitions, active command entries, and App.cpp-local command helpers | Public command HUD snapshot after input/command display seam | 11 | Keep CMD/CNS routing and command matching behavior in App.cpp. |
 | `TrainingDebugOverlay.h` | 178 | Hitbox/debug overlay rendering | `DEFER` | Reads `FighterState`, camera, collision boxes, current animation frames, hit state, and debug clipboard | Public debug snapshot after fighter/render debug boundary | 12 | High runtime coupling despite being render-only. Do not convert first. |
@@ -151,30 +158,28 @@ Pass 23 completed option 2 for low-level UI primitives. Pass 24 converted the fi
 Recommended next pass:
 
 ```text
-Pass 34: Convert FightResultOverlay using prepared result views
+Pass 35: Training Overlay Conversion Audit
 ```
 
 Expected files to create or modify:
 
-- convert `FightResultOverlay.h` to a normal declaration header
-- create `FightResultOverlay.cpp`
-- assemble round callout, round result, and match result views in App.cpp from existing runtime state
-- update the fight overlay audit after evidence
-- keep `FighterState`, hit/damage, round flow, result routing, CMD/CNS, loading, audio, and resource ownership out of scope
+- create `docs/TRAINING_OVERLAY_CONVERSION_AUDIT.md`
+- audit `TrainingOptionsOverlay.h`, `TrainingCommandOverlay.h`, and `TrainingDebugOverlay.h`
+- choose the next training overlay conversion target or required view seam
+- keep `FighterState`, command/CNS runtime, hitbox/debug runtime data, hit/damage, loading, audio, and resource ownership out of scope
 
-Estimated risk: medium if the module receives only prepared view data; high if it takes direct `AppState`, `FighterState`, or fight settings dependencies.
+Estimated risk: low for the audit; medium for later training overlay conversion if the module receives only prepared view data; high if it takes direct `AppState`, `FighterState`, command runtime, or debug collision data.
 
-Expected `App.cpp` line reduction: small to moderate; view assembly may offset some extracted drawing lines.
+Expected `App.cpp` line reduction: none for the audit.
 
 Expected hidden-coupling reduction:
 
-- continues the normal fight-presentation API pattern after the HUD conversion
-- prevents `FightResultOverlay` from taking `AppState` or `FighterState` dependencies as a normal module
+- maps the remaining training overlay blockers before converting them
+- prevents training overlays from taking `AppState` or `FighterState` dependencies as normal modules
 
 Verification focus:
 
-- build and verifier preservation after any seam implementation
-- fight HUD/result manual smoke if practical
+- docs-only validation if implemented as an audit
 - no gameplay, loading, controller, CPU, CMD/CNS, hit/damage, or round-flow claims
 
 ## Explicit Non-Goals

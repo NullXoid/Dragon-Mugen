@@ -25,7 +25,7 @@ Pass 32 update:
 
 - `FightPresentationView.h` now provides display-only prepared view structs for future fight HUD/result module conversion.
 - `App.cpp` compile-checks the header, but no fight overlay call sites changed.
-- `FightResultOverlay.h` and `FightPresentationShared.h` remain transitional until their conversion passes.
+- `FightPresentationShared.h` remains transitional; `FightResultOverlay.h` was converted later in Pass 34.
 - `App.cpp` still owns all runtime-derived view assembly, hit/damage, round flow, result routing, loading, resources, CPU behavior, controller behavior, and sidecar policy.
 
 Pass 33 update:
@@ -36,6 +36,15 @@ Pass 33 update:
 - `App.cpp` changed from `14705` to `14795` file-size-guard lines because explicit view assembly replaced hidden App.cpp-internal header coupling.
 - `FightHudOverlay.h` is 10 lines and `FightHudOverlay.cpp` is 197 lines.
 - Build, `dev_check`, `kfm-baseline`, `evilken-smoke`, `kfm-air-state`, and `cpu-baseline` passed. Manual GUI smoke was not rerun.
+
+Pass 34 update:
+
+- `FightResultOverlay.h` is now a normal declaration header and `FightResultOverlay.cpp` owns render-only round/result/match-result drawing.
+- `App.cpp` assembles `FightRoundCalloutView`, `FightRoundResultView`, and `FightMatchResultView` from existing runtime state, result helpers, victory quote text, stage label, and result-menu selection, then calls the normal module.
+- The module has no `AppState`, `FighterState`, match settings struct, routing state, resource ownership, CMD/CNS, hit/damage, CPU, loading, audio, controller, or round-flow dependency.
+- `App.cpp` changed from `14795` to `14886` file-size-guard lines because explicit result view assembly replaced hidden App.cpp-internal header coupling.
+- `FightResultOverlay.h` is 13 lines and `FightResultOverlay.cpp` is 133 lines.
+- Build, `dev_check`, `kfm-baseline`, `evilken-smoke`, `kfm-air-state`, and `cpu-baseline` passed. Manual GUI smoke and dedicated result-screen smoke were not rerun.
 
 ## Readiness Labels
 
@@ -51,8 +60,8 @@ Pass 33 update:
 | Header | Current Lines | Responsibility | Main Dependencies | Minimum View Seam | Conversion Readiness | Recommended Order | Notes |
 |---|---:|---|---|---|---|---:|---|
 | `FightHudOverlay.h` / `FightHudOverlay.cpp` | 10 / 197 | Fight HUD rendering: life bars, power gauges, timer, round wins, combo counters, bottom status/hit-log lines, input/footer hints | Prepared `FightHudView`, `UiRenderContext`, public UI primitives, and standard library headers. `App.cpp` still assembles runtime-derived values. | No remaining HUD render seam; future refinements can reduce App.cpp view assembly when broader fight state boundaries exist. | `READY` | 0 | Pass 33 converted the HUD to a normal module. Runtime state, mutation, labels, timer, combo data, and gamepad text remain assembled in `App.cpp`. |
-| `FightPresentationShared.h` | 60 | Shared fight presentation helpers: single-fight status line text and round-win pip rendering | `singleFightStatusLine` reads match phase, phase ticks, round settings, gamepad state, pending mode, and result-text helpers. | Keep status-line assembly in `App.cpp`; result conversion may retire or shrink the remaining shared helper header. | `NEEDS RESULT VIEW ASSEMBLY` | 1 | Round-pip rendering moved into the normal HUD module as a private prepared-view helper. The status-line helper remains transitional until result conversion. |
-| `FightResultOverlay.h` | 119 | Round start/finish/result overlays and match-complete result menu rendering | `AppState`, match phase/ticks, round settings, round wins, result text helpers, fighters, victory quote helper, selected stage name, match winner/method/score helpers, and result-menu selection. | Use the new `FightRoundCalloutView`, `FightRoundResultView`, `FightMatchResultView`, and `FightResultMenuRowView`; assemble all values in `App.cpp`. | `NEEDS RESULT VIEW ASSEMBLY` | 2 | Convert after the HUD conversion. Keep round-flow decisions, match-completion logic, rematch/routing behavior, and result-menu actions in `App.cpp`. |
+| `FightResultOverlay.h` / `FightResultOverlay.cpp` | 13 / 133 | Round start/finish/result overlays and match-complete result menu rendering | Prepared `FightRoundCalloutView`, `FightRoundResultView`, `FightMatchResultView`, `UiRenderContext`, public UI primitives, and standard library headers. `App.cpp` still assembles runtime-derived values. | No remaining result render seam; future match/round state boundaries may shrink App.cpp view assembly later. | `READY` | 0 | Pass 34 converted the result overlay to a normal module. Runtime state, result semantics, victory quote selection, result-menu selection, and routing remain assembled in `App.cpp`. |
+| `FightPresentationShared.h` | 60 | Shared fight presentation helpers: single-fight status line text | `singleFightStatusLine` reads match phase, phase ticks, round settings, gamepad state, pending mode, and result-text helpers. | Keep status-line assembly in `App.cpp`; reassess with later match/round state boundaries. | `DEFER` | 1 | Round-pip rendering moved into normal overlay modules as private prepared-view helpers. The remaining status-line helper is still runtime-adjacent and should not be cleaned up in this pass series. |
 
 ## Boundaries For Future Conversion
 
@@ -81,18 +90,18 @@ Do not move or expose as part of fight overlay conversion:
 Recommendation:
 
 ```text
-Pass 34: Convert FightResultOverlay using prepared result views
+Pass 35: Training Overlay Conversion Audit
 ```
 
 Reason:
 
-- `FightHudOverlay` now proves the prepared fight-presentation view pattern as a normal module.
-- `FightResultOverlay.h` is the remaining fight presentation overlay that is still App.cpp-internal.
-- The conversion should keep `App.cpp` as the only place that reads match phase, round settings, fighters, victory quotes, selected stage data, match result helpers, result-menu selection, and routing state.
+- `FightHudOverlay` and `FightResultOverlay` now prove the prepared fight-presentation view pattern as normal modules.
+- The remaining training overlays are more coupled to command lists, input history, hitbox/debug data, and training options than the fight result overlay was.
+- A docs-only audit should identify the smallest prepared-view seams before converting `TrainingOptionsOverlay`, `TrainingCommandOverlay`, or `TrainingDebugOverlay`.
 
 Required seam:
 
-The required result view seam now exists:
+The required fight result seam exists and has been exercised:
 
 - `FightRoundCalloutView`
 - `FightRoundResultView`
@@ -100,19 +109,18 @@ The required result view seam now exists:
 - `FightResultMenuRowView`
 - `App.cpp` remains the only place that reads runtime state and calls match/result/status helper logic.
 
-Expected files for Pass 34:
+Expected files for Pass 35:
 
-- convert `engine/src/FightResultOverlay.h` to a normal declaration header
-- create `engine/src/FightResultOverlay.cpp`
-- update `engine/src/App.cpp` to assemble round callout/result/match result views and call the normal module
-- update CMake for the new `.cpp`
-- update normal progress docs after evidence
+- create `docs/TRAINING_OVERLAY_CONVERSION_AUDIT.md`
+- audit `TrainingOptionsOverlay.h`, `TrainingCommandOverlay.h`, and `TrainingDebugOverlay.h`
+- choose the next safe training overlay implementation pass or view seam
+- keep training runtime behavior, command/CNS runtime, hitbox/debug source data, `FighterState`, hit/damage, loading, audio, resources, CPU behavior, and sidecar policy out of scope
 
 Estimated risk:
 
-- Medium.
-- Low if the module receives only prepared view data.
-- High if it takes `AppState`, `FighterState`, fight settings, or runtime helpers directly.
+- Low as a docs-only audit.
+- Medium for any later training overlay conversion using prepared view data.
+- High if a training module takes `AppState`, `FighterState`, command runtime, or debug collision data directly.
 
 Expected `App.cpp` line reduction:
 
@@ -121,8 +129,8 @@ Expected `App.cpp` line reduction:
 
 Expected hidden-coupling reduction:
 
-- Removes `FightResultOverlay` from the App.cpp-internal include-order group.
-- Completes the main fight-presentation overlay conversion pair without taking `AppState` or `FighterState` dependencies.
+- Maps the next training presentation seams before converting runtime-adjacent overlays.
+- Prevents training overlays from taking `AppState` or `FighterState` dependencies as normal modules.
 
 Verification focus:
 
@@ -130,8 +138,8 @@ Verification focus:
 - `evilken-smoke`
 - `kfm-air-state`
 - `cpu-baseline`
-- manual fight HUD smoke if practical
-- manual match result smoke if practical
+- no build required for docs-only unless local policy requires it
+- manual smoke not needed for the audit
 
 Do not move:
 
