@@ -28,6 +28,13 @@ Pass 24 update:
 - `App.cpp` builds `PauseMenuView` from `FrontendState` and still owns pause state, option mutation, route actions, fight runtime, input handling, and screen transitions.
 - `PauseMenuOverlay` no longer depends on App.cpp-local `AppState`, `FighterState`, or include order.
 
+Pass 25 update:
+
+- `MainMenuOverlay.h` is now a normal declaration header with `MainMenuView`.
+- `MainMenuOverlay.cpp` now owns AppState-free main-menu foreground labels, highlight, description, footer, and title text.
+- `App.cpp` still owns `drawTitleBackground`, title logo sprite drawing, `SystemScreenAssets`, sprite helpers, and `SDL_RenderPresent`.
+- `MainMenuOverlay` no longer depends on App.cpp-local `AppState`, `FighterState`, or include order.
+
 ## Readiness Labels
 
 - `READY`: can become a normal `.h/.cpp` module with existing public headers and no App.cpp-local dependencies.
@@ -40,8 +47,8 @@ Pass 24 update:
 | Header | Lines | Responsibility | Readiness | Main Blocker | Minimum Seam Needed | Recommended Priority | Notes |
 |---|---:|---|---|---|---|---|---|
 | `PauseMenuOverlay.h` / `PauseMenuOverlay.cpp` | 16 / 63 | Single-fight pause menu rendering | `READY` | None for current render-only API; `App.cpp` still supplies a ready mode label and selected option | No remaining seam for pause rendering; future unification may replace private render labels with shared pause action metadata | 0 | Pass 24 converted this overlay to a normal module. No texture/resource ownership and no gameplay behavior. |
-| `StageSelectOverlay.h` | 61 | Stage Select rendering | `NEEDS SMALL SEAM` | Takes App.cpp-local `AppState`; uses selection fields plus App.cpp-local label helpers and render primitives | Public `StageSelectView` assembled by App.cpp plus public UI primitives/text helpers | 2 | Good second candidate. Avoid moving stage selection, routing, preferred-stage mutation, or loading. |
-| `MainMenuOverlay.h` | 71 | Main/title menu rendering | `NEEDS PUBLIC RENDER SEAM` | Takes `AppState`; uses `drawTitleBackground`, `systemScreens.titleLogo`, and sprite helpers | Public menu view plus public title-background/sprite drawing seam or a title-background view | 3 | Visually simple but resource-backed title background/logo makes it harder than pause/stage. |
+| `StageSelectOverlay.h` | 61 | Stage Select rendering | `NEEDS SMALL SEAM` | Takes App.cpp-local `AppState`; uses selection fields plus App.cpp-local label helpers and render primitives | Public `StageSelectView` assembled by App.cpp plus public UI primitives/text helpers | 1 | Good next candidate. Avoid moving stage selection, routing, preferred-stage mutation, or loading. |
+| `MainMenuOverlay.h` / `MainMenuOverlay.cpp` | 14 / 78 | Main menu foreground rendering | `READY` | None for current foreground API; App.cpp still owns resource-backed title background and logo drawing | No remaining seam for foreground menu rendering; title background/logo resource seam remains separate | 0 | Pass 25 converted the AppState-free foreground menu module. Full title screen resource drawing intentionally stays in App.cpp. |
 | `OptionsMenuOverlay.h` | 92 | Options menu rendering | `NEEDS PUBLIC RENDER SEAM` | Takes `AppState`; uses `drawTitleBackground`, `ScopedUiScale`, gamepad/status helpers, and App.cpp-local setting text helpers | Public options view, public settings status helpers, public UI primitives, and title-background render seam | 4 | Do not move gamepad open/close, assignment ownership, persistence, or SDL resource behavior. |
 | `VsScreenOverlay.h` | 66 | VS/loading screen rendering | `NEEDS PUBLIC RENDER SEAM` | Takes `AppState`; reads portraits, face sprites, loading flags, selected metadata, and fixed-opponent slot helper | Public VS/loading view plus sprite/portrait render seam | 5 | Keep fight preparation, loading, selected runtime data, and routing in App.cpp. |
 | `CharacterSelectOverlay.h` | 102 | Character Select rendering | `NEEDS PUBLIC RENDER SEAM` | Takes `AppState`; reads character icons/faces, `SystemScreenAssets`, selection state, and sprite helpers | Public character-select view plus sprite/icon/cursor render seam | 6 | Resource-heavy compared with pause/stage. Keep select.def authority, cursor mutation, and loading outside. |
@@ -61,21 +68,25 @@ Pass 24 update:
    - Converted in Pass 24.
    - Proves the view-struct pattern for low-risk overlays.
 
-2. `StageSelectOverlay.h`
+2. `MainMenuOverlay.h` / `MainMenuOverlay.cpp`
+   - Converted in Pass 25.
+   - Proves the foreground-only module pattern when background/logo resources stay in App.cpp.
+
+3. `StageSelectOverlay.h`
    - Small and mostly selection metadata plus text/panel primitives.
    - Needs a public `StageSelectView` so the normal module does not depend on App.cpp-local `AppState`.
 
-3. `MainMenuOverlay.h`
-   - Small and high-value, but resource-backed title/logo rendering means it needs a public render/sprite seam before conversion.
+4. `OptionsMenuOverlay.h`
+   - Small and high-value, but resource-backed title background and gamepad/status helpers make it harder than stage select.
 
 ## Recommended Next Implementation Pass
 
-Pass 23 completed option 2 for low-level UI primitives. Pass 24 converted the first overlay, proving the primitive seam and view-struct pattern.
+Pass 23 completed option 2 for low-level UI primitives. Pass 24 converted the first overlay. Pass 25 converted the main-menu foreground while leaving resource-backed title background/logo drawing in App.cpp.
 
 Recommended next pass:
 
 ```text
-Pass 25: Convert StageSelectOverlay to normal module
+Pass 26: Convert StageSelectOverlay to normal module
 ```
 
 Expected files to create or modify:

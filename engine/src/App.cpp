@@ -10,6 +10,7 @@
 #include "FrontendMenu.h"
 #include "FrontendState.h"
 #include "Input.h"
+#include "MainMenuOverlay.h"
 #include "PauseMenuOverlay.h"
 #include "SelectionState.h"
 #include "TrainingState.h"
@@ -6738,7 +6739,17 @@ std::string uiScaleSettingText(const MainSettings& settings) {
 
 #include "UiRenderHelpers.h"
 
-#include "MainMenuOverlay.h"
+void drawModeSelect(SDL_Renderer* renderer, const AppState& state) {
+    drawTitleBackground(renderer, state);
+    const UiRenderContext ui = uiRenderContext(renderer, state);
+    const float centerX = screenCenterX(state);
+
+    drawMainMenuTitleText(ui);
+    drawSpriteAtAxis(renderer, state.systemScreens.titleLogo, centerX, 40);
+    drawMainMenuOverlay(ui, MainMenuView{ state.frontend.selectedMode });
+
+    SDL_RenderPresent(renderer);
+}
 
 std::string_view opponentSlotLabel(PendingMode mode) {
     return opponentTypeLabel(defaultOpponentTypeForMode(mode));
