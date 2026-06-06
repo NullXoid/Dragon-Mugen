@@ -50,6 +50,16 @@ Pass 38 update:
 - Build passed. Manual command/input HUD GUI smoke was not rerun in this pass.
 - Command matching, command-list filtering semantics, input history ownership, `FighterState`, `CommandStateEntry`, CMD/CNS data, training runtime behavior, hit/damage, input handling, loading, resources, sidecar policy, and `.dragon/*.json` stayed unchanged.
 
+Pass 39 update:
+
+- `TrainingDebugView.h` now defines the display-only screen-space debug view seam for the remaining training overlay conversion.
+- The seam contains prepared debug presentation structs only: `TrainingDebugColorView`, `TrainingDebugLineView`, `TrainingDebugRectView`, `TrainingDebugReadoutView`, and `TrainingDebugView`.
+- `App.cpp` compile-checks the header but does not assemble the view yet; `TrainingDebugOverlay.h` remains transitional and all call sites are unchanged.
+- `App.cpp` changed from `15035` to `15036` file-size-guard lines because this seam-only pass adds one compile-check include.
+- `TrainingDebugView.h` is 44 lines.
+- Build, `dev_check`, `kfm-baseline`, `evilken-smoke`, `kfm-air-state`, and `cpu-baseline` passed.
+- `AppState`, `FighterState`, `StageSlot`, `AnimationFrame`, `CollisionBox`, camera/stage runtime objects, debug clipboard behavior, CMD/CNS data, hit/damage, input handling, loading, resources, sidecar policy, and `.dragon/*.json` stayed unchanged.
+
 ## Readiness Labels
 
 - `NEEDS SMALL VIEW SEAM`: needs prepared view structs and App.cpp-local view assembly, with no runtime/resource ownership change.
@@ -63,7 +73,7 @@ Pass 38 update:
 |---|---:|---|---|---|---|---|---|---|
 | `TrainingOptionsOverlay.h` / `TrainingOptionsOverlay.cpp` | 48 / 138 | F2 Training Options menu and command move-list page rendering | Prepared `TrainingOptionsMenuView`, prepared `TrainingMoveListView`, `UiRenderContext`, public UI primitives | `READY` | None for current prepared-view API; App.cpp still owns training option state, command-entry inspection, move-list filtering, and view assembly | No remaining seam for F2 options/move-list rendering; future command HUD/debug seams remain separate | 0 | Pass 36 converted this overlay to a normal module. No `AppState`, `FighterState`, `CommandStateEntry`, resource ownership, command runtime, or gameplay behavior enters the module. |
 | `TrainingCommandOverlay.h` / `TrainingCommandOverlay.cpp` | 10 / 72 | Training command/input HUD rendering | Prepared `TrainingCommandHudView`, prepared `TrainingInputHudView`, prepared command rows, `UiRenderContext`, public UI primitives | `READY` | None for current prepared-view API; App.cpp still owns command matching, input history reading, command-list filtering, and view assembly | No remaining seam for command/input HUD rendering; debug view seam remains separate | 0 | Pass 38 converted this overlay to a normal module. No `AppState`, `FighterState`, `CommandStateEntry`, input history object, command definition, command runtime, or gameplay behavior enters the module. |
-| `TrainingDebugOverlay.h` | 178 | F1 debug overlay, floor line, origins, collision boxes, fighter readout | `AppState`, `FighterState`, `StageSlot`, `AnimationClip`, `AnimationFrame`, `CollisionBox`, camera/stage offsets, debug clipboard | `NEEDS FIGHTER DEBUG VIEW` | Current drawing projects collision boxes and origins from live fighter/stage/animation data | `TrainingDebugView` with precomputed screen-space floor/origins/boxes/readout lines | 3 | Defer until a debug view seam exists. This overlay is render-only but strongly coupled to runtime state shape. |
+| `TrainingDebugOverlay.h` | 178 | F1 debug overlay, floor line, origins, collision boxes, fighter readout | `AppState`, `FighterState`, `StageSlot`, `AnimationClip`, `AnimationFrame`, `CollisionBox`, camera/stage offsets, debug clipboard | `NEEDS SMALL VIEW SEAM` | Current drawing still projects collision boxes and origins from live fighter/stage/animation data in the transitional header | `TrainingDebugView` now exists; Pass 40 should add App.cpp-local projection/view assembly and convert the overlay | 1 | Pass 39 created the public screen-space debug view seam. The conversion must still keep raw runtime data and projection logic in `App.cpp`. |
 
 ## Needed View Seams
 
@@ -72,7 +82,7 @@ Pass 38 update:
 | `TrainingOptionsMenuView` | `TrainingOptionsOverlay` | selected option, option rows, labels, statuses, footer text | `App.cpp` using `TrainingOptionsBehavior` and `TrainingState` | Low | No runtime mutation or fighter state is needed. The overlay should only draw prepared rows. |
 | `TrainingMoveListView` | `TrainingOptionsOverlay` | selected character label, category label, visible move rows, selected detail text, perform/input text, page text | `App.cpp` using existing command display helpers and command entry data | Medium | Keep `CommandStateEntry` and command/CNS data in `App.cpp`; pass only prepared strings and selected/highlight flags. |
 | `TrainingCommandHudView` | `TrainingCommandOverlay` | current input token, recent input tokens, command rows, active command row, active command label, panel visibility flags | `App.cpp` after existing input-history and active-command matching | Medium | Pass 38 converted this overlay. Command matching, input history ownership, and CMD/CNS behavior stay in App.cpp. |
-| `TrainingDebugView` | `TrainingDebugOverlay` | floor line, fighter origins, screen-space collision boxes, debug readout lines, show/hide flags | `App.cpp` after projecting from fighter/stage/animation/camera state | High | Precompute screen-space data before drawing. Do not pass `FighterState`, `StageSlot`, `AnimationFrame`, or `CollisionBox` into a normal module. |
+| `TrainingDebugView` | `TrainingDebugOverlay` | screen-space lines, screen-space collision boxes, debug readout lines, visibility flags, display colors | `App.cpp` after projecting from fighter/stage/animation/camera state | High | Pass 39 created this seam. Precompute screen-space data before drawing. Do not pass `FighterState`, `StageSlot`, `AnimationFrame`, `CollisionBox`, camera/stage runtime objects, or debug clipboard behavior into a normal module. |
 
 ## Boundaries For Future Conversion
 
@@ -112,26 +122,28 @@ Future normal training overlay modules must not take:
 Recommendation:
 
 ```text
-Pass 39: Create TrainingDebugView seam
+Pass 40: Convert TrainingDebugOverlay to normal module
 ```
 
 Reason:
 
 - `TrainingOptionsOverlay` is now converted, proving the training prepared-view pattern.
 - `TrainingCommandOverlay` is now converted, completing the lower-risk training command/input HUD presentation path.
-- `TrainingDebugOverlay` is the remaining training overlay and still reads fighter, stage, animation, camera, and collision-box runtime data.
-- A screen-space debug view seam should exist before moving `TrainingDebugOverlay` into a normal module.
+- `TrainingDebugView.h` now provides the display-only screen-space seam needed for the remaining training overlay.
+- `TrainingDebugOverlay` is the remaining training overlay and should render only prepared debug lines, boxes, and readout strings.
 
-Expected files for Pass 39:
+Expected files for Pass 40:
 
 - `engine/src/App.cpp`
-- a small public `TrainingDebugView` header if inspection confirms that should be public
+- `engine/src/TrainingDebugOverlay.h`
+- `engine/src/TrainingDebugOverlay.cpp`
+- `CMakeLists.txt`
 - documentation updates after build/verifier evidence
 
 Expected `App.cpp` line reduction:
 
-- Likely none or small increase for the seam pass.
-- Explicit debug view projection may offset later extracted drawing lines.
+- Likely small or neutral.
+- Explicit debug view projection may offset removed hidden internal-header drawing lines.
 
 Verification focus:
 
@@ -144,4 +156,4 @@ Verification focus:
 Do not convert:
 
 - raw `FighterState`, `StageSlot`, animation frames, collision boxes, camera/stage runtime, or debug clipboard behavior into a normal overlay module.
-- `TrainingDebugOverlay` until a fighter debug/screen-space hitbox view seam exists.
+- debug projection, command/CNS runtime, hit/damage, input behavior, loading, resources, or sidecar policy.

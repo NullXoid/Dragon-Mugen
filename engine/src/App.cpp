@@ -22,6 +22,7 @@
 #include "TrainingState.h"
 #include "TrainingCommandView.h"
 #include "TrainingCommandOverlay.h"
+#include "TrainingDebugView.h"
 #include "TrainingOptionsBehavior.h"
 #include "TrainingOptionsOverlay.h"
 #include "UiRenderContext.h"
