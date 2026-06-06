@@ -70,6 +70,12 @@ Pass 30 update:
 - `App.cpp` still owns roster state, `select.def` authority, selected-character/page assembly, sprite/resource lookup, select-background drawing, routing, loading, and `SDL_RenderPresent`.
 - `CharacterSelectOverlay` no longer depends on App.cpp-local `AppState`, `FighterState`, `SelectionState`, `CharacterSlot`, `StageSlot`, `TextureSprite`, `SystemScreenAssets`, or include order.
 
+Pass 31 update:
+
+- `docs/FIGHT_OVERLAY_CONVERSION_AUDIT.md` now records the fight HUD/result/shared presentation blockers.
+- The audit recommends creating a small `FightPresentationView` seam before converting `FightHudOverlay.h` or `FightResultOverlay.h`.
+- Fight overlay conversion must keep `App.cpp` responsible for assembling runtime-derived display data and must not move `FighterState`, CMD/CNS, hit/damage, round flow, loading, audio, resource ownership, CPU behavior, or sidecar policy.
+
 ## Readiness Labels
 
 - `READY`: can become a normal `.h/.cpp` module with existing public headers and no App.cpp-local dependencies.
@@ -132,29 +138,29 @@ Pass 23 completed option 2 for low-level UI primitives. Pass 24 converted the fi
 Recommended next pass:
 
 ```text
-Pass 31: Fight HUD / Result Overlay Conversion Audit
+Pass 32: Create FightPresentationView seam
 ```
 
 Expected files to create or modify:
 
-- create or update docs describing Fight HUD, Fight Result, and shared fight-presentation conversion blockers
-- inspect `FightHudOverlay.h`, `FightResultOverlay.h`, and `FightPresentationShared.h`
-- identify the smallest public view seams needed before normal module conversion
+- create a small public prepared-view header for fight presentation data
+- optionally isolate render-only round-pip inputs if inspection confirms no runtime dependency
+- update the fight overlay audit after evidence
 - keep `FighterState`, hit/damage, round flow, match/result decisions, CMD/CNS, loading, audio, and resource ownership out of scope
 
-Estimated risk: low, docs-only; medium if followed by implementation without a view audit.
+Estimated risk: low to medium if kept to prepared view structs; high if it attempts to move HUD/result drawing before runtime-derived data is assembled by `App.cpp`.
 
-Expected `App.cpp` line reduction: none for the audit.
+Expected `App.cpp` line reduction: small or none for the seam pass.
 
 Expected hidden-coupling reduction:
 
-- identifies whether fight overlays can become normal modules with prepared view data
-- prevents accidental movement of runtime-heavy fight state, hit/damage, round flow, or match/result behavior
+- establishes a normal fight-presentation API before converting runtime-adjacent fight overlays
+- prevents `FightHudOverlay` and `FightResultOverlay` from taking `AppState` or `FighterState` dependencies as normal modules
 
 Verification focus:
 
-- docs-only validation
-- no source, CMake, content, sidecar, or runtime changes
+- build and verifier preservation after any seam implementation
+- fight HUD/result manual smoke if practical
 - no gameplay, loading, controller, CPU, CMD/CNS, hit/damage, or round-flow claims
 
 ## Explicit Non-Goals
