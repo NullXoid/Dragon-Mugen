@@ -2750,7 +2750,7 @@ void drawModeSelect(SDL_Renderer* renderer, const AppState& state) {
 
     drawMainMenuTitleText(ui);
     drawSpriteAtAxis(renderer, state.systemScreens.titleLogo, centerX, 40);
-    drawMainMenuOverlay(ui, MainMenuView{ state.frontend.selectedMode });
+    drawMainMenuOverlay(ui, MainMenuView{ state.frontend.selectedMode, state.frontend.exitConfirmOpen });
 
     SDL_RenderPresent(renderer);
 }

@@ -68,11 +68,18 @@ void drawMainMenuOverlay(const UiRenderContext& ui, const MainMenuView& view) {
         }
     }
 
-    setColor(renderer, 220, 224, 232);
-    debugTextCentered(renderer, centerX, 214, std::string(kModeDescriptions[static_cast<std::size_t>(selectedMode)]));
+    if (view.exitConfirmOpen) {
+        setColor(renderer, 255, 238, 96);
+        debugTextCentered(renderer, centerX, 214, "ARE YOU SURE?");
+        setColor(renderer, 150, 156, 166);
+        debugTextCentered(renderer, centerX, 226, "ENTER YES  ESC NO");
+    } else {
+        setColor(renderer, 220, 224, 232);
+        debugTextCentered(renderer, centerX, 214, std::string(kModeDescriptions[static_cast<std::size_t>(selectedMode)]));
 
-    setColor(renderer, 150, 156, 166);
-    debugTextCentered(renderer, centerX, 226, "UP/DOWN  ENTER  ESC");
+        setColor(renderer, 150, 156, 166);
+        debugTextCentered(renderer, centerX, 226, "UP/DOWN  ENTER  ESC");
+    }
 }
 
 } // namespace dragon

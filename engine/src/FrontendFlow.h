@@ -139,6 +139,24 @@ bool handleSingleFightCharacterSelectKey(AppState& state, int playerIndex, Front
 void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
     if (state.frontend.screen == Screen::ModeSelect) {
         const FrontendKey frontendKey = frontendKeyFromSdl(key);
+        if (state.frontend.exitConfirmOpen) {
+            if (frontendKey == FrontendKey::Escape) {
+                state.frontend.exitConfirmOpen = false;
+                playMenuCancelSound(state);
+            } else if (frontendKey == FrontendKey::Accept) {
+                playMenuCursorDoneSound(state);
+                state.running = false;
+            } else {
+                const int previousSelection = state.frontend.selectedMode;
+                state.frontend.selectedMode = moveMainMenuSelection(state.frontend.selectedMode, frontendKey);
+                if (state.frontend.selectedMode != previousSelection) {
+                    state.frontend.exitConfirmOpen = false;
+                    playMenuCursorMoveSound(state);
+                }
+            }
+            return;
+        }
+
         const int previousSelection = state.frontend.selectedMode;
         state.frontend.selectedMode = moveMainMenuSelection(state.frontend.selectedMode, frontendKey);
         if (state.frontend.selectedMode != previousSelection) {
@@ -146,21 +164,23 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
         }
         FrontendAction action;
         if (frontendKey == FrontendKey::Escape) {
-            playMenuCancelSound(state);
             action = { FrontendActionKind::ExitApp };
         } else if (frontendKey == FrontendKey::Accept) {
             action = decideMainMenuAction(state.frontend.selectedMode);
-            if (action.kind != FrontendActionKind::None) {
-                playMenuCursorDoneSound(state);
-            }
         }
 
         switch (action.kind) {
         case FrontendActionKind::ExitApp:
-            state.running = false;
+            state.frontend.exitConfirmOpen = true;
+            if (frontendKey == FrontendKey::Escape) {
+                playMenuCancelSound(state);
+            } else {
+                playMenuCursorDoneSound(state);
+            }
             break;
         case FrontendActionKind::OpenMode:
             unloadCharacterRuntime(state);
+            playMenuCursorDoneSound(state);
             state.frontend.pendingMode = action.mode;
             resetSingleFightCharacterConfirms(state);
             if (action.mode == PendingMode::SingleFight) {
@@ -170,6 +190,7 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
             state.frontend.screen = Screen::CharacterSelect;
             break;
         case FrontendActionKind::OpenOptions:
+            playMenuCursorDoneSound(state);
             state.frontend.screen = Screen::MainSettings;
             break;
         default:
@@ -204,6 +225,7 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
             } else if (frontendKey == FrontendKey::Accept) {
                 playMenuCursorDoneSound(state);
             }
+            state.frontend.exitConfirmOpen = false;
             state.frontend.screen = Screen::ModeSelect;
         }
         return;
@@ -225,6 +247,7 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
         switch (action.kind) {
         case FrontendActionKind::BackToMain:
             unloadCharacterRuntime(state);
+            state.frontend.exitConfirmOpen = false;
             state.frontend.screen = Screen::ModeSelect;
             break;
         case FrontendActionKind::CharacterChosen:
@@ -328,6 +351,7 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
                     case 4:
                         state.frontend.singleFightPauseOpen = false;
                         unloadCharacterRuntime(state);
+                        state.frontend.exitConfirmOpen = false;
                         state.frontend.screen = Screen::ModeSelect;
                         state.frontend.screenFrame = 0;
                         break;
@@ -374,6 +398,7 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
                         break;
                     case 3:
                         unloadCharacterRuntime(state);
+                        state.frontend.exitConfirmOpen = false;
                         state.frontend.screen = Screen::ModeSelect;
                         state.frontend.screenFrame = 0;
                         break;
@@ -384,6 +409,7 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
                 case SDLK_ESCAPE:
                 case SDLK_F2:
                     unloadCharacterRuntime(state);
+                    state.frontend.exitConfirmOpen = false;
                     state.frontend.screen = Screen::ModeSelect;
                     state.frontend.screenFrame = 0;
                     break;

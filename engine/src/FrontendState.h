@@ -8,6 +8,7 @@ struct FrontendState {
     Screen screen = Screen::ModeSelect;
     PendingMode pendingMode = PendingMode::Training;
     int selectedMode = 0;
+    bool exitConfirmOpen = false;
     bool menuRailOnLeft = true;
     bool singleFightPauseOpen = false;
     int selectedSingleFightPauseOption = 0;
