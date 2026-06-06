@@ -2,26 +2,12 @@
 
 #include "UiRenderPrimitives.h"
 
-#include <SDL3/SDL_rect.h>
 #include <SDL3/SDL_render.h>
 
 #include <algorithm>
 
 namespace dragon {
 namespace {
-
-void drawTextureTopLeft(SDL_Renderer* renderer, const VsPortraitView& portrait, float x, float y, float scale) {
-    if (!portrait.texture) {
-        return;
-    }
-    SDL_FRect dst{
-        x,
-        y,
-        static_cast<float>(portrait.width) * scale,
-        static_cast<float>(portrait.height) * scale,
-    };
-    SDL_RenderTextureRotated(renderer, portrait.texture, nullptr, &dst, 0.0, nullptr, SDL_FLIP_NONE);
-}
 
 void drawFixedOpponentSlot(
     SDL_Renderer* renderer,
@@ -68,13 +54,13 @@ void drawVersusScreenOverlay(const UiRenderContext& ui, const VsScreenView& view
     drawPanel(renderer, 22, 62, 108, 96);
     drawPanel(renderer, widthF - 130.0f, 62, 108, 96);
 
-    if (view.p1Portrait.texture && view.p1Portrait.width > 0 && view.p1Portrait.height > 0) {
+    if (hasTexture(view.p1Portrait) && view.p1Portrait.width > 0 && view.p1Portrait.height > 0) {
         const float scale = std::min({
             1.0f,
             92.0f / static_cast<float>(view.p1Portrait.width),
             96.0f / static_cast<float>(view.p1Portrait.height),
         });
-        drawTextureTopLeft(
+        drawSpriteTopLeft(
             renderer,
             view.p1Portrait,
             76.0f - static_cast<float>(view.p1Portrait.width) * scale * 0.5f,

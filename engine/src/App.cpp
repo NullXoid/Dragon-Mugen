@@ -19,6 +19,7 @@
 #include "TrainingOptionsBehavior.h"
 #include "UiRenderContext.h"
 #include "UiRenderPrimitives.h"
+#include "UiSpriteView.h"
 #include "VsScreenOverlay.h"
 #include "VerificationScenario.h"
 
@@ -13658,14 +13659,16 @@ void drawStageSelect(SDL_Renderer* renderer, const AppState& state) {
     SDL_RenderPresent(renderer);
 }
 
-VsPortraitView vsPortraitView(const TextureSprite* sprite) {
+UiSpriteView uiSpriteView(const TextureSprite* sprite) {
     if (!sprite || !sprite->texture) {
         return {};
     }
-    return VsPortraitView{
+    return UiSpriteView{
         sprite->texture,
         sprite->width,
         sprite->height,
+        sprite->axisX,
+        sprite->axisY,
     };
 }
 
@@ -13693,7 +13696,7 @@ void drawVersusScreen(SDL_Renderer* renderer, const AppState& state) {
             std::string(opponentSlotLabel(state)),
             compactSettingText(selectedStageName(state.selection), 26),
             vsScreenLoadStatus(state),
-            vsPortraitView(p1Portrait),
+            uiSpriteView(p1Portrait),
         });
     SDL_RenderPresent(renderer);
 }
