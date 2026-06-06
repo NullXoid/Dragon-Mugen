@@ -96,6 +96,13 @@ Pass 34 update:
 - The result module no longer depends on App.cpp-local `AppState`, `FighterState`, match settings structs, routing state, resource ownership, hit/damage, CMD/CNS, CPU behavior, loading, audio, controller behavior, or round-flow logic.
 - The next recommended pass is a training overlay conversion audit before converting the remaining training overlays.
 
+Pass 35 update:
+
+- `docs/TRAINING_OVERLAY_CONVERSION_AUDIT.md` now records the blockers and minimum view seams for `TrainingOptionsOverlay.h`, `TrainingCommandOverlay.h`, and `TrainingDebugOverlay.h`.
+- The audit recommends converting `TrainingOptionsOverlay.h` first using prepared `TrainingOptionsMenuView` and `TrainingMoveListView` data assembled in `App.cpp`.
+- `TrainingCommandOverlay.h` waits for a command/input HUD view seam, and `TrainingDebugOverlay.h` waits for a screen-space fighter debug view seam.
+- Training overlay conversion must keep `App.cpp` responsible for command display data, input history, active command matching, hitbox projection, camera/stage offsets, and debug readout values.
+
 ## Readiness Labels
 
 - `READY`: can become a normal `.h/.cpp` module with existing public headers and no App.cpp-local dependencies.
@@ -153,33 +160,41 @@ Pass 34 update:
 
 ## Recommended Next Implementation Pass
 
-Pass 23 completed option 2 for low-level UI primitives. Pass 24 converted the first overlay. Pass 25 converted the main-menu foreground while leaving resource-backed title background/logo drawing in App.cpp. Pass 26 converted Stage Select foreground rendering using a prepared view. Pass 27 converted Options foreground rendering using prepared rows. Pass 28 converted VS/loading presentation using prepared labels and a non-owning portrait texture view. Pass 29 created the public non-owning sprite-view seam and migrated VS/loading to it. Pass 30 converted Character Select foreground rendering using prepared view data plus `UiSpriteView`.
+Pass 23 completed option 2 for low-level UI primitives. Pass 24 converted the first overlay. Pass 25 converted the main-menu foreground while leaving resource-backed title background/logo drawing in App.cpp. Pass 26 converted Stage Select foreground rendering using a prepared view. Pass 27 converted Options foreground rendering using prepared rows. Pass 28 converted VS/loading presentation using prepared labels and a non-owning portrait texture view. Pass 29 created the public non-owning sprite-view seam and migrated VS/loading to it. Pass 30 converted Character Select foreground rendering using prepared view data plus `UiSpriteView`. Pass 31 audited fight overlays, Pass 32 created the fight presentation view seam, Pass 33 converted Fight HUD, Pass 34 converted Fight Result, and Pass 35 audited training overlays.
 
 Recommended next pass:
 
 ```text
-Pass 35: Training Overlay Conversion Audit
+Pass 36: Convert TrainingOptionsOverlay to normal module
 ```
 
 Expected files to create or modify:
 
-- create `docs/TRAINING_OVERLAY_CONVERSION_AUDIT.md`
-- audit `TrainingOptionsOverlay.h`, `TrainingCommandOverlay.h`, and `TrainingDebugOverlay.h`
-- choose the next training overlay conversion target or required view seam
+- create `engine/src/TrainingOptionsOverlay.cpp`
+- update `engine/src/TrainingOptionsOverlay.h`
+- update `engine/src/App.cpp`
+- update `CMakeLists.txt`
+- update docs after build/verifier evidence
 - keep `FighterState`, command/CNS runtime, hitbox/debug runtime data, hit/damage, loading, audio, and resource ownership out of scope
 
-Estimated risk: low for the audit; medium for later training overlay conversion if the module receives only prepared view data; high if it takes direct `AppState`, `FighterState`, command runtime, or debug collision data.
+Estimated risk: medium if the module receives only prepared view data; high if it takes direct `AppState`, `FighterState`, command runtime, or debug collision data.
 
-Expected `App.cpp` line reduction: none for the audit.
+Expected `App.cpp` line reduction: small to moderate. As with prior overlay conversions, explicit view assembly may offset some extracted drawing lines.
 
 Expected hidden-coupling reduction:
 
-- maps the remaining training overlay blockers before converting them
-- prevents training overlays from taking `AppState` or `FighterState` dependencies as normal modules
+- converts the least runtime-coupled remaining training overlay to a normal module
+- prevents F2 options and move-list rendering from taking `AppState`, `CommandStateEntry`, or `FighterState` dependencies as a normal module
 
 Verification focus:
 
-- docs-only validation if implemented as an audit
+- `dev_check`
+- file-size guard known `App.cpp` hard debt
+- `kfm-baseline`
+- `evilken-smoke`
+- `kfm-air-state`
+- `cpu-baseline`
+- Training F2 options and move-list manual smoke if practical
 - no gameplay, loading, controller, CPU, CMD/CNS, hit/damage, or round-flow claims
 
 ## Explicit Non-Goals
