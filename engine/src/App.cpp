@@ -8824,9 +8824,11 @@ FightHudView fightHudView(const AppState& state) {
     view.comboCounters[1] = fightComboCounterView(state, 1);
     view.showMatchTimer = isMatchMode(state);
     view.currentRound = state.currentRound;
-    view.versusLine =
-        "P1 " + compactSettingText(selectedCharacterName(state.selection), 11)
-        + " vs " + compactSettingText(opponentDisplayName(state), 9);
+    if (state.frontend.pendingMode != PendingMode::Training) {
+        view.versusLine =
+            "P1 " + compactSettingText(selectedCharacterName(state.selection), 11)
+            + " vs " + compactSettingText(opponentDisplayName(state), 9);
+    }
 
     if (view.showMatchTimer) {
         const int winsRequired = matchWinsRequired(state);
@@ -8844,11 +8846,7 @@ FightHudView fightHudView(const AppState& state) {
     } else if (isMatchMode(state)) {
         view.bottomLine = singleFightStatusLine(state);
         view.bottomLineHighlighted = isSingleFightResultPhase(state);
-    } else if (!state.gamepads.empty()) {
-        view.bottomLine = "Keys A/S/D Z/X/C  Pad " + gamepadActionLayoutText(state, 0);
-    } else if (state.frontend.pendingMode == PendingMode::Training && state.training.options.p2Controlled) {
-        view.bottomLine = "P1 arrows A/S/D Z/X/C  P2 I/J/K/L U/O/P N/M/,";
-    } else {
+    } else if (state.frontend.pendingMode != PendingMode::Training) {
         view.bottomLine = "A/S/D Z/X/C  R reset  F1 boxes  F2 options";
     }
     return view;
