@@ -13,6 +13,7 @@
 #include "MainMenuOverlay.h"
 #include "PauseMenuOverlay.h"
 #include "SelectionState.h"
+#include "StageSelectOverlay.h"
 #include "TrainingState.h"
 #include "TrainingOptionsBehavior.h"
 #include "UiRenderContext.h"
@@ -13563,7 +13564,31 @@ void updateFight(AppState& state) {
     finishStateIfAnimationEnded(state, p2);
 }
 
-#include "StageSelectOverlay.h"
+void drawStageSelect(SDL_Renderer* renderer, const AppState& state) {
+    std::vector<StageSelectRowView> rows;
+    rows.reserve(state.selection.stages.size());
+    for (int i = 0; i < static_cast<int>(state.selection.stages.size()); ++i) {
+        const auto& stage = state.selection.stages[static_cast<std::size_t>(i)];
+        rows.push_back(StageSelectRowView{
+            stage.displayName,
+            i == state.selection.selectedStage,
+        });
+    }
+
+    StageSelectView view;
+    view.rows = rows;
+    view.frame = state.frame;
+    view.fighterLabel = selectedCharacterName(state.selection);
+    view.opponentLabel = compactSettingText(opponentDisplayName(state), 11);
+    if (const StageSlot* selected = selectedStageSlot(state.selection)) {
+        view.selectedStageName = selected->displayName;
+        view.selectedStageId = selected->id;
+        view.selectedStageAuthor = selected->author;
+    }
+
+    drawStageSelectOverlay(uiRenderContext(renderer, state), view);
+    SDL_RenderPresent(renderer);
+}
 
 #include "VsScreenOverlay.h"
 
