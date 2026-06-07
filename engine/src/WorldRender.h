@@ -250,8 +250,24 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
         SDL_SetTextureColorMod(frame->sprite.texture, previousR, previousG, previousB);
         SDL_SetTextureAlphaMod(frame->sprite.texture, previousA);
         if (drawHitFeedback) {
-            setColor(renderer, 255, 245, 170);
-            drawRect(renderer, dst.x - 1.0f, dst.y - 1.0f, dst.w + 2.0f, dst.h + 2.0f);
+            const int feedbackAlpha = fighter.hitPauseTicks > 0 ? 150 : 94;
+            SDL_FRect flashDst{
+                dst.x - 2.0f,
+                dst.y - 2.0f,
+                dst.w + 4.0f,
+                dst.h + 4.0f,
+            };
+            SDL_SetTextureBlendMode(frame->sprite.texture, SDL_BLENDMODE_ADD);
+            SDL_SetTextureColorMod(frame->sprite.texture, 255, 178, 86);
+            SDL_SetTextureAlphaMod(frame->sprite.texture, static_cast<Uint8>(feedbackAlpha));
+            SDL_RenderTextureRotated(renderer, frame->sprite.texture, nullptr, &flashDst, angle, &rotationCenter, static_cast<SDL_FlipMode>(flipMode));
+            SDL_SetTextureBlendMode(frame->sprite.texture, previousBlend);
+            SDL_SetTextureColorMod(frame->sprite.texture, previousR, previousG, previousB);
+            SDL_SetTextureAlphaMod(frame->sprite.texture, previousA);
+            setColor(renderer, 255, 204, 96, 210);
+            drawRect(renderer, dst.x - 2.0f, dst.y - 2.0f, dst.w + 4.0f, dst.h + 4.0f);
+            setColor(renderer, 255, 244, 190, 168);
+            drawRect(renderer, dst.x - 4.0f, dst.y - 4.0f, dst.w + 8.0f, dst.h + 8.0f);
         }
         return;
     }
@@ -266,8 +282,10 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
     fillRect(renderer, originX - 14.0f, originY - 58.0f, 28, 58);
     fillRect(renderer, originX - 22.0f, originY - 38.0f, 44, 12);
     if (drawHitFeedback) {
-        setColor(renderer, 255, 245, 170);
-        drawRect(renderer, originX - 22.0f, originY - 58.0f, 44.0f, 58.0f);
+        setColor(renderer, 255, 178, 86, fighter.hitPauseTicks > 0 ? 112 : 72);
+        fillRect(renderer, originX - 24.0f, originY - 60.0f, 48.0f, 62.0f);
+        setColor(renderer, 255, 244, 190, 190);
+        drawRect(renderer, originX - 24.0f, originY - 60.0f, 48.0f, 62.0f);
     }
 }
 
@@ -285,7 +303,6 @@ void drawRuntimeEffect(SDL_Renderer* renderer, const AppState& state, const Stag
         return;
     }
 
-    SDL_SetTextureBlendMode(frame->sprite.texture, frame->additive ? SDL_BLENDMODE_ADD : SDL_BLENDMODE_BLEND);
     const float originX = screenCenterX(state) + effect.x - state.cameraX;
     const float originY = stage.zoffset + effect.y - state.cameraY;
     SDL_FRect dst{
@@ -302,7 +319,38 @@ void drawRuntimeEffect(SDL_Renderer* renderer, const AppState& state, const Stag
     if (frame->flipY) {
         flipMode |= SDL_FLIP_VERTICAL;
     }
+    SDL_BlendMode previousBlend = SDL_BLENDMODE_BLEND;
+    Uint8 previousR = 255;
+    Uint8 previousG = 255;
+    Uint8 previousB = 255;
+    Uint8 previousA = 255;
+    SDL_GetTextureBlendMode(frame->sprite.texture, &previousBlend);
+    SDL_GetTextureColorMod(frame->sprite.texture, &previousR, &previousG, &previousB);
+    SDL_GetTextureAlphaMod(frame->sprite.texture, &previousA);
+
+    const bool earlyFightFx = effect.fromFightFx && effect.ageTicks <= 5;
+    if (earlyFightFx) {
+        const float grow = 1.28f + std::max(0, 5 - effect.ageTicks) * 0.045f;
+        SDL_FRect glowDst{
+            dst.x - (dst.w * (grow - 1.0f)) * 0.5f,
+            dst.y - (dst.h * (grow - 1.0f)) * 0.5f,
+            dst.w * grow,
+            dst.h * grow,
+        };
+        SDL_SetTextureBlendMode(frame->sprite.texture, SDL_BLENDMODE_ADD);
+        SDL_SetTextureColorMod(frame->sprite.texture, 255, 204, 96);
+        SDL_SetTextureAlphaMod(frame->sprite.texture, static_cast<Uint8>(150 - effect.ageTicks * 18));
+        SDL_RenderTextureRotated(renderer, frame->sprite.texture, nullptr, &glowDst, 0.0, nullptr, static_cast<SDL_FlipMode>(flipMode));
+    }
+
+    SDL_SetTextureBlendMode(frame->sprite.texture, frame->additive ? SDL_BLENDMODE_ADD : SDL_BLENDMODE_BLEND);
+    SDL_SetTextureColorMod(frame->sprite.texture, 255, 255, 255);
+    SDL_SetTextureAlphaMod(frame->sprite.texture, 255);
     SDL_RenderTextureRotated(renderer, frame->sprite.texture, nullptr, &dst, 0.0, nullptr, static_cast<SDL_FlipMode>(flipMode));
+
+    SDL_SetTextureBlendMode(frame->sprite.texture, previousBlend);
+    SDL_SetTextureColorMod(frame->sprite.texture, previousR, previousG, previousB);
+    SDL_SetTextureAlphaMod(frame->sprite.texture, previousA);
 }
 
 void drawRuntimeProjectile(SDL_Renderer* renderer, const AppState& state, const StageSlot& stage, const RuntimeProjectile& projectile) {

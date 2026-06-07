@@ -93,11 +93,31 @@ void drawComboCounter(const UiRenderContext& ui, const FightComboCounterView& co
         : static_cast<float>(ui.logicalWidth) - combo.posX - totalWidth;
     x += slideOffset + shakeOffset;
     const float y = combo.posY;
+    const float pulse = std::max(0.0f, 1.0f - static_cast<float>(age) / 12.0f);
+    const float backplatePad = 5.0f + pulse * 3.0f;
+    const float backplateX = x - backplatePad;
+    const float backplateY = y - 5.0f - pulse * 1.0f;
+    const float backplateW = std::max(52.0f, totalWidth + backplatePad * 2.0f);
+
+    setColor(ui.renderer, 6, 8, 12, 190);
+    fillRect(ui.renderer, backplateX, backplateY, backplateW, 19.0f + pulse * 2.0f);
+    setColor(ui.renderer, 158, 64, 58, static_cast<Uint8>(130 + pulse * 70.0f));
+    fillRect(ui.renderer, backplateX + 2.0f, backplateY + 2.0f, backplateW - 4.0f, 2.0f);
+    setColor(ui.renderer, 230, 190, 105, static_cast<Uint8>(110 + pulse * 90.0f));
+    drawRect(ui.renderer, backplateX, backplateY, backplateW, 19.0f + pulse * 2.0f);
 
     if (!countText.empty()) {
+        setColor(ui.renderer, 8, 10, 12, 220);
+        debugText(ui.renderer, x + 1.0f, y + 1.0f, countText);
+        if (pulse > 0.0f) {
+            setColor(ui.renderer, 255, 238, 150, static_cast<Uint8>(pulse * 120.0f));
+            debugText(ui.renderer, x - 1.0f, y - 1.0f, countText);
+        }
         setFightFontPaletteColor(ui.renderer, combo.counterFontPalette, true);
         debugText(ui.renderer, x, y, countText);
     }
+    setColor(ui.renderer, 8, 10, 12, 220);
+    debugText(ui.renderer, x + countWidth + labelOffsetX + 1.0f, y + combo.textOffsetY + 1.0f, label);
     setFightFontPaletteColor(ui.renderer, combo.textFontPalette, false);
     debugText(ui.renderer, x + countWidth + labelOffsetX, y + combo.textOffsetY, label);
 }

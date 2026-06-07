@@ -10,10 +10,10 @@ Baseline and current file-size guard values:
 | --- | ---: |
 | Previous source baseline commit | `de22bec` |
 | Starting `App.cpp` count | 16820 |
-| Current `App.cpp` count | 8492 |
-| Total removed | 8328 |
-| Reduction | 49.5% |
-| Remaining to 50% reduction | 82 |
+| Current `App.cpp` count | 8510 |
+| Total removed | 8310 |
+| Reduction | 49.4% |
+| Remaining to 50% reduction | 100 |
 
 `App.cpp` is no longer in the safe UI extraction stage. The project is now in the runtime-core extraction stage. The remaining work is mutation-heavy and must stay split into small, auditable cuts.
 
@@ -248,7 +248,7 @@ Continue to defer:
 
 ## Validation For Current Checkpoint
 
-This checkpoint moved only `Turn` controller execution into `StateControllerTurnRuntime.h` after the completed PosFreeze body move. It did not change CMake, content, sidecar policy, boss intro behavior, branch topology, input routing, command recognition, CPU behavior, opponent-relative behavior, or `.dragon/*.json`.
+This checkpoint includes Visual Polish Sprint 1 after the completed Turn body move. The sprint changed render-only fight impact, round/result, main menu, and Training overlay presentation. It did not change CMake, content, sidecar policy, boss intro behavior, branch topology, input routing, command recognition, CPU behavior, opponent-relative behavior, CMD/CNS execution, HitDef damage/pause/sound values, round decisions, or `.dragon/*.json`.
 
 Expected validation:
 
@@ -258,7 +258,7 @@ python tools/check_file_sizes.py
 git diff --check
 ```
 
-The full verifier gate should keep all advertised runtime scenarios at `partial=0 fail=0 blocked=0`. `tools/check_file_sizes.py` is expected to continue failing on known `App.cpp` hard debt and should report `App.cpp` at `8492`. Treat any new hard failure outside the known `App.cpp` debt as a blocker.
+The full verifier gate should keep all advertised runtime scenarios at `partial=0 fail=0 blocked=0`. `tools/check_file_sizes.py` is expected to continue failing on known `App.cpp` hard debt and should report `App.cpp` at `8510`. Treat any new hard failure outside the known `App.cpp` debt as a blocker.
 
 ## Dirty File Handling
 

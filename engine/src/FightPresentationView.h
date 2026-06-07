@@ -66,6 +66,7 @@ struct FightRoundCalloutView {
     std::uint8_t r = 222;
     std::uint8_t g = 226;
     std::uint8_t b = 232;
+    int frame = 0;
 };
 
 struct FightRoundResultView {
@@ -74,6 +75,7 @@ struct FightRoundResultView {
     FightRoundPipsView p1RoundPips;
     FightRoundPipsView p2RoundPips;
     std::string footerText;
+    int frame = 0;
 };
 
 struct FightResultMenuRowView {
@@ -90,6 +92,7 @@ struct FightMatchResultView {
     std::string stageText;
     std::array<FightResultMenuRowView, kMatchResultOptionCount> menuRows;
     int menuRowCount = 0;
+    int frame = 0;
 };
 
 } // namespace dragon

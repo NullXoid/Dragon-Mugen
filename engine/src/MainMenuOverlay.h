@@ -6,6 +6,7 @@ namespace dragon {
 
 struct MainMenuView {
     int selectedMode = 0;
+    int frame = 0;
     bool exitConfirmOpen = false;
 };
 

@@ -2,6 +2,7 @@
 
 #include "UiRenderPrimitives.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <string>
 
@@ -36,6 +37,16 @@ void drawSoftPanel(SDL_Renderer* renderer, float x, float y, float w, float h) {
     fillRect(renderer, x + 1.0f, y + 1.0f, w - 2.0f, 17.0f);
     setColor(renderer, 66, 84, 112);
     drawRect(renderer, x, y, w, h);
+}
+
+void drawStatusPill(SDL_Renderer* renderer, float x, float y, const std::string& status, bool selected) {
+    const float pillW = 32.0f;
+    setColor(renderer, selected ? 230 : 26, selected ? 220 : 34, selected ? 172 : 48, selected ? 238 : 232);
+    fillRect(renderer, x, y - 3.0f, pillW, 10.0f);
+    setColor(renderer, selected ? 255 : 92, selected ? 238 : 112, selected ? 160 : 142, selected ? 210 : 230);
+    drawRect(renderer, x, y - 3.0f, pillW, 10.0f);
+    setColor(renderer, selected ? 8 : 210, selected ? 12 : 222, selected ? 16 : 232);
+    debugText(renderer, x + std::max(2.0f, (pillW - static_cast<float>(status.size()) * 8.0f) * 0.5f), y, status);
 }
 
 std::string optionsMenuLabel(const std::string& label) {
@@ -193,29 +204,41 @@ void drawTrainingOptionsMenu(const UiRenderContext& ui, const TrainingOptionsMen
     constexpr float panelH = 198.0f;
     drawSoftPanel(renderer, panelX, panelY, panelW, panelH);
 
+    setColor(renderer, 28, 42, 74);
+    fillRect(renderer, panelX + 2.0f, panelY + 2.0f, panelW - 4.0f, 18.0f);
+    setColor(renderer, 158, 64, 58);
+    fillRect(renderer, panelX + 2.0f, panelY + 20.0f, panelW - 4.0f, 2.0f);
     setColor(renderer, 230, 220, 172);
     debugText(renderer, panelX + 10.0f, panelY + 8.0f, "TRAINING OPTIONS");
     setColor(renderer, 126, 164, 214);
     debugText(renderer, panelX + 254.0f, panelY + 8.0f, "F2");
 
     constexpr int rowsPerColumn = 10;
+    setColor(renderer, 12, 17, 26, 210);
+    fillRect(renderer, panelX + 10.0f, panelY + 30.0f, 122.0f, 137.0f);
+    fillRect(renderer, panelX + 138.0f, panelY + 30.0f, 148.0f, 137.0f);
+    setColor(renderer, 58, 72, 96);
+    drawRect(renderer, panelX + 10.0f, panelY + 30.0f, 122.0f, 137.0f);
+    drawRect(renderer, panelX + 138.0f, panelY + 30.0f, 148.0f, 137.0f);
     for (int i = 0; i < static_cast<int>(view.rows.size()); ++i) {
         const int column = i / rowsPerColumn;
         const int row = i % rowsPerColumn;
-        const float x = panelX + (column == 0 ? 12.0f : 140.0f);
-        const float statusX = column == 0 ? panelX + 100.0f : panelX + 204.0f;
-        const float y = panelY + 34.0f + static_cast<float>(row * 13);
+        const float x = panelX + (column == 0 ? 16.0f : 144.0f);
+        const float statusX = column == 0 ? panelX + 94.0f : panelX + 246.0f;
+        const float y = panelY + 37.0f + static_cast<float>(row * 13);
         const auto& option = view.rows[static_cast<std::size_t>(i)];
+        const std::string status = fitted(optionsMenuStatus(option.status), 5);
         if (option.selected) {
-            setColor(renderer, 72, 164, 134, 238);
-            fillRect(renderer, x - 6.0f, y - 3.0f, column == 0 ? 116.0f : 140.0f, 12.0f);
+            setColor(renderer, 74, 170, 134, 230);
+            fillRect(renderer, x - 6.0f, y - 4.0f, column == 0 ? 116.0f : 138.0f, 12.0f);
+            setColor(renderer, 230, 220, 172, 220);
+            fillRect(renderer, x - 4.0f, y + 8.0f, column == 0 ? 112.0f : 134.0f, 1.0f);
             setColor(renderer, 8, 12, 18);
         } else {
             setColor(renderer, 186, 196, 208);
         }
         debugText(renderer, x, y, optionsMenuLabel(option.label));
-        setColor(renderer, option.selected ? 8 : 162, option.selected ? 12 : 188, option.selected ? 18 : 222);
-        debugText(renderer, statusX, y, fitted(optionsMenuStatus(option.status), 5));
+        drawStatusPill(renderer, statusX, y, status, option.selected);
     }
 
     setColor(renderer, 32, 42, 58, 230);

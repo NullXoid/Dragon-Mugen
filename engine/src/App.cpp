@@ -2750,7 +2750,10 @@ void drawModeSelect(SDL_Renderer* renderer, const AppState& state) {
 
     drawMainMenuTitleText(ui);
     drawSpriteAtAxis(renderer, state.systemScreens.titleLogo, centerX, 40);
-    drawMainMenuOverlay(ui, MainMenuView{ state.frontend.selectedMode, state.frontend.exitConfirmOpen });
+    drawMainMenuOverlay(ui, MainMenuView{
+        state.frontend.selectedMode,
+        state.frontend.screenFrame,
+        state.frontend.exitConfirmOpen });
 
     SDL_RenderPresent(renderer);
 }
@@ -8186,6 +8189,7 @@ FightRoundCalloutView roundStartOverlayView(const AppState& state) {
     view.r = 230;
     view.g = 220;
     view.b = 172;
+    view.frame = state.matchPhaseTicks;
     return view;
 }
 
@@ -8197,6 +8201,7 @@ FightRoundCalloutView roundFinishOverlayView(const AppState& state) {
         view.r = 230;
         view.g = 190;
         view.b = 105;
+        view.frame = state.matchPhaseTicks;
         return view;
     }
     if (state.matchPhaseTicks >= state.fightRoundSettings.winTime) {
@@ -8205,6 +8210,7 @@ FightRoundCalloutView roundFinishOverlayView(const AppState& state) {
         view.r = 222;
         view.g = 226;
         view.b = 232;
+        view.frame = state.matchPhaseTicks - state.fightRoundSettings.winTime;
     }
     return view;
 }
@@ -8217,6 +8223,7 @@ FightRoundResultView roundResultOverlayView(const AppState& state) {
     view.p1RoundPips = FightRoundPipsView{ state.roundWins[0], winsRequired, false, 6.0f };
     view.p2RoundPips = FightRoundPipsView{ state.roundWins[1], winsRequired, true, 6.0f };
     view.footerText = state.matchComplete ? "MATCH COMPLETE" : "NEXT ROUND";
+    view.frame = state.matchPhaseTicks;
     return view;
 }
 
@@ -8232,6 +8239,7 @@ FightMatchResultView matchResultScreenView(const AppState& state) {
         : std::string{};
     view.stageText = "Stage: " + selectedStageName(state.selection);
     view.menuRowCount = kMatchResultOptionCount;
+    view.frame = state.matchPhaseTicks;
     for (int i = 0; i < kMatchResultOptionCount; ++i) {
         auto& row = view.menuRows[static_cast<size_t>(i)];
         row.label = std::string(matchResultLabel(i));
@@ -8271,8 +8279,18 @@ void drawFightView(SDL_Renderer* renderer, const AppState& state) {
     SDL_Rect defaultViewport;
     SDL_GetRenderViewport(renderer, &defaultViewport);
     const int shakeOffsetY = static_cast<int>(std::lround(state.display.envShakeOffsetY));
-    if (shakeOffsetY != 0) {
-        SDL_Rect shakeViewport{ 0, shakeOffsetY, logicalWidth(state), kLogicalHeight };
+    int impactShakeX = 0;
+    int impactShakeY = 0;
+    const int maxHitPause = std::max(state.fighters[0].hitPauseTicks, state.fighters[1].hitPauseTicks);
+    if (maxHitPause >= 6) {
+        const int magnitude = std::clamp(maxHitPause / 6, 1, 2);
+        impactShakeX = ((state.frontend.screenFrame / 2) % 2 == 0) ? magnitude : -magnitude;
+        impactShakeY = ((state.frontend.screenFrame / 3) % 2 == 0) ? 1 : -1;
+    }
+    const int viewportOffsetX = impactShakeX;
+    const int viewportOffsetY = shakeOffsetY + impactShakeY;
+    if (viewportOffsetX != 0 || viewportOffsetY != 0) {
+        SDL_Rect shakeViewport{ viewportOffsetX, viewportOffsetY, logicalWidth(state), kLogicalHeight };
         SDL_SetRenderViewport(renderer, &shakeViewport);
     }
 
@@ -8295,7 +8313,7 @@ void drawFightView(SDL_Renderer* renderer, const AppState& state) {
         fillRect(renderer, 18, stage.zoffset - state.cameraY - 62.0f, 284, 8);
     }
 
-    if (shakeOffsetY != 0) {
+    if (viewportOffsetX != 0 || viewportOffsetY != 0) {
         SDL_SetRenderViewport(renderer, &defaultViewport);
     }
 
