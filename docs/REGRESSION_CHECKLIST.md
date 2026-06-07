@@ -44,6 +44,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Arena and classic sweep/trip hits leave hitpause by entering the trip/fall/lying states instead of staying in grounded hitstun.
 - Arena shows one health bar per active fighter, not a shared CPU health average.
 - Arena knockdowns land on the floor and do not trigger viewport hitshake.
+- Arena trip and heavy knockback hits resolve to floor impact before air recovery can take over.
 - Arena timer ticks down, hit-frozen fighters recover or resolve to KO, and knockdowns do not pull the camera upward.
 - Arena hitpause is brief, Rush counters reset after disappearing, debug hit boxes stay Training-only, and disabled timers show `INF`.
 - Training dummy behavior still works.

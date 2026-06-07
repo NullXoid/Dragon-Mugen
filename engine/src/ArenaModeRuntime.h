@@ -141,6 +141,7 @@ void updateArenaDefeatedFighterPose(AppState& state, size_t fighterIndex, const 
     holdArenaDefeatedRecoveryPose(state, fighter);
 
     updateFighterPhysics(state, fighter, stage);
+    resolveArenaFallGrounding(state, fighter);
     updateCommonAirRecoveryState(state, fighter);
     updateCommonDizzyState(state, fighter);
     holdArenaDefeatedRecoveryPose(state, fighter);
@@ -268,6 +269,7 @@ void updateArenaRoundFinishWorld(AppState& state, const StageSlot& stage) {
             continue;
         }
         updateFighterPhysics(state, fighter, stage);
+        resolveArenaFallGrounding(state, fighter);
         updateCommonAirRecoveryState(state, fighter);
         updateCommonDizzyState(state, fighter);
         if (fighter.hitPauseTicks <= 0) {
@@ -369,6 +371,7 @@ void updateArenaFight(AppState& state) {
         FighterState* target = targetIndex >= 0 ? &state.fighters[static_cast<size_t>(targetIndex)] : nullptr;
         changedBeforePhysics[i] = updateStateChangeStateControllers(state, state.fighters[i], target, &stage);
         updateFighterPhysics(state, state.fighters[i], stage);
+        resolveArenaFallGrounding(state, state.fighters[i]);
         updateCommonAirRecoveryState(state, state.fighters[i]);
         updateCommonDizzyState(state, state.fighters[i]);
         if (!changedBeforePhysics[i]
@@ -379,6 +382,7 @@ void updateArenaFight(AppState& state) {
             state.fighters[i].vy = 0.0f;
             state.fighters[i].onGround = true;
         }
+        resolveArenaFallGrounding(state, state.fighters[i]);
     }
 
     applyArenaPlayerPush(state, stage);

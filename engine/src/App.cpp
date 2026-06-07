@@ -3607,6 +3607,37 @@ int fightHitPauseTicks(const AppState& state, int ticks, int minimum) {
         : resolved;
 }
 
+float arenaFallInitialYVelocityCap(const FighterState& fighter) {
+    return fighter.hitFallTrip ? 0.0f : -2.2f;
+}
+
+float arenaFallBounceYVelocityCap(const FighterState& fighter) {
+    return fighter.hitFallTrip ? 0.0f : -1.0f;
+}
+
+void clampArenaHitFallRuntime(const AppState& state, FighterState& fighter) {
+    if (!isArenaMode(state) || !fighter.hitFall) {
+        return;
+    }
+    fighter.hitFallRecover = false;
+    fighter.hitVelocityY = std::max(fighter.hitVelocityY, arenaFallInitialYVelocityCap(fighter));
+    fighter.hitFallBounceYVelocity = std::max(fighter.hitFallBounceYVelocity, arenaFallBounceYVelocityCap(fighter));
+    fighter.hitFallYAccel = std::max(fighter.hitFallYAccel, fighter.hitFallTrip ? 0.72f : 0.70f);
+}
+
+void clampArenaAppliedFallVelocity(const AppState& state, FighterState& fighter, bool bounceVelocity) {
+    if (!isArenaMode(state) || !fighter.hitFall) {
+        return;
+    }
+    const float cap = bounceVelocity
+        ? arenaFallBounceYVelocityCap(fighter)
+        : arenaFallInitialYVelocityCap(fighter);
+    fighter.vy = std::max(fighter.vy, cap);
+    if (fighter.hitFallTrip && fighter.y >= 0.0f) {
+        fighter.vy = std::max(fighter.vy, 0.0f);
+    }
+}
+
 void enterGroundGetHitState(const AppState& state, FighterState& target, const HitDefinition& hitDef, int attackerFacing) {
     const bool wasAirborne = !target.onGround || target.stateType == 'A';
     const bool wasCrouching = fighterIsCrouchingForHit(target);
@@ -3615,6 +3646,8 @@ void enterGroundGetHitState(const AppState& state, FighterState& target, const H
     const float hitVelocityX = useAirVelocity ? hitDef.airVelocityX : hitDef.groundVelocityX;
     const float hitVelocityY = useAirVelocity ? hitDef.airVelocityY : hitDef.groundVelocityY;
     const bool fallHit = hitDefCausesFall(hitDef, target);
+    const bool arenaGroundLaunchFall = isArenaMode(state) && !wasAirborne && !fallHit && hitVelocityY < -0.05f;
+    const bool resolvedFallHit = fallHit || arenaGroundLaunchFall;
     const bool liedownBounce = wasLyingDown && hitVelocityY < -0.05f;
 
     target.guarding = false;
@@ -3643,11 +3676,11 @@ void enterGroundGetHitState(const AppState& state, FighterState& target, const H
         target,
         hitDef,
         wasAirborne,
-        fallHit,
+        resolvedFallHit,
         -hitVelocityX * static_cast<float>(attackerFacing),
         hitVelocityY);
     target.hitRecoverAnim = hitRecoverActionForFighter(state, hitDef, wasCrouching);
-    target.hitFall = fallHit || wasLyingDown;
+    target.hitFall = resolvedFallHit || wasLyingDown;
     target.hitFallTrip = hitGroundTypeIsTrip(hitDef.groundType);
     target.hitCrouch = wasCrouching;
     target.hitAirborne = wasAirborne || liedownBounce;
@@ -3655,19 +3688,12 @@ void enterGroundGetHitState(const AppState& state, FighterState& target, const H
     target.hitFallRecoverTime = hitDef.fallRecoverTime;
     target.hitFallDamage = hitDef.fallDamage;
     target.hitFallYAccel = hitDef.hasYAccel ? hitDef.yAccel : state.characterConstants.movementYAccel;
-    if (state.frontend.pendingMode == PendingMode::Arena && target.hitFall) {
-        target.hitFallRecover = false;
-        target.hitVelocityY = std::max(target.hitVelocityY, target.hitFallTrip ? 0.0f : -3.2f);
-        target.hitFallYAccel = std::max(target.hitFallYAccel, target.hitFallTrip ? 0.72f : 0.58f);
-    }
     target.hitFallAirAction = fallAirActionForHit(state, hitDef);
     target.hitFallBounceXVelocity = hitDef.hasFallXVelocity
         ? -hitDef.fallXVelocity * static_cast<float>(attackerFacing)
         : target.hitVelocityX;
     target.hitFallBounceYVelocity = hitDef.fallYVelocity;
-    if (state.frontend.pendingMode == PendingMode::Arena && target.hitFall) {
-        target.hitFallBounceYVelocity = std::max(target.hitFallBounceYVelocity, target.hitFallTrip ? 0.0f : -2.4f);
-    }
+    clampArenaHitFallRuntime(state, target);
     target.hitFallEnvShake = hitDef.fallEnvShake;
     target.hitFallEnvShakePlayed = false;
 
@@ -4210,6 +4236,7 @@ void updateStateMovementControllers(
         }
         if (hitVelSet.applyY) {
             fighter.vy = fighter.hitVelocityY;
+            clampArenaAppliedFallVelocity(state, fighter, false);
             if (fighter.vy < 0.0f) {
                 fighter.onGround = false;
                 fighter.stateType = 'A';
@@ -4234,6 +4261,7 @@ void updateStateMovementControllers(
         if (fighter.hitFall) {
             fighter.vx = fighter.hitFallBounceXVelocity;
             fighter.vy = fighter.hitFallBounceYVelocity;
+            clampArenaAppliedFallVelocity(state, fighter, true);
             if (fighter.vy < 0.0f) {
                 fighter.onGround = false;
                 fighter.stateType = 'A';
@@ -4255,6 +4283,7 @@ void updateStateMovementControllers(
         }
         if (hitFallSet.hasYVelocity) {
             fighter.hitFallBounceYVelocity = hitFallSet.yVelocity;
+            clampArenaHitFallRuntime(state, fighter);
         }
     }
 
@@ -6605,6 +6634,69 @@ void enterGroundImpactState(const AppState& state, FighterState& fighter, int ac
     setFighterAction(fighter, action);
 }
 
+void triggerFallEnvShakeIfNeeded(AppState& state, FighterState& target);
+
+int fallGroundImpactActionForFighter(const AppState& state, const FighterState& fighter) {
+    if (fighter.hitFallTrip || fighter.stateNo == 5070 || fighter.stateNo == 5071) {
+        return firstExistingAction(state, { 5110, 5170, fallLandActionForFighter(state, fighter), 0 });
+    }
+    if (fighter.stateNo == 5160 || fighter.stateNo == 5101) {
+        return firstExistingAction(state, { 5170, fallLandActionForFighter(state, fighter), 5110, 0 });
+    }
+    return fallLandActionForFighter(state, fighter);
+}
+
+bool enterFallGroundImpactIfAvailable(AppState& state, FighterState& fighter) {
+    const int action = fallGroundImpactActionForFighter(state, fighter);
+    if (action == 0) {
+        enterState(state, fighter, 0);
+        return true;
+    }
+    enterGroundImpactState(state, fighter, action);
+    triggerFallEnvShakeIfNeeded(state, fighter);
+    if (fighter.hitFallDamage > 0) {
+        fighter.life = std::max(0, fighter.life - fighter.hitFallDamage);
+        fighter.hitFallDamage = 0;
+    }
+    fighter.hitStunTicks = std::max(fighter.hitStunTicks, fighter.hitFallRecover ? std::max(12, fighter.hitFallRecoverTime) : 36);
+    return true;
+}
+
+bool resolveArenaFallGrounding(AppState& state, FighterState& fighter) {
+    if (!isArenaMode(state) || !fighter.hitFall || fighter.hitPauseTicks > 0) {
+        return false;
+    }
+
+    clampArenaHitFallRuntime(state, fighter);
+    const bool floorContact = fighter.onGround || fighter.y >= 0.0f;
+    if (fighter.hitFallTrip && fighter.stateNo == 5070 && fighter.stateTime >= 3) {
+        fighter.y = 0.0f;
+        fighter.vy = 0.0f;
+        fighter.onGround = true;
+        return enterFallGroundImpactIfAvailable(state, fighter);
+    }
+    if ((fighter.stateNo == 5071 || fighter.stateNo == 5050 || fighter.stateNo == 5160 || fighter.stateNo == 5101)
+        && floorContact) {
+        fighter.y = 0.0f;
+        fighter.vy = 0.0f;
+        fighter.onGround = true;
+        return enterFallGroundImpactIfAvailable(state, fighter);
+    }
+    if (fighter.hitFallTrip && fighter.stateNo == 5071 && fighter.stateTime >= 8) {
+        fighter.y = 0.0f;
+        fighter.vy = 0.0f;
+        fighter.onGround = true;
+        return enterFallGroundImpactIfAvailable(state, fighter);
+    }
+    if (fighter.stateNo == 5050 && fighter.stateTime >= 18 && fighter.vy > 0.0f && fighter.y >= -8.0f) {
+        fighter.y = 0.0f;
+        fighter.vy = 0.0f;
+        fighter.onGround = true;
+        return enterFallGroundImpactIfAvailable(state, fighter);
+    }
+    return false;
+}
+
 bool isCommonAirRecoveryState(int stateNo) {
     return stateNo == 5040
         || stateNo == 5140
@@ -6663,7 +6755,14 @@ void updateGroundGetHitState(AppState& state, FighterState& target) {
         return;
     }
 
-    if (target.hitFall && target.stateNo == 5070 && target.stateTime >= 8) {
+    if (resolveArenaFallGrounding(state, target)) {
+        return;
+    }
+
+    if (target.hitFall
+        && target.stateNo == 5070
+        && target.stateTime >= 8
+        && !(isArenaMode(state) && target.hitFallTrip)) {
         target.stateNo = 5071;
         target.stateTime = 0;
         target.stateType = 'A';
@@ -6789,6 +6888,7 @@ void updateGroundGetHitState(AppState& state, FighterState& target) {
         target.vy = 0.0f;
         --target.hitPauseTicks;
         if (target.hitPauseTicks == 0) {
+            clampArenaHitFallRuntime(state, target);
             target.stateNo = target.hitFall
                 ? (target.hitFallTrip ? 5070 : 5050)
                 : (target.hitAirborne ? 5030 : (target.hitCrouch ? 5025 : 5001));
