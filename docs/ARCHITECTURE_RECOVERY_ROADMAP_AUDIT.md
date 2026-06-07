@@ -104,25 +104,25 @@ The first bounded runtime-core code cut is now complete: `StateControllerUtility
 
 The variable-controller body cut is also complete: `StateControllerVariableRuntime.h` owns `updateStateVariableControllers(...)` for `VarSet`, `VarAdd`, `VarRandom`, and `VarRangeSet` execution only. `setFighterVariableValue(...)` remains in `App.cpp` because `ParentVarAdd` still uses it, and `ParentVarAdd` remains deferred with helper/parent lifecycle work.
 
-The meter/stat controller audit is complete: `docs/METER_STAT_CONTROLLER_RUNTIME_AUDIT.md` classifies `PowerAdd`, `LifeAdd`, `HitAdd`, `AttackDist`, `AttackMulSet`, and `DefenceMulSet`. It recommends a `PowerAdd`-only implementation cut and defers the remaining stat/damage-adjacent controllers to round-flow, hit/contact, or hit/damage seams.
+The retired meter/stat controller checkpoint classified `PowerAdd`, `LifeAdd`, `HitAdd`, `AttackDist`, `AttackMulSet`, and `DefenceMulSet`. It recommended a `PowerAdd`-only implementation cut and deferred the remaining stat/damage-adjacent controllers to round-flow, hit/contact, or hit/damage seams.
 
 The `PowerAdd` controller runtime body cut is complete: `StateControllerPowerRuntime.h` owns only the `PowerAdd` loop from `updateStateMeterControllers(...)`. `LifeAdd`, `HitAdd`, `AttackDist`, `AttackMulSet`, `DefenceMulSet`, `TargetPowerAdd`, and `TargetLifeAdd` remain in `App.cpp`.
 
-The movement/position controller audit is complete: `docs/MOVEMENT_POSITION_CONTROLLER_RUNTIME_AUDIT.md` classifies velocity, position, control, state-shape, bounds, and adjacent hit/get-hit controllers. It recommends a velocity-only implementation cut and defers position/grounding, control, state-shape, camera/bounds, collision/contact, hit/get-hit, and round-flow-adjacent behavior.
+The retired movement/position controller checkpoint classified velocity, position, control, state-shape, bounds, and adjacent hit/get-hit controllers. It recommended a velocity-only implementation cut and deferred position/grounding, control, state-shape, camera/bounds, collision/contact, hit/get-hit, and round-flow-adjacent behavior.
 
 The velocity-controller runtime body cut is complete: `StateControllerVelocityRuntime.h` owns only the `VelSet` / `VelAdd` / `VelMul` loop from `updateStateMovementControllers(...)`. `PosAdd`, `PosSet`, `PosFreeze`, `CtrlSet`, `StateTypeSet`, `ScreenBound`, `Width`, `PlayerPush`, `SprPriority`, `Turn`, hit/get-hit controllers, pause/superpause, hit/damage, lifecycle, target, and round-flow behavior remain in `App.cpp`.
 
-The position/grounding controller audit is complete: `docs/POSITION_GROUNDING_CONTROLLER_RUNTIME_AUDIT.md` classifies `PosAdd`, `PosSet`, and `PosFreeze`. It recommends a `PosAdd`-only implementation cut and explicitly defers `PosSet` because it affects `onGround`, plus `PosFreeze` because it belongs with movement-freeze behavior.
+The retired position/grounding controller checkpoint classified `PosAdd`, `PosSet`, and `PosFreeze`. It recommended a `PosAdd`-only implementation cut and explicitly deferred `PosSet` because it affects `onGround`, plus `PosFreeze` because it belongs with movement-freeze behavior.
 
 The `PosAdd` controller runtime body cut is complete: `StateControllerPosAddRuntime.h` owns only the `PosAdd` loop from `updateStatePosAddControllers(...)`. `PosSet`, `PosFreeze`, `CtrlSet`, `StateTypeSet`, `ScreenBound`, `Width`, `PlayerPush`, `SprPriority`, `Turn`, hit/get-hit controllers, pause/superpause, hit/damage, lifecycle, target, and round-flow behavior remain in `App.cpp`.
 
-The `PosSet` / grounding controller runtime audit is complete: `docs/POSSET_GROUNDING_CONTROLLER_RUNTIME_AUDIT.md` confirms the current `PosSet` body mutates only `fighter.x`, `fighter.y`, and `fighter.onGround`. At audit time, `kfm-air-state` did not explicitly prove a PosSet-triggered grounding path, so the audit recommended creating or extending a grounding verifier before moving `PosSet`.
+The retired `PosSet` / grounding controller checkpoint confirmed the `PosSet` body mutates only `fighter.x`, `fighter.y`, and `fighter.onGround`. At that checkpoint, `kfm-air-state` did not explicitly prove a PosSet-triggered grounding path, so the recommendation was to create or extend a grounding verifier before moving `PosSet`.
 
 The PosSet-backed grounding verifier hardening pass is complete: `kfm-air-state` now includes `kung_fu_knee_posset_grounding` and passes with `pass=12 partial=0 fail=0 blocked=0`. The row drives KFM's authored `FF_a` path through normal symbolic input, CMD command recognition, CNS `ChangeState`, states `1050 -> 1051 -> 1052`, the state `1052` `PosSet` landing controller, and grounded controllable idle recovery. The pass also fixed a verifier-exposed no-physics landing gap so custom `physics = N` air states are not implicitly ground-clamped or auto-finished to idle before authored landing controllers can run.
 
 The `PosSet` controller runtime body cut is complete: `StateControllerPosSetRuntime.h` owns only the `PosSet` loop from `updateStateMovementControllers(...)`. It preserves the original `shouldRunStateRuntimeController(...)` gate, optional absolute `fighter.x` assignment, optional absolute `fighter.y` assignment, and `fighter.onGround = fighter.y >= 0.0f`. `App.cpp` dropped from `8517` to `8507` file-size-guard lines, and `StateControllerPosSetRuntime.h` is `24` lines. `PosAdd`, `PosFreeze`, `CtrlSet`, `StateTypeSet`, `ScreenBound`, `Width`, `PlayerPush`, `SprPriority`, `Turn`, velocity controllers, hit/get-hit controllers, pause/superpause, grounding physics, hit/damage, lifecycle, target, and round-flow behavior remain unchanged.
 
-The misc movement/state controller runtime audit is complete: `docs/MISC_MOVEMENT_STATE_CONTROLLER_RUNTIME_AUDIT.md` classifies `PosFreeze`, `SprPriority`, `Turn`, `CtrlSet`, `StateTypeSet`, `ScreenBound`, `Width`, and `PlayerPush`. It marks `SprPriority` as `READY WITH LIMITS` because it only assigns `fighter.sprPriority` behind the standard runtime gate, and it defers `PosFreeze`, `Turn`, control/state-shape, and bounds/contact-adjacent controllers to narrower audits or seams.
+The retired misc movement/state controller checkpoint classified `PosFreeze`, `SprPriority`, `Turn`, `CtrlSet`, `StateTypeSet`, `ScreenBound`, `Width`, and `PlayerPush`. It marked `SprPriority` as `READY WITH LIMITS` because it only assigns `fighter.sprPriority` behind the standard runtime gate, and it deferred control/state-shape and bounds/contact-adjacent controllers to narrower audits or seams.
 
 The `SprPriority` controller runtime body cut is complete: `StateControllerSprPriorityRuntime.h` owns only the `SprPriority` loop from `updateStateMovementControllers(...)`. It preserves the original `shouldRunStateRuntimeController(...)` gate and `fighter.sprPriority = sprPriority.value` assignment. `App.cpp` dropped from `8507` to `8503` file-size-guard lines, and `StateControllerSprPriorityRuntime.h` is `18` lines. `PosFreeze`, `Turn`, `CtrlSet`, `StateTypeSet`, `ScreenBound`, `Width`, `PlayerPush`, velocity controllers, position controllers, hit/get-hit controllers, pause/superpause, grounding physics, hit/damage, lifecycle, target, and round-flow behavior remain unchanged.
 
@@ -170,7 +170,7 @@ This completed pass stayed intentionally narrower than "move CNS runtime." It wa
 
 ## Follow-Up Sequence
 
-Do not collapse the remaining runtime work into one pass. After the completed `StateControllerUtilityRuntime.h`, `StateControllerVariableRuntime.h`, `StateControllerPowerRuntime.h`, `StateControllerVelocityRuntime.h`, `StateControllerPosAddRuntime.h`, `StateControllerPosSetRuntime.h`, `StateControllerSprPriorityRuntime.h`, `StateControllerPosFreezeRuntime.h`, and `StateControllerTurnRuntime.h` cuts plus the meter/stat, movement/position, position/grounding, and misc movement/state audits, continue with focused audits or small implementation cuts in this order unless a new blocker requires a documented change:
+Do not collapse the remaining runtime work into one pass. After the completed `StateControllerUtilityRuntime.h`, `StateControllerVariableRuntime.h`, `StateControllerPowerRuntime.h`, `StateControllerVelocityRuntime.h`, `StateControllerPosAddRuntime.h`, `StateControllerPosSetRuntime.h`, `StateControllerSprPriorityRuntime.h`, `StateControllerPosFreezeRuntime.h`, and `StateControllerTurnRuntime.h` cuts, continue with focused audits or small implementation cuts in this order unless a new blocker requires a documented change:
 
 1. `CtrlSet` / command-control audit.
 2. `StateTypeSet` / state-shape audit.
@@ -187,25 +187,25 @@ The old `StateControllerUtilityRuntime.h` recommendation is complete as of `de22
 
 The old `StateControllerVariableRuntime.h` recommendation is complete as the variable-only controller body move.
 
-The old `Meter/stat controller audit` recommendation is complete in `docs/METER_STAT_CONTROLLER_RUNTIME_AUDIT.md`.
+The old `Meter/stat controller audit` recommendation is complete and summarized in this roadmap.
 
 The old `PowerAdd`-only implementation recommendation is complete in `StateControllerPowerRuntime.h`.
 
-The old `Movement / position controller audit` recommendation is complete in `docs/MOVEMENT_POSITION_CONTROLLER_RUNTIME_AUDIT.md`.
+The old `Movement / position controller audit` recommendation is complete and summarized in this roadmap.
 
 The old velocity-only implementation recommendation is complete in `StateControllerVelocityRuntime.h`.
 
-The old `Position / grounding controller audit` recommendation is complete in `docs/POSITION_GROUNDING_CONTROLLER_RUNTIME_AUDIT.md`.
+The old `Position / grounding controller audit` recommendation is complete and summarized in this roadmap.
 
 The old `PosAdd`-only implementation recommendation is complete in `StateControllerPosAddRuntime.h`.
 
-The old `PosSet` / grounding seam audit recommendation is complete in `docs/POSSET_GROUNDING_CONTROLLER_RUNTIME_AUDIT.md`.
+The old `PosSet` / grounding seam audit recommendation is complete and summarized in this roadmap.
 
 The old grounding-verifier-first recommendation is complete in `kfm-air-state` with `kung_fu_knee_posset_grounding`.
 
 The old `PosSet`-only implementation recommendation is complete in `StateControllerPosSetRuntime.h`.
 
-The old `PosFreeze` / movement-freeze audit recommendation is superseded by the broader misc movement/state controller audit in `docs/MISC_MOVEMENT_STATE_CONTROLLER_RUNTIME_AUDIT.md`.
+The old `PosFreeze` / movement-freeze audit recommendation is complete through the later `PosFreeze` body move.
 
 The old `SprPriority`-only implementation recommendation is complete in `StateControllerSprPriorityRuntime.h`.
 
