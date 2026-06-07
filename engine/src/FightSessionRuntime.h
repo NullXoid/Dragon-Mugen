@@ -12,7 +12,11 @@ void configureFightSessionSlotsFromSelection(AppState& state) {
         ? std::clamp(state.selection.selectedCharacter, 0, characterCount - 1)
         : -1;
     state.selection.sessionSlots.opponentType = defaultOpponentTypeForMode(state.frontend.pendingMode);
-    if (state.frontend.pendingMode == PendingMode::SingleFight) {
+    if (state.frontend.pendingMode == PendingMode::Arena) {
+        setArenaCpuCount(state, state.selection.sessionSlots.arenaCpuCount);
+        chooseArenaCpuCharacters(state);
+        state.selection.sessionSlots.opponentCharacter = -1;
+    } else if (state.frontend.pendingMode == PendingMode::SingleFight) {
         if (!characterSlotAt(state.selection, state.selection.selectedP2Character)) {
             state.selection.selectedP2Character =
                 defaultP2CharacterIndex(state.selection, state.selection.sessionSlots.p1Character);
@@ -122,6 +126,66 @@ void resetFightRound(AppState& state) {
     const StageSlot fallbackStage;
     const StageSlot& stage = selectedStageSlot(state.selection) ? *selectedStageSlot(state.selection) : fallbackStage;
 
+    if (state.frontend.pendingMode == PendingMode::Arena) {
+        const int fighterCount = std::clamp(arenaFighterCount(state), 2, 4);
+        state.fighters.assign(static_cast<size_t>(fighterCount), FighterState{});
+        state.helpers.clear();
+        state.projectiles.clear();
+
+        const std::array<float, 4> xPositions{
+            stage.p1startx,
+            stage.p2startx,
+            stage.p1startx - 58.0f,
+            stage.p2startx + 58.0f,
+        };
+        const std::array<float, 4> yPositions{
+            stage.p1starty,
+            stage.p2starty,
+            stage.p1starty,
+            stage.p2starty,
+        };
+        for (size_t i = 0; i < state.fighters.size(); ++i) {
+            auto& fighter = state.fighters[i];
+            fighter.x = clampFighterOriginToStage(xPositions[i], stage);
+            fighter.y = yPositions[i];
+            fighter.facing = fighter.x <= stage.cameraStartx ? 1 : -1;
+            fighter.onGround = true;
+            fighter.life = 1000;
+            fighter.power = 0;
+            enterRoundInitialState(state, fighter);
+        }
+
+        state.messages.lastHitText.clear();
+        state.messages.lastHitTextTicks = 0;
+        clearComboCounters(state);
+        state.runtimeEffects.clear();
+        clearGlobalPause(state);
+        clearEnvShake(state);
+        clearPaletteRuntime(state);
+        state.audio.activeVoices.clear();
+        if (state.audio.stream) {
+            SDL_ClearAudioStream(state.audio.stream);
+        }
+        state.training.options.menuOpen = false;
+        state.training.options.moveListOpen = false;
+        state.training.commandDemo = {};
+        state.frontend.singleFightPauseOpen = false;
+        state.frontend.selectedSingleFightPauseOption = 0;
+        state.frontend.selectedMatchResultOption = 0;
+        state.matchPhase = MatchPhase::RoundStart;
+        state.roundEndReason = RoundEndReason::None;
+        state.matchTimerTicks = matchTimerTicksFromSettings(state.mainSettings);
+        state.matchPhaseTicks = 0;
+        state.roundWinner = 0;
+        state.roundScoreApplied = false;
+        state.roundPoseApplied = false;
+        state.matchComplete = false;
+        state.cameraX = stage.cameraStartx;
+        state.cameraY = stage.cameraStarty;
+        return;
+    }
+
+    state.fighters.resize(2);
     state.fighters[0] = {};
     state.fighters[1] = {};
     state.helpers.clear();

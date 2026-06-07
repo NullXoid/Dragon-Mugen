@@ -24,6 +24,8 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Training enters character select.
 - Single Player enters character select.
 - VS Mode enters character select.
+- Arena Mode enters character select and then Arena Setup.
+- Arena Setup can start 1, 2, and 3 CPU free-for-all matches.
 - Character select moves with Up/Down/Left/Right only when a character exists in the destination cell.
 - Character select does not load full character runtime data.
 - Stage select opens after character confirmation.
@@ -32,6 +34,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Training dummy behavior still works.
 - Training P2 control still switches the opponent to local P2 behavior.
 - Single Fight round timer, KO/time-over, pips, match result, and rematch/menu inputs still work.
+- Arena defeated fighters are ignored for targeting/win checks, and last-fighter-standing reaches the winner and end screens.
 - Keyboard and controller inputs both feed the command buffer.
 - KFM, Evil Ryu, and Evil Ken still appear from `game/data/select.def`.
 

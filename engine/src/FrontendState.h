@@ -13,6 +13,7 @@ struct FrontendState {
     bool singleFightPauseOpen = false;
     int selectedSingleFightPauseOption = 0;
     int selectedMatchResultOption = 0;
+    int selectedArenaSetupOption = 0;
     int screenFrame = 0;
 };
 

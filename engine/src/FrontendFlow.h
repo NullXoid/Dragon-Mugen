@@ -186,6 +186,9 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
             if (action.mode == PendingMode::SingleFight) {
                 state.selection.selectedP2Character =
                     defaultP2CharacterIndex(state.selection, state.selection.selectedCharacter);
+            } else if (action.mode == PendingMode::Arena) {
+                setArenaCpuCount(state, state.arenaConfig.cpuCountDefault);
+                selectArenaDefaultStage(state);
             }
             state.frontend.screen = Screen::CharacterSelect;
             break;
@@ -252,12 +255,56 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
             break;
         case FrontendActionKind::CharacterChosen:
             state.selection.selectedCharacter = action.index;
+            if (state.frontend.pendingMode == PendingMode::Arena) {
+                state.selection.sessionSlots.p1Character = action.index;
+                state.selection.sessionSlots.opponentType = OpponentType::Cpu;
+                selectArenaDefaultStage(state);
+                state.frontend.selectedArenaSetupOption = 0;
+                state.frontend.screen = Screen::ArenaSetup;
+                break;
+            }
             configureFightSessionSlotsFromSelection(state);
             selectPreferredStage(state);
             state.frontend.screen = Screen::StageSelect;
             break;
         default:
             break;
+        }
+        return;
+    }
+
+    if (state.frontend.screen == Screen::ArenaSetup) {
+        const FrontendKey frontendKey = frontendKeyFromSdl(key, true);
+        if (frontendKey == FrontendKey::Up) {
+            state.frontend.selectedArenaSetupOption =
+                (state.frontend.selectedArenaSetupOption + kArenaSetupOptionCount - 1) % kArenaSetupOptionCount;
+            playMenuCursorMoveSound(state);
+        } else if (frontendKey == FrontendKey::Down) {
+            state.frontend.selectedArenaSetupOption =
+                (state.frontend.selectedArenaSetupOption + 1) % kArenaSetupOptionCount;
+            playMenuCursorMoveSound(state);
+        } else if (frontendKey == FrontendKey::Left && state.frontend.selectedArenaSetupOption == 0) {
+            setArenaCpuCount(state, arenaCpuCount(state) - 1);
+            playMenuCursorMoveSound(state);
+        } else if ((frontendKey == FrontendKey::Right || frontendKey == FrontendKey::Accept)
+            && state.frontend.selectedArenaSetupOption == 0) {
+            setArenaCpuCount(state, arenaCpuCount(state) + 1);
+            playMenuCursorMoveSound(state);
+        } else if (frontendKey == FrontendKey::Escape
+            || (frontendKey == FrontendKey::Accept && state.frontend.selectedArenaSetupOption == 2)) {
+            unloadCharacterRuntime(state);
+            state.frontend.screen = Screen::CharacterSelect;
+            state.frontend.screenFrame = 0;
+            playMenuCancelSound(state);
+        } else if (frontendKey == FrontendKey::Accept && state.frontend.selectedArenaSetupOption == 1) {
+            configureFightSessionSlotsFromSelection(state);
+            selectArenaDefaultStage(state);
+            unloadCharacterRuntime(state);
+            state.frontend.screen = Screen::VersusScreen;
+            state.frontend.screenFrame = 0;
+            state.fightSessionPrepared = false;
+            state.fightSessionLoadFailed = false;
+            playMenuCursorDoneSound(state);
         }
         return;
     }
@@ -328,35 +375,68 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
                 case SDLK_RETURN:
                 case SDLK_KP_ENTER:
                 case SDLK_SPACE:
-                    switch (state.frontend.selectedSingleFightPauseOption) {
-                    case 0:
-                        state.frontend.singleFightPauseOpen = false;
-                        break;
-                    case 1:
-                        resetFightState(state);
-                        break;
-                    case 2:
-                        state.frontend.singleFightPauseOpen = false;
-                        unloadCharacterRuntime(state);
-                        resetSingleFightCharacterConfirms(state);
-                        state.frontend.screen = Screen::CharacterSelect;
-                        state.frontend.screenFrame = 0;
-                        break;
-                    case 3:
-                        state.frontend.singleFightPauseOpen = false;
-                        unloadCharacterRuntime(state);
-                        state.frontend.screen = Screen::StageSelect;
-                        state.frontend.screenFrame = 0;
-                        break;
-                    case 4:
-                        state.frontend.singleFightPauseOpen = false;
-                        unloadCharacterRuntime(state);
-                        state.frontend.exitConfirmOpen = false;
-                        state.frontend.screen = Screen::ModeSelect;
-                        state.frontend.screenFrame = 0;
-                        break;
-                    default:
-                        break;
+                    if (state.frontend.pendingMode == PendingMode::Arena) {
+                        switch (state.frontend.selectedSingleFightPauseOption) {
+                        case 0:
+                            state.frontend.singleFightPauseOpen = false;
+                            break;
+                        case 1:
+                            resetFightState(state);
+                            break;
+                        case 2:
+                            state.frontend.singleFightPauseOpen = false;
+                            unloadCharacterRuntime(state);
+                            resetSingleFightCharacterConfirms(state);
+                            state.frontend.screen = Screen::CharacterSelect;
+                            state.frontend.screenFrame = 0;
+                            break;
+                        case 3:
+                            state.frontend.singleFightPauseOpen = false;
+                            unloadCharacterRuntime(state);
+                            state.frontend.screen = Screen::ArenaSetup;
+                            state.frontend.screenFrame = 0;
+                            break;
+                        case 4:
+                            state.frontend.singleFightPauseOpen = false;
+                            unloadCharacterRuntime(state);
+                            state.frontend.exitConfirmOpen = false;
+                            state.frontend.screen = Screen::ModeSelect;
+                            state.frontend.screenFrame = 0;
+                            break;
+                        default:
+                            break;
+                        }
+                    } else {
+                        switch (state.frontend.selectedSingleFightPauseOption) {
+                        case 0:
+                            state.frontend.singleFightPauseOpen = false;
+                            break;
+                        case 1:
+                            resetFightState(state);
+                            break;
+                        case 2:
+                            state.frontend.singleFightPauseOpen = false;
+                            unloadCharacterRuntime(state);
+                            resetSingleFightCharacterConfirms(state);
+                            state.frontend.screen = Screen::CharacterSelect;
+                            state.frontend.screenFrame = 0;
+                            break;
+                        case 3:
+                            state.frontend.singleFightPauseOpen = false;
+                            unloadCharacterRuntime(state);
+                            state.frontend.screen = Screen::StageSelect;
+                            state.frontend.screenFrame = 0;
+                            break;
+                        case 4:
+                            state.frontend.singleFightPauseOpen = false;
+                            unloadCharacterRuntime(state);
+                            state.frontend.exitConfirmOpen = false;
+                            state.frontend.screen = Screen::ModeSelect;
+                            state.frontend.screenFrame = 0;
+                            break;
+                        default:
+                            break;
+                        }
                     }
                     break;
                 default:
@@ -381,29 +461,56 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
                 case SDLK_RETURN:
                 case SDLK_KP_ENTER:
                 case SDLK_SPACE:
-                    switch (state.frontend.selectedMatchResultOption) {
-                    case 0:
-                        resetFightState(state);
-                        break;
-                    case 1:
-                        unloadCharacterRuntime(state);
-                        resetSingleFightCharacterConfirms(state);
-                        state.frontend.screen = Screen::CharacterSelect;
-                        state.frontend.screenFrame = 0;
-                        break;
-                    case 2:
-                        unloadCharacterRuntime(state);
-                        state.frontend.screen = Screen::StageSelect;
-                        state.frontend.screenFrame = 0;
-                        break;
-                    case 3:
-                        unloadCharacterRuntime(state);
-                        state.frontend.exitConfirmOpen = false;
-                        state.frontend.screen = Screen::ModeSelect;
-                        state.frontend.screenFrame = 0;
-                        break;
-                    default:
-                        break;
+                    if (state.frontend.pendingMode == PendingMode::Arena) {
+                        switch (state.frontend.selectedMatchResultOption) {
+                        case 0:
+                            resetFightState(state);
+                            break;
+                        case 1:
+                            unloadCharacterRuntime(state);
+                            state.frontend.screen = Screen::ArenaSetup;
+                            state.frontend.screenFrame = 0;
+                            break;
+                        case 2:
+                            unloadCharacterRuntime(state);
+                            resetSingleFightCharacterConfirms(state);
+                            state.frontend.screen = Screen::CharacterSelect;
+                            state.frontend.screenFrame = 0;
+                            break;
+                        case 3:
+                            unloadCharacterRuntime(state);
+                            state.frontend.exitConfirmOpen = false;
+                            state.frontend.screen = Screen::ModeSelect;
+                            state.frontend.screenFrame = 0;
+                            break;
+                        default:
+                            break;
+                        }
+                    } else {
+                        switch (state.frontend.selectedMatchResultOption) {
+                        case 0:
+                            resetFightState(state);
+                            break;
+                        case 1:
+                            unloadCharacterRuntime(state);
+                            resetSingleFightCharacterConfirms(state);
+                            state.frontend.screen = Screen::CharacterSelect;
+                            state.frontend.screenFrame = 0;
+                            break;
+                        case 2:
+                            unloadCharacterRuntime(state);
+                            state.frontend.screen = Screen::StageSelect;
+                            state.frontend.screenFrame = 0;
+                            break;
+                        case 3:
+                            unloadCharacterRuntime(state);
+                            state.frontend.exitConfirmOpen = false;
+                            state.frontend.screen = Screen::ModeSelect;
+                            state.frontend.screenFrame = 0;
+                            break;
+                        default:
+                            break;
+                        }
                     }
                     break;
                 case SDLK_ESCAPE:

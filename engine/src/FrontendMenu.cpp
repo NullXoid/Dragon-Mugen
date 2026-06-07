@@ -9,7 +9,7 @@
 namespace dragon {
 namespace {
 
-constexpr int kMainMenuOptionCount = 5;
+constexpr int kMainMenuOptionCount = 6;
 
 int wrapSelection(int selected, int count, int delta) {
     if (count <= 0) {
@@ -60,6 +60,7 @@ OpponentType defaultOpponentTypeForMode(PendingMode mode) {
     case PendingMode::Training:
         return OpponentType::Dummy;
     case PendingMode::SinglePlayer:
+    case PendingMode::Arena:
         return OpponentType::Cpu;
     case PendingMode::SingleFight:
     default:
@@ -68,7 +69,7 @@ OpponentType defaultOpponentTypeForMode(PendingMode mode) {
 }
 
 bool isMatchMode(PendingMode mode) {
-    return mode == PendingMode::SinglePlayer || mode == PendingMode::SingleFight;
+    return mode == PendingMode::SinglePlayer || mode == PendingMode::SingleFight || mode == PendingMode::Arena;
 }
 
 std::string_view pendingModeTitle(PendingMode mode) {
@@ -78,6 +79,9 @@ std::string_view pendingModeTitle(PendingMode mode) {
     case PendingMode::SinglePlayer:
         return "SINGLE PLAYER";
     case PendingMode::SingleFight:
+        return "VS MODE";
+    case PendingMode::Arena:
+        return "ARENA MODE";
     default:
         return "VS MODE";
     }
@@ -114,8 +118,10 @@ FrontendAction decideMainMenuAction(int selected) {
     case 2:
         return { FrontendActionKind::OpenMode, PendingMode::SingleFight };
     case 3:
-        return { FrontendActionKind::OpenOptions };
+        return { FrontendActionKind::OpenMode, PendingMode::Arena };
     case 4:
+        return { FrontendActionKind::OpenOptions };
+    case 5:
         return { FrontendActionKind::ExitApp };
     default:
         return {};

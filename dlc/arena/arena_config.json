@@ -1,0 +1,21 @@
+{
+  "modeName": "Arena Mode",
+  "description": "Free-for-all battle with up to 4 fighters.",
+  "defaultStage": "stages/kfm.def",
+  "cpuCountDefault": 1,
+  "cpuCountMin": 1,
+  "cpuCountMax": 3,
+  "selection": {
+    "playerSelect": true,
+    "cpuSelect": "random"
+  },
+  "rules": {
+    "type": "free_for_all",
+    "winCondition": "last_fighter_standing",
+    "allowTeams": false
+  },
+  "ui": {
+    "winTitle": "Winner",
+    "endTitle": "Arena Match Complete"
+  }
+}

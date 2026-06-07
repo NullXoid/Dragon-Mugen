@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <string>
 
 namespace dragon {
@@ -22,6 +23,7 @@ inline constexpr int kTrainingMoveListOption = 18;
 inline constexpr int kTrainingResetOption = 19;
 inline constexpr int kSingleFightPauseOptionCount = 5;
 inline constexpr int kMatchResultOptionCount = 4;
+inline constexpr int kArenaSetupOptionCount = 3;
 inline constexpr int kMainSettingsCount = 7;
 inline constexpr int kVersusPrepareStartFrames = 2;
 inline constexpr int kCharacterSelectColumns = 5;
@@ -31,6 +33,7 @@ inline constexpr int kCharacterSelectPageSize = kCharacterSelectColumns * kChara
 enum class Screen {
     ModeSelect,
     CharacterSelect,
+    ArenaSetup,
     StageSelect,
     VersusScreen,
     FightView,
@@ -41,6 +44,7 @@ enum class PendingMode {
     Training,
     SinglePlayer,
     SingleFight,
+    Arena,
 };
 
 enum class OpponentType {
@@ -145,6 +149,8 @@ struct FightSessionSlots {
     int p1Character = -1;
     int opponentCharacter = -1;
     OpponentType opponentType = OpponentType::Dummy;
+    int arenaCpuCount = 1;
+    std::array<int, 3> arenaCpuCharacters{ -1, -1, -1 };
 };
 
 } // namespace dragon

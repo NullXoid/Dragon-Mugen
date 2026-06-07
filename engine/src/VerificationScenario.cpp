@@ -841,6 +841,80 @@ int runCpuBaseline(RuntimeProbe& runtime, std::ostream& out) {
     return exitCode(counts);
 }
 
+int runArenaSmoke(RuntimeProbe& runtime, std::ostream& out, int cpuCount) {
+    Counts counts;
+    const std::string scenarioName = "arena-cpu-" + std::to_string(cpuCount);
+    if (!runtime.setup("kfm", "Mountainside", ScenarioMode::Arena, out, cpuCount)) {
+        record(out, counts, Status::Blocked, "setup", "KFM/Mountainside Arena setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, scenarioName);
+
+    const bool activeFight = waitForActiveFight(runtime, 420);
+    record(out, counts, activeFight ? Status::Pass : Status::Fail, "arena_fight_phase_ready",
+        "match_phase=" + std::to_string(runtime.snapshot().matchPhase)
+        + " timer_ticks=" + std::to_string(runtime.snapshot().matchTimerTicks));
+    if (!activeFight) {
+        record(out, counts, Status::Blocked, "arena_checks", "Arena fight phase was not active");
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    const int expectedFighters = 1 + cpuCount;
+    const auto start = runtime.snapshot();
+    record(out, counts, start.fighterCount == expectedFighters ? Status::Pass : Status::Fail, "arena_fighter_count",
+        "expected=" + std::to_string(expectedFighters)
+        + " actual=" + std::to_string(start.fighterCount));
+    record(out, counts, start.livingFighters == expectedFighters ? Status::Pass : Status::Fail, "arena_initial_living_count",
+        "expected=" + std::to_string(expectedFighters)
+        + " actual=" + std::to_string(start.livingFighters));
+
+    if (expectedFighters > 2) {
+        for (int i = 1; i < expectedFighters - 1; ++i) {
+            runtime.setFighterLife(i, 0);
+        }
+        runtime.step({}, 2);
+        const auto partial = runtime.snapshot();
+        const bool stillFighting = partial.livingFighters == 2
+            && partial.matchPhase == static_cast<int>(MatchPhase::Fight);
+        record(out, counts, stillFighting ? Status::Pass : Status::Fail, "defeated_fighters_excluded",
+            "living=" + std::to_string(partial.livingFighters)
+            + " match_phase=" + std::to_string(partial.matchPhase));
+    }
+
+    for (int i = 1; i < expectedFighters; ++i) {
+        runtime.setFighterLife(i, 0);
+    }
+    runtime.step({}, 2);
+    const auto resolved = runtime.snapshot();
+    const bool winnerPhase = resolved.matchPhase == static_cast<int>(MatchPhase::RoundResult)
+        || resolved.matchPhase == static_cast<int>(MatchPhase::MatchResult);
+    record(out, counts, winnerPhase && resolved.roundWinner == 1 && resolved.livingFighters == 1
+            ? Status::Pass
+            : Status::Fail,
+        "last_fighter_standing_winner",
+        "phase=" + std::to_string(resolved.matchPhase)
+        + " winner=" + std::to_string(resolved.roundWinner)
+        + " living=" + std::to_string(resolved.livingFighters)
+        + " text=\"" + resolved.lastHitText + "\"");
+
+    bool reachedEndScreen = false;
+    for (int i = 0; i < 420; ++i) {
+        if (runtime.snapshot().matchPhase == static_cast<int>(MatchPhase::MatchResult)) {
+            reachedEndScreen = true;
+            break;
+        }
+        runtime.step({}, 1);
+    }
+    record(out, counts, reachedEndScreen ? Status::Pass : Status::Fail, "arena_end_screen",
+        "match_phase=" + std::to_string(runtime.snapshot().matchPhase));
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
 } // namespace
 
 int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::ostream& out) {
@@ -856,10 +930,19 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
     if (scenarioName == "cpu-baseline") {
         return runCpuBaseline(runtime, out);
     }
+    if (scenarioName == "arena-cpu-1") {
+        return runArenaSmoke(runtime, out, 1);
+    }
+    if (scenarioName == "arena-cpu-2") {
+        return runArenaSmoke(runtime, out, 2);
+    }
+    if (scenarioName == "arena-cpu-3") {
+        return runArenaSmoke(runtime, out, 3);
+    }
 
     out << "VERIFY " << scenarioName << "\n"
         << "BLOCKED unknown_scenario\n"
-        << "  supported: kfm-baseline, kfm-air-state, evilken-smoke, cpu-baseline\n"
+        << "  supported: kfm-baseline, kfm-air-state, evilken-smoke, cpu-baseline, arena-cpu-1, arena-cpu-2, arena-cpu-3\n"
         << "SUMMARY pass=0 partial=0 fail=0 blocked=1\n";
     return 2;
 }

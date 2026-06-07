@@ -94,11 +94,13 @@ void drawRoundResultOverlay(const UiRenderContext& ui, const FightRoundResultVie
 
     setColor(ui.renderer, 222, 226, 232);
     debugTextCentered(ui.renderer, centerX, 94, fitDebugText(view.resultText, 24));
-    setColor(ui.renderer, 230, 220, 172);
-    drawRoundPips(ui, centerX - 42.0f, 112, view.p1RoundPips);
-    setColor(ui.renderer, 230, 220, 172);
-    debugTextCentered(ui.renderer, centerX, 111, "-");
-    drawRoundPips(ui, centerX + 42.0f, 112, view.p2RoundPips);
+    if (view.p1RoundPips.required > 0 || view.p2RoundPips.required > 0) {
+        setColor(ui.renderer, 230, 220, 172);
+        drawRoundPips(ui, centerX - 42.0f, 112, view.p1RoundPips);
+        setColor(ui.renderer, 230, 220, 172);
+        debugTextCentered(ui.renderer, centerX, 111, "-");
+        drawRoundPips(ui, centerX + 42.0f, 112, view.p2RoundPips);
+    }
     setColor(ui.renderer, 174, 184, 196);
     debugTextCentered(ui.renderer, centerX, 130, view.footerText);
 }

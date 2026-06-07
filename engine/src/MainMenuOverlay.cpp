@@ -12,10 +12,11 @@
 namespace dragon {
 namespace {
 
-constexpr std::array<std::string_view, 5> kModeLabels{ {
+constexpr std::array<std::string_view, 6> kModeLabels{ {
     "TRAINING",
     "SINGLE PLAYER",
     "VS MODE",
+    "ARENA MODE",
     "OPTIONS",
     "EXIT",
 } };
@@ -24,6 +25,7 @@ constexpr std::array<std::string_view, kModeLabels.size()> kModeDescriptions{ {
     "TRAINING SANDBOX",
     "ARCADE STYLE MATCH",
     "LOCAL COUCH MATCH",
+    "Free-for-all battle with up to 4 fighters.",
     "OPTIONS",
     "EXIT",
 } };
@@ -55,16 +57,16 @@ void drawMainMenuOverlay(const UiRenderContext& ui, const MainMenuView& view) {
     const int pulseAlpha = 96 + static_cast<int>(pulse * 70.0f);
 
     setColor(renderer, 6, 8, 12, 224);
-    fillRect(renderer, menuX, 130, 152, 84);
+    fillRect(renderer, menuX, 124, 152, 98);
     setColor(renderer, 24, 32, 46, 238);
-    fillRect(renderer, menuX + 2.0f, 132.0f, 148.0f, 14.0f);
+    fillRect(renderer, menuX + 2.0f, 126.0f, 148.0f, 14.0f);
     setColor(renderer, 92, 108, 138);
-    drawRect(renderer, menuX, 130, 152, 84);
+    drawRect(renderer, menuX, 124, 152, 98);
     setColor(renderer, 158, 64, 58);
-    fillRect(renderer, menuX + 2.0f, 146.0f, 148.0f, 2.0f);
+    fillRect(renderer, menuX + 2.0f, 140.0f, 148.0f, 2.0f);
 
     for (int i = 0; i < static_cast<int>(kModeLabels.size()); ++i) {
-        const float y = 156.0f + static_cast<float>(i * 13);
+        const float y = 150.0f + static_cast<float>(i * 13);
         const std::string label(kModeLabels[static_cast<std::size_t>(i)]);
         const float textX = centerX - static_cast<float>(label.size()) * 4.0f;
 

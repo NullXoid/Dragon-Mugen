@@ -20,7 +20,12 @@ public:
         }
     }
 
-    bool setup(std::string_view p1Id, std::string_view stageHint, verification::ScenarioMode mode, std::ostream& out) override {
+    bool setup(
+        std::string_view p1Id,
+        std::string_view stageHint,
+        verification::ScenarioMode mode,
+        std::ostream& out,
+        int arenaCpuCount = 1) override {
         if (!sdlInitialized_) {
             if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD)) {
                 out << "SDL_Init failed: " << SDL_GetError() << "\n";
@@ -43,6 +48,7 @@ public:
         SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
 
         state_.gameRoot = gameRoot_;
+        state_.arenaConfig = loadArenaConfig(gameRoot_);
         initAudio(state_);
         state_.fightRoundSettings = loadFightRoundSettings(gameRoot_);
         state_.selection.characters = loadCharacters(gameRoot_);
@@ -53,11 +59,23 @@ public:
         }
 
         state_.selection.selectedCharacter = findCharacterIndex(p1Id);
-        state_.frontend.pendingMode = mode == verification::ScenarioMode::SinglePlayer
-            ? PendingMode::SinglePlayer
-            : PendingMode::Training;
+        if (mode == verification::ScenarioMode::Arena) {
+            state_.frontend.pendingMode = PendingMode::Arena;
+            state_.selection.sessionSlots.arenaCpuCount = arenaCpuCount;
+            setArenaCpuCount(state_, arenaCpuCount);
+            state_.selection.sessionSlots.opponentType = OpponentType::Cpu;
+            selectArenaDefaultStage(state_);
+        } else {
+            state_.frontend.pendingMode = mode == verification::ScenarioMode::SinglePlayer
+                ? PendingMode::SinglePlayer
+                : PendingMode::Training;
+        }
         configureFightSessionSlotsFromSelection(state_);
-        selectPreferredStage(state_);
+        if (mode == verification::ScenarioMode::Arena) {
+            selectArenaDefaultStage(state_);
+        } else {
+            selectPreferredStage(state_);
+        }
         if (!stageHint.empty()) {
             state_.selection.selectedStage = findStageIndex(stageHint);
         }
@@ -98,6 +116,21 @@ public:
         state_.fighters[1].facing = -state_.fighters[0].facing;
     }
 
+    void setFighterLife(int fighterIndex, int life) override {
+        if (fighterIndex < 0 || fighterIndex >= static_cast<int>(state_.fighters.size())) {
+            return;
+        }
+        auto& fighter = state_.fighters[static_cast<size_t>(fighterIndex)];
+        fighter.life = life;
+        if (life <= 0) {
+            fighter.ctrl = false;
+            fighter.vx = 0.0f;
+            fighter.vy = 0.0f;
+            fighter.hitPauseTicks = 0;
+            fighter.hitStunTicks = 0;
+        }
+    }
+
     verification::RuntimeSnapshot snapshot() const override {
         verification::RuntimeSnapshot out;
         out.frame = state_.frame;
@@ -106,6 +139,13 @@ public:
         out.activeEffects = static_cast<int>(state_.runtimeEffects.size());
         out.activeSounds = static_cast<int>(state_.audio.activeVoices.size());
         out.comboHits = state_.display.comboCounters[0].displayHits;
+        out.fighterCount = static_cast<int>(state_.fighters.size());
+        for (const auto& fighter : state_.fighters) {
+            if (fighter.life > 0) {
+                ++out.livingFighters;
+            }
+        }
+        out.roundWinner = state_.roundWinner;
         out.lastHitText = state_.messages.lastHitText;
         out.p1 = fighterSnapshot(state_.fighters[0]);
         out.p2 = fighterSnapshot(state_.fighters[1]);

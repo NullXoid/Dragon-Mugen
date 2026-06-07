@@ -3,26 +3,9 @@
 #include "UiRenderPrimitives.h"
 
 #include <algorithm>
-#include <array>
 #include <string>
-#include <string_view>
 
 namespace dragon {
-namespace {
-
-constexpr std::array<std::string_view, 5> kPauseOptionLabels{
-    "RESUME",
-    "RESTART MATCH",
-    "FIGHTER SELECT",
-    "STAGE SELECT",
-    "MODE SELECT",
-};
-
-std::string_view singleFightPauseLabel(int option) {
-    return kPauseOptionLabels[static_cast<size_t>(std::clamp(option, 0, static_cast<int>(kPauseOptionLabels.size()) - 1))];
-}
-
-} // namespace
 
 void drawSingleFightPauseMenu(const UiRenderContext& ui, const PauseMenuView& view) {
     SDL_Renderer* renderer = ui.renderer;
@@ -43,8 +26,8 @@ void drawSingleFightPauseMenu(const UiRenderContext& ui, const PauseMenuView& vi
     debugText(renderer, 204, 52, "PAUSE");
 
     const int selectedOption =
-        std::clamp(view.selectedOption, 0, static_cast<int>(kPauseOptionLabels.size()) - 1);
-    for (int i = 0; i < static_cast<int>(kPauseOptionLabels.size()); ++i) {
+        std::clamp(view.selectedOption, 0, static_cast<int>(view.optionLabels.size()) - 1);
+    for (int i = 0; i < static_cast<int>(view.optionLabels.size()); ++i) {
         const float y = 88.0f + static_cast<float>(i * 18);
         if (i == selectedOption) {
             setColor(renderer, 74, 170, 134);
@@ -53,7 +36,7 @@ void drawSingleFightPauseMenu(const UiRenderContext& ui, const PauseMenuView& vi
         } else {
             setColor(renderer, 174, 184, 196);
         }
-        debugText(renderer, 94, y, std::string(singleFightPauseLabel(i)));
+        debugText(renderer, 94, y, std::string(view.optionLabels[static_cast<size_t>(i)]));
     }
 
     setColor(renderer, 130, 142, 156);

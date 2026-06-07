@@ -9,6 +9,7 @@ namespace dragon::verification {
 enum class ScenarioMode {
     Training,
     SinglePlayer,
+    Arena,
 };
 
 struct SymbolicInput {
@@ -56,6 +57,9 @@ struct RuntimeSnapshot {
     int activeEffects = 0;
     int activeSounds = 0;
     int comboHits = 0;
+    int fighterCount = 0;
+    int livingFighters = 0;
+    int roundWinner = 0;
     std::string lastHitText;
     FighterSnapshot p1;
     FighterSnapshot p2;
@@ -65,9 +69,15 @@ class RuntimeProbe {
 public:
     virtual ~RuntimeProbe() = default;
 
-    virtual bool setup(std::string_view p1Id, std::string_view stageHint, ScenarioMode mode, std::ostream& out) = 0;
+    virtual bool setup(
+        std::string_view p1Id,
+        std::string_view stageHint,
+        ScenarioMode mode,
+        std::ostream& out,
+        int arenaCpuCount = 1) = 0;
     virtual void step(const SymbolicInput& p1Input, int frames) = 0;
     virtual void positionFighters(float p1X, float p2X) = 0;
+    virtual void setFighterLife(int fighterIndex, int life) = 0;
     virtual RuntimeSnapshot snapshot() const = 0;
     virtual std::string rootText() const = 0;
     virtual std::string stageName() const = 0;

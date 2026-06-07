@@ -47,6 +47,8 @@ add_custom_target(dragon_dev_check
 )
 
 add_library(dragon_core
+    engine/src/ArenaConfig.cpp
+    engine/src/ArenaSetupOverlay.cpp
     engine/src/MugenText.cpp
     engine/src/FightData.cpp
     engine/src/FightHudOverlay.cpp
