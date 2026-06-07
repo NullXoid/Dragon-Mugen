@@ -41,14 +41,15 @@ The earlier roadmap's safe chunks have already been substantially completed:
 - Velocity-controller runtime body.
 - Position/grounding controller runtime audit.
 - `PosAdd` controller runtime body.
+- `PosSet` / grounding controller runtime audit.
 
 These completed areas should not be treated as future broad work. Future passes should build on them and avoid reopening their boundaries unless a focused regression or cleanup requires it.
 
 ## Remaining Runtime-Core Classification
 
-Next audit target:
+Next code target:
 
-- `PosSet` / grounding seam audit, after the completed `PosAdd`-only controller body move.
+- Create or extend a grounding verifier before moving `PosSet`, after the `PosSet` / grounding audit in `docs/POSSET_GROUNDING_CONTROLLER_RUNTIME_AUDIT.md`.
 
 Completed with limits:
 
@@ -58,7 +59,7 @@ Completed with limits:
 Needs a narrower audit or seam before movement:
 
 - Remaining meter/stat controllers: `LifeAdd`, `HitAdd`, `AttackDist`, `AttackMulSet`, and `DefenceMulSet`.
-- Position/grounding-sensitive controllers: `PosSet`.
+- Position/grounding-sensitive controller: `PosSet`, pending dedicated verifier coverage.
 - Movement-freeze controller: `PosFreeze`.
 - Control and state-shape controllers: `CtrlSet` and `StateTypeSet`.
 - Bounds/contact-adjacent controllers: `ScreenBound`, `Width`, `PlayerPush`, `SprPriority`, and `Turn`.
@@ -106,6 +107,8 @@ The position/grounding controller audit is complete: `docs/POSITION_GROUNDING_CO
 
 The `PosAdd` controller runtime body cut is complete: `StateControllerPosAddRuntime.h` owns only the `PosAdd` loop from `updateStatePosAddControllers(...)`. `PosSet`, `PosFreeze`, `CtrlSet`, `StateTypeSet`, `ScreenBound`, `Width`, `PlayerPush`, `SprPriority`, `Turn`, hit/get-hit controllers, pause/superpause, hit/damage, lifecycle, target, and round-flow behavior remain in `App.cpp`.
 
+The `PosSet` / grounding controller runtime audit is complete: `docs/POSSET_GROUNDING_CONTROLLER_RUNTIME_AUDIT.md` confirms the current `PosSet` body mutates only `fighter.x`, `fighter.y`, and `fighter.onGround`, but the existing `kfm-air-state` verifier does not explicitly prove a PosSet-triggered grounding path. The audit recommends creating or extending a grounding verifier before moving `PosSet`.
+
 ## Completed Utility Runtime Pass
 
 Completed code pass:
@@ -148,13 +151,14 @@ This completed pass stayed intentionally narrower than "move CNS runtime." It wa
 
 Do not collapse the remaining runtime work into one pass. After the completed `StateControllerUtilityRuntime.h`, `StateControllerVariableRuntime.h`, `StateControllerPowerRuntime.h`, and `StateControllerVelocityRuntime.h` cuts plus the meter/stat, movement/position, and position/grounding audits, continue with focused audits or small implementation cuts in this order unless a new blocker requires a documented change:
 
-1. `PosSet` / grounding seam audit.
-2. `PosFreeze` / movement-freeze audit.
-3. Pause / superpause audit.
-4. Helper / projectile / explod audit.
-5. Target controller audit.
-6. HitDef / damage audit.
-7. Round flow audit.
+1. PosSet-specific grounding verifier.
+2. `PosSet`-only controller body move, only after the verifier is green.
+3. `PosFreeze` / movement-freeze audit.
+4. Pause / superpause audit.
+5. Helper / projectile / explod audit.
+6. Target controller audit.
+7. HitDef / damage audit.
+8. Round flow audit.
 
 ## Current Roadmap Conclusion
 
@@ -174,10 +178,12 @@ The old `Position / grounding controller audit` recommendation is complete in `d
 
 The old `PosAdd`-only implementation recommendation is complete in `StateControllerPosAddRuntime.h`.
 
-Next recommended audit:
+The old `PosSet` / grounding seam audit recommendation is complete in `docs/POSSET_GROUNDING_CONTROLLER_RUNTIME_AUDIT.md`.
+
+Next recommended implementation:
 
 ```text
-PosSet / grounding seam audit
+Create or extend a grounding verifier first.
 ```
 
 Do not move immediately:

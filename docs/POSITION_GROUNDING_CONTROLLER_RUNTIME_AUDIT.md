@@ -123,8 +123,9 @@ Still not moved:
 ## Next Audit Recommendation
 
 ```text
-Next roadmap target:
+Completed roadmap target:
 PosSet / grounding seam audit.
 
-Do not move PosSet immediately.
+Result:
+Create or extend a grounding verifier before moving PosSet.
 ```
