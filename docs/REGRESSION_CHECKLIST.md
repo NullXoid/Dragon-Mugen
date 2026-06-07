@@ -37,6 +37,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Arena Setup can start 1, 2, and 3 CPU free-for-all matches.
 - Character select moves with Up/Down/Left/Right only when a character exists in the destination cell.
 - Character select does not load full character runtime data.
+- Character and stage select labels do not duplicate, overlap, or show the wrong mode name.
 - Stage select opens after character confirmation.
 - Stage confirmation opens the VS screen first.
 - Fight view loads selected character and selected stage after VS.

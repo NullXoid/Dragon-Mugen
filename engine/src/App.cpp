@@ -7844,6 +7844,7 @@ void drawStageSelect(SDL_Renderer* renderer, const AppState& state) {
 
     StageSelectView view;
     view.rows = rows;
+    view.modeLabel = std::string(pendingModeTitle(state.frontend.pendingMode));
     view.frame = state.frame;
     view.fighterLabel = selectedCharacterName(state.selection);
     view.opponentLabel = compactSettingText(opponentDisplayName(state), 11);

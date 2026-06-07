@@ -14,6 +14,7 @@ struct StageSelectRowView {
 
 struct StageSelectView {
     std::span<const StageSelectRowView> rows;
+    std::string modeLabel;
     std::string selectedStageName;
     std::string selectedStageId;
     std::string selectedStageAuthor;

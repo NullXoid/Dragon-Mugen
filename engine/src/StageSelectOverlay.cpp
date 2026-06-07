@@ -28,7 +28,7 @@ void drawStageSelectOverlay(const UiRenderContext& ui, const StageSelectView& vi
     setColor(renderer, 220, 178, 112);
     debugText(renderer, 20, 30, "STAGE SELECT");
     setColor(renderer, 155, 164, 174);
-    debugText(renderer, 210, 30, "2/2 ARENA");
+    debugText(renderer, 210, 30, fitDebugText(view.modeLabel, 15));
 
     drawPanel(renderer, 18, 52, 284, 108);
 
@@ -44,20 +44,20 @@ void drawStageSelectOverlay(const UiRenderContext& ui, const StageSelectView& vi
                 setColor(renderer, static_cast<Uint8>(pulse), 124, 58);
                 fillRect(renderer, 28, y - 3, 140, 15);
                 setColor(renderer, 8, 12, 16);
-                debugText(renderer, 36, y, row.label);
+                debugText(renderer, 36, y, fitDebugText(row.label, 15));
             } else {
                 setColor(renderer, 184, 178, 168);
-                debugText(renderer, 36, y, row.label);
+                debugText(renderer, 36, y, fitDebugText(row.label, 15));
             }
         }
 
         setColor(renderer, 222, 226, 232);
-        debugText(renderer, 182, 68, view.selectedStageName);
+        debugText(renderer, 182, 68, fitDebugText(view.selectedStageName, 15));
         setColor(renderer, 155, 164, 174);
-        debugText(renderer, 182, 84, "id: " + view.selectedStageId);
-        debugText(renderer, 182, 96, "author: " + view.selectedStageAuthor);
-        debugText(renderer, 182, 116, "fighter: " + view.fighterLabel);
-        debugText(renderer, 182, 132, "opponent: " + view.opponentLabel);
+        debugText(renderer, 182, 84, fitDebugText("id: " + view.selectedStageId, 16));
+        debugText(renderer, 182, 96, fitDebugText("author: " + view.selectedStageAuthor, 16));
+        debugText(renderer, 182, 116, fitDebugText("fighter: " + view.fighterLabel, 16));
+        debugText(renderer, 182, 132, fitDebugText("opponent: " + view.opponentLabel, 16));
     }
 
     setColor(renderer, 118, 126, 138);

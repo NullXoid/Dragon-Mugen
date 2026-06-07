@@ -16,8 +16,7 @@ void drawFixedOpponentSlot(
     float x,
     float y,
     float width,
-    float height,
-    const std::string& label) {
+    float height) {
     setColor(renderer, 12, 14, 18);
     fillRect(renderer, x, y, width, height);
     setColor(renderer, 54, 62, 76);
@@ -28,9 +27,6 @@ void drawFixedOpponentSlot(
     fillRect(renderer, x + width * 0.28f, y + height * 0.44f, width * 0.44f, height * 0.38f);
     setColor(renderer, 34, 38, 46);
     fillRect(renderer, x + width * 0.34f, y + height * 0.50f, width * 0.32f, height * 0.30f);
-
-    setColor(renderer, 150, 160, 176);
-    debugTextCentered(renderer, x + width * 0.5f, y + height * 0.86f, label);
 }
 
 void drawCellCursor(
@@ -85,7 +81,10 @@ void drawCharacterSelectOverlay(const UiRenderContext& ui, const CharacterSelect
         drawRect(renderer, 18, 30, 120, 140);
     }
     const float opponentPortraitX = widthF - 138.0f;
-    if (hasTexture(view.opponentPortrait) && view.opponentPortrait.width > 0 && view.opponentPortrait.height > 0) {
+    const bool opponentHasPortrait = hasTexture(view.opponentPortrait)
+        && view.opponentPortrait.width > 0
+        && view.opponentPortrait.height > 0;
+    if (opponentHasPortrait) {
         const float portraitScale = std::min({
             1.0f,
             120.0f / static_cast<float>(view.opponentPortrait.width),
@@ -93,12 +92,16 @@ void drawCharacterSelectOverlay(const UiRenderContext& ui, const CharacterSelect
         });
         drawSpriteTopLeft(renderer, view.opponentPortrait, opponentPortraitX, 30, portraitScale);
     } else {
-        drawFixedOpponentSlot(renderer, opponentPortraitX, 30, 120, 140, view.opponentName);
+        drawFixedOpponentSlot(renderer, opponentPortraitX, 30, 120, 140);
     }
 
     setColor(renderer, 235, 240, 248);
     debugText(renderer, 10, 154, view.selectedName);
-    debugText(renderer, widthF - 10.0f - static_cast<float>(view.opponentName.size() * 8), 154, view.opponentName);
+    if (opponentHasPortrait) {
+        debugText(renderer, widthF - 10.0f - static_cast<float>(view.opponentName.size() * 8), 154, view.opponentName);
+    } else {
+        debugTextCentered(renderer, opponentPortraitX + 60.0f, 154, view.opponentName);
+    }
 
     static constexpr float kCellSize = 27.0f;
     static constexpr float kCellSpacing = 2.0f;
