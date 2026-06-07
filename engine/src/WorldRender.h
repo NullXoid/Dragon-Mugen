@@ -107,6 +107,19 @@ void drawPaletteOverlay(SDL_Renderer* renderer, const AppState& state, const Act
     fillRect(renderer, 0, 0, logicalWidthF(state), static_cast<float>(kLogicalHeight));
 }
 
+int arenaVisualActionForFighter(const AppState& state, const FighterState& fighter, size_t actorIndex) {
+    if (state.frontend.pendingMode == PendingMode::Arena
+        && fighter.stateNo == 101
+        && fighter.action == 108
+        && lowercaseCopy(arenaFighterName(state, actorIndex)).find("evil ryu") != std::string::npos) {
+        const AnimationClip* flipClip = findClipForFighter(state, actorIndex, 106);
+        if (flipClip && flipClip->action == 106) {
+            return 106;
+        }
+    }
+    return fighter.action;
+}
+
 void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState& fighter, size_t actorIndex) {
     const StageSlot fallbackStage;
     const StageSlot& stage = selectedStageSlot(state.selection) ? *selectedStageSlot(state.selection) : fallbackStage;
@@ -182,7 +195,8 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
         }
     }
 
-    const AnimationClip* clip = findClipForFighter(state, actorIndex, fighter.action);
+    const int visualAction = arenaVisualActionForFighter(state, fighter, actorIndex);
+    const AnimationClip* clip = findClipForFighter(state, actorIndex, visualAction);
     const AnimationFrame* frame = clip ? frameForClip(*clip, fighter.animTick) : nullptr;
     const bool drawHitFeedback = (state.frontend.pendingMode != PendingMode::Training || state.training.options.showHitFlash)
         && (fighter.moveType == 'H' || fighter.hitPauseTicks > 0);

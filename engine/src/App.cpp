@@ -3648,6 +3648,11 @@ void enterGroundGetHitState(const AppState& state, FighterState& target, const H
     target.hitFallRecoverTime = hitDef.fallRecoverTime;
     target.hitFallDamage = hitDef.fallDamage;
     target.hitFallYAccel = hitDef.hasYAccel ? hitDef.yAccel : state.characterConstants.movementYAccel;
+    if (state.frontend.pendingMode == PendingMode::Arena && target.hitFall) {
+        target.hitFallRecover = false;
+        target.hitVelocityY = std::max(target.hitVelocityY, target.hitFallTrip ? -2.4f : -5.5f);
+        target.hitFallYAccel = std::max(target.hitFallYAccel, target.hitFallTrip ? 0.58f : 0.45f);
+    }
     target.hitFallAirAction = fallAirActionForHit(state, hitDef);
     target.hitFallBounceXVelocity = hitDef.hasFallXVelocity
         ? -hitDef.fallXVelocity * static_cast<float>(attackerFacing)
@@ -8301,13 +8306,14 @@ FightHudView fightHudView(const AppState& state) {
     view.p2.maxLife = 1000;
     view.p2.power = fightPowerGaugeView(state, 1);
     if (state.frontend.pendingMode == PendingMode::Arena) {
-        int cpuLife = 0;
-        for (size_t i = 1; i < state.fighters.size(); ++i) {
-            cpuLife += std::max(0, state.fighters[i].life);
+        view.arenaMode = true;
+        view.arenaFighterCount = static_cast<int>(std::min<size_t>(view.arenaFighters.size(), state.fighters.size()));
+        for (int i = 0; i < view.arenaFighterCount; ++i) {
+            auto& fighterView = view.arenaFighters[static_cast<size_t>(i)];
+            fighterView.name = compactSettingText((i == 0 ? "P1 " : "P" + std::to_string(i + 1) + " ") + arenaFighterName(state, static_cast<size_t>(i)), 13);
+            fighterView.life = state.fighters[static_cast<size_t>(i)].life;
+            fighterView.maxLife = 1000;
         }
-        view.p2.name = compactSettingText(std::to_string(arenaCpuCount(state)) + " CPU", 12);
-        view.p2.life = std::min(1000, cpuLife / std::max(1, arenaCpuCount(state)));
-        view.p2.power = fightPowerGaugeView(state, state.fighters.size() > 1 ? 1 : 0);
     }
 
     view.comboCounters[0] = fightComboCounterView(state, 0);
@@ -8486,16 +8492,17 @@ void drawFightView(SDL_Renderer* renderer, const AppState& state) {
     const bool hideBackground = anyFighterHasAssertSpecialFlag(state, "nobg");
     const bool hideForeground = anyFighterHasAssertSpecialFlag(state, "nofg");
     const bool hideHud = anyFighterHasAssertSpecialFlag(state, "nobardisplay");
+    const bool arenaMode = state.frontend.pendingMode == PendingMode::Arena;
     SDL_Rect defaultViewport;
     SDL_GetRenderViewport(renderer, &defaultViewport);
-    const int shakeOffsetY = static_cast<int>(std::lround(state.display.envShakeOffsetY));
+    const int shakeOffsetY = arenaMode ? 0 : static_cast<int>(std::lround(state.display.envShakeOffsetY));
     int impactShakeX = 0;
     int impactShakeY = 0;
     int maxHitPause = 0;
     for (const auto& fighter : state.fighters) {
         maxHitPause = std::max(maxHitPause, fighter.hitPauseTicks);
     }
-    if (maxHitPause >= 6) {
+    if (!arenaMode && maxHitPause >= 6) {
         const int magnitude = std::clamp(maxHitPause / 6, 1, 2);
         impactShakeX = ((state.frontend.screenFrame / 2) % 2 == 0) ? magnitude : -magnitude;
         impactShakeY = ((state.frontend.screenFrame / 3) % 2 == 0) ? 1 : -1;

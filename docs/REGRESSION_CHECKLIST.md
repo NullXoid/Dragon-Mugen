@@ -42,6 +42,8 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Fight view loads selected character and selected stage after VS.
 - Fight view fully repaints the window during hitpause, camera shake, and result overlays; no stale desktop/debug text should appear around the game viewport.
 - Arena and classic sweep/trip hits leave hitpause by entering the trip/fall/lying states instead of staying in grounded hitstun.
+- Arena shows one health bar per active fighter, not a shared CPU health average.
+- Arena knockdowns land on the floor and do not trigger viewport hitshake.
 - Training dummy behavior still works.
 - Training P2 control still switches the opponent to local P2 behavior.
 - Single Fight round timer, KO/time-over, pips, match result, and rematch/menu inputs still work.

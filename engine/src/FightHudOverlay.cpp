@@ -162,6 +162,35 @@ float lifeBarFillWidth(const FighterHudView& fighter, float maxWidth) {
     return maxWidth * std::clamp(static_cast<float>(fighter.life) / static_cast<float>(maxLife), 0.0f, 1.0f);
 }
 
+void drawArenaHealthBars(const UiRenderContext& ui, const FightHudView& view) {
+    const int count = std::clamp(view.arenaFighterCount, 1, static_cast<int>(view.arenaFighters.size()));
+    const float widthF = static_cast<float>(ui.logicalWidth);
+    const float margin = 18.0f;
+    const float gap = 8.0f;
+    const float barW = std::max(86.0f, (widthF - margin * 2.0f - gap * static_cast<float>(count - 1)) / static_cast<float>(count));
+    const std::array<std::array<Uint8, 3>, 4> fills{{
+        { 82, 190, 112 },
+        { 236, 198, 74 },
+        { 128, 171, 225 },
+        { 230, 130, 120 },
+    }};
+
+    for (int i = 0; i < count; ++i) {
+        const auto& fighter = view.arenaFighters[static_cast<size_t>(i)];
+        const float x = margin + static_cast<float>(i) * (barW + gap);
+        setColor(ui.renderer, 8, 10, 12, 235);
+        fillRect(ui.renderer, x, 10, barW, 9);
+        setColor(ui.renderer, 60, 70, 88);
+        drawRect(ui.renderer, x, 10, barW, 9);
+        const float fillW = lifeBarFillWidth(fighter, std::max(1.0f, barW - 4.0f));
+        const auto& fill = fills[static_cast<size_t>(i % static_cast<int>(fills.size()))];
+        setColor(ui.renderer, fill[0], fill[1], fill[2]);
+        fillRect(ui.renderer, x + 2.0f, 12, fillW, 5);
+        setColor(ui.renderer, 222, 226, 232);
+        debugText(ui.renderer, x, 23, fighter.name);
+    }
+}
+
 } // namespace
 
 void drawFightHud(const UiRenderContext& ui, const FightHudView& view) {
@@ -170,6 +199,22 @@ void drawFightHud(const UiRenderContext& ui, const FightHudView& view) {
 
     drawComboCounter(ui, view.comboCounters[0], 0);
     drawComboCounter(ui, view.comboCounters[1], 1);
+    if (view.arenaMode) {
+        drawArenaHealthBars(ui, view);
+        if (view.showMatchTimer) {
+            setColor(ui.renderer, 8, 10, 12);
+            fillRect(ui.renderer, centerX - 28.0f, 35, 56, 13);
+            setColor(ui.renderer, 230, 220, 172);
+            debugText(ui.renderer, centerX - 20.0f, 38, std::to_string(view.timerSeconds));
+        }
+        setColor(ui.renderer, 155, 164, 174);
+        debugText(ui.renderer, 20, 206, view.versusLine);
+        if (!view.bottomLine.empty()) {
+            setColor(ui.renderer, view.bottomLineHighlighted ? 230 : 155, view.bottomLineHighlighted ? 190 : 164, view.bottomLineHighlighted ? 105 : 174);
+            debugText(ui.renderer, 20, 218, view.bottomLine);
+        }
+        return;
+    }
     drawPowerGauge(ui, view.p1.power, false);
     drawPowerGauge(ui, view.p2.power, true);
 

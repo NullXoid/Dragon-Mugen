@@ -51,7 +51,10 @@ struct FighterHudView {
 struct FightHudView {
     FighterHudView p1;
     FighterHudView p2;
+    std::array<FighterHudView, 4> arenaFighters;
     std::array<FightComboCounterView, 2> comboCounters;
+    int arenaFighterCount = 0;
+    bool arenaMode = false;
     bool showMatchTimer = false;
     int timerSeconds = 0;
     int currentRound = 1;
