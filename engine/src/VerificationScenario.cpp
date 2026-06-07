@@ -877,10 +877,12 @@ int runArenaSmoke(RuntimeProbe& runtime, std::ostream& out, int cpuCount) {
         runtime.step({}, 2);
         const auto partial = runtime.snapshot();
         const bool stillFighting = partial.livingFighters == 2
-            && partial.matchPhase == static_cast<int>(MatchPhase::Fight);
+            && partial.matchPhase == static_cast<int>(MatchPhase::Fight)
+            && partial.p2.stateNo != 170;
         record(out, counts, stillFighting ? Status::Pass : Status::Fail, "defeated_fighters_excluded",
             "living=" + std::to_string(partial.livingFighters)
-            + " match_phase=" + std::to_string(partial.matchPhase));
+            + " match_phase=" + std::to_string(partial.matchPhase)
+            + " p2_state=" + std::to_string(partial.p2.stateNo));
     }
 
     for (int i = 1; i < expectedFighters; ++i) {
@@ -888,15 +890,17 @@ int runArenaSmoke(RuntimeProbe& runtime, std::ostream& out, int cpuCount) {
     }
     runtime.step({}, 2);
     const auto resolved = runtime.snapshot();
-    const bool winnerPhase = resolved.matchPhase == static_cast<int>(MatchPhase::RoundResult)
+    const bool winnerPhase = resolved.matchPhase == static_cast<int>(MatchPhase::RoundFinish)
+        || resolved.matchPhase == static_cast<int>(MatchPhase::RoundResult)
         || resolved.matchPhase == static_cast<int>(MatchPhase::MatchResult);
-    record(out, counts, winnerPhase && resolved.roundWinner == 1 && resolved.livingFighters == 1
+    record(out, counts, winnerPhase && resolved.roundWinner == 1 && resolved.livingFighters == 1 && resolved.p2.stateNo != 170
             ? Status::Pass
             : Status::Fail,
         "last_fighter_standing_winner",
         "phase=" + std::to_string(resolved.matchPhase)
         + " winner=" + std::to_string(resolved.roundWinner)
         + " living=" + std::to_string(resolved.livingFighters)
+        + " p2_state=" + std::to_string(resolved.p2.stateNo)
         + " text=\"" + resolved.lastHitText + "\"");
 
     bool reachedEndScreen = false;
@@ -911,6 +915,49 @@ int runArenaSmoke(RuntimeProbe& runtime, std::ostream& out, int cpuCount) {
         "match_phase=" + std::to_string(runtime.snapshot().matchPhase));
 
     record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runEvilRyuDash(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("EvilRyu", "Mountainside", ScenarioMode::Arena, out)) {
+        record(out, counts, Status::Blocked, "setup", "EvilRyu/Mountainside Arena setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "evilryu-dash");
+    const bool idle = waitForControllableIdle(runtime, 420);
+    record(out, counts, idle ? Status::Pass : Status::Fail, "controllable_idle_ready",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo));
+    runtime.positionFighters(-120.0f, 180.0f);
+    SymbolicInput forward;
+    forward.right = true;
+    const float startX = runtime.snapshot().p1.x;
+    runtime.step(forward, 2);
+    runtime.step({}, 2);
+    runtime.step(forward, 2);
+
+    bool sawDash = false;
+    bool sawMovingDash = false;
+    int startupRun = 0;
+    int maxStartupRun = 0;
+    float maxX = startX;
+    for (int i = 0; i < 45; ++i) {
+        const auto p1 = runtime.snapshot().p1;
+        sawDash = sawDash || p1.stateNo == 100 || p1.stateNo == 101 || p1.stateNo == 102;
+        sawMovingDash = sawMovingDash || p1.stateNo == 101 || p1.stateNo == 102;
+        startupRun = p1.stateNo == 100 ? startupRun + 1 : 0;
+        maxStartupRun = std::max(maxStartupRun, startupRun);
+        maxX = std::max(maxX, p1.x);
+        runtime.step(forward, 1);
+    }
+    const auto end = runtime.snapshot().p1;
+    const bool progressed = sawDash && sawMovingDash && maxStartupRun <= 18 && maxX > startX + 20.0f;
+    record(out, counts, progressed ? Status::Pass : Status::Fail, "forward_dash_progresses",
+        "start_x=" + std::to_string(startX) + " max_x=" + std::to_string(maxX)
+        + " final_state=" + std::to_string(end.stateNo)
+        + " max_startup_frames=" + std::to_string(maxStartupRun));
     summary(out, counts);
     return exitCode(counts);
 }
@@ -939,10 +986,13 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
     if (scenarioName == "arena-cpu-3") {
         return runArenaSmoke(runtime, out, 3);
     }
+    if (scenarioName == "evilryu-dash") {
+        return runEvilRyuDash(runtime, out);
+    }
 
     out << "VERIFY " << scenarioName << "\n"
         << "BLOCKED unknown_scenario\n"
-        << "  supported: kfm-baseline, kfm-air-state, evilken-smoke, cpu-baseline, arena-cpu-1, arena-cpu-2, arena-cpu-3\n"
+        << "  supported: kfm-baseline, kfm-air-state, evilken-smoke, cpu-baseline, arena-cpu-1, arena-cpu-2, arena-cpu-3, evilryu-dash\n"
         << "SUMMARY pass=0 partial=0 fail=0 blocked=1\n";
     return 2;
 }

@@ -3,8 +3,102 @@
 // Internal App.cpp implementation header for the Arena DLC fight loop.
 // Include only from App.cpp after the classic fight helpers are defined.
 
-void startArenaResult(AppState& state, int winnerIndex) {
-    state.matchPhase = MatchPhase::RoundResult;
+bool arenaFighterHasDefeatMotion(const FighterState& fighter) {
+    return fighter.moveType == 'H'
+        || fighter.guarding
+        || fighter.hitPauseTicks > 0
+        || fighter.hitFall
+        || fighter.customHitState
+        || fighter.stateNo >= 5000
+        || !fighter.onGround
+        || fighter.stateType == 'A';
+}
+
+void holdArenaDefeatedRecoveryPose(const AppState& state, FighterState& fighter) {
+    if (fighter.life > 0) {
+        return;
+    }
+    fighter.hitFallRecover = false;
+    if (fighter.stateNo == 5120 && findExactClip(state, 5110)) {
+        fighter.stateNo = 5110;
+        fighter.stateTime = 0;
+        fighter.stateType = 'L';
+        fighter.physics = 'N';
+        fighter.onGround = true;
+        fighter.y = 0.0f;
+        fighter.vx = 0.0f;
+        fighter.vy = 0.0f;
+        setFighterAction(fighter, 5110);
+    }
+    if (fighter.hitFall && fighter.stateNo == 5110) {
+        fighter.hitStunTicks = std::max(fighter.hitStunTicks, 2);
+        fighter.vx = 0.0f;
+        fighter.vy = 0.0f;
+    }
+}
+
+void markArenaDefeatedFighters(AppState& state) {
+    for (auto& fighter : state.fighters) {
+        if (fighter.life > 0) {
+            continue;
+        }
+        fighter.life = 0;
+        fighter.ctrl = false;
+        fighter.targetIndex = -1;
+        fighter.targetTicks = 0;
+        holdArenaDefeatedRecoveryPose(state, fighter);
+        if (!arenaFighterHasDefeatMotion(fighter)) {
+            fighter.vx = 0.0f;
+            fighter.vy = 0.0f;
+        }
+    }
+}
+
+void updateArenaDefeatedFighterPose(AppState& state, size_t fighterIndex, const StageSlot& stage) {
+    if (fighterIndex >= state.fighters.size()) {
+        return;
+    }
+    auto& fighter = state.fighters[fighterIndex];
+    if (fighter.life > 0) {
+        return;
+    }
+
+    fighter.life = 0;
+    fighter.ctrl = false;
+    fighter.targetIndex = -1;
+    fighter.targetTicks = 0;
+    if (!fighterCanUpdateDuringGlobalPause(state, static_cast<int>(fighterIndex))) {
+        fighter.vx = 0.0f;
+        fighter.vy = 0.0f;
+        return;
+    }
+
+    const int stateNoAtStart = fighter.stateNo;
+    if (fighter.guarding) {
+        updateGroundGuardState(state, fighter);
+    } else if (fighter.moveType == 'H' && !fighter.customHitState) {
+        updateGroundGetHitState(state, fighter);
+    } else if (!arenaFighterHasDefeatMotion(fighter)) {
+        fighter.vx = 0.0f;
+        fighter.vy = 0.0f;
+    }
+    holdArenaDefeatedRecoveryPose(state, fighter);
+
+    updateFighterPhysics(state, fighter, stage);
+    updateCommonAirRecoveryState(state, fighter);
+    updateCommonDizzyState(state, fighter);
+    holdArenaDefeatedRecoveryPose(state, fighter);
+
+    const bool enteredNewState = fighter.stateNo != stateNoAtStart && fighter.stateTime == 0;
+    if (!enteredNewState && fighter.hitPauseTicks <= 0) {
+        ++fighter.animTick;
+        ++fighter.stateTime;
+        updateAfterImageEffect(fighter);
+    }
+}
+
+void startArenaRoundFinish(AppState& state, int winnerIndex) {
+    state.matchPhase = MatchPhase::RoundFinish;
     state.matchPhaseTicks = 0;
     state.roundWinner = winnerIndex >= 0 ? winnerIndex + 1 : 0;
     state.roundEndReason = RoundEndReason::Ko;
@@ -13,18 +107,18 @@ void startArenaResult(AppState& state, int winnerIndex) {
     for (size_t i = 0; i < state.fighters.size(); ++i) {
         auto& fighter = state.fighters[i];
         fighter.ctrl = false;
-        fighter.vx = 0.0f;
-        fighter.vy = 0.0f;
         if (static_cast<int>(i) == winnerIndex) {
+            fighter.vx = 0.0f;
+            fighter.vy = 0.0f;
             enterStateIfAvailable(state, fighter, 181);
-        } else if (fighter.life <= 0) {
-            enterStateIfAvailable(state, fighter, 170);
+        } else if (!arenaFighterHasDefeatMotion(fighter)) {
+            fighter.vx = 0.0f;
+            fighter.vy = 0.0f;
         }
+        holdArenaDefeatedRecoveryPose(state, fighter);
     }
-    state.messages.lastHitText = winnerIndex >= 0
-        ? state.arenaConfig.winTitle + ": " + arenaFighterName(state, static_cast<size_t>(winnerIndex))
-        : "DRAW GAME";
-    state.messages.lastHitTextTicks = singleFightRoundResultHoldTicks(state);
+    state.messages.lastHitText = roundFinishCalloutText(state);
+    state.messages.lastHitTextTicks = singleFightRoundFinishHoldTicks(state);
 }
 
 void updateArenaPhaseTimers(AppState& state) {
@@ -41,6 +135,16 @@ void updateArenaPhaseTimers(AppState& state) {
             state.matchPhaseTicks = 0;
         }
         break;
+    case MatchPhase::RoundFinish:
+        ++state.matchPhaseTicks;
+        markArenaDefeatedFighters(state);
+        if (state.matchPhaseTicks >= singleFightRoundFinishHoldTicks(state)) {
+            state.matchPhase = MatchPhase::RoundResult;
+            state.matchPhaseTicks = 0;
+            state.messages.lastHitText = roundResultText(state);
+            state.messages.lastHitTextTicks = singleFightRoundResultHoldTicks(state);
+        }
+        break;
     case MatchPhase::RoundResult:
         ++state.matchPhaseTicks;
         if (state.matchPhaseTicks >= singleFightRoundResultHoldTicks(state)) {
@@ -52,25 +156,40 @@ void updateArenaPhaseTimers(AppState& state) {
     case MatchPhase::MatchResult:
         ++state.matchPhaseTicks;
         break;
-    case MatchPhase::RoundFinish:
     case MatchPhase::Fight:
     default:
         break;
     }
 }
 
-void stopDefeatedArenaFighters(AppState& state) {
-    for (auto& fighter : state.fighters) {
-        if (fighter.life > 0) {
-            continue;
-        }
-        fighter.life = 0;
+void updateArenaRoundFinishWorld(AppState& state, const StageSlot& stage) {
+    markArenaDefeatedFighters(state);
+    updateHelperActors(state, stage);
+    for (size_t i = 0; i < state.fighters.size(); ++i) {
+        auto& fighter = state.fighters[i];
         fighter.ctrl = false;
-        fighter.vx = 0.0f;
-        fighter.vy = 0.0f;
         fighter.targetIndex = -1;
         fighter.targetTicks = 0;
+        if (fighter.life <= 0) {
+            updateArenaDefeatedFighterPose(state, i, stage);
+            continue;
+        }
+        if (!fighterCanUpdateDuringGlobalPause(state, static_cast<int>(i))) {
+            fighter.vx = 0.0f;
+            fighter.vy = 0.0f;
+            continue;
+        }
+        updateFighterPhysics(state, fighter, stage);
+        updateCommonAirRecoveryState(state, fighter);
+        updateCommonDizzyState(state, fighter);
+        if (fighter.hitPauseTicks <= 0) {
+            ++fighter.animTick;
+            ++fighter.stateTime;
+            updateAfterImageEffect(fighter);
+        }
+        finishStateIfAnimationEnded(state, fighter);
     }
+    updateGlobalPauseTimers(state);
 }
 
 void updateArenaFight(AppState& state) {
@@ -87,6 +206,13 @@ void updateArenaFight(AppState& state) {
         updateArenaCamera(state, stage);
         return;
     }
+    if (state.matchPhase == MatchPhase::RoundFinish) {
+        updateArenaRoundFinishWorld(state, stage);
+        updateArenaPhaseTimers(state);
+        updateArenaCamera(state, stage);
+        applyScreenBounds(state, stage);
+        return;
+    }
     if (state.matchPhase == MatchPhase::RoundResult || state.matchPhase == MatchPhase::MatchResult) {
         updateArenaPhaseTimers(state);
         updateArenaCamera(state, stage);
@@ -95,7 +221,7 @@ void updateArenaFight(AppState& state) {
 
     const bool* keys = gFightInputOverride ? nullptr : SDL_GetKeyboardState(nullptr);
     updateArenaFighterFacing(state);
-    stopDefeatedArenaFighters(state);
+    markArenaDefeatedFighters(state);
 
     std::vector<int> stateNoAtFrameStart;
     stateNoAtFrameStart.reserve(state.fighters.size());
@@ -116,8 +242,10 @@ void updateArenaFight(AppState& state) {
         auto& fighter = state.fighters[i];
         const int targetIndex = nearestLivingEnemyIndex(state, static_cast<int>(i));
         if (fighter.life <= 0 || targetIndex < 0 || !fighterCanUpdateDuringGlobalPause(state, static_cast<int>(i))) {
-            fighter.vx = 0.0f;
-            fighter.vy = 0.0f;
+            if (fighter.life > 0) {
+                fighter.vx = 0.0f;
+                fighter.vy = 0.0f;
+            }
             continue;
         }
         updateCpuOpponent(state, fighter, state.fighters[static_cast<size_t>(targetIndex)]);
@@ -175,6 +303,7 @@ void updateArenaFight(AppState& state) {
     if (!globalPauseActive(state) || state.globalPauseOwnerMoveTicks > 0) {
         applyArenaHitIfNeeded(state);
     }
+    markArenaDefeatedFighters(state);
 
     for (size_t i = 0; i < state.fighters.size(); ++i) {
         if (!canUpdate[i] || state.fighters[i].life <= 0) {
@@ -190,11 +319,14 @@ void updateArenaFight(AppState& state) {
     }
 
     updateFightAssertSpecialControllers(state, stage);
-    stopDefeatedArenaFighters(state);
     if (livingArenaFighterCount(state) <= 1) {
-        startArenaResult(state, arenaWinnerIndex(state));
+        startArenaRoundFinish(state, arenaWinnerIndex(state));
         updateArenaCamera(state, stage);
         return;
+    }
+
+    for (size_t i = 0; i < state.fighters.size(); ++i) {
+        updateArenaDefeatedFighterPose(state, i, stage);
     }
 
     updateArenaCamera(state, stage);

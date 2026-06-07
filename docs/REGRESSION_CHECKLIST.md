@@ -16,6 +16,15 @@ Run from a Visual Studio developer shell for build-level changes:
 python engine/tools/dev_check.py .
 ```
 
+Run these for Arena DLC fight-loop changes:
+
+```powershell
+build\dragon_mugen.exe --verify arena-cpu-1
+build\dragon_mugen.exe --verify arena-cpu-2
+build\dragon_mugen.exe --verify arena-cpu-3
+build\dragon_mugen.exe --verify evilryu-dash
+```
+
 ## Manual Play Flow
 
 Check these when touching menu, input, loading, fight flow, or runtime behavior:
