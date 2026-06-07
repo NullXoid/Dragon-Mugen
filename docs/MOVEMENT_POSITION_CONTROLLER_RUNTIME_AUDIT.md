@@ -101,15 +101,18 @@ Still not moved:
 ## Current Follow-Up Recommendation
 
 ```text
-Next audit:
+Completed follow-up audit:
 Position / grounding controller audit.
 
-Audit before moving:
+Current next code pass:
+Move PosAdd-only controller execution into StateControllerPosAddRuntime.h.
+
+Move only:
 - PosAdd
-- PosSet
-- PosFreeze
 
 Do not move:
+- PosSet
+- PosFreeze
 - CtrlSet
 - StateTypeSet
 - ScreenBound

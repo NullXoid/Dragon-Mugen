@@ -39,6 +39,7 @@ The earlier roadmap's safe chunks have already been substantially completed:
 - `PowerAdd` controller runtime body.
 - Movement/position controller runtime audit.
 - Velocity-controller runtime body.
+- Position/grounding controller runtime audit.
 
 These completed areas should not be treated as future broad work. Future passes should build on them and avoid reopening their boundaries unless a focused regression or cleanup requires it.
 
@@ -46,16 +47,17 @@ These completed areas should not be treated as future broad work. Future passes 
 
 Next code target:
 
-- Position / grounding controller audit, after the completed velocity-only body move.
+- `PosAdd`-only controller execution body, after the position/grounding audit in `docs/POSITION_GROUNDING_CONTROLLER_RUNTIME_AUDIT.md`.
 
 Completed with limits:
 
 - `VelSet` / `VelAdd` / `VelMul` velocity controller execution now lives in `StateControllerVelocityRuntime.h`.
+- `PosAdd` is audited as ready with limits, but not yet moved.
 
 Needs a narrower audit or seam before movement:
 
 - Remaining meter/stat controllers: `LifeAdd`, `HitAdd`, `AttackDist`, `AttackMulSet`, and `DefenceMulSet`.
-- Position/grounding controllers: `PosAdd`, `PosSet`, and `PosFreeze`.
+- Position/grounding-sensitive controllers: `PosSet` and `PosFreeze`.
 - Control and state-shape controllers: `CtrlSet` and `StateTypeSet`.
 - Bounds/contact-adjacent controllers: `ScreenBound`, `Width`, `PlayerPush`, `SprPriority`, and `Turn`.
 - Pause and superpause.
@@ -98,6 +100,8 @@ The movement/position controller audit is complete: `docs/MOVEMENT_POSITION_CONT
 
 The velocity-controller runtime body cut is complete: `StateControllerVelocityRuntime.h` owns only the `VelSet` / `VelAdd` / `VelMul` loop from `updateStateMovementControllers(...)`. `PosAdd`, `PosSet`, `PosFreeze`, `CtrlSet`, `StateTypeSet`, `ScreenBound`, `Width`, `PlayerPush`, `SprPriority`, `Turn`, hit/get-hit controllers, pause/superpause, hit/damage, lifecycle, target, and round-flow behavior remain in `App.cpp`.
 
+The position/grounding controller audit is complete: `docs/POSITION_GROUNDING_CONTROLLER_RUNTIME_AUDIT.md` classifies `PosAdd`, `PosSet`, and `PosFreeze`. It recommends a `PosAdd`-only implementation cut and explicitly defers `PosSet` because it affects `onGround`, plus `PosFreeze` because it belongs with movement-freeze behavior.
+
 ## Completed Utility Runtime Pass
 
 Completed code pass:
@@ -138,14 +142,16 @@ This completed pass stayed intentionally narrower than "move CNS runtime." It wa
 
 ## Follow-Up Sequence
 
-Do not collapse the remaining runtime work into one pass. After the completed `StateControllerUtilityRuntime.h`, `StateControllerVariableRuntime.h`, `StateControllerPowerRuntime.h`, and `StateControllerVelocityRuntime.h` cuts plus the meter/stat and movement/position audits, continue with focused audits or small implementation cuts in this order unless a new blocker requires a documented change:
+Do not collapse the remaining runtime work into one pass. After the completed `StateControllerUtilityRuntime.h`, `StateControllerVariableRuntime.h`, `StateControllerPowerRuntime.h`, and `StateControllerVelocityRuntime.h` cuts plus the meter/stat, movement/position, and position/grounding audits, continue with focused audits or small implementation cuts in this order unless a new blocker requires a documented change:
 
-1. Position / grounding controller audit.
-2. Pause / superpause audit.
-3. Helper / projectile / explod audit.
-4. Target controller audit.
-5. HitDef / damage audit.
-6. Round flow audit.
+1. `PosAdd`-only controller body move.
+2. `PosSet` / grounding seam audit.
+3. `PosFreeze` / movement-freeze audit.
+4. Pause / superpause audit.
+5. Helper / projectile / explod audit.
+6. Target controller audit.
+7. HitDef / damage audit.
+8. Round flow audit.
 
 ## Current Roadmap Conclusion
 
@@ -161,20 +167,22 @@ The old `Movement / position controller audit` recommendation is complete in `do
 
 The old velocity-only implementation recommendation is complete in `StateControllerVelocityRuntime.h`.
 
+The old `Position / grounding controller audit` recommendation is complete in `docs/POSITION_GROUNDING_CONTROLLER_RUNTIME_AUDIT.md`.
+
 Next recommended implementation:
 
 ```text
-Position / grounding controller audit
+Move PosAdd-only controller execution into StateControllerPosAddRuntime.h
 ```
 
-Audit before moving:
+Move only:
 
-- `PosAdd`.
-- `PosSet`.
-- `PosFreeze`.
+- `PosAdd` execution from `updateStatePosAddControllers(...)`.
 
 Do not include:
 
+- `PosSet`.
+- `PosFreeze`.
 - `CtrlSet`.
 - `StateTypeSet`.
 - `ScreenBound`.
@@ -209,12 +217,12 @@ This checkpoint should not change source, CMake, content, sidecar policy, boss i
 Expected validation:
 
 ```powershell
-python engine/tools/dev_check.py .
+python engine/tools/dev_check.py . --skip-build
 python tools/check_file_sizes.py
 git diff --check
 ```
 
-`tools/check_file_sizes.py` is expected to continue failing on known `App.cpp` hard debt and should report `App.cpp` at `8533` until the next source extraction. Treat any new failure outside the known `App.cpp` debt as a blocker. Full `dev_check.py` should be run from a Visual Studio developer shell on Windows.
+`tools/check_file_sizes.py` is expected to continue failing on known `App.cpp` hard debt and should report `App.cpp` at `8533` until the next source extraction. Treat any new failure outside the known `App.cpp` debt as a blocker.
 
 ## Dirty File Handling
 
