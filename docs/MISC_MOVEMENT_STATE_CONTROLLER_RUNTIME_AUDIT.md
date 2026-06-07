@@ -91,20 +91,56 @@ git diff --check
 
 `dev_check.py --skip-build` should pass. `tools/check_file_sizes.py` should still fail only known `App.cpp` hard debt and report `App.cpp` at `8507`. Full runtime verifier reruns are optional because this checkpoint changes documentation only.
 
-## Audit Conclusion
+## SprPriority Body Move Follow-Up
+
+The follow-up implementation pass moved only `SprPriority` execution from `updateStateMovementControllers(...)` into `engine/src/StateControllerSprPriorityRuntime.h`.
+
+Moved helper:
+
+```cpp
+void updateStateSprPriorityControllersForDefinition(
+    AppState& state,
+    FighterState& fighter,
+    const StateDefinition& stateDef,
+    const FighterState* opponent,
+    const StageSlot* stage)
+```
+
+The helper preserves the original `shouldRunStateRuntimeController(...)` gate and `fighter.sprPriority = sprPriority.value`.
+
+Measured follow-up result:
+
+| Item | Value |
+| --- | ---: |
+| `App.cpp` before | 8507 |
+| `App.cpp` after | 8503 |
+| `App.cpp` reduction | 4 |
+| `StateControllerSprPriorityRuntime.h` count | 18 |
+| Remaining to 50% reduction | 93 |
+
+The pass did not cross the 50% reduction threshold, so no separate 50% checkpoint was recorded.
+
+Follow-up validation:
 
 ```text
-Next code pass:
-Move SprPriority-only controller execution into an App.cpp-internal header.
+kfm-baseline: pass=12 partial=0 fail=0 blocked=0
+evilken-smoke: pass=9 partial=0 fail=0 blocked=0
+kfm-air-state: pass=12 partial=0 fail=0 blocked=0
+cpu-baseline: pass=7 partial=0 fail=0 blocked=0
+```
 
-Recommended header:
-StateControllerSprPriorityRuntime.h
+`PosFreeze`, `Turn`, `CtrlSet`, `StateTypeSet`, `ScreenBound`, `Width`, `PlayerPush`, velocity controllers, `PosAdd`, `PosSet`, hit/get-hit controllers, HitDef/damage/guard, round flow, helper/projectile/explod lifecycle, target controllers, `ChangeState` / `SelfState`, pause/superpause, CPU/input behavior, sidecar policy, grounding physics, content, CMake, branch topology, and `.dragon/*.json` stayed unchanged.
 
-Move only:
-- SprPriority execution from updateStateMovementControllers(...)
+## Updated Audit Conclusion
+
+```text
+Next pass:
+Audit PosFreeze / movement-freeze controller behavior before any source movement.
+
+Recommended audit:
+PosFreeze / movement-freeze audit
 
 Do not move:
-- PosFreeze
 - Turn
 - CtrlSet
 - StateTypeSet

@@ -187,8 +187,11 @@ git diff --check
 Follow-up audit completed:
 docs/MISC_MOVEMENT_STATE_CONTROLLER_RUNTIME_AUDIT.md
 
-Next code pass:
-Move SprPriority-only controller execution into StateControllerSprPriorityRuntime.h.
+Follow-up implementation completed:
+StateControllerSprPriorityRuntime.h
+
+Next pass:
+Audit PosFreeze / movement-freeze controller behavior before any source movement.
 
 Do not move:
 - PosFreeze execution before a dedicated movement-freeze audit

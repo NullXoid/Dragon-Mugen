@@ -4090,6 +4090,7 @@ void updateStateChangeAnimControllers(
 
 #include "StateControllerVelocityRuntime.h"
 #include "StateControllerPosSetRuntime.h"
+#include "StateControllerSprPriorityRuntime.h"
 
 void updateStateMovementControllers(
     AppState& state,
@@ -4103,12 +4104,7 @@ void updateStateMovementControllers(
     forEachRuntimeControllerStateDefinition(state, fighter, [&](const StateDefinition& runtimeStateDef) {
         const StateDefinition* stateDef = &runtimeStateDef;
 
-    for (const auto& sprPriority : stateDef->sprPriorities) {
-        if (!shouldRunStateRuntimeController(state, fighter, sprPriority.id, sprPriority.trigger, opponent, stage)) {
-            continue;
-        }
-        fighter.sprPriority = sprPriority.value;
-    }
+    updateStateSprPriorityControllersForDefinition(state, fighter, *stateDef, opponent, stage);
 
     for (const auto& posFreeze : stateDef->posFreezes) {
         if (!shouldRunStateRuntimeController(state, fighter, posFreeze.id, posFreeze.trigger, opponent, stage)) {
