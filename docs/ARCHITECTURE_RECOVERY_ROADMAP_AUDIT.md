@@ -8,11 +8,11 @@ Baseline and current file-size guard values:
 
 | Item | Value |
 | --- | ---: |
-| Current baseline commit | `de22bec` |
+| Previous source baseline commit | `de22bec` |
 | Starting `App.cpp` count | 16820 |
-| Current `App.cpp` count | 8632 |
-| Total removed | 8188 |
-| Reduction | 48.7% |
+| Current `App.cpp` count | 8571 |
+| Total removed | 8249 |
+| Reduction | 49.0% |
 
 `App.cpp` is no longer in the safe UI extraction stage. The project is now in the runtime-core extraction stage. The remaining work is mutation-heavy and must stay split into small, auditable cuts.
 
@@ -33,16 +33,19 @@ The earlier roadmap's safe chunks have already been substantially completed:
 - Runtime expression and trigger evaluation.
 - Fight/session setup and reset.
 - Controller utility/audio/assert/display runtime body.
+- Variable-controller runtime body.
 
 These completed areas should not be treated as future broad work. Future passes should build on them and avoid reopening their boundaries unless a focused regression or cleanup requires it.
 
 ## Remaining Runtime-Core Classification
 
-Ready or near-ready for a bounded cut after inspection:
+Next audit target:
 
-- Variable controller body: `VarSet`, `VarAdd`, `VarRandom`, and `VarRangeSet`.
-- Meter/stat controller body only if it stays separate from hit/damage and round-flow effects.
-- Movement/position controller body only after a separate audit keeps it away from physics update and round-flow logic.
+- Meter/stat controller body: `PowerAdd`, `LifeAdd`, `HitAdd`, `AttackDist`, `AttackMulSet`, and `DefenceMulSet`.
+
+Ready or near-ready after separate inspection:
+
+- Movement/position controller body, only if kept away from physics update and round-flow logic.
 
 Needs a narrower audit before movement:
 
@@ -68,13 +71,15 @@ The hardest remaining systems are live mutation paths:
 - Target mutation.
 - Helper, projectile, explod, and effect lifecycle.
 - Pause and superpause timing.
-- Variable, meter, movement, and position controllers.
+- Meter, movement, and position controllers.
 - Round and match flow.
 - `FighterState` and `AppState` ownership.
 
 Architecture recovery remains the active feature. Broad gameplay work should stay limited while these runtime-core boundaries are extracted and documented one responsibility at a time.
 
 The first bounded runtime-core code cut is now complete: `StateControllerUtilityRuntime.h` owns the controller utility/audio/assert/display runtime body without moving state transitions, HitDef/damage, target mutation, helper/projectile/explod lifecycle, pause/superpause timing, variable/meter mutation, movement/position mutation, or round flow.
+
+The variable-controller body cut is also complete: `StateControllerVariableRuntime.h` owns `updateStateVariableControllers(...)` for `VarSet`, `VarAdd`, `VarRandom`, and `VarRangeSet` execution only. `setFighterVariableValue(...)` remains in `App.cpp` because `ParentVarAdd` still uses it, and `ParentVarAdd` remains deferred with helper/parent lifecycle work.
 
 ## Completed Utility Runtime Pass
 
@@ -107,7 +112,7 @@ Still not moved:
 - `Projectile`.
 - `Explod` lifecycle.
 - `Pause` / `SuperPause`.
-- Variable/meter controllers.
+- Meter/stat controllers.
 - Movement/position controllers.
 - Round flow.
 - `FighterState` / `AppState` extraction.
@@ -116,49 +121,40 @@ This completed pass stayed intentionally narrower than "move CNS runtime." It wa
 
 ## Follow-Up Sequence
 
-Do not collapse the remaining runtime work into one pass. After the completed `StateControllerUtilityRuntime.h` cut, continue with focused audits or small implementation cuts in this order unless a new blocker requires a documented change:
+Do not collapse the remaining runtime work into one pass. After the completed `StateControllerUtilityRuntime.h` and `StateControllerVariableRuntime.h` cuts, continue with focused audits or small implementation cuts in this order unless a new blocker requires a documented change:
 
-1. Variable-only controller audit or extraction.
-2. Meter/stat controller audit.
-3. Movement / position controller audit.
-4. Pause / superpause audit.
-5. Helper / projectile / explod audit.
-6. Target controller audit.
-7. HitDef / damage audit.
-8. Round flow audit.
+1. Meter/stat controller audit.
+2. Movement / position controller audit.
+3. Pause / superpause audit.
+4. Helper / projectile / explod audit.
+5. Target controller audit.
+6. HitDef / damage audit.
+7. Round flow audit.
 
 ## Current Roadmap Conclusion
 
 The old `StateControllerUtilityRuntime.h` recommendation is complete as of `de22bec`.
 
+The old `StateControllerVariableRuntime.h` recommendation is complete as the variable-only controller body move.
+
 Next recommended implementation:
 
 ```text
-Audit and/or move the bounded variable-controller runtime body.
+Meter/stat controller audit
 ```
 
-Preferred next code pass:
-
-```text
-StateControllerVariableRuntime.h
-```
-
-Initial scope:
-
-- `VarSet`.
-- `VarAdd`.
-- `VarRandom`.
-- `VarRangeSet`.
-
-Possible later scope only after inspection:
+Audit scope:
 
 - `PowerAdd`.
-- `LifeAdd`, only if it does not drag KO or round-flow coupling into the extraction.
-- `AttackMulSet` / `DefenceMulSet`, only if kept to simple stat mutation.
+- `LifeAdd`.
+- `HitAdd`.
+- `AttackDist`.
+- `AttackMulSet`.
+- `DefenceMulSet`.
 
 Do not include:
 
-- `LifeAdd` if inspection shows KO or round-flow coupling.
+- Moving these controllers before the audit records coupling and risk.
 - `HitDef`.
 - Target controllers.
 - Helper / Projectile / Explod lifecycle.
@@ -171,7 +167,7 @@ Do not include:
 
 ## Validation For Current Checkpoint
 
-This checkpoint should not change CMake, content, sidecar policy, boss intro behavior, or `.dragon/*.json`. The source change is limited to the internal `StateControllerUtilityRuntime.h` extraction and its `App.cpp` include/removal.
+This checkpoint should not change CMake, content, sidecar policy, boss intro behavior, or `.dragon/*.json`. The source change is limited to the internal `StateControllerVariableRuntime.h` extraction and its `App.cpp` include/removal.
 
 Expected validation:
 
