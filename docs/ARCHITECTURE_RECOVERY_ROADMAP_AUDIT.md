@@ -48,6 +48,7 @@ The earlier roadmap's safe chunks have already been substantially completed:
 - `SprPriority` controller runtime body.
 - `PosFreeze` controller runtime body.
 - `Turn` controller runtime body.
+- `CtrlSet` / command-control controller runtime audit.
 
 These completed areas should not be treated as future broad work. Future passes should build on them and avoid reopening their boundaries unless a focused regression or cleanup requires it.
 
@@ -55,7 +56,7 @@ These completed areas should not be treated as future broad work. Future passes 
 
 Next code target:
 
-- Audit `CtrlSet` / command-control behavior before any source movement.
+- Harden command-control verifier coverage before any `CtrlSet` source movement.
 
 Completed with limits:
 
@@ -70,7 +71,8 @@ Completed with limits:
 Needs a narrower audit or seam before movement:
 
 - Remaining meter/stat controllers: `LifeAdd`, `HitAdd`, `AttackDist`, `AttackMulSet`, and `DefenceMulSet`.
-- Control and state-shape controllers: `CtrlSet` and `StateTypeSet`.
+- Command-control controller: `CtrlSet` needs direct verifier proof before movement.
+- State-shape controller: `StateTypeSet`.
 - Bounds/contact-adjacent controllers: `ScreenBound`, `Width`, and `PlayerPush`.
 - Pause and superpause.
 - Helper, projectile, and explod lifecycle.
@@ -130,6 +132,8 @@ The `PosFreeze` controller runtime body cut is complete: `StateControllerPosFree
 
 The `Turn` controller runtime body cut is complete: `StateControllerTurnRuntime.h` owns only the `Turn` loop from `updateStateMovementControllers(...)`. It preserves the original `shouldRunStateRuntimeController(...)` gate, `fighter.facing *= -1`, `fighter.jumpBaseAction = 0`, and `fighter.jumpPeakActionApplied = false` behavior. `App.cpp` dropped from `8498` to `8492` file-size-guard lines, and `StateControllerTurnRuntime.h` is `22` lines. `CtrlSet`, `StateTypeSet`, `ScreenBound`, `Width`, `PlayerPush`, velocity controllers, position controllers, hit/get-hit controllers, pause/superpause, input routing, command recognition, CPU behavior, hit/damage, lifecycle, target, and round-flow behavior remain unchanged.
 
+The `CtrlSet` / command-control audit is complete in `docs/CTRLSET_COMMAND_CONTROL_CONTROLLER_RUNTIME_AUDIT.md`. It classified the live `updateStateCtrlControllers(...)` body as mechanically small but command-control coupled because it writes `fighter.ctrl`, uses custom `firedStateCtrlControllerIds` history, and feeds command eligibility, fallback walk/jump behavior, CPU input choice, helpers, and round-finish control locks. Current verifiers prove broad controllable idle and command behavior, but they do not prove an authored `CtrlSet` disables control, blocks `requiresCtrl` command entry, then restores controllable idle through the normal CNS path. No source, CMake, content, sidecar policy, gameplay behavior, branch topology, or `.dragon/*.json` changed.
+
 ## Completed Utility Runtime Pass
 
 Completed code pass:
@@ -172,7 +176,7 @@ This completed pass stayed intentionally narrower than "move CNS runtime." It wa
 
 Do not collapse the remaining runtime work into one pass. After the completed `StateControllerUtilityRuntime.h`, `StateControllerVariableRuntime.h`, `StateControllerPowerRuntime.h`, `StateControllerVelocityRuntime.h`, `StateControllerPosAddRuntime.h`, `StateControllerPosSetRuntime.h`, `StateControllerSprPriorityRuntime.h`, `StateControllerPosFreezeRuntime.h`, and `StateControllerTurnRuntime.h` cuts, continue with focused audits or small implementation cuts in this order unless a new blocker requires a documented change:
 
-1. `CtrlSet` / command-control audit.
+1. Command-control verifier hardening for authored `CtrlSet` behavior.
 2. `StateTypeSet` / state-shape audit.
 3. `ScreenBound` / `Width` / `PlayerPush` bounds-contact audit.
 4. Pause / superpause audit.
@@ -216,7 +220,7 @@ The old `Turn` / facing recommendation is complete in `StateControllerTurnRuntim
 Next recommended pass:
 
 ```text
-Audit CtrlSet / command-control behavior before any source movement.
+Create or extend command-control verifier coverage before any CtrlSet source movement.
 ```
 
 Continue to defer:
