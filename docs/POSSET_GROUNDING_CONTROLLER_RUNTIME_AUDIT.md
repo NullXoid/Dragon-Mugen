@@ -181,17 +181,17 @@ git diff --check
 
 `dev_check.py --skip-build` should pass. `tools/check_file_sizes.py` should still fail only known `App.cpp` hard debt and report `App.cpp` at `8517`. Full runtime verifier reruns are optional because this checkpoint changes documentation only.
 
-## Updated Audit Conclusion
+## Updated Follow-Up Conclusion
 
 ```text
-Next pass:
-Audit PosFreeze / movement-freeze controller behavior before any source movement.
+Follow-up audit completed:
+docs/MISC_MOVEMENT_STATE_CONTROLLER_RUNTIME_AUDIT.md
 
-Recommended audit:
-PosFreeze / movement-freeze audit
+Next code pass:
+Move SprPriority-only controller execution into StateControllerSprPriorityRuntime.h.
 
 Do not move:
-- PosFreeze execution before the audit decides the boundary
+- PosFreeze execution before a dedicated movement-freeze audit
 - CtrlSet
 - StateTypeSet
 - ScreenBound

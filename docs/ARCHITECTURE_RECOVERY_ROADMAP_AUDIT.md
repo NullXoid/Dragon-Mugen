@@ -44,6 +44,7 @@ The earlier roadmap's safe chunks have already been substantially completed:
 - `PosSet` / grounding controller runtime audit.
 - PosSet-backed grounding verifier coverage.
 - `PosSet` controller runtime body.
+- Misc movement/state controller runtime audit.
 
 These completed areas should not be treated as future broad work. Future passes should build on them and avoid reopening their boundaries unless a focused regression or cleanup requires it.
 
@@ -51,7 +52,7 @@ These completed areas should not be treated as future broad work. Future passes 
 
 Next code target:
 
-- Audit `PosFreeze` / movement-freeze behavior before any source movement.
+- Move `SprPriority`-only controller execution into an App.cpp-internal header after the misc movement/state controller audit.
 
 Completed with limits:
 
@@ -65,7 +66,8 @@ Needs a narrower audit or seam before movement:
 - Remaining meter/stat controllers: `LifeAdd`, `HitAdd`, `AttackDist`, `AttackMulSet`, and `DefenceMulSet`.
 - Movement-freeze controller: `PosFreeze`.
 - Control and state-shape controllers: `CtrlSet` and `StateTypeSet`.
-- Bounds/contact-adjacent controllers: `ScreenBound`, `Width`, `PlayerPush`, `SprPriority`, and `Turn`.
+- Facing-sensitive controller: `Turn`.
+- Bounds/contact-adjacent controllers: `ScreenBound`, `Width`, and `PlayerPush`.
 - Pause and superpause.
 - Helper, projectile, and explod lifecycle.
 - Target controllers.
@@ -116,6 +118,8 @@ The PosSet-backed grounding verifier hardening pass is complete: `kfm-air-state`
 
 The `PosSet` controller runtime body cut is complete: `StateControllerPosSetRuntime.h` owns only the `PosSet` loop from `updateStateMovementControllers(...)`. It preserves the original `shouldRunStateRuntimeController(...)` gate, optional absolute `fighter.x` assignment, optional absolute `fighter.y` assignment, and `fighter.onGround = fighter.y >= 0.0f`. `App.cpp` dropped from `8517` to `8507` file-size-guard lines, and `StateControllerPosSetRuntime.h` is `24` lines. `PosAdd`, `PosFreeze`, `CtrlSet`, `StateTypeSet`, `ScreenBound`, `Width`, `PlayerPush`, `SprPriority`, `Turn`, velocity controllers, hit/get-hit controllers, pause/superpause, grounding physics, hit/damage, lifecycle, target, and round-flow behavior remain unchanged.
 
+The misc movement/state controller runtime audit is complete: `docs/MISC_MOVEMENT_STATE_CONTROLLER_RUNTIME_AUDIT.md` classifies `PosFreeze`, `SprPriority`, `Turn`, `CtrlSet`, `StateTypeSet`, `ScreenBound`, `Width`, and `PlayerPush`. It marks `SprPriority` as `READY WITH LIMITS` because it only assigns `fighter.sprPriority` behind the standard runtime gate, and it defers `PosFreeze`, `Turn`, control/state-shape, and bounds/contact-adjacent controllers to narrower audits or seams.
+
 ## Completed Utility Runtime Pass
 
 Completed code pass:
@@ -156,14 +160,15 @@ This completed pass stayed intentionally narrower than "move CNS runtime." It wa
 
 ## Follow-Up Sequence
 
-Do not collapse the remaining runtime work into one pass. After the completed `StateControllerUtilityRuntime.h`, `StateControllerVariableRuntime.h`, `StateControllerPowerRuntime.h`, `StateControllerVelocityRuntime.h`, `StateControllerPosAddRuntime.h`, and `StateControllerPosSetRuntime.h` cuts plus the meter/stat, movement/position, and position/grounding audits, continue with focused audits or small implementation cuts in this order unless a new blocker requires a documented change:
+Do not collapse the remaining runtime work into one pass. After the completed `StateControllerUtilityRuntime.h`, `StateControllerVariableRuntime.h`, `StateControllerPowerRuntime.h`, `StateControllerVelocityRuntime.h`, `StateControllerPosAddRuntime.h`, and `StateControllerPosSetRuntime.h` cuts plus the meter/stat, movement/position, position/grounding, and misc movement/state audits, continue with focused audits or small implementation cuts in this order unless a new blocker requires a documented change:
 
-1. `PosFreeze` / movement-freeze audit.
-2. Pause / superpause audit.
-3. Helper / projectile / explod audit.
-4. Target controller audit.
-5. HitDef / damage audit.
-6. Round flow audit.
+1. `SprPriority`-only controller body move.
+2. `PosFreeze` / movement-freeze audit.
+3. Pause / superpause audit.
+4. Helper / projectile / explod audit.
+5. Target controller audit.
+6. HitDef / damage audit.
+7. Round flow audit.
 
 ## Current Roadmap Conclusion
 
@@ -189,10 +194,12 @@ The old grounding-verifier-first recommendation is complete in `kfm-air-state` w
 
 The old `PosSet`-only implementation recommendation is complete in `StateControllerPosSetRuntime.h`.
 
+The old `PosFreeze` / movement-freeze audit recommendation is superseded by the broader misc movement/state controller audit in `docs/MISC_MOVEMENT_STATE_CONTROLLER_RUNTIME_AUDIT.md`.
+
 Next recommended pass:
 
 ```text
-Audit PosFreeze / movement-freeze controller behavior before any source movement.
+Move SprPriority-only controller execution into StateControllerSprPriorityRuntime.h.
 ```
 
 Continue to defer:
@@ -203,7 +210,6 @@ Continue to defer:
 - `ScreenBound`.
 - `Width`.
 - `PlayerPush`.
-- `SprPriority`.
 - `Turn`.
 - `HitVelSet` / `HitFallVel` / `HitFallSet` / `HitFallDamage`.
 - `HitBy` / `NotHitBy` / `HitOverride`.
@@ -227,17 +233,17 @@ Continue to defer:
 
 ## Validation For Current Checkpoint
 
-This checkpoint moved only `PosSet` controller execution into `StateControllerPosSetRuntime.h` after the green PosSet-backed grounding verifier. It did not change CMake, content, sidecar policy, boss intro behavior, branch topology, grounding physics, or `.dragon/*.json`.
+This checkpoint is docs-only and records the misc movement/state controller audit. It did not change source, CMake, content, sidecar policy, boss intro behavior, branch topology, grounding physics, or `.dragon/*.json`.
 
 Expected validation:
 
 ```powershell
-python engine/tools/dev_check.py .
+python engine/tools/dev_check.py . --skip-build
 python tools/check_file_sizes.py
 git diff --check
 ```
 
-`kfm-air-state` should include `kung_fu_knee_posset_grounding` and report `pass=12 partial=0 fail=0 blocked=0`. The full verifier gate should keep all advertised runtime scenarios at `partial=0 fail=0 blocked=0`. `tools/check_file_sizes.py` is expected to continue failing on known `App.cpp` hard debt and should report `App.cpp` at `8507`. Treat any new hard failure outside the known `App.cpp` debt as a blocker.
+`dev_check.py --skip-build` should pass. `tools/check_file_sizes.py` is expected to continue failing on known `App.cpp` hard debt and should report `App.cpp` at `8507`. Treat any new hard failure outside the known `App.cpp` debt as a blocker.
 
 ## Dirty File Handling
 
