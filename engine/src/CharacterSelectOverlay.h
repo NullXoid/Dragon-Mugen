@@ -31,6 +31,7 @@ struct CharacterSelectView {
     bool showP2Cursor = false;
     bool p1Confirmed = false;
     bool p2Confirmed = false;
+    bool opponentIsDummy = false;
 };
 
 void drawCharacterSelectOverlay(const UiRenderContext& ui, const CharacterSelectView& view);

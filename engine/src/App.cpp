@@ -1379,6 +1379,7 @@ struct AppState {
     std::vector<TextureSprite> characterFaceSprites;
     SystemScreenAssets systemScreens;
     std::vector<StageBackgroundElement> stageBackground;
+    int stageBackgroundStageIndex = -1;
     AudioState audio;
     std::vector<GamepadDevice> gamepads;
 };
@@ -2863,6 +2864,7 @@ void drawCharacterSelect(SDL_Renderer* renderer, const AppState& state) {
             state.frontend.pendingMode == PendingMode::SingleFight,
             state.selection.p1CharacterConfirmed,
             state.selection.p2CharacterConfirmed,
+            activeOpponentType(state) == OpponentType::Dummy,
         });
     SDL_RenderPresent(renderer);
 }
@@ -7831,7 +7833,51 @@ void drawArenaSetup(SDL_Renderer* renderer, const AppState& state) {
     SDL_RenderPresent(renderer);
 }
 
-void drawStageSelect(SDL_Renderer* renderer, const AppState& state) {
+void drawStageLayer(SDL_Renderer* renderer, const AppState& state, int layerNo);
+void drawFallbackStage(SDL_Renderer* renderer, const AppState& state, const StageSlot& stage, float cameraY);
+
+void ensureSelectedStagePreviewBackground(SDL_Renderer* renderer, AppState& state) {
+    const int selectedIndex = state.selection.selectedStage;
+    const StageSlot* selected = selectedStageSlot(state.selection);
+    if (!selected) {
+        destroyStageBackground(state.stageBackground);
+        state.stageBackgroundStageIndex = -1;
+        return;
+    }
+
+    state.cameraX = selected->cameraStartx;
+    state.cameraY = selected->cameraStarty;
+    if (state.stageBackgroundStageIndex == selectedIndex) {
+        return;
+    }
+
+    destroyStageBackground(state.stageBackground);
+    state.stageBackgroundStageIndex = selectedIndex;
+    try {
+        state.stageBackground = loadStageBackground(renderer, *selected);
+    } catch (const std::exception& ex) {
+        SDL_Log("Stage select preview load failed %s: %s", selected->displayName.c_str(), ex.what());
+    }
+}
+
+void drawStageSelectPreviewBackground(SDL_Renderer* renderer, const AppState& state) {
+    setColor(renderer, 10, 12, 16);
+    SDL_RenderClear(renderer);
+
+    const StageSlot fallbackStage;
+    const StageSlot& stage = selectedStageSlot(state.selection) ? *selectedStageSlot(state.selection) : fallbackStage;
+    if (!state.stageBackground.empty()) {
+        drawStageLayer(renderer, state, 0);
+        drawStageLayer(renderer, state, 1);
+    } else {
+        drawFallbackStage(renderer, state, stage, state.cameraY);
+    }
+}
+
+void drawStageSelect(SDL_Renderer* renderer, AppState& state) {
+    ensureSelectedStagePreviewBackground(renderer, state);
+    drawStageSelectPreviewBackground(renderer, state);
+
     std::vector<StageSelectRowView> rows;
     rows.reserve(state.selection.stages.size());
     for (int i = 0; i < static_cast<int>(state.selection.stages.size()); ++i) {
@@ -7848,6 +7894,7 @@ void drawStageSelect(SDL_Renderer* renderer, const AppState& state) {
     view.frame = state.frame;
     view.fighterLabel = selectedCharacterName(state.selection);
     view.opponentLabel = compactSettingText(opponentDisplayName(state), 11);
+    view.hasStagePreview = true;
     if (const StageSlot* selected = selectedStageSlot(state.selection)) {
         view.selectedStageName = selected->displayName;
         view.selectedStageId = selected->id;

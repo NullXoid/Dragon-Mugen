@@ -21,6 +21,7 @@ struct StageSelectView {
     std::string fighterLabel;
     std::string opponentLabel;
     int frame = 0;
+    bool hasStagePreview = false;
 };
 
 void drawStageSelectOverlay(const UiRenderContext& ui, const StageSelectView& view);

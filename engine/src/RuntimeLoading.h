@@ -334,6 +334,7 @@ void unloadCharacterRuntime(AppState& state) {
         destroyTextureSprite(element.sprite);
     }
     state.stageBackground.clear();
+    state.stageBackgroundStageIndex = -1;
     state.stateDefs.clear();
     state.hitDefs.clear();
     state.commandEntries.clear();
@@ -438,4 +439,5 @@ void destroyVisualAssets(AppState& state) {
     }
     state.characterFaceSprites.clear();
     destroyStageBackground(state.stageBackground);
+    state.stageBackgroundStageIndex = -1;
 }

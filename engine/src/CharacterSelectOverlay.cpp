@@ -16,11 +16,35 @@ void drawFixedOpponentSlot(
     float x,
     float y,
     float width,
-    float height) {
+    float height,
+    bool dummySlot) {
     setColor(renderer, 12, 14, 18);
     fillRect(renderer, x, y, width, height);
     setColor(renderer, 54, 62, 76);
     drawRect(renderer, x, y, width, height);
+
+    if (dummySlot) {
+        setColor(renderer, 30, 24, 20);
+        fillRect(renderer, x + width * 0.22f, y + height * 0.70f, width * 0.56f, height * 0.08f);
+        setColor(renderer, 128, 90, 54);
+        fillRect(renderer, x + width * 0.48f, y + height * 0.34f, width * 0.05f, height * 0.40f);
+        setColor(renderer, 168, 118, 66);
+        fillRect(renderer, x + width * 0.40f, y + height * 0.38f, width * 0.20f, height * 0.28f);
+        setColor(renderer, 222, 180, 102);
+        drawRect(renderer, x + width * 0.40f, y + height * 0.38f, width * 0.20f, height * 0.28f);
+        setColor(renderer, 96, 62, 42);
+        fillRect(renderer, x + width * 0.30f, y + height * 0.43f, width * 0.16f, height * 0.07f);
+        fillRect(renderer, x + width * 0.54f, y + height * 0.43f, width * 0.16f, height * 0.07f);
+        setColor(renderer, 186, 134, 78);
+        fillRect(renderer, x + width * 0.43f, y + height * 0.20f, width * 0.14f, height * 0.14f);
+        setColor(renderer, 234, 200, 116);
+        drawRect(renderer, x + width * 0.43f, y + height * 0.20f, width * 0.14f, height * 0.14f);
+        setColor(renderer, 72, 42, 34);
+        fillRect(renderer, x + width * 0.455f, y + height * 0.245f, width * 0.07f, height * 0.025f);
+        setColor(renderer, 72, 84, 102);
+        fillRect(renderer, x + width * 0.31f, y + height * 0.82f, width * 0.38f, height * 0.05f);
+        return;
+    }
 
     setColor(renderer, 74, 82, 98);
     fillRect(renderer, x + width * 0.38f, y + height * 0.18f, width * 0.24f, height * 0.22f);
@@ -92,7 +116,7 @@ void drawCharacterSelectOverlay(const UiRenderContext& ui, const CharacterSelect
         });
         drawSpriteTopLeft(renderer, view.opponentPortrait, opponentPortraitX, 30, portraitScale);
     } else {
-        drawFixedOpponentSlot(renderer, opponentPortraitX, 30, 120, 140);
+        drawFixedOpponentSlot(renderer, opponentPortraitX, 30, 120, 140, view.opponentIsDummy);
     }
 
     setColor(renderer, 235, 240, 248);

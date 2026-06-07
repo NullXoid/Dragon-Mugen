@@ -305,6 +305,7 @@ bool prepareFightSession(SDL_Renderer* renderer, AppState& state) {
     }
     destroyStageBackground(state.stageBackground);
     state.stageBackground = std::move(selectedBackground);
+    state.stageBackgroundStageIndex = state.selection.selectedStage;
 
     resetFightState(state);
     state.frontend.screenFrame = 0;
