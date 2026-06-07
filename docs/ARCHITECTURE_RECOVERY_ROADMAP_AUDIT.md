@@ -36,22 +36,26 @@ The earlier roadmap's safe chunks have already been substantially completed:
 - Variable-controller runtime body.
 - Meter/stat controller runtime audit.
 - `PowerAdd` controller runtime body.
+- Movement/position controller runtime audit.
 
 These completed areas should not be treated as future broad work. Future passes should build on them and avoid reopening their boundaries unless a focused regression or cleanup requires it.
 
 ## Remaining Runtime-Core Classification
 
-Next audit target:
+Next code target:
 
-- Movement/position controller audit.
+- Velocity-only controller execution body, after the movement/position audit in `docs/MOVEMENT_POSITION_CONTROLLER_RUNTIME_AUDIT.md`.
 
-Ready or near-ready after separate inspection:
+Ready with limits:
 
-- Movement/position controller body, only if kept away from physics update and round-flow logic.
+- `VelSet` / `VelAdd` / `VelMul` velocity controller execution only, if the next helper preserves the exact current loop location and trigger/firing semantics.
 
-Needs a narrower audit before movement:
+Needs a narrower audit or seam before movement:
 
 - Remaining meter/stat controllers: `LifeAdd`, `HitAdd`, `AttackDist`, `AttackMulSet`, and `DefenceMulSet`.
+- Position/grounding controllers: `PosAdd`, `PosSet`, and `PosFreeze`.
+- Control and state-shape controllers: `CtrlSet` and `StateTypeSet`.
+- Bounds/contact-adjacent controllers: `ScreenBound`, `Width`, `PlayerPush`, `SprPriority`, and `Turn`.
 - Pause and superpause.
 - Helper, projectile, and explod lifecycle.
 - Target controllers.
@@ -87,6 +91,8 @@ The variable-controller body cut is also complete: `StateControllerVariableRunti
 The meter/stat controller audit is complete: `docs/METER_STAT_CONTROLLER_RUNTIME_AUDIT.md` classifies `PowerAdd`, `LifeAdd`, `HitAdd`, `AttackDist`, `AttackMulSet`, and `DefenceMulSet`. It recommends a `PowerAdd`-only implementation cut and defers the remaining stat/damage-adjacent controllers to round-flow, hit/contact, or hit/damage seams.
 
 The `PowerAdd` controller runtime body cut is complete: `StateControllerPowerRuntime.h` owns only the `PowerAdd` loop from `updateStateMeterControllers(...)`. `LifeAdd`, `HitAdd`, `AttackDist`, `AttackMulSet`, `DefenceMulSet`, `TargetPowerAdd`, and `TargetLifeAdd` remain in `App.cpp`.
+
+The movement/position controller audit is complete: `docs/MOVEMENT_POSITION_CONTROLLER_RUNTIME_AUDIT.md` classifies velocity, position, control, state-shape, bounds, and adjacent hit/get-hit controllers. It recommends a velocity-only implementation cut and defers position/grounding, control, state-shape, camera/bounds, collision/contact, hit/get-hit, and round-flow-adjacent behavior.
 
 ## Completed Utility Runtime Pass
 
@@ -128,14 +134,15 @@ This completed pass stayed intentionally narrower than "move CNS runtime." It wa
 
 ## Follow-Up Sequence
 
-Do not collapse the remaining runtime work into one pass. After the completed `StateControllerUtilityRuntime.h`, `StateControllerVariableRuntime.h`, and `StateControllerPowerRuntime.h` cuts and the meter/stat audit, continue with focused audits or small implementation cuts in this order unless a new blocker requires a documented change:
+Do not collapse the remaining runtime work into one pass. After the completed `StateControllerUtilityRuntime.h`, `StateControllerVariableRuntime.h`, and `StateControllerPowerRuntime.h` cuts plus the meter/stat and movement/position audits, continue with focused audits or small implementation cuts in this order unless a new blocker requires a documented change:
 
-1. Movement / position controller audit.
-2. Pause / superpause audit.
-3. Helper / projectile / explod audit.
-4. Target controller audit.
-5. HitDef / damage audit.
-6. Round flow audit.
+1. Velocity-only controller body move.
+2. Position / grounding controller audit or cut.
+3. Pause / superpause audit.
+4. Helper / projectile / explod audit.
+5. Target controller audit.
+6. HitDef / damage audit.
+7. Round flow audit.
 
 ## Current Roadmap Conclusion
 
@@ -147,20 +154,32 @@ The old `Meter/stat controller audit` recommendation is complete in `docs/METER_
 
 The old `PowerAdd`-only implementation recommendation is complete in `StateControllerPowerRuntime.h`.
 
+The old `Movement / position controller audit` recommendation is complete in `docs/MOVEMENT_POSITION_CONTROLLER_RUNTIME_AUDIT.md`.
+
 Next recommended implementation:
 
 ```text
-Movement / position controller audit
+Move velocity-only controller execution into StateControllerVelocityRuntime.h
 ```
 
-Audit before moving:
+Move only:
 
-- PosAdd / PosSet style position controllers.
-- VelSet / VelAdd / VelMul style velocity controllers.
-- StateTypeSet / ScreenBound / Width / PlayerPush / SprPriority / PosFreeze / Turn.
+- `VelSet` / `VelAdd` / `VelMul` execution from `updateStateMovementControllers(...)`.
 
 Do not include:
 
+- `PosAdd`.
+- `PosSet`.
+- `PosFreeze`.
+- `CtrlSet`.
+- `StateTypeSet`.
+- `ScreenBound`.
+- `Width`.
+- `PlayerPush`.
+- `SprPriority`.
+- `Turn`.
+- `HitVelSet` / `HitFallVel` / `HitFallSet` / `HitFallDamage`.
+- `HitBy` / `NotHitBy` / `HitOverride`.
 - `LifeAdd`.
 - `HitAdd`.
 - `AttackDist`.
@@ -181,12 +200,12 @@ Do not include:
 
 ## Validation For Current Checkpoint
 
-This checkpoint should not change CMake, content, sidecar policy, boss intro behavior, branch topology, or `.dragon/*.json`. The source change is limited to the internal `StateControllerPowerRuntime.h` extraction and its `App.cpp` include/call-site update.
+This checkpoint should not change source, CMake, content, sidecar policy, boss intro behavior, branch topology, or `.dragon/*.json`.
 
 Expected validation:
 
 ```powershell
-python engine/tools/dev_check.py .
+python engine/tools/dev_check.py . --skip-build
 python tools/check_file_sizes.py
 git diff --check
 ```
