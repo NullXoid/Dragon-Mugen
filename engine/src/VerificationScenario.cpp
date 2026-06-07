@@ -55,43 +55,29 @@ void record(std::ostream& out, Counts& counts, Status status, std::string_view n
 }
 
 int exitCode(const Counts& counts) {
-    if (counts.fail > 0) {
-        return 1;
-    }
-    if (counts.blocked > 0) {
-        return 2;
-    }
+    if (counts.fail > 0) return 1;
+    if (counts.blocked > 0) return 2;
     return 0;
 }
 
 void summary(std::ostream& out, const Counts& counts) {
-    out << "SUMMARY pass=" << counts.pass
-        << " partial=" << counts.partial
-        << " fail=" << counts.fail
+    out << "SUMMARY pass=" << counts.pass << " partial=" << counts.partial << " fail=" << counts.fail
         << " blocked=" << counts.blocked << "\n";
 }
 
 void header(std::ostream& out, RuntimeProbe& runtime, std::string_view scenario) {
-    out << "VERIFY " << scenario << "\n"
-        << "root: " << runtime.rootText() << "\n"
-        << "stage: " << runtime.stageName() << "\n"
-        << "p1: " << runtime.p1Name() << "\n";
+    out << "VERIFY " << scenario << "\n" << "root: " << runtime.rootText() << "\n"
+        << "stage: " << runtime.stageName() << "\n" << "p1: " << runtime.p1Name() << "\n";
 }
 
 SymbolicInput withButton(char button) {
     SymbolicInput input;
-    if (button == 'x') input.x = true;
-    if (button == 'y') input.y = true;
-    if (button == 'z') input.z = true;
-    if (button == 'a') input.a = true;
-    if (button == 'b') input.b = true;
-    if (button == 'c') input.c = true;
+    if (button == 'x') input.x = true; if (button == 'y') input.y = true; if (button == 'z') input.z = true;
+    if (button == 'a') input.a = true; if (button == 'b') input.b = true; if (button == 'c') input.c = true;
     return input;
 }
 
-bool changedStateOrAction(const FighterSnapshot& before, const FighterSnapshot& after) {
-    return before.stateNo != after.stateNo || before.action != after.action;
-}
+bool changedStateOrAction(const FighterSnapshot& before, const FighterSnapshot& after) { return before.stateNo != after.stateNo || before.action != after.action; }
 
 bool waitForControllableIdle(RuntimeProbe& runtime, int maxFrames) {
     for (int i = 0; i < maxFrames; ++i) {
@@ -120,8 +106,7 @@ float horizontalDistance(const RuntimeSnapshot& snapshot) {
 }
 
 std::string stateActionDetail(const FighterSnapshot& before, const FighterSnapshot& after, char command) {
-    return "command=" + std::string(1, command)
-        + " state_before=" + std::to_string(before.stateNo)
+    return "command=" + std::string(1, command) + " state_before=" + std::to_string(before.stateNo)
         + " state_after=" + std::to_string(after.stateNo)
         + " anim_before=" + std::to_string(before.action)
         + " anim_after=" + std::to_string(after.action);
@@ -869,6 +854,21 @@ int runArenaSmoke(RuntimeProbe& runtime, std::ostream& out, int cpuCount) {
     record(out, counts, start.livingFighters == expectedFighters ? Status::Pass : Status::Fail, "arena_initial_living_count",
         "expected=" + std::to_string(expectedFighters)
         + " actual=" + std::to_string(start.livingFighters));
+
+    if (cpuCount == 1) {
+        runtime.positionFighters(-18.0f, 24.0f); waitForControllableIdle(runtime, 120);
+        runtime.setFighterControl(1, false);
+        runtime.step(SymbolicInput{ .down = true, .b = true }, 4);
+        bool sawTripFall = false, sawLieDown = false; FighterSnapshot tripAfter;
+        for (int i = 0; i < 120; ++i) {
+            runtime.step({}, 1); tripAfter = runtime.snapshot().p2;
+            sawTripFall = sawTripFall || tripAfter.stateNo == 5070 || tripAfter.stateNo == 5071 || tripAfter.y < -0.5f;
+            sawLieDown = sawLieDown || tripAfter.stateType == 'L' || tripAfter.stateNo == 5110 || tripAfter.stateNo == 5120;
+        }
+        record(out, counts, sawTripFall && sawLieDown ? Status::Pass : Status::Fail, "arena_trip_hit_knockdown",
+            "trip_or_air=" + std::to_string(sawTripFall ? 1 : 0) + " liedown=" + std::to_string(sawLieDown ? 1 : 0)
+            + " p2_state=" + std::to_string(tripAfter.stateNo) + " p2_y=" + std::to_string(tripAfter.y));
+    }
 
     if (expectedFighters > 2) {
         for (int i = 1; i < expectedFighters - 1; ++i) {

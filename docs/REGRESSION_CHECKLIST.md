@@ -41,6 +41,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Stage confirmation opens the VS screen first.
 - Fight view loads selected character and selected stage after VS.
 - Fight view fully repaints the window during hitpause, camera shake, and result overlays; no stale desktop/debug text should appear around the game viewport.
+- Arena and classic sweep/trip hits leave hitpause by entering the trip/fall/lying states instead of staying in grounded hitstun.
 - Training dummy behavior still works.
 - Training P2 control still switches the opponent to local P2 behavior.
 - Single Fight round timer, KO/time-over, pips, match result, and rematch/menu inputs still work.

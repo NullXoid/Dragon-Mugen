@@ -131,6 +131,13 @@ public:
         }
     }
 
+    void setFighterControl(int fighterIndex, bool enabled) override {
+        if (fighterIndex < 0 || fighterIndex >= static_cast<int>(state_.fighters.size())) {
+            return;
+        }
+        state_.fighters[static_cast<size_t>(fighterIndex)].ctrl = enabled;
+    }
+
     verification::RuntimeSnapshot snapshot() const override {
         verification::RuntimeSnapshot out;
         out.frame = state_.frame;

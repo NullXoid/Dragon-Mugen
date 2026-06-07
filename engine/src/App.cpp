@@ -6909,12 +6909,6 @@ void updateControlledFighter(
     const FighterInputState& input) {
     pushFighterInputFrame(fighter, input, state.frame);
 
-    if (fighter.hitPauseTicks > 0) {
-        fighter.vx = 0.0f;
-        --fighter.hitPauseTicks;
-        return;
-    }
-
     if (fighter.guarding) {
         updateGroundGuardState(state, fighter);
         return;
@@ -6924,6 +6918,13 @@ void updateControlledFighter(
         updateGroundGetHitState(state, fighter);
         return;
     }
+
+    if (fighter.hitPauseTicks > 0) {
+        fighter.vx = 0.0f;
+        --fighter.hitPauseTicks;
+        return;
+    }
+
     if (fighter.moveType == 'H' && fighter.customHitState) {
         return;
     }
