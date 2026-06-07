@@ -4049,31 +4049,15 @@ void updateStateMeterControllers(
     });
 }
 
+#include "StateControllerPosAddRuntime.h"
+
 void updateStatePosAddControllers(
     AppState& state,
     FighterState& fighter,
     const FighterState* opponent = nullptr,
     const StageSlot* stage = nullptr) {
     forEachRuntimeControllerStateDefinition(state, fighter, [&](const StateDefinition& runtimeStateDef) {
-        const StateDefinition* stateDef = &runtimeStateDef;
-
-    for (const auto& posAdd : stateDef->posAdds) {
-        if (posAdd.trigger.hasTrigger) {
-            if (!shouldRunStateRuntimeController(state, fighter, posAdd.id, posAdd.trigger, opponent, stage)) {
-                continue;
-            }
-            fighter.x += posAdd.x * static_cast<float>(fighter.facing);
-            fighter.y += posAdd.y;
-            continue;
-        }
-        if (statePosAddAlreadyFired(fighter, posAdd.id)
-            || !simpleControllerTriggerActive(state, fighter, posAdd.triggerTime, posAdd.triggerAnimElem)) {
-            continue;
-        }
-        markStatePosAddFired(fighter, posAdd.id);
-        fighter.x += posAdd.x * static_cast<float>(fighter.facing);
-        fighter.y += posAdd.y;
-    }
+        updateStatePosAddControllersForDefinition(state, fighter, runtimeStateDef, opponent, stage);
         return true;
     });
 }
