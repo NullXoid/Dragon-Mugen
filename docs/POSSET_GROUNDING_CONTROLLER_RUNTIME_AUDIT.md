@@ -98,6 +98,49 @@ The full verifier gate passed with all advertised runtime scenarios at `partial=
 
 The verifier requirement is now satisfied for a future `PosSet`-only body move.
 
+## PosSet Body Move Follow-Up
+
+The follow-up implementation pass moved only `PosSet` execution from `updateStateMovementControllers(...)` into `engine/src/StateControllerPosSetRuntime.h`.
+
+Moved helper:
+
+```cpp
+void updateStatePosSetControllersForDefinition(
+    AppState& state,
+    FighterState& fighter,
+    const StateDefinition& stateDef,
+    const FighterState* opponent,
+    const StageSlot* stage)
+```
+
+The helper preserves the original `shouldRunStateRuntimeController(...)` gate, optional absolute `fighter.x` assignment, optional absolute `fighter.y` assignment, and `fighter.onGround = fighter.y >= 0.0f`.
+
+Measured follow-up result:
+
+| Item | Value |
+| --- | ---: |
+| `App.cpp` before | 8517 |
+| `App.cpp` after | 8507 |
+| `App.cpp` reduction | 10 |
+| `StateControllerPosSetRuntime.h` count | 24 |
+| Remaining to 50% reduction | 97 |
+
+The pass did not cross the 50% reduction threshold, so no separate 50% checkpoint was recorded.
+
+Follow-up validation:
+
+```text
+kfm-baseline: pass=12 partial=0 fail=0 blocked=0
+evilken-smoke: pass=9 partial=0 fail=0 blocked=0
+kfm-air-state: pass=12 partial=0 fail=0 blocked=0
+cpu-baseline: pass=7 partial=0 fail=0 blocked=0
+
+kung_fu_knee_posset_grounding:
+idle_before=1 saw_1050=1 saw_1051=1 saw_1052=1 posset_grounding=1 grounding_y=0.000000 grounding_on_ground=1 returned_idle=1 final_airborne=0
+```
+
+`PosAdd`, `PosFreeze`, `StateTypeSet`, `CtrlSet`, `ScreenBound`, `Width`, `PlayerPush`, `SprPriority`, `Turn`, velocity controllers, hit/get-hit controllers, HitDef/damage/guard, round flow, helper/projectile/explod lifecycle, `ChangeState` / `SelfState`, pause/superpause, CPU/input behavior, sidecar policy, grounding physics, content, CMake, branch topology, and `.dragon/*.json` stayed unchanged.
+
 ## Original Audit Boundaries
 
 The audit commit itself was docs-only:
@@ -126,7 +169,7 @@ Do not move or recommend moving in the same pass:
 - `FighterState`.
 - `AppState`.
 
-## Validation
+## Original Docs-Only Validation
 
 Expected validation for this docs-only checkpoint:
 
@@ -141,14 +184,14 @@ git diff --check
 ## Updated Audit Conclusion
 
 ```text
-Next code pass:
-Move PosSet-only controller execution into StateControllerPosSetRuntime.h.
+Next pass:
+Audit PosFreeze / movement-freeze controller behavior before any source movement.
 
-Move only:
-- PosSet execution from updateStateMovementControllers(...)
+Recommended audit:
+PosFreeze / movement-freeze audit
 
 Do not move:
-- PosFreeze
+- PosFreeze execution before the audit decides the boundary
 - CtrlSet
 - StateTypeSet
 - ScreenBound

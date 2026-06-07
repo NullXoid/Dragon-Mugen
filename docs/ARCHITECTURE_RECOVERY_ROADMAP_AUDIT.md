@@ -10,10 +10,10 @@ Baseline and current file-size guard values:
 | --- | ---: |
 | Previous source baseline commit | `de22bec` |
 | Starting `App.cpp` count | 16820 |
-| Current `App.cpp` count | 8517 |
-| Total removed | 8303 |
+| Current `App.cpp` count | 8507 |
+| Total removed | 8313 |
 | Reduction | 49.4% |
-| Remaining to 50% reduction | 107 |
+| Remaining to 50% reduction | 97 |
 
 `App.cpp` is no longer in the safe UI extraction stage. The project is now in the runtime-core extraction stage. The remaining work is mutation-heavy and must stay split into small, auditable cuts.
 
@@ -43,6 +43,7 @@ The earlier roadmap's safe chunks have already been substantially completed:
 - `PosAdd` controller runtime body.
 - `PosSet` / grounding controller runtime audit.
 - PosSet-backed grounding verifier coverage.
+- `PosSet` controller runtime body.
 
 These completed areas should not be treated as future broad work. Future passes should build on them and avoid reopening their boundaries unless a focused regression or cleanup requires it.
 
@@ -50,12 +51,13 @@ These completed areas should not be treated as future broad work. Future passes 
 
 Next code target:
 
-- Move `PosSet`-only controller execution into an App.cpp-internal header, after the green PosSet-backed grounding verifier in `kfm-air-state`.
+- Audit `PosFreeze` / movement-freeze behavior before any source movement.
 
 Completed with limits:
 
 - `VelSet` / `VelAdd` / `VelMul` velocity controller execution now lives in `StateControllerVelocityRuntime.h`.
 - `PosAdd` execution now lives in `StateControllerPosAddRuntime.h`.
+- `PosSet` execution now lives in `StateControllerPosSetRuntime.h`.
 - PosSet-backed grounding verifier coverage now proves KFM's authored `FF_a` path reaches states `1050`, `1051`, and `1052`, runs the state `1052` `PosSet` landing path, and returns to grounded controllable idle.
 
 Needs a narrower audit or seam before movement:
@@ -110,7 +112,9 @@ The `PosAdd` controller runtime body cut is complete: `StateControllerPosAddRunt
 
 The `PosSet` / grounding controller runtime audit is complete: `docs/POSSET_GROUNDING_CONTROLLER_RUNTIME_AUDIT.md` confirms the current `PosSet` body mutates only `fighter.x`, `fighter.y`, and `fighter.onGround`. At audit time, `kfm-air-state` did not explicitly prove a PosSet-triggered grounding path, so the audit recommended creating or extending a grounding verifier before moving `PosSet`.
 
-The PosSet-backed grounding verifier hardening pass is complete: `kfm-air-state` now includes `kung_fu_knee_posset_grounding` and passes with `pass=12 partial=0 fail=0 blocked=0`. The row drives KFM's authored `FF_a` path through normal symbolic input, CMD command recognition, CNS `ChangeState`, states `1050 -> 1051 -> 1052`, the state `1052` `PosSet` landing controller, and grounded controllable idle recovery. The pass also fixed a verifier-exposed no-physics landing gap so custom `physics = N` air states are not implicitly ground-clamped or auto-finished to idle before authored landing controllers can run. No controller execution moved, and `App.cpp` remains `8517` file-size-guard lines.
+The PosSet-backed grounding verifier hardening pass is complete: `kfm-air-state` now includes `kung_fu_knee_posset_grounding` and passes with `pass=12 partial=0 fail=0 blocked=0`. The row drives KFM's authored `FF_a` path through normal symbolic input, CMD command recognition, CNS `ChangeState`, states `1050 -> 1051 -> 1052`, the state `1052` `PosSet` landing controller, and grounded controllable idle recovery. The pass also fixed a verifier-exposed no-physics landing gap so custom `physics = N` air states are not implicitly ground-clamped or auto-finished to idle before authored landing controllers can run.
+
+The `PosSet` controller runtime body cut is complete: `StateControllerPosSetRuntime.h` owns only the `PosSet` loop from `updateStateMovementControllers(...)`. It preserves the original `shouldRunStateRuntimeController(...)` gate, optional absolute `fighter.x` assignment, optional absolute `fighter.y` assignment, and `fighter.onGround = fighter.y >= 0.0f`. `App.cpp` dropped from `8517` to `8507` file-size-guard lines, and `StateControllerPosSetRuntime.h` is `24` lines. `PosAdd`, `PosFreeze`, `CtrlSet`, `StateTypeSet`, `ScreenBound`, `Width`, `PlayerPush`, `SprPriority`, `Turn`, velocity controllers, hit/get-hit controllers, pause/superpause, grounding physics, hit/damage, lifecycle, target, and round-flow behavior remain unchanged.
 
 ## Completed Utility Runtime Pass
 
@@ -152,15 +156,14 @@ This completed pass stayed intentionally narrower than "move CNS runtime." It wa
 
 ## Follow-Up Sequence
 
-Do not collapse the remaining runtime work into one pass. After the completed `StateControllerUtilityRuntime.h`, `StateControllerVariableRuntime.h`, `StateControllerPowerRuntime.h`, and `StateControllerVelocityRuntime.h` cuts plus the meter/stat, movement/position, and position/grounding audits, continue with focused audits or small implementation cuts in this order unless a new blocker requires a documented change:
+Do not collapse the remaining runtime work into one pass. After the completed `StateControllerUtilityRuntime.h`, `StateControllerVariableRuntime.h`, `StateControllerPowerRuntime.h`, `StateControllerVelocityRuntime.h`, `StateControllerPosAddRuntime.h`, and `StateControllerPosSetRuntime.h` cuts plus the meter/stat, movement/position, and position/grounding audits, continue with focused audits or small implementation cuts in this order unless a new blocker requires a documented change:
 
-1. `PosSet`-only controller body move.
-2. `PosFreeze` / movement-freeze audit.
-3. Pause / superpause audit.
-4. Helper / projectile / explod audit.
-5. Target controller audit.
-6. HitDef / damage audit.
-7. Round flow audit.
+1. `PosFreeze` / movement-freeze audit.
+2. Pause / superpause audit.
+3. Helper / projectile / explod audit.
+4. Target controller audit.
+5. HitDef / damage audit.
+6. Round flow audit.
 
 ## Current Roadmap Conclusion
 
@@ -184,15 +187,13 @@ The old `PosSet` / grounding seam audit recommendation is complete in `docs/POSS
 
 The old grounding-verifier-first recommendation is complete in `kfm-air-state` with `kung_fu_knee_posset_grounding`.
 
-Next recommended implementation:
+The old `PosSet`-only implementation recommendation is complete in `StateControllerPosSetRuntime.h`.
+
+Next recommended pass:
 
 ```text
-Move PosSet-only controller execution into StateControllerPosSetRuntime.h.
+Audit PosFreeze / movement-freeze controller behavior before any source movement.
 ```
-
-Move only:
-
-- `PosSet`.
 
 Continue to defer:
 
@@ -226,7 +227,7 @@ Continue to defer:
 
 ## Validation For Current Checkpoint
 
-This checkpoint changed `VerificationScenario.cpp` and made a scoped `App.cpp` grounding semantics fix exposed by the new verifier. It did not move controller execution and did not change CMake, content, sidecar policy, boss intro behavior, branch topology, or `.dragon/*.json`.
+This checkpoint moved only `PosSet` controller execution into `StateControllerPosSetRuntime.h` after the green PosSet-backed grounding verifier. It did not change CMake, content, sidecar policy, boss intro behavior, branch topology, grounding physics, or `.dragon/*.json`.
 
 Expected validation:
 
@@ -236,7 +237,7 @@ python tools/check_file_sizes.py
 git diff --check
 ```
 
-`kfm-air-state` should include `kung_fu_knee_posset_grounding` and report `pass=12 partial=0 fail=0 blocked=0`. The full verifier gate should keep all advertised runtime scenarios at `partial=0 fail=0 blocked=0`. `tools/check_file_sizes.py` is expected to continue failing on known `App.cpp` hard debt and should report `App.cpp` at `8517` until the next source extraction. Treat any new hard failure outside the known `App.cpp` debt as a blocker.
+`kfm-air-state` should include `kung_fu_knee_posset_grounding` and report `pass=12 partial=0 fail=0 blocked=0`. The full verifier gate should keep all advertised runtime scenarios at `partial=0 fail=0 blocked=0`. `tools/check_file_sizes.py` is expected to continue failing on known `App.cpp` hard debt and should report `App.cpp` at `8507`. Treat any new hard failure outside the known `App.cpp` debt as a blocker.
 
 ## Dirty File Handling
 

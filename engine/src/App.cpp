@@ -4089,6 +4089,7 @@ void updateStateChangeAnimControllers(
 }
 
 #include "StateControllerVelocityRuntime.h"
+#include "StateControllerPosSetRuntime.h"
 
 void updateStateMovementControllers(
     AppState& state,
@@ -4263,18 +4264,7 @@ void updateStateMovementControllers(
 
     updateStateVelocityControllersForDefinition(state, fighter, *stateDef, opponent, stage);
 
-    for (const auto& posSet : stateDef->posSets) {
-        if (!shouldRunStateRuntimeController(state, fighter, posSet.id, posSet.trigger, opponent, stage)) {
-            continue;
-        }
-        if (posSet.hasX) {
-            fighter.x = posSet.x;
-        }
-        if (posSet.hasY) {
-            fighter.y = posSet.y;
-            fighter.onGround = fighter.y >= 0.0f;
-        }
-    }
+    updateStatePosSetControllersForDefinition(state, fighter, *stateDef, opponent, stage);
 
     for (const auto& screenBound : stateDef->screenBounds) {
         if (!shouldRunStateRuntimeController(state, fighter, screenBound.id, screenBound.trigger, opponent, stage)) {
