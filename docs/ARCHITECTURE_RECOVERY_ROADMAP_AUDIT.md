@@ -10,10 +10,10 @@ Baseline and current file-size guard values:
 | --- | ---: |
 | Previous source baseline commit | `de22bec` |
 | Starting `App.cpp` count | 16820 |
-| Current `App.cpp` count | 8503 |
-| Total removed | 8317 |
-| Reduction | 49.4% |
-| Remaining to 50% reduction | 93 |
+| Current `App.cpp` count | 8498 |
+| Total removed | 8322 |
+| Reduction | 49.5% |
+| Remaining to 50% reduction | 88 |
 
 `App.cpp` is no longer in the safe UI extraction stage. The project is now in the runtime-core extraction stage. The remaining work is mutation-heavy and must stay split into small, auditable cuts.
 
@@ -46,6 +46,7 @@ The earlier roadmap's safe chunks have already been substantially completed:
 - `PosSet` controller runtime body.
 - Misc movement/state controller runtime audit.
 - `SprPriority` controller runtime body.
+- `PosFreeze` controller runtime body.
 
 These completed areas should not be treated as future broad work. Future passes should build on them and avoid reopening their boundaries unless a focused regression or cleanup requires it.
 
@@ -53,7 +54,7 @@ These completed areas should not be treated as future broad work. Future passes 
 
 Next code target:
 
-- Audit `PosFreeze` / movement-freeze controller behavior before any source movement.
+- Audit `Turn` / facing controller behavior before any source movement.
 
 Completed with limits:
 
@@ -61,12 +62,12 @@ Completed with limits:
 - `PosAdd` execution now lives in `StateControllerPosAddRuntime.h`.
 - `PosSet` execution now lives in `StateControllerPosSetRuntime.h`.
 - `SprPriority` execution now lives in `StateControllerSprPriorityRuntime.h`.
+- `PosFreeze` execution now lives in `StateControllerPosFreezeRuntime.h`.
 - PosSet-backed grounding verifier coverage now proves KFM's authored `FF_a` path reaches states `1050`, `1051`, and `1052`, runs the state `1052` `PosSet` landing path, and returns to grounded controllable idle.
 
 Needs a narrower audit or seam before movement:
 
 - Remaining meter/stat controllers: `LifeAdd`, `HitAdd`, `AttackDist`, `AttackMulSet`, and `DefenceMulSet`.
-- Movement-freeze controller: `PosFreeze`.
 - Control and state-shape controllers: `CtrlSet` and `StateTypeSet`.
 - Facing-sensitive controller: `Turn`.
 - Bounds/contact-adjacent controllers: `ScreenBound`, `Width`, and `PlayerPush`.
@@ -124,6 +125,8 @@ The misc movement/state controller runtime audit is complete: `docs/MISC_MOVEMEN
 
 The `SprPriority` controller runtime body cut is complete: `StateControllerSprPriorityRuntime.h` owns only the `SprPriority` loop from `updateStateMovementControllers(...)`. It preserves the original `shouldRunStateRuntimeController(...)` gate and `fighter.sprPriority = sprPriority.value` assignment. `App.cpp` dropped from `8507` to `8503` file-size-guard lines, and `StateControllerSprPriorityRuntime.h` is `18` lines. `PosFreeze`, `Turn`, `CtrlSet`, `StateTypeSet`, `ScreenBound`, `Width`, `PlayerPush`, velocity controllers, position controllers, hit/get-hit controllers, pause/superpause, grounding physics, hit/damage, lifecycle, target, and round-flow behavior remain unchanged.
 
+The `PosFreeze` controller runtime body cut is complete: `StateControllerPosFreezeRuntime.h` owns only the `PosFreeze` loop from `updateStateMovementControllers(...)`. It preserves the original `shouldRunStateRuntimeController(...)` gate and the `fighter.posFreezeX = fighter.posFreezeX || posFreeze.freezeX` / `fighter.posFreezeY = fighter.posFreezeY || posFreeze.freezeY` assignment semantics. `App.cpp` dropped from `8503` to `8498` file-size-guard lines, and `StateControllerPosFreezeRuntime.h` is `21` lines. `Turn`, `CtrlSet`, `StateTypeSet`, `ScreenBound`, `Width`, `PlayerPush`, velocity controllers, position controllers, hit/get-hit controllers, pause/superpause, grounding physics, hit/damage, lifecycle, target, and round-flow behavior remain unchanged.
+
 ## Completed Utility Runtime Pass
 
 Completed code pass:
@@ -164,9 +167,9 @@ This completed pass stayed intentionally narrower than "move CNS runtime." It wa
 
 ## Follow-Up Sequence
 
-Do not collapse the remaining runtime work into one pass. After the completed `StateControllerUtilityRuntime.h`, `StateControllerVariableRuntime.h`, `StateControllerPowerRuntime.h`, `StateControllerVelocityRuntime.h`, `StateControllerPosAddRuntime.h`, `StateControllerPosSetRuntime.h`, and `StateControllerSprPriorityRuntime.h` cuts plus the meter/stat, movement/position, position/grounding, and misc movement/state audits, continue with focused audits or small implementation cuts in this order unless a new blocker requires a documented change:
+Do not collapse the remaining runtime work into one pass. After the completed `StateControllerUtilityRuntime.h`, `StateControllerVariableRuntime.h`, `StateControllerPowerRuntime.h`, `StateControllerVelocityRuntime.h`, `StateControllerPosAddRuntime.h`, `StateControllerPosSetRuntime.h`, `StateControllerSprPriorityRuntime.h`, and `StateControllerPosFreezeRuntime.h` cuts plus the meter/stat, movement/position, position/grounding, and misc movement/state audits, continue with focused audits or small implementation cuts in this order unless a new blocker requires a documented change:
 
-1. `PosFreeze` / movement-freeze audit.
+1. `Turn` / facing audit.
 2. Pause / superpause audit.
 3. Helper / projectile / explod audit.
 4. Target controller audit.
@@ -201,15 +204,16 @@ The old `PosFreeze` / movement-freeze audit recommendation is superseded by the 
 
 The old `SprPriority`-only implementation recommendation is complete in `StateControllerSprPriorityRuntime.h`.
 
+The old `PosFreeze` / movement-freeze recommendation is complete in `StateControllerPosFreezeRuntime.h`.
+
 Next recommended pass:
 
 ```text
-Audit PosFreeze / movement-freeze controller behavior before any source movement.
+Audit Turn / facing controller behavior before any source movement.
 ```
 
 Continue to defer:
 
-- `PosFreeze`.
 - `CtrlSet`.
 - `StateTypeSet`.
 - `ScreenBound`.
@@ -238,7 +242,7 @@ Continue to defer:
 
 ## Validation For Current Checkpoint
 
-This checkpoint moved only `SprPriority` controller execution into `StateControllerSprPriorityRuntime.h` after the misc movement/state controller audit. It did not change CMake, content, sidecar policy, boss intro behavior, branch topology, grounding physics, or `.dragon/*.json`.
+This checkpoint moved only `PosFreeze` controller execution into `StateControllerPosFreezeRuntime.h` after the completed SprPriority body move. It did not change CMake, content, sidecar policy, boss intro behavior, branch topology, grounding physics, physics consumption of freeze flags, per-tick freeze-flag reset, or `.dragon/*.json`.
 
 Expected validation:
 
@@ -248,7 +252,7 @@ python tools/check_file_sizes.py
 git diff --check
 ```
 
-The full verifier gate should keep all advertised runtime scenarios at `partial=0 fail=0 blocked=0`. `tools/check_file_sizes.py` is expected to continue failing on known `App.cpp` hard debt and should report `App.cpp` at `8503`. Treat any new hard failure outside the known `App.cpp` debt as a blocker.
+The full verifier gate should keep all advertised runtime scenarios at `partial=0 fail=0 blocked=0`. `tools/check_file_sizes.py` is expected to continue failing on known `App.cpp` hard debt and should report `App.cpp` at `8498`. Treat any new hard failure outside the known `App.cpp` debt as a blocker.
 
 ## Dirty File Handling
 

@@ -189,18 +189,17 @@ docs/MISC_MOVEMENT_STATE_CONTROLLER_RUNTIME_AUDIT.md
 
 Follow-up implementation completed:
 StateControllerSprPriorityRuntime.h
+StateControllerPosFreezeRuntime.h
 
 Next pass:
-Audit PosFreeze / movement-freeze controller behavior before any source movement.
+Audit Turn / facing controller behavior before any source movement.
 
 Do not move:
-- PosFreeze execution before a dedicated movement-freeze audit
 - CtrlSet
 - StateTypeSet
 - ScreenBound
 - Width
 - PlayerPush
-- SprPriority
 - Turn
 - VelSet / VelAdd / VelMul
 - PosAdd
