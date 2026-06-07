@@ -57,6 +57,7 @@ struct FightHudView {
     bool arenaMode = false;
     bool showMatchTimer = false;
     int timerSeconds = 0;
+    std::string timerText;
     int currentRound = 1;
     std::string versusLine;
     std::string bottomLine;

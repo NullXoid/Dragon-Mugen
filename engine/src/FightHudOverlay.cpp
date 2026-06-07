@@ -205,7 +205,7 @@ void drawFightHud(const UiRenderContext& ui, const FightHudView& view) {
             setColor(ui.renderer, 8, 10, 12);
             fillRect(ui.renderer, centerX - 28.0f, 35, 56, 13);
             setColor(ui.renderer, 230, 220, 172);
-            debugText(ui.renderer, centerX - 20.0f, 38, std::to_string(view.timerSeconds));
+            debugText(ui.renderer, centerX - static_cast<float>(view.timerText.size() * 4), 38, view.timerText);
         }
         setColor(ui.renderer, 155, 164, 174);
         debugText(ui.renderer, 20, 206, view.versusLine);
@@ -240,7 +240,7 @@ void drawFightHud(const UiRenderContext& ui, const FightHudView& view) {
         setColor(ui.renderer, 8, 10, 12);
         fillRect(ui.renderer, centerX - 28.0f, 22, 56, 13);
         setColor(ui.renderer, 230, 220, 172);
-        debugText(ui.renderer, centerX - 20.0f, 25, std::to_string(view.timerSeconds));
+        debugText(ui.renderer, centerX - static_cast<float>(view.timerText.size() * 4), 25, view.timerText);
         setColor(ui.renderer, 155, 164, 174);
         debugText(ui.renderer, 82, 24, "R" + std::to_string(view.currentRound));
         drawRoundPips(ui, 108, 27, view.p1.roundPips);

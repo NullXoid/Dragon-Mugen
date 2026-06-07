@@ -97,6 +97,16 @@ void markArenaDefeatedFighters(AppState& state) {
     }
 }
 
+void forceArenaDefeatedFightersToGround(AppState& state) {
+    for (auto& fighter : state.fighters) {
+        if (fighter.life > 0) {
+            continue;
+        }
+        enterArenaFallbackDefeatPose(state, fighter, true);
+        holdArenaDefeatedRecoveryPose(state, fighter);
+    }
+}
+
 void updateArenaDefeatedFighterPose(AppState& state, size_t fighterIndex, const StageSlot& stage) {
     if (fighterIndex >= state.fighters.size()) {
         return;
@@ -143,11 +153,11 @@ void updateArenaDefeatedFighterPose(AppState& state, size_t fighterIndex, const 
     }
 }
 
-void startArenaRoundFinish(AppState& state, int winnerIndex) {
+void startArenaRoundFinish(AppState& state, int winnerIndex, RoundEndReason reason = RoundEndReason::Ko) {
     state.matchPhase = MatchPhase::RoundFinish;
     state.matchPhaseTicks = 0;
     state.roundWinner = winnerIndex >= 0 ? winnerIndex + 1 : 0;
-    state.roundEndReason = RoundEndReason::Ko;
+    state.roundEndReason = reason;
     state.matchComplete = true;
     state.frontend.selectedMatchResultOption = 0;
     for (size_t i = 0; i < state.fighters.size(); ++i) {
@@ -164,6 +174,26 @@ void startArenaRoundFinish(AppState& state, int winnerIndex) {
     }
     state.messages.lastHitText = roundFinishCalloutText(state);
     state.messages.lastHitTextTicks = singleFightRoundFinishHoldTicks(state);
+}
+
+int arenaTimeOverWinnerIndex(const AppState& state) {
+    int winner = -1;
+    int bestLife = -1;
+    bool tied = false;
+    for (size_t i = 0; i < state.fighters.size(); ++i) {
+        const int life = state.fighters[i].life;
+        if (life <= 0) {
+            continue;
+        }
+        if (life > bestLife) {
+            bestLife = life;
+            winner = static_cast<int>(i);
+            tied = false;
+        } else if (life == bestLife) {
+            tied = true;
+        }
+    }
+    return tied ? -1 : winner;
 }
 
 void updateArenaPhaseTimers(AppState& state) {
@@ -184,6 +214,7 @@ void updateArenaPhaseTimers(AppState& state) {
         ++state.matchPhaseTicks;
         markArenaDefeatedFighters(state);
         if (state.matchPhaseTicks >= singleFightRoundFinishHoldTicks(state)) {
+            forceArenaDefeatedFightersToGround(state);
             state.matchPhase = MatchPhase::RoundResult;
             state.matchPhaseTicks = 0;
             state.messages.lastHitText = roundResultText(state);
@@ -202,8 +233,16 @@ void updateArenaPhaseTimers(AppState& state) {
         ++state.matchPhaseTicks;
         break;
     case MatchPhase::Fight:
-        if (state.matchTimerTicks > 0 && !anyFighterHasAssertSpecialFlag(state, "timerfreeze")) {
+        if (state.mainSettings.matchTimerSeconds > 0
+            && state.matchTimerTicks > 0
+            && !anyFighterHasAssertSpecialFlag(state, "timerfreeze")) {
             --state.matchTimerTicks;
+        }
+        if (state.mainSettings.matchTimerSeconds > 0
+            && state.matchTimerTicks <= 0
+            && !anyFighterHasAssertSpecialFlag(state, "roundnotover")
+            && !anyFighterHasAssertSpecialFlag(state, "intro")) {
+            startArenaRoundFinish(state, arenaTimeOverWinnerIndex(state), RoundEndReason::TimeUp);
         }
         break;
     default:

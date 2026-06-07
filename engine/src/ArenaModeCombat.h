@@ -25,11 +25,7 @@ int nearestLivingEnemyIndex(const AppState& state, int ownerIndex) {
 
 bool arenaFighterCanReceiveHit(const FighterState& fighter) {
     return fighter.life > 0
-        && fighter.hitPauseTicks <= 0
-        && fighter.moveType != 'H'
-        && !fighter.guarding
-        && fighter.stateType != 'L'
-        && (fighter.stateNo < 5000 || fighter.stateNo >= 5200);
+        && fighter.hitPauseTicks <= 0;
 }
 
 void applyArenaHitIfNeeded(AppState& state) {

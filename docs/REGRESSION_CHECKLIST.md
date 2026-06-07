@@ -45,6 +45,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Arena shows one health bar per active fighter, not a shared CPU health average.
 - Arena knockdowns land on the floor and do not trigger viewport hitshake.
 - Arena timer ticks down, hit-frozen fighters recover or resolve to KO, and knockdowns do not pull the camera upward.
+- Arena hitpause is brief, Rush counters reset after disappearing, debug hit boxes stay Training-only, and disabled timers show `INF`.
 - Training dummy behavior still works.
 - Training P2 control still switches the opponent to local P2 behavior.
 - Single Fight round timer, KO/time-over, pips, match result, and rematch/menu inputs still work.

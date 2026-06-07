@@ -254,7 +254,7 @@ std::string gamepadPromptStyleText(GamepadPromptStyle style) {
 }
 
 int matchTimerTicksFromSettings(const MainSettings& settings) {
-    return std::max(1, settings.matchTimerSeconds) * 60;
+    return settings.matchTimerSeconds <= 0 ? 0 : settings.matchTimerSeconds * 60;
 }
 
 std::string compactSettingText(const std::string& value, size_t maxChars) {

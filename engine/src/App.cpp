@@ -3600,6 +3600,13 @@ void updateGroundGuardReadyState(const AppState& state, FighterState& target) {
     }
 }
 
+int fightHitPauseTicks(const AppState& state, int ticks, int minimum) {
+    const int resolved = std::max(minimum, ticks);
+    return state.frontend.pendingMode == PendingMode::Arena
+        ? std::min(resolved, 12)
+        : resolved;
+}
+
 void enterGroundGetHitState(const AppState& state, FighterState& target, const HitDefinition& hitDef, int attackerFacing) {
     const bool wasAirborne = !target.onGround || target.stateType == 'A';
     const bool wasCrouching = fighterIsCrouchingForHit(target);
@@ -3628,7 +3635,7 @@ void enterGroundGetHitState(const AppState& state, FighterState& target, const H
     target.onGround = !(wasAirborne || liedownBounce);
     target.vx = 0.0f;
     target.vy = 0.0f;
-    target.hitPauseTicks = std::max(1, hitDef.pausetimeP2);
+    target.hitPauseTicks = fightHitPauseTicks(state, hitDef.pausetimeP2, 1);
     const int hitTime = wasAirborne && hitDef.airHitTime > 0 ? hitDef.airHitTime : hitDef.groundHitTime;
     target.hitStunTicks = std::max(hitTime, target.hitPauseTicks);
     target.hitSlideTicks = wasAirborne ? 0 : std::max(0, hitDef.groundSlideTime);
@@ -3685,7 +3692,7 @@ bool enterCustomHitState(const AppState& state, FighterState& target, const HitD
     target.customHitState = true;
     target.moveType = 'H';
     target.ctrl = false;
-    target.hitPauseTicks = std::max(0, hitDef.pausetimeP2);
+    target.hitPauseTicks = fightHitPauseTicks(state, hitDef.pausetimeP2, 0);
     target.hitStunTicks = std::max(hitDef.groundHitTime, target.hitPauseTicks);
     target.hitSlideTicks = std::max(0, hitDef.groundSlideTime);
     setGetHitVarsFromHitDef(
@@ -3720,7 +3727,7 @@ void enterGroundGuardHitState(const AppState& state, FighterState& target, const
     target.onGround = true;
     target.vx = 0.0f;
     target.vy = 0.0f;
-    target.hitPauseTicks = std::max(1, hitDef.pausetimeP2);
+    target.hitPauseTicks = fightHitPauseTicks(state, hitDef.pausetimeP2, 1);
     target.hitStunTicks = std::max(1, hitDef.groundHitTime);
     target.hitSlideTicks = std::max(0, hitDef.groundSlideTime);
     target.hitVelocityX = -hitDef.guardVelocityX * static_cast<float>(attackerFacing);
@@ -5861,11 +5868,13 @@ void updateComboCounterBreaks(AppState& state) {
 void updateComboDisplayTimers(AppState& state) {
     for (auto& combo : state.display.comboCounters) {
         if (combo.displayTicks <= 0) {
+            combo.activeHits = 0;
             combo.displayHits = 0;
             continue;
         }
         --combo.displayTicks;
         if (combo.displayTicks <= 0) {
+            combo.activeHits = 0;
             combo.displayHits = 0;
         }
     }
@@ -5948,7 +5957,7 @@ void applyHitBetween(AppState& state, size_t attackerIndex, size_t defenderIndex
     if (guardStance != GuardStance::None) {
         attacker.moveGuarded = true;
         endActiveComboForDefender(state, defenderIndex);
-        attacker.hitPauseTicks = std::max(1, hitDef->pausetimeP1);
+        attacker.hitPauseTicks = fightHitPauseTicks(state, hitDef->pausetimeP1, 1);
         const int guardDamageDone = state.training.options.guardDamage
             ? scaleAttackThenDefenceDamage(hitDef->guardDamage, attacker, defender)
             : 0;
@@ -5974,7 +5983,7 @@ void applyHitBetween(AppState& state, size_t attackerIndex, size_t defenderIndex
                 << " snd " << soundPairText(hitDef->guardSoundGroup, hitDef->guardSoundIndex);
     } else {
         attacker.moveHit = true;
-        attacker.hitPauseTicks = std::max(1, hitDef->pausetimeP1);
+        attacker.hitPauseTicks = fightHitPauseTicks(state, hitDef->pausetimeP1, 1);
         const int damageDone = (!trainingDummy || !state.training.options.dummyInvincible)
             ? scaleAttackThenDefenceDamage(hitDef->damage, attacker, defender)
             : 0;
@@ -5989,7 +5998,7 @@ void applyHitBetween(AppState& state, size_t attackerIndex, size_t defenderIndex
             defender.customHitState = true;
             defender.moveType = 'H';
             defender.ctrl = false;
-            defender.hitPauseTicks = std::max(0, hitDef->pausetimeP2);
+            defender.hitPauseTicks = fightHitPauseTicks(state, hitDef->pausetimeP2, 0);
             defender.hitStunTicks = std::max(hitDef->groundHitTime, defender.hitPauseTicks);
             setGetHitVarsFromHitDef(
                 defender,
@@ -6233,7 +6242,7 @@ void applyProjectileHit(AppState& state, RuntimeProjectile& projectile, size_t d
         endActiveComboForDefender(state, defenderIndex);
         owner.projectileGuardedId = projectile.id;
         owner.projectileGuardedTicks = std::max(owner.projectileGuardedTicks, 32);
-        owner.hitPauseTicks = std::max(1, hitDef.pausetimeP1);
+        owner.hitPauseTicks = fightHitPauseTicks(state, hitDef.pausetimeP1, 1);
         const int guardDamageDone = state.training.options.guardDamage
             ? scaleAttackThenDefenceDamage(hitDef.guardDamage, owner, defender)
             : 0;
@@ -6258,7 +6267,7 @@ void applyProjectileHit(AppState& state, RuntimeProjectile& projectile, size_t d
         owner.moveHit = true;
         owner.projectileHitId = projectile.id;
         owner.projectileHitTicks = std::max(owner.projectileHitTicks, 32);
-        owner.hitPauseTicks = std::max(1, hitDef.pausetimeP1);
+        owner.hitPauseTicks = fightHitPauseTicks(state, hitDef.pausetimeP1, 1);
         const int damageDone = (!trainingDummy || !state.training.options.dummyInvincible)
             ? scaleAttackThenDefenceDamage(hitDef.damage, owner, defender)
             : 0;
@@ -6278,7 +6287,7 @@ void applyProjectileHit(AppState& state, RuntimeProjectile& projectile, size_t d
             defender.customHitState = true;
             defender.moveType = 'H';
             defender.ctrl = false;
-            defender.hitPauseTicks = std::max(0, hitDef.pausetimeP2);
+            defender.hitPauseTicks = fightHitPauseTicks(state, hitDef.pausetimeP2, 0);
             defender.hitStunTicks = std::max(hitDef.groundHitTime, defender.hitPauseTicks);
             setGetHitVarsFromHitDef(
                 defender,
@@ -7338,7 +7347,8 @@ void updateSingleFightRules(AppState& state) {
         return;
     }
 
-    if (state.matchTimerTicks > 0 && !anyFighterHasAssertSpecialFlag(state, "timerfreeze")) {
+    const bool timerEnabled = state.mainSettings.matchTimerSeconds > 0;
+    if (timerEnabled && state.matchTimerTicks > 0 && !anyFighterHasAssertSpecialFlag(state, "timerfreeze")) {
         --state.matchTimerTicks;
     }
 
@@ -7355,7 +7365,7 @@ void updateSingleFightRules(AppState& state) {
         startSingleFightRoundFinish(state, 2, RoundEndReason::Ko);
     } else if (p2Life <= 0) {
         startSingleFightRoundFinish(state, 1, RoundEndReason::Ko);
-    } else if (state.matchTimerTicks <= 0) {
+    } else if (timerEnabled && state.matchTimerTicks <= 0) {
         if (p1Life > p2Life) {
             startSingleFightRoundFinish(state, 1, RoundEndReason::TimeUp);
         } else if (p2Life > p1Life) {
@@ -8334,6 +8344,7 @@ FightHudView fightHudView(const AppState& state) {
     if (view.showMatchTimer) {
         const int winsRequired = matchWinsRequired(state);
         view.timerSeconds = std::max(0, (state.matchTimerTicks + 59) / 60);
+        view.timerText = state.mainSettings.matchTimerSeconds <= 0 ? "INF" : std::to_string(view.timerSeconds);
         view.p1.roundPips = FightRoundPipsView{ state.roundWins[0], winsRequired };
         view.p2.roundPips = FightRoundPipsView{ state.roundWins[1], winsRequired, true };
     }

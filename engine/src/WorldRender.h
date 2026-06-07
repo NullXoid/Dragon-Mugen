@@ -207,7 +207,8 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
     const ActorVisualFrame visual = visualFrameForFighter(state, fighter, actorIndex);
     const AnimationClip* clip = findClipForFighter(state, actorIndex, visual.action);
     const AnimationFrame* frame = clip ? frameForClip(*clip, visual.animTick) : nullptr;
-    const bool drawHitFeedback = (state.frontend.pendingMode != PendingMode::Training || state.training.options.showHitFlash)
+    const bool drawHitFeedback = state.frontend.pendingMode == PendingMode::Training
+        && state.training.options.showHitFlash
         && (fighter.moveType == 'H' || fighter.hitPauseTicks > 0);
 
     if (frame && frame->sprite.texture) {
