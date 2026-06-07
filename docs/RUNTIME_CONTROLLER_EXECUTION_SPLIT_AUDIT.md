@@ -1,5 +1,7 @@
 # Runtime Controller Execution Split Audit
 
+Superseded note: this audit is historical context. Its recommended `StateControllerUtilityRuntime.h` cut was completed by `de22bec Move state controller utility runtime body out of App.cpp`. The current decision point is `docs/ARCHITECTURE_RECOVERY_ROADMAP_AUDIT.md`, which recommends a bounded variable-controller audit or `StateControllerVariableRuntime.h` extraction next.
+
 This docs-only audit narrows the remaining live controller execution area after the read-only expression and trigger evaluation body moved to `RuntimeExpressionEvaluation.h`.
 
 Baseline:
