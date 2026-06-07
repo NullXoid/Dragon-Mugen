@@ -3977,25 +3977,15 @@ void updateGlobalPauseTimers(AppState& state) {
 
 #include "StateControllerVariableRuntime.h"
 
+#include "StateControllerPowerRuntime.h"
+
 void updateStateMeterControllers(
     AppState& state,
     FighterState& fighter,
     const FighterState* opponent = nullptr,
     const StageSlot* stage = nullptr) {
     forEachRuntimeControllerStateDefinition(state, fighter, [&](const StateDefinition& stateDef) {
-        for (const auto& powerAdd : stateDef.powerAdds) {
-            if (!shouldRunStateRuntimeController(state, fighter, powerAdd.id, powerAdd.trigger, opponent, stage)) {
-                continue;
-            }
-            const auto value = evalMugenExpression(state, fighter, powerAdd.valueExpression, opponent, stage);
-            if (!value) {
-                continue;
-            }
-            fighter.power = std::clamp(
-                fighter.power + static_cast<int>(std::lround(*value)),
-                0,
-                std::max(0, state.characterConstants.maxPower));
-        }
+        updateStatePowerControllersForDefinition(state, fighter, stateDef, opponent, stage);
 
         for (const auto& lifeAdd : stateDef.lifeAdds) {
             if (!shouldRunStateRuntimeController(state, fighter, lifeAdd.id, lifeAdd.trigger, opponent, stage)) {
