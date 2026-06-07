@@ -190,9 +190,10 @@ docs/MISC_MOVEMENT_STATE_CONTROLLER_RUNTIME_AUDIT.md
 Follow-up implementation completed:
 StateControllerSprPriorityRuntime.h
 StateControllerPosFreezeRuntime.h
+StateControllerTurnRuntime.h
 
 Next pass:
-Audit Turn / facing controller behavior before any source movement.
+Audit CtrlSet / command-control behavior before any source movement.
 
 Do not move:
 - CtrlSet
@@ -200,7 +201,6 @@ Do not move:
 - ScreenBound
 - Width
 - PlayerPush
-- Turn
 - VelSet / VelAdd / VelMul
 - PosAdd
 - HitVelSet / HitFallVel / HitFallSet / HitFallDamage

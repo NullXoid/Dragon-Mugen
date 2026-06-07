@@ -4092,6 +4092,7 @@ void updateStateChangeAnimControllers(
 #include "StateControllerPosSetRuntime.h"
 #include "StateControllerSprPriorityRuntime.h"
 #include "StateControllerPosFreezeRuntime.h"
+#include "StateControllerTurnRuntime.h"
 
 void updateStateMovementControllers(
     AppState& state,
@@ -4109,14 +4110,7 @@ void updateStateMovementControllers(
 
     updateStatePosFreezeControllersForDefinition(state, fighter, *stateDef, opponent, stage);
 
-    for (const auto& turn : stateDef->turns) {
-        if (!shouldRunStateRuntimeController(state, fighter, turn.id, turn.trigger, opponent, stage)) {
-            continue;
-        }
-        fighter.facing *= -1;
-        fighter.jumpBaseAction = 0;
-        fighter.jumpPeakActionApplied = false;
-    }
+    updateStateTurnControllersForDefinition(state, fighter, *stateDef, opponent, stage);
 
     for (const auto& pause : stateDef->pauses) {
         if (!shouldRunStateRuntimeController(state, fighter, pause.id, pause.trigger, opponent, stage)) {

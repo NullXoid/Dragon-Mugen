@@ -171,14 +171,54 @@ cpu-baseline: pass=7 partial=0 fail=0 blocked=0
 
 `Turn`, `CtrlSet`, `StateTypeSet`, `ScreenBound`, `Width`, `PlayerPush`, velocity controllers, `PosAdd`, `PosSet`, hit/get-hit controllers, HitDef/damage/guard, round flow, helper/projectile/explod lifecycle, target controllers, `ChangeState` / `SelfState`, pause/superpause, CPU/input behavior, sidecar policy, grounding physics, physics consumption of freeze flags, content, CMake, branch topology, and `.dragon/*.json` stayed unchanged.
 
+## Turn Body Move Follow-Up
+
+The follow-up implementation pass moved only `Turn` execution from `updateStateMovementControllers(...)` into `engine/src/StateControllerTurnRuntime.h`.
+
+Moved helper:
+
+```cpp
+void updateStateTurnControllersForDefinition(
+    AppState& state,
+    FighterState& fighter,
+    const StateDefinition& stateDef,
+    const FighterState* opponent,
+    const StageSlot* stage)
+```
+
+The helper preserves the original `shouldRunStateRuntimeController(...)` gate, facing flip, and jump-action reset behavior.
+
+Measured follow-up result:
+
+| Item | Value |
+| --- | ---: |
+| `App.cpp` before | 8498 |
+| `App.cpp` after | 8492 |
+| `App.cpp` reduction | 6 |
+| `StateControllerTurnRuntime.h` count | 22 |
+| Remaining to 50% reduction | 82 |
+
+The pass did not cross the 50% reduction threshold, so no separate 50% checkpoint was recorded.
+
+Follow-up validation:
+
+```text
+kfm-baseline: pass=12 partial=0 fail=0 blocked=0
+evilken-smoke: pass=9 partial=0 fail=0 blocked=0
+kfm-air-state: pass=12 partial=0 fail=0 blocked=0
+cpu-baseline: pass=7 partial=0 fail=0 blocked=0
+```
+
+`CtrlSet`, `StateTypeSet`, `ScreenBound`, `Width`, `PlayerPush`, velocity controllers, `PosAdd`, `PosSet`, hit/get-hit controllers, HitDef/damage/guard, round flow, helper/projectile/explod lifecycle, target controllers, `ChangeState` / `SelfState`, pause/superpause, CPU/input behavior, input routing, command recognition, opponent-relative behavior, sidecar policy, content, CMake, branch topology, and `.dragon/*.json` stayed unchanged.
+
 ## Updated Audit Conclusion
 
 ```text
 Next pass:
-Audit Turn / facing controller behavior before any source movement.
+Audit CtrlSet / command-control behavior before any source movement.
 
 Recommended audit:
-Turn / facing audit
+CtrlSet / command-control audit
 
 Do not move:
 - CtrlSet
