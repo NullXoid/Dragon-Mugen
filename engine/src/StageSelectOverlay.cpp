@@ -8,11 +8,27 @@
 #include <cstddef>
 
 namespace dragon {
+namespace {
+
+void shadowText(SDL_Renderer* renderer, float x, float y, const std::string& text, Uint8 r, Uint8 g, Uint8 b) {
+    setColor(renderer, 4, 6, 10, 210);
+    debugText(renderer, x + 1.0f, y + 1.0f, text);
+    setColor(renderer, r, g, b);
+    debugText(renderer, x, y, text);
+}
+
+void shadowTextCentered(SDL_Renderer* renderer, float centerX, float y, const std::string& text, Uint8 r, Uint8 g, Uint8 b) {
+    const float x = centerX - static_cast<float>(text.size() * 8) * 0.5f;
+    shadowText(renderer, x, y, text, r, g, b);
+}
+
+} // namespace
 
 void drawStageSelectOverlay(const UiRenderContext& ui, const StageSelectView& view) {
     SDL_Renderer* renderer = ui.renderer;
     const float widthF = static_cast<float>(ui.logicalWidth);
     const float heightF = static_cast<float>(ui.logicalHeight);
+    const float centerX = widthF * 0.5f;
 
     if (!view.hasStagePreview) {
         setColor(renderer, 10, 12, 16);
@@ -24,63 +40,23 @@ void drawStageSelectOverlay(const UiRenderContext& ui, const StageSelectView& vi
         fillRect(renderer, 0, 176, widthF, 64);
         setColor(renderer, 94, 78, 54);
         fillRect(renderer, 0, 174, widthF, 1);
-    } else {
-        setColor(renderer, 4, 6, 10, 88);
-        fillRect(renderer, 0, 0, widthF, heightF);
-        setColor(renderer, 6, 8, 12, 190);
-        fillRect(renderer, 0, 0, widthF, 48);
-        setColor(renderer, 6, 8, 12, 178);
-        fillRect(renderer, 0, 174, widthF, heightF - 174.0f);
-        setColor(renderer, 214, 174, 76, 210);
-        fillRect(renderer, 0, 174, widthF, 1);
     }
-
-    setColor(renderer, 210, 224, 238);
-    debugText(renderer, 18, 16, "DRAGON MUGEN CORE");
-    setColor(renderer, 220, 178, 112);
-    debugText(renderer, 20, 30, "STAGE SELECT");
-    setColor(renderer, 155, 164, 174);
-    debugText(renderer, 210, 30, fitDebugText(view.modeLabel, 15));
-
-    const float panelX = 18.0f;
-    const float panelY = 52.0f;
-    const float panelW = std::max(284.0f, widthF - 36.0f);
-    const float panelH = 108.0f;
-    const float detailX = panelX + (panelW > 320.0f ? panelW * 0.50f : 164.0f);
-    const int rowChars = std::clamp(static_cast<int>((detailX - panelX - 24.0f) / 8.0f), 10, 24);
-    const int detailChars = std::clamp(static_cast<int>((panelX + panelW - detailX - 10.0f) / 8.0f), 12, 30);
-    drawPanel(renderer, panelX, panelY, panelW, panelH);
 
     if (view.rows.empty()) {
-        setColor(renderer, 230, 130, 120);
-        debugText(renderer, 32, 72, "No stages found in game/stages");
-    } else {
-        for (int i = 0; i < static_cast<int>(view.rows.size()); ++i) {
-            const float y = 66.0f + static_cast<float>(i * 20);
-            const auto& row = view.rows[static_cast<std::size_t>(i)];
-            if (row.selected) {
-                const int pulse = 150 + ((view.frame / 8) % 55);
-                setColor(renderer, static_cast<Uint8>(pulse), 124, 58);
-                fillRect(renderer, 28, y - 3, detailX - 44.0f, 15);
-                setColor(renderer, 8, 12, 16);
-                debugText(renderer, 36, y, fitDebugText(row.label, rowChars));
-            } else {
-                setColor(renderer, 184, 178, 168);
-                debugText(renderer, 36, y, fitDebugText(row.label, rowChars));
-            }
-        }
-
-        setColor(renderer, 222, 226, 232);
-        debugText(renderer, detailX, 68, fitDebugText(view.selectedStageName, detailChars));
-        setColor(renderer, 155, 164, 174);
-        debugText(renderer, detailX, 84, fitDebugText("id: " + view.selectedStageId, detailChars));
-        debugText(renderer, detailX, 96, fitDebugText("author: " + view.selectedStageAuthor, detailChars));
-        debugText(renderer, detailX, 116, fitDebugText("fighter: " + view.fighterLabel, detailChars));
-        debugText(renderer, detailX, 132, fitDebugText("opponent: " + view.opponentLabel, detailChars));
+        shadowTextCentered(renderer, centerX, 96.0f, "NO STAGES FOUND", 230, 130, 120);
+        shadowTextCentered(renderer, centerX, 112.0f, "CHECK game/stages", 210, 218, 230);
+        return;
     }
 
-    setColor(renderer, 118, 126, 138);
-    debugText(renderer, 20, 204, "UP/DOWN choose  ENTER start  ESC fighter select");
+    shadowText(renderer, 18.0f, 16.0f, "DRAGON MUGEN CORE", 220, 232, 242);
+    shadowTextCentered(renderer, centerX, 28.0f, fitDebugText(view.modeLabel, 20), 156, 194, 246);
+    shadowTextCentered(renderer, centerX, 44.0f, "STAGE SELECT", 246, 214, 92);
+
+    const std::string stageName = fitDebugText(view.selectedStageName, std::clamp(static_cast<int>(widthF / 8.0f) - 6, 12, 42));
+    const float stageY = heightF - 38.0f;
+    const bool showArrows = view.rows.size() > 1;
+    shadowTextCentered(renderer, centerX, stageY, showArrows ? "< " + stageName + " >" : stageName, 246, 214, 92);
+    shadowTextCentered(renderer, centerX, heightF - 18.0f, "LEFT/RIGHT stage   ENTER start   ESC fighter select", 210, 218, 230);
 }
 
 } // namespace dragon

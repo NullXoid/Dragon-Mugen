@@ -320,10 +320,10 @@ FrontendAction decideCharacterSelectAction(int selected, int characterCount, Fro
 }
 
 int moveStageCursor(int selected, int stageCount, FrontendKey key) {
-    if (key == FrontendKey::Up) {
+    if (key == FrontendKey::Left || key == FrontendKey::Up) {
         return wrapSelection(selected, stageCount, -1);
     }
-    if (key == FrontendKey::Down) {
+    if (key == FrontendKey::Right || key == FrontendKey::Down) {
         return wrapSelection(selected, stageCount, 1);
     }
     return selected;

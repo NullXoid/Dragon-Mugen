@@ -40,7 +40,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Character and stage select labels do not duplicate, overlap, or show the wrong mode name.
 - Training character select shows one clear dummy opponent card.
 - Stage select opens after character confirmation.
-- Stage select previews the selected stage behind the menu and refreshes when changing stages.
+- Stage select previews the selected stage behind the menu, shows the stage name at the bottom, and refreshes when changing stages with Left/Right.
 - Stage confirmation opens the VS screen first.
 - Fight view loads selected character and selected stage after VS.
 - Fight view fully repaints the window during hitpause, camera shake, and result overlays; no stale desktop/debug text should appear around the game viewport.
