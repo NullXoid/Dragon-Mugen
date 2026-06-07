@@ -107,17 +107,26 @@ void drawPaletteOverlay(SDL_Renderer* renderer, const AppState& state, const Act
     fillRect(renderer, 0, 0, logicalWidthF(state), static_cast<float>(kLogicalHeight));
 }
 
-int arenaVisualActionForFighter(const AppState& state, const FighterState& fighter, size_t actorIndex) {
+struct ActorVisualFrame {
+    int action = 0;
+    int animTick = 0;
+    float displayOffsetX = 0.0f;
+};
+
+ActorVisualFrame visualFrameForFighter(const AppState& state, const FighterState& fighter, size_t actorIndex) {
+    ActorVisualFrame visual{ fighter.action, fighter.animTick, 0.0f };
     if (state.frontend.pendingMode == PendingMode::Arena
         && fighter.stateNo == 101
         && fighter.action == 108
         && lowercaseCopy(arenaFighterName(state, actorIndex)).find("evil ryu") != std::string::npos) {
         const AnimationClip* flipClip = findClipForFighter(state, actorIndex, 106);
         if (flipClip && flipClip->action == 106) {
-            return 106;
+            visual.action = 106;
+            visual.animTick = fighter.animTick * 2;
+            visual.displayOffsetX = -35.0f;
         }
     }
-    return fighter.action;
+    return visual;
 }
 
 void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState& fighter, size_t actorIndex) {
@@ -195,16 +204,16 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
         }
     }
 
-    const int visualAction = arenaVisualActionForFighter(state, fighter, actorIndex);
-    const AnimationClip* clip = findClipForFighter(state, actorIndex, visualAction);
-    const AnimationFrame* frame = clip ? frameForClip(*clip, fighter.animTick) : nullptr;
+    const ActorVisualFrame visual = visualFrameForFighter(state, fighter, actorIndex);
+    const AnimationClip* clip = findClipForFighter(state, actorIndex, visual.action);
+    const AnimationFrame* frame = clip ? frameForClip(*clip, visual.animTick) : nullptr;
     const bool drawHitFeedback = (state.frontend.pendingMode != PendingMode::Training || state.training.options.showHitFlash)
         && (fighter.moveType == 'H' || fighter.hitPauseTicks > 0);
 
     if (frame && frame->sprite.texture) {
         const float originX = screenCenterX(state) + fighter.x - state.cameraX;
         const float originY = stage.zoffset + fighter.y - state.cameraY;
-        const float displayOriginX = originX + fighter.displayOffsetX * static_cast<float>(fighter.facing);
+        const float displayOriginX = originX + (fighter.displayOffsetX + visual.displayOffsetX) * static_cast<float>(fighter.facing);
         const float displayOriginY = originY + fighter.displayOffsetY;
         const bool facingLeft = fighter.facing < 0;
         const bool flipH = frame->flipX != facingLeft;

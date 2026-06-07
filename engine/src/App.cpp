@@ -3650,14 +3650,17 @@ void enterGroundGetHitState(const AppState& state, FighterState& target, const H
     target.hitFallYAccel = hitDef.hasYAccel ? hitDef.yAccel : state.characterConstants.movementYAccel;
     if (state.frontend.pendingMode == PendingMode::Arena && target.hitFall) {
         target.hitFallRecover = false;
-        target.hitVelocityY = std::max(target.hitVelocityY, target.hitFallTrip ? -2.4f : -5.5f);
-        target.hitFallYAccel = std::max(target.hitFallYAccel, target.hitFallTrip ? 0.58f : 0.45f);
+        target.hitVelocityY = std::max(target.hitVelocityY, target.hitFallTrip ? 0.0f : -3.2f);
+        target.hitFallYAccel = std::max(target.hitFallYAccel, target.hitFallTrip ? 0.72f : 0.58f);
     }
     target.hitFallAirAction = fallAirActionForHit(state, hitDef);
     target.hitFallBounceXVelocity = hitDef.hasFallXVelocity
         ? -hitDef.fallXVelocity * static_cast<float>(attackerFacing)
         : target.hitVelocityX;
     target.hitFallBounceYVelocity = hitDef.fallYVelocity;
+    if (state.frontend.pendingMode == PendingMode::Arena && target.hitFall) {
+        target.hitFallBounceYVelocity = std::max(target.hitFallBounceYVelocity, target.hitFallTrip ? 0.0f : -2.4f);
+    }
     target.hitFallEnvShake = hitDef.fallEnvShake;
     target.hitFallEnvShakePlayed = false;
 
@@ -5132,11 +5135,7 @@ void updateArenaCamera(AppState& state, const StageSlot& stage) {
     }
     state.cameraX = std::clamp(targetX, stage.cameraBoundleft, stage.cameraBoundright);
 
-    float targetY = stage.cameraStarty;
-    if (highestY < -stage.cameraFloortension) {
-        targetY = (highestY + stage.cameraFloortension) * stage.cameraVerticalfollow;
-    }
-    state.cameraY = std::clamp(targetY, stage.cameraBoundhigh, stage.cameraBoundlow);
+    state.cameraY = std::clamp(stage.cameraStarty, stage.cameraBoundhigh, stage.cameraBoundlow);
 }
 
 void startEnvShake(AppState& state, const EnvShakeSpec& shake) {

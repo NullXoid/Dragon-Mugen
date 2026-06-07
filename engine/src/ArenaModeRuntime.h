@@ -14,8 +14,18 @@ bool arenaFighterHasDefeatMotion(const FighterState& fighter) {
         || fighter.stateType == 'A';
 }
 
-void enterArenaFallbackDefeatPose(const AppState& state, FighterState& fighter) {
-    if (arenaFighterHasDefeatMotion(fighter)) {
+bool arenaFighterNeedsForcedDefeatPose(const FighterState& fighter) {
+    return fighter.life <= 0
+        && !fighter.hitFall
+        && (fighter.hitPauseTicks > 0
+            || fighter.moveType == 'H'
+            || fighter.guarding
+            || fighter.stateNo < 5000
+            || fighter.stateNo >= 5200);
+}
+
+void enterArenaFallbackDefeatPose(const AppState& state, FighterState& fighter, bool force = false) {
+    if (!force && arenaFighterHasDefeatMotion(fighter)) {
         return;
     }
     const int action = firstExistingAction(state, { 5110, 5120, 5100, 5000, 0 });
@@ -78,7 +88,7 @@ void markArenaDefeatedFighters(AppState& state) {
         fighter.ctrl = false;
         fighter.targetIndex = -1;
         fighter.targetTicks = 0;
-        enterArenaFallbackDefeatPose(state, fighter);
+        enterArenaFallbackDefeatPose(state, fighter, arenaFighterNeedsForcedDefeatPose(fighter));
         holdArenaDefeatedRecoveryPose(state, fighter);
         if (!arenaFighterHasDefeatMotion(fighter)) {
             fighter.vx = 0.0f;
@@ -100,6 +110,9 @@ void updateArenaDefeatedFighterPose(AppState& state, size_t fighterIndex, const 
     fighter.ctrl = false;
     fighter.targetIndex = -1;
     fighter.targetTicks = 0;
+    if (arenaFighterNeedsForcedDefeatPose(fighter)) {
+        enterArenaFallbackDefeatPose(state, fighter, true);
+    }
     if (!fighterCanUpdateDuringGlobalPause(state, static_cast<int>(fighterIndex))) {
         fighter.vx = 0.0f;
         fighter.vy = 0.0f;
@@ -144,8 +157,8 @@ void startArenaRoundFinish(AppState& state, int winnerIndex) {
             fighter.vx = 0.0f;
             fighter.vy = 0.0f;
             enterStateIfAvailable(state, fighter, 181);
-        } else if (!arenaFighterHasDefeatMotion(fighter)) {
-            enterArenaFallbackDefeatPose(state, fighter);
+        } else if (!arenaFighterHasDefeatMotion(fighter) || arenaFighterNeedsForcedDefeatPose(fighter)) {
+            enterArenaFallbackDefeatPose(state, fighter, arenaFighterNeedsForcedDefeatPose(fighter));
         }
         holdArenaDefeatedRecoveryPose(state, fighter);
     }
@@ -189,6 +202,10 @@ void updateArenaPhaseTimers(AppState& state) {
         ++state.matchPhaseTicks;
         break;
     case MatchPhase::Fight:
+        if (state.matchTimerTicks > 0 && !anyFighterHasAssertSpecialFlag(state, "timerfreeze")) {
+            --state.matchTimerTicks;
+        }
+        break;
     default:
         break;
     }
@@ -363,10 +380,7 @@ void updateArenaFight(AppState& state) {
 
     updateArenaCamera(state, stage);
     applyScreenBounds(state, stage);
-    if (state.messages.lastHitTextTicks > 0) {
-        --state.messages.lastHitTextTicks;
-    }
-    updateComboDisplayTimers(state);
+    updateArenaPhaseTimers(state);
 
     for (size_t i = 0; i < state.fighters.size(); ++i) {
         const bool enteredNewState = i < stateNoAtFrameStart.size()

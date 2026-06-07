@@ -23,13 +23,22 @@ int nearestLivingEnemyIndex(const AppState& state, int ownerIndex) {
     return nearest;
 }
 
+bool arenaFighterCanReceiveHit(const FighterState& fighter) {
+    return fighter.life > 0
+        && fighter.hitPauseTicks <= 0
+        && fighter.moveType != 'H'
+        && !fighter.guarding
+        && fighter.stateType != 'L'
+        && (fighter.stateNo < 5000 || fighter.stateNo >= 5200);
+}
+
 void applyArenaHitIfNeeded(AppState& state) {
     for (size_t attacker = 0; attacker < state.fighters.size(); ++attacker) {
         if (state.fighters[attacker].life <= 0) {
             continue;
         }
         for (size_t defender = 0; defender < state.fighters.size(); ++defender) {
-            if (attacker == defender || state.fighters[defender].life <= 0) {
+            if (attacker == defender || !arenaFighterCanReceiveHit(state.fighters[defender])) {
                 continue;
             }
             applyHitBetween(state, attacker, defender);
@@ -43,7 +52,7 @@ void applyArenaHitIfNeeded(AppState& state) {
             continue;
         }
         const int defender = nearestLivingEnemyIndex(state, helper.ownerIndex);
-        if (defender >= 0) {
+        if (defender >= 0 && arenaFighterCanReceiveHit(state.fighters[static_cast<size_t>(defender)])) {
             applyHitBetween(state, helperBase + i, static_cast<size_t>(defender));
         }
     }
