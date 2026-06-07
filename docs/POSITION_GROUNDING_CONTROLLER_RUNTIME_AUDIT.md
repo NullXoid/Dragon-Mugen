@@ -44,7 +44,7 @@ Docs-only:
 - No Dragon Mode changes.
 - No store or crafting changes.
 
-`docs/TYPE_EXTRACTION_AUDIT.md` remains historical context. The live `docs/DEVELOPMENT.md` already records the current tiered file-size guard policy and does not need an update for this audit.
+The current recovery source of truth is `docs/ARCHITECTURE_RECOVERY_ROADMAP_AUDIT.md` plus the focused runtime-controller audits. The live `docs/DEVELOPMENT.md` already records the current tiered file-size guard policy and does not need an update for this audit.
 
 ## Audit Validation
 

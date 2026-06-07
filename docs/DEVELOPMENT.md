@@ -54,7 +54,7 @@ The guard uses tiers:
 
 New files should still prefer the small target, and transitional render/type headers should stay well below it when practical. `engine/src/App.cpp` is intentionally not allowlisted because it is the current known monolith and must stay visible as debt until it is extracted one responsibility at a time.
 
-See [TYPE_EXTRACTION_AUDIT.md](TYPE_EXTRACTION_AUDIT.md) for the current `App.cpp` type/dependency extraction map.
+For the current `App.cpp` recovery map, see [ARCHITECTURE_RECOVERY_ROADMAP_AUDIT.md](ARCHITECTURE_RECOVERY_ROADMAP_AUDIT.md) and the focused runtime-controller audits.
 
 ## Pass 11 Type Dependency Map
 
