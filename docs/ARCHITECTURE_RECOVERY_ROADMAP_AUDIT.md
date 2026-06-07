@@ -9,9 +9,9 @@ Baseline and current file-size guard values:
 | Item | Value |
 | --- | ---: |
 | Starting `App.cpp` count | 16820 |
-| Current `App.cpp` count | 9184 |
-| Total removed | 7636 |
-| Reduction | 45.4% |
+| Current `App.cpp` count | 8632 |
+| Total removed | 8188 |
+| Reduction | 48.7% |
 
 `App.cpp` is no longer in the safe UI extraction stage. The project is now in the runtime-core extraction stage. The remaining work is mutation-heavy and must stay split into small, auditable cuts.
 
@@ -29,6 +29,7 @@ The earlier roadmap's safe chunks have already been substantially completed:
 - Command state eligibility.
 - Runtime expression and trigger evaluation.
 - Fight/session setup and reset.
+- Controller utility/audio/assert/display runtime body.
 
 These completed areas should not be treated as future broad work. Future passes should build on them and avoid reopening their boundaries unless a focused regression or cleanup requires it.
 
@@ -47,26 +48,31 @@ The hardest remaining systems are live mutation paths:
 
 Architecture recovery remains the active feature. Broad gameplay work should stay limited while these runtime-core boundaries are extracted and documented one responsibility at a time.
 
-## Recommended Next Implementation Pass
+The first bounded runtime-core code cut is now complete: `StateControllerUtilityRuntime.h` owns the controller utility/audio/assert/display runtime body without moving state transitions, HitDef/damage, target mutation, helper/projectile/explod lifecycle, pause/superpause timing, variable/meter mutation, movement/position mutation, or round flow.
 
-Next code pass:
+## Completed Utility Runtime Pass
+
+Completed code pass:
 
 ```text
 StateControllerUtilityRuntime.h
 ```
 
-Scope:
+Completed scope:
 
-Move only utility/audio/assert/display controller execution bodies that do not own state transitions, hit/damage, target mutation, helper/projectile/explod lifecycle, pause/superpause timing, or round flow.
+Moved only utility/audio/assert/display controller execution bodies that do not own state transitions, hit/damage, target mutation, helper/projectile/explod lifecycle, pause/superpause timing, or round flow.
 
-Allowed examples:
+Moved examples:
 
-- Audio/display/clipboard/assert-style utility controllers.
-- Force-feedback helper path if present.
-- Victory quote/display-only utility when it does not affect round flow.
-- Palette/remap/trans/afterimage helpers only if inspection confirms they are display/runtime-effect utility and not lifecycle-heavy.
+- PlaySnd / StopSnd controller dispatch and fire-key helpers.
+- AssertSpecial flag helpers.
+- Display, clipboard, victory quote, angle, offset, remap palette, trans, and afterimage visual controllers.
+- `changeAnimTriggerActive`.
+- Force-feedback helper path.
+- Afterimage effect ticking.
+- Shared runtime fired-history gate as a behavior-preserving placement move.
 
-Do not move:
+Still not moved:
 
 - `ChangeState` / `SelfState`.
 - `HitDef`.
@@ -80,11 +86,11 @@ Do not move:
 - Round flow.
 - `FighterState` / `AppState` extraction.
 
-This is intentionally narrower than "move CNS runtime." It is a controller utility/audio/assert/display execution cut only.
+This completed pass stayed intentionally narrower than "move CNS runtime." It was a controller utility/audio/assert/display execution cut only.
 
 ## Follow-Up Sequence
 
-Do not collapse the remaining runtime work into one pass. After `StateControllerUtilityRuntime.h`, continue with focused audits or small implementation cuts in this order unless a new blocker requires a documented change:
+Do not collapse the remaining runtime work into one pass. After the completed `StateControllerUtilityRuntime.h` cut, continue with focused audits or small implementation cuts in this order unless a new blocker requires a documented change:
 
 1. Variable / meter controller audit.
 2. Movement / position controller audit.
@@ -94,9 +100,9 @@ Do not collapse the remaining runtime work into one pass. After `StateController
 6. HitDef / damage audit.
 7. Round flow audit.
 
-## Validation For This Audit
+## Validation For Current Checkpoint
 
-This audit is documentation-only. It should not change source, CMake, content, runtime behavior, controller behavior, sidecar policy, boss intro behavior, or `.dragon/*.json`.
+This checkpoint should not change CMake, content, sidecar policy, boss intro behavior, or `.dragon/*.json`. The source change is limited to the internal `StateControllerUtilityRuntime.h` extraction and its `App.cpp` include/removal.
 
 Expected validation:
 
