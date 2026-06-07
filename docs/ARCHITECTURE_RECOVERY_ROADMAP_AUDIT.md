@@ -49,6 +49,7 @@ The earlier roadmap's safe chunks have already been substantially completed:
 - `PosFreeze` controller runtime body.
 - `Turn` controller runtime body.
 - `CtrlSet` / command-control controller runtime audit.
+- Command-control verifier coverage for authored `CtrlSet` behavior.
 
 These completed areas should not be treated as future broad work. Future passes should build on them and avoid reopening their boundaries unless a focused regression or cleanup requires it.
 
@@ -56,7 +57,7 @@ These completed areas should not be treated as future broad work. Future passes 
 
 Next code target:
 
-- Harden command-control verifier coverage before any `CtrlSet` source movement.
+- Move `CtrlSet`-only controller execution into `StateControllerCtrlRuntime.h`.
 
 Completed with limits:
 
@@ -67,11 +68,11 @@ Completed with limits:
 - `PosFreeze` execution now lives in `StateControllerPosFreezeRuntime.h`.
 - `Turn` execution now lives in `StateControllerTurnRuntime.h`.
 - PosSet-backed grounding verifier coverage now proves KFM's authored `FF_a` path reaches states `1050`, `1051`, and `1052`, runs the state `1052` `PosSet` landing path, and returns to grounded controllable idle.
+- Command-control verifier coverage now proves KFM's authored `start` taunt path enters state `195` with `ctrl=false`, blocks command entry while control is disabled, runs the state `195` `CtrlSet` restore, returns to controllable idle, and accepts a normal command afterward.
 
 Needs a narrower audit or seam before movement:
 
 - Remaining meter/stat controllers: `LifeAdd`, `HitAdd`, `AttackDist`, `AttackMulSet`, and `DefenceMulSet`.
-- Command-control controller: `CtrlSet` needs direct verifier proof before movement.
 - State-shape controller: `StateTypeSet`.
 - Bounds/contact-adjacent controllers: `ScreenBound`, `Width`, and `PlayerPush`.
 - Pause and superpause.
@@ -134,6 +135,8 @@ The `Turn` controller runtime body cut is complete: `StateControllerTurnRuntime.
 
 The `CtrlSet` / command-control audit is complete in `docs/CTRLSET_COMMAND_CONTROL_CONTROLLER_RUNTIME_AUDIT.md`. It classified the live `updateStateCtrlControllers(...)` body as mechanically small but command-control coupled because it writes `fighter.ctrl`, uses custom `firedStateCtrlControllerIds` history, and feeds command eligibility, fallback walk/jump behavior, CPU input choice, helpers, and round-finish control locks. Current verifiers prove broad controllable idle and command behavior, but they do not prove an authored `CtrlSet` disables control, blocks `requiresCtrl` command entry, then restores controllable idle through the normal CNS path. No source, CMake, content, sidecar policy, gameplay behavior, branch topology, or `.dragon/*.json` changed.
 
+Command-control verifier hardening is complete: `kfm-baseline` now includes `taunt_ctrlset_control_restore`, which drives KFM's authored `start` command into state `195`, observes `ctrl=false`, proves a normal command is blocked while control is disabled, observes the state `195` `CtrlSet` restoring `ctrl=true`, returns to grounded controllable idle, and proves a normal command works again. Full `dev_check.py .` passed with `kfm-baseline` at `pass=13 partial=0 fail=0 blocked=0`, `evilken-smoke` at `pass=9 partial=0 fail=0 blocked=0`, `kfm-air-state` at `pass=12 partial=0 fail=0 blocked=0`, and `cpu-baseline` at `pass=7 partial=0 fail=0 blocked=0`. No controller execution moved.
+
 ## Completed Utility Runtime Pass
 
 Completed code pass:
@@ -176,7 +179,7 @@ This completed pass stayed intentionally narrower than "move CNS runtime." It wa
 
 Do not collapse the remaining runtime work into one pass. After the completed `StateControllerUtilityRuntime.h`, `StateControllerVariableRuntime.h`, `StateControllerPowerRuntime.h`, `StateControllerVelocityRuntime.h`, `StateControllerPosAddRuntime.h`, `StateControllerPosSetRuntime.h`, `StateControllerSprPriorityRuntime.h`, `StateControllerPosFreezeRuntime.h`, and `StateControllerTurnRuntime.h` cuts, continue with focused audits or small implementation cuts in this order unless a new blocker requires a documented change:
 
-1. Command-control verifier hardening for authored `CtrlSet` behavior.
+1. `CtrlSet`-only controller runtime body move.
 2. `StateTypeSet` / state-shape audit.
 3. `ScreenBound` / `Width` / `PlayerPush` bounds-contact audit.
 4. Pause / superpause audit.
@@ -220,12 +223,11 @@ The old `Turn` / facing recommendation is complete in `StateControllerTurnRuntim
 Next recommended pass:
 
 ```text
-Create or extend command-control verifier coverage before any CtrlSet source movement.
+Move CtrlSet-only controller execution into StateControllerCtrlRuntime.h.
 ```
 
 Continue to defer:
 
-- `CtrlSet`.
 - `StateTypeSet`.
 - `ScreenBound`.
 - `Width`.

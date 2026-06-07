@@ -44,33 +44,35 @@ The body is mechanically small, but it has command-control coupling because `fig
 
 ## Verifier Coverage
 
-Current verifier coverage is useful but not specific enough for a `CtrlSet` body move:
+Original verifier coverage was useful but not specific enough for a `CtrlSet` body move:
 
 - `kfm-baseline` proves controllable idle readiness, hit evidence, spark/sound/hitpause proof, and clean scenario completion.
 - `evilken-smoke` proves controllable idle, active fight phase, timer stability, hit/guard evidence, and clean completion.
 - `kfm-air-state` proves diagonal jump and authored PosSet-backed landing through `kung_fu_knee_posset_grounding`.
 - `cpu-baseline` proves CPU can approach/attack under normal control conditions.
 
-Those checks prove the control flag is healthy in broad runtime scenarios, but they do not prove an authored `CtrlSet` controller disables control, blocks `requiresCtrl` command entry, then restores control through the normal CNS path. Moving `CtrlSet` without that proof would preserve a small body mechanically but leave a command-control behavior claim under-covered.
+Those checks proved the control flag was healthy in broad runtime scenarios, but they did not prove an authored `CtrlSet` controller disables control, blocks `requiresCtrl` command entry, then restores control through the normal CNS path.
 
-## Required Future Proof
+## Completed Command-Control Proof
 
-Before moving `CtrlSet`, add or extend verifier coverage to exercise an authored control-toggle path through normal runtime mechanisms. The proof should require:
+The command-control proof is now satisfied by `kfm-baseline` row `taunt_ctrlset_control_restore`.
 
-- A real authored `CtrlSet` execution is observed.
-- `fighter.ctrl` becomes false because of that controller.
-- A `requiresCtrl` command path is blocked while control is false.
-- A later authored state or controller restores controllable idle.
-- Normal movement or command entry works again after restoration.
-- The scenario summary remains `partial=0 fail=0 blocked=0`.
+The row exercises KFM's authored taunt path through normal symbolic input:
 
-If the existing roster cannot provide a deterministic authored `CtrlSet` path, the verifier pass should stop and report the blocker rather than weakening the claim.
+- `start` command enters state `195`.
+- State `195` starts from `ctrl = 0`.
+- A normal command attempt is blocked while `ctrl` is false.
+- The authored state `195` `CtrlSet` at `Time = 40` restores `ctrl = 1`.
+- KFM returns to grounded controllable idle.
+- A normal command works again after restoration.
+
+Full `dev_check.py .` passed after this proof with `kfm-baseline` at `pass=13 partial=0 fail=0 blocked=0`; the other verifier summaries stayed at `partial=0 fail=0 blocked=0`.
 
 ## Boundaries
 
 This audit moved no source code and changed no runtime behavior.
 
-Do not move or modify during the next proof pass:
+Do not move or modify during the next body-move pass:
 
 - `CtrlSet` execution body.
 - `StateTypeSet`.
@@ -88,13 +90,15 @@ Do not move or modify during the next proof pass:
 ## Conclusion
 
 Next code pass:
-Create or extend command-control verifier coverage before moving `CtrlSet`.
+Move `CtrlSet`-only controller execution into an App.cpp-internal header.
 
-Recommended verifier target:
-An authored `CtrlSet` path that proves control disables command eligibility, then restores controllable idle through normal CNS/runtime execution.
+Recommended header:
+StateControllerCtrlRuntime.h
+
+Move only:
+- `CtrlSet` execution from `updateStateCtrlControllers(...)`
 
 Do not move:
-- `CtrlSet`
 - `StateTypeSet`
 - `ScreenBound`
 - `Width`
@@ -106,4 +110,3 @@ Do not move:
 - target controllers
 - ChangeState / SelfState
 - pause / superpause
-
