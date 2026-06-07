@@ -8631,6 +8631,13 @@ void applyLogicalPresentation(SDL_Renderer* renderer, const AppState& state) {
     SDL_SetRenderLogicalPresentation(renderer, logicalWidth(state), kLogicalHeight, SDL_LOGICAL_PRESENTATION_LETTERBOX);
 }
 
+void clearPhysicalFrame(SDL_Renderer* renderer) {
+    SDL_SetRenderLogicalPresentation(renderer, 0, 0, SDL_LOGICAL_PRESENTATION_DISABLED);
+    SDL_SetRenderViewport(renderer, nullptr);
+    setColor(renderer, 10, 12, 16);
+    SDL_RenderClear(renderer);
+}
+
 #include "AppVerificationBridge.h"
 
 } // namespace
@@ -8694,6 +8701,7 @@ int runApp(const std::filesystem::path& gameRoot) {
             state.accumulator -= fixedStep;
         }
 
+        clearPhysicalFrame(renderer);
         applyLogicalPresentation(renderer, state);
 
         if (state.frontend.screen == Screen::ModeSelect) {

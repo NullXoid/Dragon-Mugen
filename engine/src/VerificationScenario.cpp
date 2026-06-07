@@ -878,7 +878,7 @@ int runArenaSmoke(RuntimeProbe& runtime, std::ostream& out, int cpuCount) {
         const auto partial = runtime.snapshot();
         const bool stillFighting = partial.livingFighters == 2
             && partial.matchPhase == static_cast<int>(MatchPhase::Fight)
-            && partial.p2.stateNo != 170;
+            && partial.p2.stateNo >= 5000 && partial.p2.stateNo < 5200;
         record(out, counts, stillFighting ? Status::Pass : Status::Fail, "defeated_fighters_excluded",
             "living=" + std::to_string(partial.livingFighters)
             + " match_phase=" + std::to_string(partial.matchPhase)
@@ -893,7 +893,8 @@ int runArenaSmoke(RuntimeProbe& runtime, std::ostream& out, int cpuCount) {
     const bool winnerPhase = resolved.matchPhase == static_cast<int>(MatchPhase::RoundFinish)
         || resolved.matchPhase == static_cast<int>(MatchPhase::RoundResult)
         || resolved.matchPhase == static_cast<int>(MatchPhase::MatchResult);
-    record(out, counts, winnerPhase && resolved.roundWinner == 1 && resolved.livingFighters == 1 && resolved.p2.stateNo != 170
+    record(out, counts, winnerPhase && resolved.roundWinner == 1 && resolved.livingFighters == 1
+            && resolved.p2.stateNo >= 5000 && resolved.p2.stateNo < 5200
             ? Status::Pass
             : Status::Fail,
         "last_fighter_standing_winner",
@@ -937,7 +938,6 @@ int runEvilRyuDash(RuntimeProbe& runtime, std::ostream& out) {
     runtime.step(forward, 2);
     runtime.step({}, 2);
     runtime.step(forward, 2);
-
     bool sawDash = false;
     bool sawMovingDash = false;
     int startupRun = 0;

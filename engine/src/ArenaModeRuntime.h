@@ -9,9 +9,41 @@ bool arenaFighterHasDefeatMotion(const FighterState& fighter) {
         || fighter.hitPauseTicks > 0
         || fighter.hitFall
         || fighter.customHitState
-        || fighter.stateNo >= 5000
+        || (fighter.stateNo >= 5000 && fighter.stateNo < 5200)
         || !fighter.onGround
         || fighter.stateType == 'A';
+}
+
+void enterArenaFallbackDefeatPose(const AppState& state, FighterState& fighter) {
+    if (arenaFighterHasDefeatMotion(fighter)) {
+        return;
+    }
+    const int action = firstExistingAction(state, { 5110, 5120, 5100, 5000, 0 });
+    fighter.life = 0;
+    fighter.ctrl = false;
+    fighter.targetIndex = -1;
+    fighter.targetTicks = 0;
+    fighter.guarding = false;
+    fighter.customHitState = false;
+    fighter.hitPauseTicks = 0;
+    fighter.hitSlideTicks = 0;
+    fighter.hitStunTicks = std::max(fighter.hitStunTicks, 2);
+    fighter.hitFall = action != 0;
+    fighter.hitFallRecover = false;
+    fighter.hitVelocityX = 0.0f;
+    fighter.hitVelocityY = 0.0f;
+    fighter.vx = 0.0f;
+    fighter.vy = 0.0f;
+    fighter.y = 0.0f;
+    fighter.onGround = true;
+    if (action != 0) {
+        fighter.stateNo = action;
+        fighter.stateTime = 0;
+        fighter.stateType = action >= 5110 ? 'L' : 'S';
+        fighter.moveType = 'H';
+        fighter.physics = 'N';
+        setFighterAction(fighter, action);
+    }
 }
 
 void holdArenaDefeatedRecoveryPose(const AppState& state, FighterState& fighter) {
@@ -46,6 +78,7 @@ void markArenaDefeatedFighters(AppState& state) {
         fighter.ctrl = false;
         fighter.targetIndex = -1;
         fighter.targetTicks = 0;
+        enterArenaFallbackDefeatPose(state, fighter);
         holdArenaDefeatedRecoveryPose(state, fighter);
         if (!arenaFighterHasDefeatMotion(fighter)) {
             fighter.vx = 0.0f;
@@ -112,8 +145,7 @@ void startArenaRoundFinish(AppState& state, int winnerIndex) {
             fighter.vy = 0.0f;
             enterStateIfAvailable(state, fighter, 181);
         } else if (!arenaFighterHasDefeatMotion(fighter)) {
-            fighter.vx = 0.0f;
-            fighter.vy = 0.0f;
+            enterArenaFallbackDefeatPose(state, fighter);
         }
         holdArenaDefeatedRecoveryPose(state, fighter);
     }
