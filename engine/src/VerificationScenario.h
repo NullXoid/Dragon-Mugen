@@ -79,6 +79,7 @@ public:
     virtual void positionFighters(float p1X, float p2X) = 0;
     virtual void setFighterLife(int fighterIndex, int life) = 0;
     virtual void setFighterControl(int fighterIndex, bool enabled) = 0;
+    virtual void forceFighterState(int fighterIndex, int stateNo) = 0;
     virtual RuntimeSnapshot snapshot() const = 0;
     virtual std::string rootText() const = 0;
     virtual std::string stageName() const = 0;

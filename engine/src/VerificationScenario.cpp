@@ -6,8 +6,8 @@
 #include <array>
 #include <cmath>
 #include <ostream>
-
 namespace dragon::verification {
+int runEvilKenTripGrounding(RuntimeProbe& runtime, std::ostream& out);
 namespace {
 
 enum class Status {
@@ -69,7 +69,6 @@ void header(std::ostream& out, RuntimeProbe& runtime, std::string_view scenario)
     out << "VERIFY " << scenario << "\n" << "root: " << runtime.rootText() << "\n"
         << "stage: " << runtime.stageName() << "\n" << "p1: " << runtime.p1Name() << "\n";
 }
-
 SymbolicInput withButton(char button) {
     SymbolicInput input;
     if (button == 'x') input.x = true; if (button == 'y') input.y = true; if (button == 'z') input.z = true;
@@ -716,7 +715,6 @@ int runEvilKenSmoke(RuntimeProbe& runtime, std::ostream& out) {
     summary(out, counts);
     return exitCode(counts);
 }
-
 int runCpuBaseline(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
     if (!runtime.setup("kfm", "Mountainside", ScenarioMode::SinglePlayer, out)) {
@@ -825,7 +823,6 @@ int runCpuBaseline(RuntimeProbe& runtime, std::ostream& out) {
     summary(out, counts);
     return exitCode(counts);
 }
-
 int runArenaSmoke(RuntimeProbe& runtime, std::ostream& out, int cpuCount) {
     Counts counts;
     const std::string scenarioName = "arena-cpu-" + std::to_string(cpuCount);
@@ -974,6 +971,9 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
     if (scenarioName == "evilken-smoke") {
         return runEvilKenSmoke(runtime, out);
     }
+    if (scenarioName == "evilken-trip-grounding") {
+        return runEvilKenTripGrounding(runtime, out);
+    }
     if (scenarioName == "cpu-baseline") {
         return runCpuBaseline(runtime, out);
     }
@@ -992,7 +992,7 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
 
     out << "VERIFY " << scenarioName << "\n"
         << "BLOCKED unknown_scenario\n"
-        << "  supported: kfm-baseline, kfm-air-state, evilken-smoke, cpu-baseline, arena-cpu-1, arena-cpu-2, arena-cpu-3, evilryu-dash\n"
+        << "  supported: kfm-baseline, kfm-air-state, evilken-smoke, evilken-trip-grounding, cpu-baseline, arena-cpu-1, arena-cpu-2, arena-cpu-3, evilryu-dash\n"
         << "SUMMARY pass=0 partial=0 fail=0 blocked=1\n";
     return 2;
 }

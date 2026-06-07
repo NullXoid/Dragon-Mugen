@@ -6664,6 +6664,20 @@ bool enterFallGroundImpactIfAvailable(AppState& state, FighterState& fighter) {
     return true;
 }
 
+bool resolveTripFallGrounding(AppState& state, FighterState& fighter) {
+    if (!fighter.hitFall || !fighter.hitFallTrip || fighter.hitPauseTicks > 0) {
+        return false;
+    }
+    if (fighter.stateNo != 5070 && fighter.stateNo != 5071) {
+        return false;
+    }
+
+    fighter.y = 0.0f;
+    fighter.vy = 0.0f;
+    fighter.onGround = true;
+    return enterFallGroundImpactIfAvailable(state, fighter);
+}
+
 bool resolveArenaFallGrounding(AppState& state, FighterState& fighter) {
     if (!isArenaMode(state) || !fighter.hitFall || fighter.hitPauseTicks > 0) {
         return false;
@@ -6757,7 +6771,7 @@ void updateGroundGetHitState(AppState& state, FighterState& target) {
         return;
     }
 
-    if (resolveArenaFallGrounding(state, target)) {
+    if (resolveTripFallGrounding(state, target) || resolveArenaFallGrounding(state, target)) {
         return;
     }
 
@@ -6891,11 +6905,16 @@ void updateGroundGetHitState(AppState& state, FighterState& target) {
         --target.hitPauseTicks;
         if (target.hitPauseTicks == 0) {
             clampArenaHitFallRuntime(state, target);
+            const bool enteringTripShake = target.hitFall && target.hitFallTrip;
             target.stateNo = target.hitFall
-                ? (target.hitFallTrip ? 5070 : 5050)
+                ? (enteringTripShake ? 5070 : 5050)
                 : (target.hitAirborne ? 5030 : (target.hitCrouch ? 5025 : 5001));
             target.stateTime = 0;
-            if (target.hitAirborne || target.hitFall || target.hitVelocityY < 0.0f) {
+            if (enteringTripShake) {
+                target.stateType = 'A';
+                target.physics = 'N';
+                target.onGround = false;
+            } else if (target.hitAirborne || target.hitFall || target.hitVelocityY < 0.0f) {
                 target.stateType = 'A';
                 target.physics = 'A';
                 target.onGround = false;
@@ -6903,8 +6922,8 @@ void updateGroundGetHitState(AppState& state, FighterState& target) {
                 target.stateType = target.hitCrouch ? 'C' : 'S';
                 target.physics = target.hitCrouch ? 'C' : 'S';
             }
-            target.vx = target.hitVelocityX;
-            target.vy = target.hitVelocityY;
+            target.vx = enteringTripShake ? 0.0f : target.hitVelocityX;
+            target.vy = enteringTripShake ? 0.0f : target.hitVelocityY;
             const int recoverAction = target.hitFall
                 ? (target.hitFallTrip && findExactClip(state, 5070) ? 5070 : target.hitFallAirAction)
                 : (target.hitAirborne

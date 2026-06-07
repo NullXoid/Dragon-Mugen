@@ -23,6 +23,7 @@ build\dragon_mugen.exe --verify arena-cpu-1
 build\dragon_mugen.exe --verify arena-cpu-2
 build\dragon_mugen.exe --verify arena-cpu-3
 build\dragon_mugen.exe --verify evilryu-dash
+build\dragon_mugen.exe --verify evilken-trip-grounding
 ```
 
 ## Manual Play Flow
@@ -50,6 +51,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Arena trip and heavy knockback hits resolve to floor impact before air recovery can take over.
 - Arena timer ticks down, hit-frozen fighters recover or resolve to KO, and knockdowns do not pull the camera upward.
 - Arena hitpause is brief, Rush counters reset after disappearing, debug hit boxes stay Training-only, and disabled timers show `INF`.
+- Evil Ken crouch roundhouse trip stays grounded during hit shake and resolves to floor knockdown instead of rising into air recovery.
 - Training dummy behavior still works.
 - Training P2 control still switches the opponent to local P2 behavior.
 - Single Fight round timer, KO/time-over, pips, match result, and rematch/menu inputs still work.

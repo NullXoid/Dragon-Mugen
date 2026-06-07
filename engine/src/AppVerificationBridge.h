@@ -138,6 +138,13 @@ public:
         state_.fighters[static_cast<size_t>(fighterIndex)].ctrl = enabled;
     }
 
+    void forceFighterState(int fighterIndex, int stateNo) override {
+        if (fighterIndex < 0 || fighterIndex >= static_cast<int>(state_.fighters.size())) {
+            return;
+        }
+        enterState(state_, state_.fighters[static_cast<size_t>(fighterIndex)], stateNo);
+    }
+
     verification::RuntimeSnapshot snapshot() const override {
         verification::RuntimeSnapshot out;
         out.frame = state_.frame;
