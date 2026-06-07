@@ -10,9 +10,10 @@ Baseline and current file-size guard values:
 | --- | ---: |
 | Previous source baseline commit | `de22bec` |
 | Starting `App.cpp` count | 16820 |
-| Current `App.cpp` count | 8561 |
-| Total removed | 8259 |
-| Reduction | 49.1% |
+| Current `App.cpp` count | 8533 |
+| Total removed | 8287 |
+| Reduction | 49.3% |
+| Remaining to 50% reduction | 123 |
 
 `App.cpp` is no longer in the safe UI extraction stage. The project is now in the runtime-core extraction stage. The remaining work is mutation-heavy and must stay split into small, auditable cuts.
 
@@ -37,6 +38,7 @@ The earlier roadmap's safe chunks have already been substantially completed:
 - Meter/stat controller runtime audit.
 - `PowerAdd` controller runtime body.
 - Movement/position controller runtime audit.
+- Velocity-controller runtime body.
 
 These completed areas should not be treated as future broad work. Future passes should build on them and avoid reopening their boundaries unless a focused regression or cleanup requires it.
 
@@ -44,11 +46,11 @@ These completed areas should not be treated as future broad work. Future passes 
 
 Next code target:
 
-- Velocity-only controller execution body, after the movement/position audit in `docs/MOVEMENT_POSITION_CONTROLLER_RUNTIME_AUDIT.md`.
+- Position / grounding controller audit, after the completed velocity-only body move.
 
-Ready with limits:
+Completed with limits:
 
-- `VelSet` / `VelAdd` / `VelMul` velocity controller execution only, if the next helper preserves the exact current loop location and trigger/firing semantics.
+- `VelSet` / `VelAdd` / `VelMul` velocity controller execution now lives in `StateControllerVelocityRuntime.h`.
 
 Needs a narrower audit or seam before movement:
 
@@ -94,6 +96,8 @@ The `PowerAdd` controller runtime body cut is complete: `StateControllerPowerRun
 
 The movement/position controller audit is complete: `docs/MOVEMENT_POSITION_CONTROLLER_RUNTIME_AUDIT.md` classifies velocity, position, control, state-shape, bounds, and adjacent hit/get-hit controllers. It recommends a velocity-only implementation cut and defers position/grounding, control, state-shape, camera/bounds, collision/contact, hit/get-hit, and round-flow-adjacent behavior.
 
+The velocity-controller runtime body cut is complete: `StateControllerVelocityRuntime.h` owns only the `VelSet` / `VelAdd` / `VelMul` loop from `updateStateMovementControllers(...)`. `PosAdd`, `PosSet`, `PosFreeze`, `CtrlSet`, `StateTypeSet`, `ScreenBound`, `Width`, `PlayerPush`, `SprPriority`, `Turn`, hit/get-hit controllers, pause/superpause, hit/damage, lifecycle, target, and round-flow behavior remain in `App.cpp`.
+
 ## Completed Utility Runtime Pass
 
 Completed code pass:
@@ -134,15 +138,14 @@ This completed pass stayed intentionally narrower than "move CNS runtime." It wa
 
 ## Follow-Up Sequence
 
-Do not collapse the remaining runtime work into one pass. After the completed `StateControllerUtilityRuntime.h`, `StateControllerVariableRuntime.h`, and `StateControllerPowerRuntime.h` cuts plus the meter/stat and movement/position audits, continue with focused audits or small implementation cuts in this order unless a new blocker requires a documented change:
+Do not collapse the remaining runtime work into one pass. After the completed `StateControllerUtilityRuntime.h`, `StateControllerVariableRuntime.h`, `StateControllerPowerRuntime.h`, and `StateControllerVelocityRuntime.h` cuts plus the meter/stat and movement/position audits, continue with focused audits or small implementation cuts in this order unless a new blocker requires a documented change:
 
-1. Velocity-only controller body move.
-2. Position / grounding controller audit or cut.
-3. Pause / superpause audit.
-4. Helper / projectile / explod audit.
-5. Target controller audit.
-6. HitDef / damage audit.
-7. Round flow audit.
+1. Position / grounding controller audit.
+2. Pause / superpause audit.
+3. Helper / projectile / explod audit.
+4. Target controller audit.
+5. HitDef / damage audit.
+6. Round flow audit.
 
 ## Current Roadmap Conclusion
 
@@ -156,21 +159,22 @@ The old `PowerAdd`-only implementation recommendation is complete in `StateContr
 
 The old `Movement / position controller audit` recommendation is complete in `docs/MOVEMENT_POSITION_CONTROLLER_RUNTIME_AUDIT.md`.
 
+The old velocity-only implementation recommendation is complete in `StateControllerVelocityRuntime.h`.
+
 Next recommended implementation:
 
 ```text
-Move velocity-only controller execution into StateControllerVelocityRuntime.h
+Position / grounding controller audit
 ```
 
-Move only:
-
-- `VelSet` / `VelAdd` / `VelMul` execution from `updateStateMovementControllers(...)`.
-
-Do not include:
+Audit before moving:
 
 - `PosAdd`.
 - `PosSet`.
 - `PosFreeze`.
+
+Do not include:
+
 - `CtrlSet`.
 - `StateTypeSet`.
 - `ScreenBound`.
@@ -205,12 +209,12 @@ This checkpoint should not change source, CMake, content, sidecar policy, boss i
 Expected validation:
 
 ```powershell
-python engine/tools/dev_check.py . --skip-build
+python engine/tools/dev_check.py .
 python tools/check_file_sizes.py
 git diff --check
 ```
 
-`tools/check_file_sizes.py` is expected to continue failing on known `App.cpp` hard debt and should report `App.cpp` at `8561` until the next source extraction. Treat any new failure outside the known `App.cpp` debt as a blocker.
+`tools/check_file_sizes.py` is expected to continue failing on known `App.cpp` hard debt and should report `App.cpp` at `8533` until the next source extraction. Treat any new failure outside the known `App.cpp` debt as a blocker. Full `dev_check.py` should be run from a Visual Studio developer shell on Windows.
 
 ## Dirty File Handling
 

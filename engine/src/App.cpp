@@ -4104,6 +4104,8 @@ void updateStateChangeAnimControllers(
     });
 }
 
+#include "StateControllerVelocityRuntime.h"
+
 void updateStateMovementControllers(
     AppState& state,
     FighterState& fighter,
@@ -4275,37 +4277,7 @@ void updateStateMovementControllers(
         }
     }
 
-    for (const auto& velocity : stateDef->velocityControllers) {
-        if (!shouldRunStateRuntimeController(state, fighter, velocity.id, velocity.trigger, opponent, stage)) {
-            continue;
-        }
-        switch (velocity.operation) {
-        case StateVelocityOperation::Set:
-            if (velocity.hasX) {
-                fighter.vx = velocity.x * static_cast<float>(fighter.facing);
-            }
-            if (velocity.hasY) {
-                fighter.vy = velocity.y;
-            }
-            break;
-        case StateVelocityOperation::Add:
-            if (velocity.hasX) {
-                fighter.vx += velocity.x * static_cast<float>(fighter.facing);
-            }
-            if (velocity.hasY) {
-                fighter.vy += velocity.y;
-            }
-            break;
-        case StateVelocityOperation::Mul:
-            if (velocity.hasX) {
-                fighter.vx *= velocity.x;
-            }
-            if (velocity.hasY) {
-                fighter.vy *= velocity.y;
-            }
-            break;
-        }
-    }
+    updateStateVelocityControllersForDefinition(state, fighter, *stateDef, opponent, stage);
 
     for (const auto& posSet : stateDef->posSets) {
         if (!shouldRunStateRuntimeController(state, fighter, posSet.id, posSet.trigger, opponent, stage)) {
