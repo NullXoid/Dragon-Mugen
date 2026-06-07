@@ -42,6 +42,7 @@ The earlier roadmap's safe chunks have already been substantially completed:
 - Position/grounding controller runtime audit.
 - `PosAdd` controller runtime body.
 - `PosSet` / grounding controller runtime audit.
+- PosSet-backed grounding verifier coverage.
 
 These completed areas should not be treated as future broad work. Future passes should build on them and avoid reopening their boundaries unless a focused regression or cleanup requires it.
 
@@ -49,17 +50,17 @@ These completed areas should not be treated as future broad work. Future passes 
 
 Next code target:
 
-- Create or extend a grounding verifier before moving `PosSet`, after the `PosSet` / grounding audit in `docs/POSSET_GROUNDING_CONTROLLER_RUNTIME_AUDIT.md`.
+- Move `PosSet`-only controller execution into an App.cpp-internal header, after the green PosSet-backed grounding verifier in `kfm-air-state`.
 
 Completed with limits:
 
 - `VelSet` / `VelAdd` / `VelMul` velocity controller execution now lives in `StateControllerVelocityRuntime.h`.
 - `PosAdd` execution now lives in `StateControllerPosAddRuntime.h`.
+- PosSet-backed grounding verifier coverage now proves KFM's authored `FF_a` path reaches states `1050`, `1051`, and `1052`, runs the state `1052` `PosSet` landing path, and returns to grounded controllable idle.
 
 Needs a narrower audit or seam before movement:
 
 - Remaining meter/stat controllers: `LifeAdd`, `HitAdd`, `AttackDist`, `AttackMulSet`, and `DefenceMulSet`.
-- Position/grounding-sensitive controller: `PosSet`, pending dedicated verifier coverage.
 - Movement-freeze controller: `PosFreeze`.
 - Control and state-shape controllers: `CtrlSet` and `StateTypeSet`.
 - Bounds/contact-adjacent controllers: `ScreenBound`, `Width`, `PlayerPush`, `SprPriority`, and `Turn`.
@@ -107,7 +108,9 @@ The position/grounding controller audit is complete: `docs/POSITION_GROUNDING_CO
 
 The `PosAdd` controller runtime body cut is complete: `StateControllerPosAddRuntime.h` owns only the `PosAdd` loop from `updateStatePosAddControllers(...)`. `PosSet`, `PosFreeze`, `CtrlSet`, `StateTypeSet`, `ScreenBound`, `Width`, `PlayerPush`, `SprPriority`, `Turn`, hit/get-hit controllers, pause/superpause, hit/damage, lifecycle, target, and round-flow behavior remain in `App.cpp`.
 
-The `PosSet` / grounding controller runtime audit is complete: `docs/POSSET_GROUNDING_CONTROLLER_RUNTIME_AUDIT.md` confirms the current `PosSet` body mutates only `fighter.x`, `fighter.y`, and `fighter.onGround`, but the existing `kfm-air-state` verifier does not explicitly prove a PosSet-triggered grounding path. The audit recommends creating or extending a grounding verifier before moving `PosSet`.
+The `PosSet` / grounding controller runtime audit is complete: `docs/POSSET_GROUNDING_CONTROLLER_RUNTIME_AUDIT.md` confirms the current `PosSet` body mutates only `fighter.x`, `fighter.y`, and `fighter.onGround`. At audit time, `kfm-air-state` did not explicitly prove a PosSet-triggered grounding path, so the audit recommended creating or extending a grounding verifier before moving `PosSet`.
+
+The PosSet-backed grounding verifier hardening pass is complete: `kfm-air-state` now includes `kung_fu_knee_posset_grounding` and passes with `pass=12 partial=0 fail=0 blocked=0`. The row drives KFM's authored `FF_a` path through normal symbolic input, CMD command recognition, CNS `ChangeState`, states `1050 -> 1051 -> 1052`, the state `1052` `PosSet` landing controller, and grounded controllable idle recovery. The pass also fixed a verifier-exposed no-physics landing gap so custom `physics = N` air states are not implicitly ground-clamped or auto-finished to idle before authored landing controllers can run. No controller execution moved, and `App.cpp` remains `8517` file-size-guard lines.
 
 ## Completed Utility Runtime Pass
 
@@ -151,14 +154,13 @@ This completed pass stayed intentionally narrower than "move CNS runtime." It wa
 
 Do not collapse the remaining runtime work into one pass. After the completed `StateControllerUtilityRuntime.h`, `StateControllerVariableRuntime.h`, `StateControllerPowerRuntime.h`, and `StateControllerVelocityRuntime.h` cuts plus the meter/stat, movement/position, and position/grounding audits, continue with focused audits or small implementation cuts in this order unless a new blocker requires a documented change:
 
-1. PosSet-specific grounding verifier.
-2. `PosSet`-only controller body move, only after the verifier is green.
-3. `PosFreeze` / movement-freeze audit.
-4. Pause / superpause audit.
-5. Helper / projectile / explod audit.
-6. Target controller audit.
-7. HitDef / damage audit.
-8. Round flow audit.
+1. `PosSet`-only controller body move.
+2. `PosFreeze` / movement-freeze audit.
+3. Pause / superpause audit.
+4. Helper / projectile / explod audit.
+5. Target controller audit.
+6. HitDef / damage audit.
+7. Round flow audit.
 
 ## Current Roadmap Conclusion
 
@@ -180,13 +182,15 @@ The old `PosAdd`-only implementation recommendation is complete in `StateControl
 
 The old `PosSet` / grounding seam audit recommendation is complete in `docs/POSSET_GROUNDING_CONTROLLER_RUNTIME_AUDIT.md`.
 
+The old grounding-verifier-first recommendation is complete in `kfm-air-state` with `kung_fu_knee_posset_grounding`.
+
 Next recommended implementation:
 
 ```text
-Create or extend a grounding verifier first.
+Move PosSet-only controller execution into StateControllerPosSetRuntime.h.
 ```
 
-Do not move immediately:
+Move only:
 
 - `PosSet`.
 
@@ -222,17 +226,17 @@ Continue to defer:
 
 ## Validation For Current Checkpoint
 
-This checkpoint should not change source, CMake, content, sidecar policy, boss intro behavior, branch topology, or `.dragon/*.json`.
+This checkpoint changed `VerificationScenario.cpp` and made a scoped `App.cpp` grounding semantics fix exposed by the new verifier. It did not move controller execution and did not change CMake, content, sidecar policy, boss intro behavior, branch topology, or `.dragon/*.json`.
 
 Expected validation:
 
 ```powershell
-python engine/tools/dev_check.py . --skip-build
+python engine/tools/dev_check.py .
 python tools/check_file_sizes.py
 git diff --check
 ```
 
-`tools/check_file_sizes.py` is expected to continue failing on known `App.cpp` hard debt and should report `App.cpp` at `8517` until the next source extraction. Treat any new failure outside the known `App.cpp` debt as a blocker.
+`kfm-air-state` should include `kung_fu_knee_posset_grounding` and report `pass=12 partial=0 fail=0 blocked=0`. The full verifier gate should keep all advertised runtime scenarios at `partial=0 fail=0 blocked=0`. `tools/check_file_sizes.py` is expected to continue failing on known `App.cpp` hard debt and should report `App.cpp` at `8517` until the next source extraction. Treat any new hard failure outside the known `App.cpp` debt as a blocker.
 
 ## Dirty File Handling
 

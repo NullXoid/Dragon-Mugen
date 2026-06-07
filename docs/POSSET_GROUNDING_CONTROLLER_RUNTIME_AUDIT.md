@@ -56,7 +56,7 @@ Probably, if moved as a direct body extraction with identical include order and 
 
 Does the existing `kfm-air-state` verifier cover PosSet-triggered grounding changes?
 
-Not enough. `kfm-air-state` proves normal diagonal jumps and air attack landing behavior, but it does not explicitly prove that an authored `PosSet` controller fired and updated `onGround`. KFM does have authored `PosSet` controllers in special landing states such as `1052` and `1056`, but the current air-state verifier does not assert those states or a PosSet fire path.
+At audit time, not enough. `kfm-air-state` proved normal diagonal jumps and air attack landing behavior, but it did not explicitly prove that an authored `PosSet` controller fired and updated `onGround`. KFM has authored `PosSet` controllers in special landing states such as `1052` and `1056`, but the then-current air-state verifier did not assert those states or a PosSet fire path. The follow-up hardening below closes that verifier gap.
 
 Is extra verifier coverage required before a code move?
 
@@ -66,9 +66,41 @@ Is `PosFreeze` independent enough to move later?
 
 Yes. `PosFreeze` updates `fighter.posFreezeX` and `fighter.posFreezeY` and affects later physics movement, but it does not assign `x`, `y`, or `onGround` directly. It should remain separate for a movement-freeze audit.
 
-## Boundaries
+## Verifier Hardening Follow-Up
 
-Docs-only:
+The follow-up grounding verifier pass extended `kfm-air-state` with `kung_fu_knee_posset_grounding`. The new row drives KFM's authored `FF_a` path through normal symbolic input, CMD command recognition, CNS `ChangeState`, states `1050 -> 1051 -> 1052`, the `PosSet` controller in state `1052`, and grounded recovery back to controllable idle.
+
+The row may pass only when all of these are observed:
+
+- State `1050`.
+- State `1051`.
+- State `1052`.
+- `y` approximately `0` in or after state `1052`.
+- `onGround == true` in or after state `1052`.
+- No airborne final state.
+- Return to controllable idle.
+
+The first verifier run exposed a real grounding semantics gap: KFM entered `1050` and `1051`, but the authored `1051 -> 1052` path did not fire before the runtime returned him to idle through generic behavior. The scoped fix keeps custom `physics = N` air states from being implicitly ground-clamped or auto-finished to idle before their authored landing controllers can run.
+
+No controller execution moved. `PosSet`, `PosAdd`, `PosFreeze`, `StateTypeSet`, `CtrlSet`, hit/get-hit controllers, HitDef/damage/guard, round flow, helper/projectile/explod lifecycle, `ChangeState` / `SelfState`, and pause/superpause controller bodies stayed in `App.cpp`.
+
+Follow-up validation:
+
+```text
+kfm-air-state:
+pass=12 partial=0 fail=0 blocked=0
+
+kung_fu_knee_posset_grounding:
+saw_1050=1 saw_1051=1 saw_1052=1 posset_grounding=1 returned_idle=1 final_airborne=0
+```
+
+The full verifier gate passed with all advertised runtime scenarios at `partial=0 fail=0 blocked=0`. `App.cpp` remains `8517` file-size-guard lines, and `VerificationScenario.cpp` is `741` lines after the added proof row.
+
+The verifier requirement is now satisfied for a future `PosSet`-only body move.
+
+## Original Audit Boundaries
+
+The audit commit itself was docs-only:
 
 - No source edits.
 - No CMake edits.
@@ -106,12 +138,31 @@ git diff --check
 
 `dev_check.py --skip-build` should pass. `tools/check_file_sizes.py` should still fail only known `App.cpp` hard debt and report `App.cpp` at `8517`. Full runtime verifier reruns are optional because this checkpoint changes documentation only.
 
-## Required Audit Conclusion
+## Updated Audit Conclusion
 
 ```text
 Next code pass:
-Option B
+Move PosSet-only controller execution into StateControllerPosSetRuntime.h.
 
-Option B:
-Create or extend a grounding verifier first.
+Move only:
+- PosSet execution from updateStateMovementControllers(...)
+
+Do not move:
+- PosFreeze
+- CtrlSet
+- StateTypeSet
+- ScreenBound
+- Width
+- PlayerPush
+- SprPriority
+- Turn
+- VelSet / VelAdd / VelMul
+- PosAdd
+- HitVelSet / HitFallVel / HitFallSet / HitFallDamage
+- HitBy / NotHitBy / HitOverride
+- HitDef / damage / guard
+- KO, time-over, double-KO, or round flow
+- helper / projectile / explod lifecycle
+- ChangeState / SelfState
+- pause / superpause
 ```

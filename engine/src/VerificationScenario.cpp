@@ -203,6 +203,88 @@ bool airLandingPassed(const AirLandingObservation& observation) {
         && std::fabs(observation.final.y) <= 0.5f;
 }
 
+struct KungFuKneeGroundingObservation {
+    bool startedFromIdle = false;
+    bool sawState1050 = false;
+    bool sawState1051 = false;
+    bool sawState1052 = false;
+    bool sawPosSetGrounding = false;
+    bool returnedToIdle = false;
+    float yMin = 0.0f;
+    FighterSnapshot grounding;
+    FighterSnapshot final;
+};
+
+void performForwardForwardA(RuntimeProbe& runtime) {
+    runtime.step(SymbolicInput{ .right = true }, 1);
+    runtime.step({}, 1);
+    runtime.step(SymbolicInput{ .right = true }, 1);
+    runtime.step(SymbolicInput{ .right = true, .a = true }, 1);
+    runtime.step({}, 1);
+}
+
+KungFuKneeGroundingObservation observeKungFuKneePosSetGrounding(RuntimeProbe& runtime) {
+    KungFuKneeGroundingObservation observation;
+    runtime.positionFighters(-80.0f, 80.0f);
+    observation.startedFromIdle = waitForControllableIdle(runtime, 360);
+    observation.yMin = runtime.snapshot().p1.y;
+    if (!observation.startedFromIdle) {
+        observation.final = runtime.snapshot().p1;
+        return observation;
+    }
+
+    performForwardForwardA(runtime);
+    for (int i = 0; i < 360; ++i) {
+        runtime.step({}, 1);
+        const auto p1 = runtime.snapshot().p1;
+        observation.yMin = std::min(observation.yMin, p1.y);
+        observation.sawState1050 = observation.sawState1050 || p1.stateNo == 1050;
+        observation.sawState1051 = observation.sawState1051 || p1.stateNo == 1051;
+        observation.sawState1052 = observation.sawState1052 || p1.stateNo == 1052;
+        if (observation.sawState1052 && p1.onGround && std::fabs(p1.y) <= 0.5f && !observation.sawPosSetGrounding) {
+            observation.sawPosSetGrounding = true;
+            observation.grounding = p1;
+        }
+        if (observation.sawState1052 && p1.stateNo == 0 && p1.ctrl && p1.onGround && p1.moveType == 'I') {
+            observation.returnedToIdle = true;
+            observation.final = p1;
+            return observation;
+        }
+        observation.final = p1;
+    }
+    return observation;
+}
+
+bool kungFuKneeGroundingPassed(const KungFuKneeGroundingObservation& observation) {
+    return observation.startedFromIdle
+        && observation.sawState1050
+        && observation.sawState1051
+        && observation.sawState1052
+        && observation.sawPosSetGrounding
+        && observation.returnedToIdle
+        && !snapshotIsAirborne(observation.final);
+}
+
+std::string kungFuKneeGroundingDetail(const KungFuKneeGroundingObservation& observation) {
+    return "idle_before=" + std::to_string(observation.startedFromIdle ? 1 : 0)
+        + " saw_1050=" + std::to_string(observation.sawState1050 ? 1 : 0)
+        + " saw_1051=" + std::to_string(observation.sawState1051 ? 1 : 0)
+        + " saw_1052=" + std::to_string(observation.sawState1052 ? 1 : 0)
+        + " posset_grounding=" + std::to_string(observation.sawPosSetGrounding ? 1 : 0)
+        + " grounding_y=" + std::to_string(observation.grounding.y)
+        + " grounding_on_ground=" + std::to_string(observation.grounding.onGround ? 1 : 0)
+        + " returned_idle=" + std::to_string(observation.returnedToIdle ? 1 : 0)
+        + " final_state=" + std::to_string(observation.final.stateNo)
+        + " final_y=" + std::to_string(observation.final.y)
+        + " final_vy=" + std::to_string(observation.final.vy)
+        + " final_state_type=" + std::string(1, observation.final.stateType)
+        + " final_move_type=" + std::string(1, observation.final.moveType)
+        + " final_ctrl=" + std::to_string(observation.final.ctrl ? 1 : 0)
+        + " final_on_ground=" + std::to_string(observation.final.onGround ? 1 : 0)
+        + " final_airborne=" + std::to_string(snapshotIsAirborne(observation.final) ? 1 : 0)
+        + " y_min=" + std::to_string(observation.yMin);
+}
+
 int runKfmBaseline(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
     if (!runtime.setup("kfm", "Mountainside", ScenarioMode::Training, out)) {
@@ -422,6 +504,10 @@ int runKfmAirState(RuntimeProbe& runtime, std::ostream& out) {
         + " final_anim=" + std::to_string(airAttackAfter.action)
         + " final_state_type=" + std::string(1, airAttackAfter.stateType)
         + " final_on_ground=" + std::to_string(airAttackAfter.onGround ? 1 : 0));
+
+    const auto kungFuKnee = observeKungFuKneePosSetGrounding(runtime);
+    record(out, counts, kungFuKneeGroundingPassed(kungFuKnee) ? Status::Pass : Status::Fail,
+        "kung_fu_knee_posset_grounding", kungFuKneeGroundingDetail(kungFuKnee));
 
     record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
     summary(out, counts);

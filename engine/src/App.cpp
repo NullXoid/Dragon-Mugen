@@ -4954,7 +4954,7 @@ void updateFighterPhysics(const AppState& state, FighterState& fighter, const St
             ? fighter.hitFallYAccel
             : state.characterConstants.movementYAccel;
     }
-    if (fighter.y >= 0.0f) {
+    if (fighter.physics != 'N' && fighter.y >= 0.0f) {
         const bool shouldUseCommonLanding =
             !fighter.helper
             && fighter.stateType == 'A'
@@ -6376,7 +6376,7 @@ void finishStateIfAnimationEnded(const AppState& state, FighterState& fighter) {
             if (targetState) {
                 applyParsedChangeState(state, fighter, static_cast<int>(std::lround(*targetState)), ctrl);
             }
-        } else {
+        } else if (!(fighter.stateType == 'A' && fighter.physics == 'N')) {
             enterState(state, fighter, 0);
         }
     }
