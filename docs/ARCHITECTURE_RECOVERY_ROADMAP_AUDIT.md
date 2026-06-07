@@ -34,14 +34,15 @@ The earlier roadmap's safe chunks have already been substantially completed:
 - Fight/session setup and reset.
 - Controller utility/audio/assert/display runtime body.
 - Variable-controller runtime body.
+- Meter/stat controller runtime audit.
 
 These completed areas should not be treated as future broad work. Future passes should build on them and avoid reopening their boundaries unless a focused regression or cleanup requires it.
 
 ## Remaining Runtime-Core Classification
 
-Next audit target:
+Next code target:
 
-- Meter/stat controller body: `PowerAdd`, `LifeAdd`, `HitAdd`, `AttackDist`, `AttackMulSet`, and `DefenceMulSet`.
+- `PowerAdd`-only controller execution body, after the meter/stat audit in `docs/METER_STAT_CONTROLLER_RUNTIME_AUDIT.md`.
 
 Ready or near-ready after separate inspection:
 
@@ -49,6 +50,7 @@ Ready or near-ready after separate inspection:
 
 Needs a narrower audit before movement:
 
+- `LifeAdd`, `HitAdd`, `AttackDist`, `AttackMulSet`, and `DefenceMulSet`.
 - Pause and superpause.
 - Helper, projectile, and explod lifecycle.
 - Target controllers.
@@ -80,6 +82,8 @@ Architecture recovery remains the active feature. Broad gameplay work should sta
 The first bounded runtime-core code cut is now complete: `StateControllerUtilityRuntime.h` owns the controller utility/audio/assert/display runtime body without moving state transitions, HitDef/damage, target mutation, helper/projectile/explod lifecycle, pause/superpause timing, variable/meter mutation, movement/position mutation, or round flow.
 
 The variable-controller body cut is also complete: `StateControllerVariableRuntime.h` owns `updateStateVariableControllers(...)` for `VarSet`, `VarAdd`, `VarRandom`, and `VarRangeSet` execution only. `setFighterVariableValue(...)` remains in `App.cpp` because `ParentVarAdd` still uses it, and `ParentVarAdd` remains deferred with helper/parent lifecycle work.
+
+The meter/stat controller audit is complete: `docs/METER_STAT_CONTROLLER_RUNTIME_AUDIT.md` classifies `PowerAdd`, `LifeAdd`, `HitAdd`, `AttackDist`, `AttackMulSet`, and `DefenceMulSet`. It recommends a `PowerAdd`-only implementation cut and defers the remaining stat/damage-adjacent controllers to round-flow, hit/contact, or hit/damage seams.
 
 ## Completed Utility Runtime Pass
 
@@ -121,9 +125,9 @@ This completed pass stayed intentionally narrower than "move CNS runtime." It wa
 
 ## Follow-Up Sequence
 
-Do not collapse the remaining runtime work into one pass. After the completed `StateControllerUtilityRuntime.h` and `StateControllerVariableRuntime.h` cuts, continue with focused audits or small implementation cuts in this order unless a new blocker requires a documented change:
+Do not collapse the remaining runtime work into one pass. After the completed `StateControllerUtilityRuntime.h` and `StateControllerVariableRuntime.h` cuts and the meter/stat audit, continue with focused audits or small implementation cuts in this order unless a new blocker requires a documented change:
 
-1. Meter/stat controller audit.
+1. `PowerAdd`-only controller body move.
 2. Movement / position controller audit.
 3. Pause / superpause audit.
 4. Helper / projectile / explod audit.
@@ -137,29 +141,34 @@ The old `StateControllerUtilityRuntime.h` recommendation is complete as of `de22
 
 The old `StateControllerVariableRuntime.h` recommendation is complete as the variable-only controller body move.
 
+The old `Meter/stat controller audit` recommendation is complete in `docs/METER_STAT_CONTROLLER_RUNTIME_AUDIT.md`.
+
 Next recommended implementation:
 
 ```text
-Meter/stat controller audit
+Move PowerAdd-only controller execution into StateControllerPowerRuntime.h
 ```
 
-Audit scope:
+Move only:
 
-- `PowerAdd`.
+- `PowerAdd` execution from `updateStateMeterControllers(...)`.
+
+Do not include:
+
 - `LifeAdd`.
 - `HitAdd`.
 - `AttackDist`.
 - `AttackMulSet`.
 - `DefenceMulSet`.
-
-Do not include:
-
-- Moving these controllers before the audit records coupling and risk.
+- `TargetPowerAdd` / `TargetLifeAdd`.
 - `HitDef`.
+- Damage / guard.
 - Target controllers.
 - Helper / Projectile / Explod lifecycle.
 - `ChangeState` / `SelfState`.
 - `Pause` / `SuperPause`.
+- KO, time-over, double-KO, or round-flow mutation.
+- Movement / position controllers.
 - Round flow.
 - `FighterState` / `AppState` extraction.
 - Boss intro / preemptive attack behavior.
@@ -167,17 +176,17 @@ Do not include:
 
 ## Validation For Current Checkpoint
 
-This checkpoint should not change CMake, content, sidecar policy, boss intro behavior, or `.dragon/*.json`. The source change is limited to the internal `StateControllerVariableRuntime.h` extraction and its `App.cpp` include/removal.
+This checkpoint is docs-only and should not change source, CMake, content, sidecar policy, boss intro behavior, branch topology, or `.dragon/*.json`.
 
 Expected validation:
 
 ```powershell
-python engine/tools/dev_check.py .
+python engine/tools/dev_check.py . --skip-build
 python tools/check_file_sizes.py
 git diff --check
 ```
 
-`tools/check_file_sizes.py` is expected to continue failing on known `App.cpp` hard debt until the next source extraction brings it below the guard threshold. Treat any new failure outside the known `App.cpp` debt as a blocker.
+`tools/check_file_sizes.py` is expected to continue failing on known `App.cpp` hard debt and should still report `App.cpp` at `8571` until the next source extraction. Treat any new failure outside the known `App.cpp` debt as a blocker.
 
 ## Dirty File Handling
 
