@@ -107,8 +107,16 @@ int runEvilKenTripGrounding(RuntimeProbe& runtime, std::ostream& out) {
     bool sawTripFall = false;
     bool sawGrounded = false;
     bool sawAirRecovery = false;
-    float minTripShakeY = 0.0f;
-    float minTripFallY = 0.0f;
+    bool sawFallingVelocity = false;
+    int firstAirRecoveryState = 0;
+    int firstAirRecoveryFrame = 0;
+    float firstAirRecoveryY = 0.0f;
+    bool leftTripShake = false;
+    int firstAfterTripShakeState = 0;
+    int firstAfterTripShakeFrame = 0;
+    float firstAfterTripShakeY = 0.0f;
+    float firstAfterTripShakeVy = 0.0f;
+    float minTripY = 0.0f;
     FighterSnapshot finalP2;
     std::string lastHitText;
     for (int i = 0; i < 100; ++i) {
@@ -117,15 +125,30 @@ int runEvilKenTripGrounding(RuntimeProbe& runtime, std::ostream& out) {
         lastHitText = snap.lastHitText.empty() ? lastHitText : snap.lastHitText;
         if (snap.p2.stateNo == 5070) {
             sawTripShake = true;
-            minTripShakeY = std::min(minTripShakeY, snap.p2.y);
+        }
+        if (sawTripShake && snap.p2.stateNo != 5070 && !leftTripShake) {
+            leftTripShake = true;
+            firstAfterTripShakeState = snap.p2.stateNo;
+            firstAfterTripShakeFrame = i;
+            firstAfterTripShakeY = snap.p2.y;
+            firstAfterTripShakeVy = snap.p2.vy;
         }
         if (snap.p2.stateNo == 5071) {
             sawTripFall = true;
-            minTripFallY = std::min(minTripFallY, snap.p2.y);
         }
-        sawAirRecovery = sawAirRecovery || snap.p2.stateNo == 5040 || snap.p2.stateNo == 5140
+        if (snap.p2.stateNo == 5070 || snap.p2.stateNo == 5071) {
+            minTripY = std::min(minTripY, snap.p2.y);
+            sawFallingVelocity = sawFallingVelocity || snap.p2.vy > 0.05f;
+        }
+        const bool inAirRecovery = snap.p2.stateNo == 5040 || snap.p2.stateNo == 5140
             || snap.p2.stateNo == 5200 || snap.p2.stateNo == 5210
             || (snap.p2.stateNo >= 2004 && snap.p2.stateNo <= 2006);
+        if (inAirRecovery && !sawAirRecovery) {
+            firstAirRecoveryState = snap.p2.stateNo;
+            firstAirRecoveryFrame = i;
+            firstAirRecoveryY = snap.p2.y;
+        }
+        sawAirRecovery = sawAirRecovery || inAirRecovery;
         sawGrounded = sawGrounded || snap.p2.stateNo == 5110 || snap.p2.stateNo == 5120
             || (snap.p2.onGround && snap.p2.stateType == 'L');
         finalP2 = snap.p2;
@@ -136,17 +159,26 @@ int runEvilKenTripGrounding(RuntimeProbe& runtime, std::ostream& out) {
         "last_hit=\"" + lastHitText + "\"");
     record(out, counts, sawTripShake ? Status::Pass : Status::Fail, "trip_shake_observed",
         "saw_5070=" + std::to_string(sawTripShake ? 1 : 0)
-        + " min_5070_y=" + std::to_string(minTripShakeY));
-    record(out, counts, minTripShakeY >= -0.5f ? Status::Pass : Status::Fail, "trip_shake_stays_grounded",
-        "min_5070_y=" + std::to_string(minTripShakeY));
+        + " min_trip_y=" + std::to_string(minTripY));
+    const bool lowParabola = minTripY <= -2.0f && minTripY >= -16.0f && sawFallingVelocity;
+    record(out, counts, lowParabola ? Status::Pass : Status::Fail, "trip_low_parabola_observed",
+        "min_trip_y=" + std::to_string(minTripY)
+        + " saw_falling_velocity=" + std::to_string(sawFallingVelocity ? 1 : 0));
     record(out, counts, sawTripFall || sawGrounded ? Status::Pass : Status::Fail, "trip_resolves_after_shake",
         "saw_5071=" + std::to_string(sawTripFall ? 1 : 0)
         + " grounded=" + std::to_string(sawGrounded ? 1 : 0)
-        + " min_5071_y=" + std::to_string(minTripFallY)
+        + " first_after_5070_state=" + std::to_string(firstAfterTripShakeState)
+        + " first_after_5070_frame=" + std::to_string(firstAfterTripShakeFrame)
+        + " first_after_5070_y=" + std::to_string(firstAfterTripShakeY)
+        + " first_after_5070_vy=" + std::to_string(firstAfterTripShakeVy)
+        + " min_trip_y=" + std::to_string(minTripY)
         + " final_state=" + std::to_string(finalP2.stateNo)
         + " final_y=" + std::to_string(finalP2.y));
     record(out, counts, !sawAirRecovery ? Status::Pass : Status::Fail, "trip_does_not_air_recover",
         "air_recovery=" + std::to_string(sawAirRecovery ? 1 : 0)
+        + " first_air_recovery_state=" + std::to_string(firstAirRecoveryState)
+        + " first_air_recovery_frame=" + std::to_string(firstAirRecoveryFrame)
+        + " first_air_recovery_y=" + std::to_string(firstAirRecoveryY)
         + " final_state=" + std::to_string(finalP2.stateNo));
     record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
     summary(out, counts);
