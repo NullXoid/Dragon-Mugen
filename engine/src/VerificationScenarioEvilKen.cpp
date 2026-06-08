@@ -1,6 +1,7 @@
 #include "VerificationScenario.h"
 
 #include <algorithm>
+#include <cmath>
 #include <ostream>
 
 namespace dragon::verification {
@@ -121,6 +122,11 @@ int runEvilKenTripGrounding(RuntimeProbe& runtime, std::ostream& out) {
     int tripFloorContactCount = 0;
     bool inTripAirArc = false;
     bool inTripFloorContact = false;
+    bool sawFirstFloorContact = false;
+    int firstFloorContactFrame = 0;
+    float firstFloorContactX = 0.0f;
+    float postFloorMinY = 0.0f;
+    float postFloorMaxXDelta = 0.0f;
     FighterSnapshot finalP2;
     std::string lastHitText;
     for (int i = 0; i < 180; ++i) {
@@ -157,9 +163,18 @@ int runEvilKenTripGrounding(RuntimeProbe& runtime, std::ostream& out) {
             if (!inTripFloorContact) {
                 ++tripFloorContactCount;
             }
+            if (!sawFirstFloorContact) {
+                sawFirstFloorContact = true;
+                firstFloorContactFrame = i;
+                firstFloorContactX = snap.p2.x;
+            }
             inTripFloorContact = true;
         } else {
             inTripFloorContact = false;
+        }
+        if (sawFirstFloorContact && (snap.p2.stateNo == 5071 || snap.p2.stateNo == 5110 || snap.p2.stateNo == 5120)) {
+            postFloorMinY = std::min(postFloorMinY, snap.p2.y);
+            postFloorMaxXDelta = std::max(postFloorMaxXDelta, std::abs(snap.p2.x - firstFloorContactX));
         }
         const bool inAirRecovery = snap.p2.stateNo == 5040 || snap.p2.stateNo == 5140
             || snap.p2.stateNo == 5200 || snap.p2.stateNo == 5210
@@ -190,6 +205,11 @@ int runEvilKenTripGrounding(RuntimeProbe& runtime, std::ostream& out) {
         "air_arcs=" + std::to_string(tripAirArcCount)
         + " floor_contacts=" + std::to_string(tripFloorContactCount)
         + " min_trip_y=" + std::to_string(minTripY));
+    const bool floorBouncesStayVertical = sawFirstFloorContact && postFloorMinY >= -3.0f && postFloorMaxXDelta <= 2.0f;
+    record(out, counts, floorBouncesStayVertical ? Status::Pass : Status::Fail, "trip_floor_bounces_stay_vertical",
+        "first_floor_frame=" + std::to_string(firstFloorContactFrame)
+        + " post_floor_min_y=" + std::to_string(postFloorMinY)
+        + " post_floor_max_x_delta=" + std::to_string(postFloorMaxXDelta));
     record(out, counts, sawTripFall || sawGrounded ? Status::Pass : Status::Fail, "trip_resolves_after_shake",
         "saw_5071=" + std::to_string(sawTripFall ? 1 : 0)
         + " grounded=" + std::to_string(sawGrounded ? 1 : 0)

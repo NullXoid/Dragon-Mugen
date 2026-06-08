@@ -3630,7 +3630,7 @@ int defaultTripBounceCount() {
 }
 
 float tripBounceYVelocity(int bounceIndex) {
-    return bounceIndex <= 0 ? -1.8f : -1.2f;
+    return bounceIndex <= 0 ? -0.9f : -0.55f;
 }
 
 void clampTripFallRuntime(FighterState& fighter) {
@@ -6775,8 +6775,8 @@ bool startTripFallBounceIfNeeded(const AppState& state, FighterState& fighter) {
     fighter.physics = 'A';
     fighter.ctrl = false;
     fighter.onGround = false;
-    fighter.y = -0.5f;
-    fighter.vx *= 0.65f;
+    fighter.y = -0.1f;
+    fighter.vx = 0.0f;
     fighter.hitVelocityX = fighter.vx;
     fighter.hitVelocityY = tripBounceYVelocity(bounceIndex);
     fighter.vy = fighter.hitVelocityY;
