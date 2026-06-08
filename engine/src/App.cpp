@@ -1249,6 +1249,8 @@ struct FighterState {
     int hitFallAirAction = 5050;
     float hitFallBounceXVelocity = 0.0f;
     float hitFallBounceYVelocity = -4.5f;
+    int hitFallTripBouncesRemaining = 0;
+    int hitFallTripBounceIndex = 0;
     EnvShakeSpec hitFallEnvShake;
     bool hitFallEnvShakePlayed = false;
     ActivePaletteEffect paletteEffect;
@@ -3623,6 +3625,14 @@ float cappedTripBounceYVelocity(float velocityY) {
     return std::max(velocityY, -1.5f);
 }
 
+int defaultTripBounceCount() {
+    return 2;
+}
+
+float tripBounceYVelocity(int bounceIndex) {
+    return bounceIndex <= 0 ? -1.8f : -1.2f;
+}
+
 void clampTripFallRuntime(FighterState& fighter) {
     if (!fighter.hitFall || !fighter.hitFallTrip) {
         return;
@@ -3718,6 +3728,8 @@ void enterGroundGetHitState(const AppState& state, FighterState& target, const H
         ? -hitDef.fallXVelocity * static_cast<float>(attackerFacing)
         : target.hitVelocityX;
     target.hitFallBounceYVelocity = hitDef.fallYVelocity;
+    target.hitFallTripBouncesRemaining = target.hitFallTrip ? defaultTripBounceCount() : 0;
+    target.hitFallTripBounceIndex = 0;
     clampTripFallRuntime(target);
     clampArenaHitFallRuntime(state, target);
     target.hitFallEnvShake = hitDef.fallEnvShake;
@@ -3825,6 +3837,8 @@ void clearFighterHitRuntime(FighterState& fighter) {
     fighter.hitFallAirAction = 5050;
     fighter.hitFallBounceXVelocity = 0.0f;
     fighter.hitFallBounceYVelocity = -4.5f;
+    fighter.hitFallTripBouncesRemaining = 0;
+    fighter.hitFallTripBounceIndex = 0;
     fighter.hitFallEnvShake = {};
     fighter.hitFallEnvShakePlayed = false;
     fighter.notHitByTicks = 0;
@@ -6627,6 +6641,8 @@ void clearHitStatusForRecovery(FighterState& fighter) {
     fighter.hitFallAirAction = 5050;
     fighter.hitFallBounceXVelocity = 0.0f;
     fighter.hitFallBounceYVelocity = -4.5f;
+    fighter.hitFallTripBouncesRemaining = 0;
+    fighter.hitFallTripBounceIndex = 0;
     fighter.customHitState = false;
     fighter.guarding = false;
     fighter.crouchGuard = false;
@@ -6742,6 +6758,33 @@ bool enterFallGroundImpactIfAvailable(AppState& state, FighterState& fighter) {
     return true;
 }
 
+bool startTripFallBounceIfNeeded(const AppState& state, FighterState& fighter) {
+    if (!fighter.hitFallTrip || fighter.hitFallTripBouncesRemaining <= 0) {
+        return false;
+    }
+
+    const int bounceIndex = fighter.hitFallTripBounceIndex;
+    --fighter.hitFallTripBouncesRemaining;
+    ++fighter.hitFallTripBounceIndex;
+
+    fighter.prevStateNo = fighter.stateNo;
+    fighter.stateNo = 5071;
+    fighter.stateTime = 0;
+    fighter.stateType = 'A';
+    fighter.moveType = 'H';
+    fighter.physics = 'A';
+    fighter.ctrl = false;
+    fighter.onGround = false;
+    fighter.y = -0.5f;
+    fighter.vx *= 0.65f;
+    fighter.hitVelocityX = fighter.vx;
+    fighter.hitVelocityY = tripBounceYVelocity(bounceIndex);
+    fighter.vy = fighter.hitVelocityY;
+    fighter.hitFallYAccel = std::max(fighter.hitFallYAccel, 0.42f);
+    setFighterAction(fighter, firstExistingAction(state, { 5071, 5160, fighter.hitFallAirAction, 5050, 0 }));
+    return true;
+}
+
 bool resolveTripFallGrounding(AppState& state, FighterState& fighter) {
     if (!fighter.hitFall || !fighter.hitFallTrip || fighter.hitPauseTicks > 0) {
         return false;
@@ -6759,6 +6802,9 @@ bool resolveTripFallGrounding(AppState& state, FighterState& fighter) {
     fighter.y = 0.0f;
     fighter.vy = 0.0f;
     fighter.onGround = true;
+    if (startTripFallBounceIfNeeded(state, fighter)) {
+        return true;
+    }
     return enterFallGroundImpactIfAvailable(state, fighter);
 }
 

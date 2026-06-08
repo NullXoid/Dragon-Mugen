@@ -51,7 +51,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Arena trip and heavy knockback hits resolve to floor impact before air recovery can take over.
 - Arena timer ticks down, hit-frozen fighters recover or resolve to KO, and knockdowns do not pull the camera upward.
 - Arena hitpause is brief, Rush counters reset after disappearing, debug hit boxes stay Training-only, and disabled timers show `INF`.
-- Evil Ken crouch roundhouse trip follows a short low arc, lands into floor knockdown, and does not rise into air recovery.
+- Evil Ken crouch roundhouse trip follows the first low arc plus two smaller bounce arcs, then lands into floor knockdown without rising into air recovery.
 - Training dummy behavior still works.
 - Training P2 control still switches the opponent to local P2 behavior.
 - Single Fight round timer, KO/time-over, pips, match result, and rematch/menu inputs still work.

@@ -117,9 +117,13 @@ int runEvilKenTripGrounding(RuntimeProbe& runtime, std::ostream& out) {
     float firstAfterTripShakeY = 0.0f;
     float firstAfterTripShakeVy = 0.0f;
     float minTripY = 0.0f;
+    int tripAirArcCount = 0;
+    int tripFloorContactCount = 0;
+    bool inTripAirArc = false;
+    bool inTripFloorContact = false;
     FighterSnapshot finalP2;
     std::string lastHitText;
-    for (int i = 0; i < 100; ++i) {
+    for (int i = 0; i < 180; ++i) {
         const auto snap = runtime.snapshot();
         sawState420 = sawState420 || snap.p1.stateNo == 420 || snap.p1.action == 420;
         lastHitText = snap.lastHitText.empty() ? lastHitText : snap.lastHitText;
@@ -139,6 +143,23 @@ int runEvilKenTripGrounding(RuntimeProbe& runtime, std::ostream& out) {
         if (snap.p2.stateNo == 5070 || snap.p2.stateNo == 5071) {
             minTripY = std::min(minTripY, snap.p2.y);
             sawFallingVelocity = sawFallingVelocity || snap.p2.vy > 0.05f;
+        }
+        if (snap.p2.stateNo == 5071 && !snap.p2.onGround && snap.p2.vy < -0.05f) {
+            if (!inTripAirArc) {
+                ++tripAirArcCount;
+            }
+            inTripAirArc = true;
+        }
+        if (snap.p2.stateNo != 5071 || snap.p2.onGround) {
+            inTripAirArc = false;
+        }
+        if (snap.p2.stateNo == 5071 && snap.p2.onGround) {
+            if (!inTripFloorContact) {
+                ++tripFloorContactCount;
+            }
+            inTripFloorContact = true;
+        } else {
+            inTripFloorContact = false;
         }
         const bool inAirRecovery = snap.p2.stateNo == 5040 || snap.p2.stateNo == 5140
             || snap.p2.stateNo == 5200 || snap.p2.stateNo == 5210
@@ -164,6 +185,11 @@ int runEvilKenTripGrounding(RuntimeProbe& runtime, std::ostream& out) {
     record(out, counts, lowParabola ? Status::Pass : Status::Fail, "trip_low_parabola_observed",
         "min_trip_y=" + std::to_string(minTripY)
         + " saw_falling_velocity=" + std::to_string(sawFallingVelocity ? 1 : 0));
+    const bool threeParabolas = tripAirArcCount >= 3 && tripFloorContactCount >= 3;
+    record(out, counts, threeParabolas ? Status::Pass : Status::Fail, "trip_three_parabolas_observed",
+        "air_arcs=" + std::to_string(tripAirArcCount)
+        + " floor_contacts=" + std::to_string(tripFloorContactCount)
+        + " min_trip_y=" + std::to_string(minTripY));
     record(out, counts, sawTripFall || sawGrounded ? Status::Pass : Status::Fail, "trip_resolves_after_shake",
         "saw_5071=" + std::to_string(sawTripFall ? 1 : 0)
         + " grounded=" + std::to_string(sawGrounded ? 1 : 0)
