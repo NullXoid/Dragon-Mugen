@@ -38,9 +38,25 @@ Common background keys:
 
 Do not put playable stage background definitions in a Dragon extension file. Dragon sidecars may add extras later, but the stage remains a M.U.G.E.N `.def` plus `.sff`.
 
+## Arena OpenBOR-Style Scrollers
+
+Arena can opt a stage into a simple forward-only side-scroller camera with a Dragon extension section in the stage `.def`:
+
+```ini
+[OpenBOR]
+scrolling = 1
+scrollstartx = 160
+scrollendx = 1760
+scrollspeed = 2.4
+scrolllead = 96
+```
+
+`[DragonOpenBOR]` is accepted as an alias. This metadata is Arena-only; Training, Single Player, and VS continue to use normal M.U.G.E.N camera behavior. Stage art still comes from the normal `[BGDef]`/`[BG ...]` M.U.G.E.N sections.
+
 ## Current Stages
 
 - `kfm.def` / `kfm.sff` - Mountainside Temple, the first stage compatibility target.
+- `openbor_scroll.def` - OpenBOR Scroll Test, an Arena-only scroller sample that reuses `kfm.sff`.
 - `stage0.def` / `stage0.sff` - additional sample stage from the 2001 package.
 
 For the first renderer milestone, `kfm.def` should be parsed and its 7 background elements accounted for.

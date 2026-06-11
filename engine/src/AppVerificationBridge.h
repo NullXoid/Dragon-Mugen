@@ -258,6 +258,8 @@ public:
     verification::RuntimeSnapshot snapshot() const override {
         verification::RuntimeSnapshot out;
         out.frame = state_.frame;
+        out.cameraX = state_.cameraX;
+        out.cameraY = state_.cameraY;
         out.matchTimerTicks = state_.matchTimerTicks;
         out.matchPhase = static_cast<int>(state_.matchPhase);
         out.activeEffects = static_cast<int>(state_.runtimeEffects.size());

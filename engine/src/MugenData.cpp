@@ -91,6 +91,24 @@ float parseFloatOr(const MugenSection* section, std::string_view key, float fall
     }
 }
 
+bool parseBoolOr(const MugenSection* section, std::string_view key, bool fallback) {
+    if (!section) {
+        return fallback;
+    }
+    const auto* property = findProperty(*section, key);
+    if (!property) {
+        return fallback;
+    }
+    const std::string value = trim(property->value);
+    if (equalsNoCase(value, "true") || equalsNoCase(value, "yes")) {
+        return true;
+    }
+    if (equalsNoCase(value, "false") || equalsNoCase(value, "no")) {
+        return false;
+    }
+    return parseIntValue(value, fallback ? 1 : 0) != 0;
+}
+
 std::filesystem::path resolveContentPath(const std::filesystem::path& base, std::string value) {
     value = unquote(value);
     if (value.empty()) {
@@ -291,6 +309,19 @@ std::optional<StageSlot> loadStageSlotFromDef(const std::filesystem::path& def) 
 
         const auto* stageInfo = findSection(doc, "StageInfo");
         slot.zoffset = parseFloatOr(stageInfo, "zoffset", slot.zoffset);
+
+        const auto* openbor = findSection(doc, "OpenBOR");
+        if (!openbor) {
+            openbor = findSection(doc, "DragonOpenBOR");
+        }
+        slot.openborScrolling = parseBoolOr(openbor, "scrolling", slot.openborScrolling);
+        slot.openborScrollStartx = parseFloatOr(openbor, "scrollstartx", slot.cameraBoundleft);
+        slot.openborScrollEndx = parseFloatOr(openbor, "scrollendx", slot.cameraBoundright);
+        slot.openborScrollSpeed = std::clamp(parseFloatOr(openbor, "scrollspeed", slot.openborScrollSpeed), 0.25f, 12.0f);
+        slot.openborScrollLead = std::clamp(parseFloatOr(openbor, "scrolllead", slot.openborScrollLead), 16.0f, 220.0f);
+        if (slot.openborScrollStartx > slot.openborScrollEndx) {
+            std::swap(slot.openborScrollStartx, slot.openborScrollEndx);
+        }
     } catch (const std::exception& ex) {
         SDL_Log("Stage DEF parse failed %s: %s", def.string().c_str(), ex.what());
         return std::nullopt;

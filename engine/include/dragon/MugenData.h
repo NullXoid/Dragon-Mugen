@@ -97,6 +97,11 @@ struct StageSlot {
     float rightbound = 1000.0f;
     float screenleft = 15.0f;
     float screenright = 15.0f;
+    bool openborScrolling = false;
+    float openborScrollStartx = 0.0f;
+    float openborScrollEndx = 0.0f;
+    float openborScrollSpeed = 2.4f;
+    float openborScrollLead = 96.0f;
 };
 
 inline bool hasMugenRuntimeRootFiles(const std::filesystem::path& gameRoot) {

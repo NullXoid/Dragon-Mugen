@@ -1,6 +1,6 @@
 # DLC 1 Arena Mode
 
-Arena Mode is an optional gameplay prototype for Dragon MUGEN Core. It adds a main menu entry that starts a free-for-all battle with one player fighter and one to three CPU fighters.
+Arena Mode is an optional gameplay prototype for Dragon MUGEN Core. It adds a main menu entry that starts a free-for-all battle with one player fighter and one to three CPU fighters, with optional depth movement and first-pass OpenBOR-style scrolling stages.
 
 ## How To Enter
 
@@ -14,6 +14,10 @@ Arena-specific labels, default stage, CPU count limits/default, selection mode, 
 
 ## Prototype Limits
 
-This first pass reuses the existing 2D fight loop and adds a small free-for-all layer. CPU fighters use random roster selections and simple nearest-living-enemy targeting.
+This pass reuses the existing fight loop and adds a free-for-all layer. CPU fighters use roster selections, ignore defeated fighters, choose nearest living enemies, and align depth when Z-axis mode is enabled.
 
-This DLC does not add Z-axis movement, scroller stages, story mode, shops, equipment, crafting, world maps, NPC dialogue, tournament progression, Dragon Mode, or advanced arena AI.
+Arena Z-axis movement is optional from Arena Setup. When enabled, hold Shift or the left trigger to move Up/Down along depth; normal Up/Down still jump/crouch unless the modifier is held. A quick double-tap of the modifier performs a short sidestep.
+
+Simple OpenBOR-style scrolling is opt-in per stage through `[OpenBOR]` or `[DragonOpenBOR]` metadata in the stage `.def`. `OpenBOR Scroll Test` is the current sample. The scroller is Arena-only; Training, Single Player, and VS continue to use normal M.U.G.E.N camera behavior.
+
+This DLC does not add story mode, shops, equipment, crafting, world maps, NPC dialogue, tournament progression, Dragon Mode, hazards, platforms, or advanced arena AI.

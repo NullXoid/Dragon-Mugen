@@ -1,0 +1,87 @@
+; Simple OpenBOR-style scrolling Arena stage.
+; This reuses the existing KFM stage SFF and opts into Arena side-scroller camera behavior.
+
+[Info]
+name = "OpenBOR Scroll Test"
+displayname = "OpenBOR Scroll Test"
+author = "Dragon MUGEN"
+
+[Camera]
+startx = 160
+starty = 0
+boundleft = 160
+boundright = 1760
+boundhigh = -22
+boundlow = 0
+verticalfollow = .2
+floortension = 0
+tension = 60
+
+[PlayerInfo]
+p1startx = 100
+p1starty = 0
+p1startz = 0
+p1facing = 1
+p2startx = 190
+p2starty = 0
+p2startz = 0
+p2facing = -1
+leftbound = 0
+rightbound = 1920
+topbound = 0
+botbound = 0
+
+[Scaling]
+topz = 0
+botz = 50
+topscale = 1
+botscale = 1.2
+
+[Bound]
+screenleft = 20
+screenright = 55
+
+[StageInfo]
+zoffset = 200
+autoturn = 1
+resetBG = 1
+
+[OpenBOR]
+scrolling = 1
+scrollstartx = 160
+scrollendx = 1760
+scrollspeed = 2.4
+scrolllead = 96
+
+[Shadow]
+color = 32,32,32
+yscale = -.1
+reflect = 1
+
+[Music]
+bgmusic =
+bgvolume = 0
+
+[BGDef]
+spr = stages/kfm.sff
+debugbg = 0
+
+[BG Sky]
+type = normal
+spriteno = 0,0
+layerno = 0
+start = 0,0
+delta = .35,.5
+trans = none
+mask = 0
+tile = 1,0
+
+[BG Floor]
+type = normal
+spriteno = 1,0
+layerno = 0
+start = 0,0
+delta = 1,1
+trans = none
+mask = 0
+tile = 1,0

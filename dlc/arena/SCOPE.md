@@ -11,11 +11,15 @@
 - Winner screen
 - End screen
 - Return to menu
+- Optional Arena Z-axis movement with Shift/left-trigger depth modifier
+- Modifier double-tap sidestep
+- First-pass Arena-only OpenBOR-style scrolling stage support
 
 ## Excluded
 
-- Z-axis or Power Stone movement
-- Scroller mode
+- Power Stone-style free depth movement without a modifier
+- Full OpenBOR campaign/scroller mode
+- Stage hazards or platforms
 - World maps
 - NPCs
 - Shops

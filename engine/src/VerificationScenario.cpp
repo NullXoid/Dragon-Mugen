@@ -25,6 +25,7 @@ int runArenaZDrawOrder(RuntimeProbe& runtime, std::ostream& out);
 int runArenaZCpuAlign(RuntimeProbe& runtime, std::ostream& out);
 int runArenaZModifierSidestep(RuntimeProbe& runtime, std::ostream& out);
 int runArenaPerFighterRuntime(RuntimeProbe& runtime, std::ostream& out);
+int runArenaOpenBorScrollStage(RuntimeProbe& runtime, std::ostream& out);
 namespace {
 
 enum class Status {
@@ -982,11 +983,12 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
     if (scenarioName == "arena-z-cpu-align") return runArenaZCpuAlign(runtime, out);
     if (scenarioName == "arena-z-modifier-sidestep") return runArenaZModifierSidestep(runtime, out);
     if (scenarioName == "arena-per-fighter-runtime") return runArenaPerFighterRuntime(runtime, out);
+    if (scenarioName == "arena-openbor-scroll-stage") return runArenaOpenBorScrollStage(runtime, out);
     if (scenarioName == "evilryu-dash") return runEvilRyuDash(runtime, out);
 
     out << "VERIFY " << scenarioName << "\n"
         << "BLOCKED unknown_scenario\n"
-        << "  supported: kfm-baseline, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-training-demo-hit, evilryu-specials-supers, evilken-smoke, evilken-trip-grounding, cpu-baseline, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-per-fighter-runtime, evilryu-dash\n"
+        << "  supported: kfm-baseline, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-training-demo-hit, evilryu-specials-supers, evilken-smoke, evilken-trip-grounding, cpu-baseline, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-per-fighter-runtime, arena-openbor-scroll-stage, evilryu-dash\n"
         << "SUMMARY pass=0 partial=0 fail=0 blocked=1\n";
     return 2;
 }

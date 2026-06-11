@@ -60,6 +60,8 @@ struct FighterSnapshot {
 
 struct RuntimeSnapshot {
     int frame = 0;
+    float cameraX = 0.0f;
+    float cameraY = 0.0f;
     int matchTimerTicks = 0;
     int matchPhase = 0;
     int activeEffects = 0;

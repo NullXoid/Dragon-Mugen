@@ -103,8 +103,9 @@ bool setupArenaFight(
     std::ostream& out,
     Counts& counts,
     std::string_view scenarioName,
-    std::string_view p1Id = "kfm") {
-    if (!runtime.setup(p1Id, "Mountainside", ScenarioMode::Arena, out, 1)) {
+    std::string_view p1Id = "kfm",
+    std::string_view stageHint = "Mountainside") {
+    if (!runtime.setup(p1Id, stageHint, ScenarioMode::Arena, out, 1)) {
         record(out, counts, Status::Blocked, "setup", "Arena setup failed");
         summary(out, counts);
         return false;
@@ -482,6 +483,56 @@ int runArenaPerFighterRuntime(RuntimeProbe& runtime, std::ostream& out) {
         "active_helpers=" + std::to_string(helper.activeHelpers)
         + " first_helper_state=" + std::to_string(helper.firstHelperState)
         + " first_helper_action=" + std::to_string(helper.firstHelperAction));
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runArenaOpenBorScrollStage(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!setupArenaFight(runtime, out, counts, "arena-openbor-scroll-stage", "kfm", "OpenBOR Scroll")) {
+        return exitCode(counts);
+    }
+
+    runtime.positionFighters(100.0f, 40.0f);
+    runtime.setFighterControl(1, false);
+    runtime.forceFighterLiedown(1, 9999);
+    const bool idle = waitForControllableIdle(runtime, 240);
+    record(out, counts, idle ? Status::Pass : Status::Fail, "controllable_idle_ready",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo)
+        + " ctrl=" + std::to_string(runtime.snapshot().p1.ctrl ? 1 : 0));
+    if (!idle) {
+        record(out, counts, Status::Blocked, "openbor_scroll_checks", "controllable idle gate failed");
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    const auto start = runtime.snapshot();
+    runtime.step(SymbolicInput{ .right = true }, 180);
+    const auto forward = runtime.snapshot();
+    const bool scrolledForward = forward.cameraX > start.cameraX + 30.0f
+        && forward.p1.x > start.p1.x + 60.0f;
+    record(out, counts, scrolledForward ? Status::Pass : Status::Fail, "openbor_camera_scrolls_forward",
+        "camera_before=" + std::to_string(start.cameraX)
+        + " camera_after=" + std::to_string(forward.cameraX)
+        + " p1_x_before=" + std::to_string(start.p1.x)
+        + " p1_x_after=" + std::to_string(forward.p1.x));
+
+    runtime.step(SymbolicInput{ .left = true }, 90);
+    const auto back = runtime.snapshot();
+    record(out, counts, back.cameraX >= forward.cameraX - 0.5f ? Status::Pass : Status::Fail,
+        "openbor_camera_does_not_scroll_backward",
+        "camera_forward=" + std::to_string(forward.cameraX)
+        + " camera_after_left=" + std::to_string(back.cameraX)
+        + " p1_x_after_left=" + std::to_string(back.p1.x));
+
+    runtime.step(SymbolicInput{ .right = true }, 1400);
+    const auto end = runtime.snapshot();
+    record(out, counts, end.cameraX >= 1750.0f && end.cameraX <= 1760.5f ? Status::Pass : Status::Fail,
+        "openbor_camera_clamps_at_stage_end",
+        "camera_forward=" + std::to_string(forward.cameraX)
+        + " camera_end=" + std::to_string(end.cameraX));
 
     record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
     summary(out, counts);

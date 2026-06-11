@@ -98,12 +98,26 @@ TextureSprite loadCharacterFaceSprite(SDL_Renderer* renderer, const std::filesys
 std::vector<StageBackgroundElement> loadStageBackground(SDL_Renderer* renderer, const StageSlot& stage) {
     auto sffPath = stage.defPath;
     sffPath.replace_extension(".sff");
+    const auto doc = parseMugenTextFile(stage.defPath);
+    if (const auto* bgDef = findSection(doc, "BGDef")) {
+        if (const auto* spr = findProperty(*bgDef, "spr")) {
+            const std::filesystem::path configured = unquote(trim(spr->value));
+            if (!configured.empty()) {
+                const auto direct = (stage.defPath.parent_path() / configured).lexically_normal();
+                const auto fromRoot = (stage.defPath.parent_path().parent_path() / configured).lexically_normal();
+                if (std::filesystem::exists(direct)) {
+                    sffPath = direct;
+                } else {
+                    sffPath = fromRoot;
+                }
+            }
+        }
+    }
     if (!std::filesystem::exists(sffPath)) {
         return {};
     }
 
     const auto sff = loadSffArchive(sffPath);
-    const auto doc = parseMugenTextFile(stage.defPath);
     std::vector<StageBackgroundElement> elements;
     for (const auto& section : doc.sections) {
         if (!(section.name == "BG" || startsWithNoCase(section.name, "BG "))) {

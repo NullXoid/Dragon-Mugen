@@ -5759,7 +5759,52 @@ void updateCamera(AppState& state, const StageSlot& stage) {
     state.cameraY = std::clamp(targetY, stage.cameraBoundhigh, stage.cameraBoundlow);
 }
 
+bool arenaOpenBorScrollerActive(const AppState& state, const StageSlot& stage) {
+    return isArenaMode(state) && stage.openborScrolling;
+}
+
+void updateArenaOpenBorScrollingCamera(AppState& state, const StageSlot& stage) {
+    const float minCamera = std::max(stage.cameraBoundleft, std::min(stage.openborScrollStartx, stage.openborScrollEndx));
+    const float maxCamera = std::min(stage.cameraBoundright, std::max(stage.openborScrollStartx, stage.openborScrollEndx));
+    if (minCamera > maxCamera) {
+        updateCamera(state, stage);
+        return;
+    }
+
+    state.cameraX = std::clamp(state.cameraX, minCamera, maxCamera);
+
+    bool any = false;
+    float maxFighterX = 0.0f;
+    for (const auto& fighter : state.fighters) {
+        if (fighter.life <= 0) {
+            continue;
+        }
+        maxFighterX = any ? std::max(maxFighterX, fighter.x) : fighter.x;
+        any = true;
+    }
+
+    if (any) {
+        const float halfWidth = logicalWidthF(state) * 0.5f;
+        const float leadEdge = state.cameraX + halfWidth - stage.openborScrollLead;
+        float targetX = state.cameraX;
+        if (maxFighterX > leadEdge) {
+            targetX += maxFighterX - leadEdge;
+        }
+        targetX = std::clamp(targetX, minCamera, maxCamera);
+        if (targetX > state.cameraX) {
+            state.cameraX = std::min(targetX, state.cameraX + stage.openborScrollSpeed);
+        }
+    }
+
+    state.cameraY = std::clamp(stage.cameraStarty, stage.cameraBoundhigh, stage.cameraBoundlow);
+}
+
 void updateArenaCamera(AppState& state, const StageSlot& stage) {
+    if (arenaOpenBorScrollerActive(state, stage)) {
+        updateArenaOpenBorScrollingCamera(state, stage);
+        return;
+    }
+
     bool any = false;
     float minFighterX = 0.0f;
     float maxFighterX = 0.0f;

@@ -30,6 +30,7 @@ build\dragon_mugen.exe --verify arena-z-draw-order
 build\dragon_mugen.exe --verify arena-z-cpu-align
 build\dragon_mugen.exe --verify arena-z-modifier-sidestep
 build\dragon_mugen.exe --verify arena-per-fighter-runtime
+build\dragon_mugen.exe --verify arena-openbor-scroll-stage
 build\dragon_mugen.exe --verify kfm-specials-supers
 build\dragon_mugen.exe --verify evilken-specials-supers
 build\dragon_mugen.exe --verify evilryu-specials-supers
@@ -66,6 +67,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Arena Z-axis modifier moves depth with Shift/left trigger; normal Up/Down still jump/crouch and still feed quarter-circle commands when the modifier is not held.
 - Arena double-tapping the Z-axis modifier performs a short sidestep; Up/Down on the second tap chooses the sidestep depth direction.
 - Arena depth affects hit gating, player push, CPU alignment, projected sprite position, and draw order only when Z Axis is enabled.
+- Arena can select `OpenBOR Scroll Test`; in Arena it scrolls forward only, clamps at the configured end, and does not make Training, Single Player, or VS stages auto-scroll.
 - Arena gamepad Start opens pause/start behavior only and is not mapped as a fighter button or depth input.
 - Evil Ken crouch roundhouse trip follows the first low arc, hits the floor, then performs two small vertical-only floor bounces before knockdown without rising into air recovery.
 - KFM, Evil Ken, and Evil Ryu supers are blocked below their authored CMD power gate and still consume power through CNS `poweradd` after valid entry.
