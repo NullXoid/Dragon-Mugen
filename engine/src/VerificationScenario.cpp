@@ -8,6 +8,15 @@
 #include <ostream>
 namespace dragon::verification {
 int runEvilKenTripGrounding(RuntimeProbe& runtime, std::ostream& out);
+int runKfmDownHitProfile(RuntimeProbe& runtime, std::ostream& out);
+int runKfmSpecialsSupers(RuntimeProbe& runtime, std::ostream& out);
+int runEvilKenSpecialsSupers(RuntimeProbe& runtime, std::ostream& out);
+int runEvilKenHelperLifecycle(RuntimeProbe& runtime, std::ostream& out);
+int runEvilKenTrainingCommandDemo(RuntimeProbe& runtime, std::ostream& out);
+int runEvilRyuSpecialsSupers(RuntimeProbe& runtime, std::ostream& out);
+int runKfmMovementDirectionAudit(RuntimeProbe& runtime, std::ostream& out);
+int runEvilRyuHighJumpMovementAudit(RuntimeProbe& runtime, std::ostream& out);
+int runEvilRyuDash(RuntimeProbe& runtime, std::ostream& out);
 namespace {
 
 enum class Status {
@@ -124,6 +133,12 @@ bool tryNormal(RuntimeProbe& runtime, char& usedCommand, FighterSnapshot& before
         }
         before = runtime.snapshot().p1;
         runtime.step(input, 2);
+        const auto immediate = runtime.snapshot().p1;
+        if (changedStateOrAction(before, immediate) && immediate.moveType == 'A') {
+            after = immediate;
+            usedCommand = button;
+            return true;
+        }
         runtime.step(crouch ? SymbolicInput{ .down = true } : SymbolicInput{}, 12);
         after = runtime.snapshot().p1;
         if (changedStateOrAction(before, after) && after.moveType == 'A') {
@@ -214,11 +229,15 @@ TauntCtrlSetObservation observeTauntCtrlSetControlRestore(RuntimeProbe& runtime,
         runtime.step({}, 5);
         const auto beforeCommand = runtime.snapshot().p1;
         runtime.step(withButton(restoreCommand), 2);
-        runtime.step({}, 12);
-        const auto afterCommand = runtime.snapshot().p1;
-        observation.commandWorksAfterRestore = changedStateOrAction(beforeCommand, afterCommand)
-            && afterCommand.moveType == 'A';
-        observation.commandAfterRestore = afterCommand;
+        for (int i = 0; i < 18; ++i) {
+            const auto afterCommand = runtime.snapshot().p1;
+            observation.commandAfterRestore = afterCommand;
+            if (changedStateOrAction(beforeCommand, afterCommand) && afterCommand.moveType == 'A') {
+                observation.commandWorksAfterRestore = true;
+                break;
+            }
+            runtime.step({}, 1);
+        }
     }
 
     return observation;
@@ -675,6 +694,9 @@ int runEvilKenSmoke(RuntimeProbe& runtime, std::ostream& out) {
         sawAir = sawAir || !p1.onGround || p1.stateType == 'A';
     }
     record(out, counts, sawAir ? Status::Pass : Status::Fail, "jump_airborne", "airborne_observed=" + std::to_string(sawAir ? 1 : 0));
+    runtime.positionFighters(-220.0f, 220.0f);
+    waitForControllableIdle(runtime, 360);
+    runtime.step({}, 10);
     char command = '?';
     FighterSnapshot before;
     FighterSnapshot after;
@@ -917,82 +939,30 @@ int runArenaSmoke(RuntimeProbe& runtime, std::ostream& out, int cpuCount) {
     return exitCode(counts);
 }
 
-int runEvilRyuDash(RuntimeProbe& runtime, std::ostream& out) {
-    Counts counts;
-    if (!runtime.setup("EvilRyu", "Mountainside", ScenarioMode::Arena, out)) {
-        record(out, counts, Status::Blocked, "setup", "EvilRyu/Mountainside Arena setup failed");
-        summary(out, counts);
-        return 2;
-    }
-    header(out, runtime, "evilryu-dash");
-    const bool idle = waitForControllableIdle(runtime, 420);
-    record(out, counts, idle ? Status::Pass : Status::Fail, "controllable_idle_ready",
-        "state=" + std::to_string(runtime.snapshot().p1.stateNo));
-    runtime.positionFighters(-120.0f, 180.0f);
-    SymbolicInput forward;
-    forward.right = true;
-    const float startX = runtime.snapshot().p1.x;
-    runtime.step(forward, 2);
-    runtime.step({}, 2);
-    runtime.step(forward, 2);
-    bool sawDash = false;
-    bool sawMovingDash = false;
-    int startupRun = 0;
-    int maxStartupRun = 0;
-    float maxX = startX;
-    for (int i = 0; i < 45; ++i) {
-        const auto p1 = runtime.snapshot().p1;
-        sawDash = sawDash || p1.stateNo == 100 || p1.stateNo == 101 || p1.stateNo == 102;
-        sawMovingDash = sawMovingDash || p1.stateNo == 101 || p1.stateNo == 102;
-        startupRun = p1.stateNo == 100 ? startupRun + 1 : 0;
-        maxStartupRun = std::max(maxStartupRun, startupRun);
-        maxX = std::max(maxX, p1.x);
-        runtime.step(forward, 1);
-    }
-    const auto end = runtime.snapshot().p1;
-    const bool progressed = sawDash && sawMovingDash && maxStartupRun <= 18 && maxX > startX + 20.0f;
-    record(out, counts, progressed ? Status::Pass : Status::Fail, "forward_dash_progresses",
-        "start_x=" + std::to_string(startX) + " max_x=" + std::to_string(maxX)
-        + " final_state=" + std::to_string(end.stateNo)
-        + " max_startup_frames=" + std::to_string(maxStartupRun));
-    summary(out, counts);
-    return exitCode(counts);
-}
-
 } // namespace
 
 int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::ostream& out) {
-    if (scenarioName == "kfm-baseline") {
-        return runKfmBaseline(runtime, out);
-    }
-    if (scenarioName == "kfm-air-state") {
-        return runKfmAirState(runtime, out);
-    }
-    if (scenarioName == "evilken-smoke") {
-        return runEvilKenSmoke(runtime, out);
-    }
-    if (scenarioName == "evilken-trip-grounding") {
-        return runEvilKenTripGrounding(runtime, out);
-    }
-    if (scenarioName == "cpu-baseline") {
-        return runCpuBaseline(runtime, out);
-    }
-    if (scenarioName == "arena-cpu-1") {
-        return runArenaSmoke(runtime, out, 1);
-    }
-    if (scenarioName == "arena-cpu-2") {
-        return runArenaSmoke(runtime, out, 2);
-    }
-    if (scenarioName == "arena-cpu-3") {
-        return runArenaSmoke(runtime, out, 3);
-    }
-    if (scenarioName == "evilryu-dash") {
-        return runEvilRyuDash(runtime, out);
-    }
+    if (scenarioName == "kfm-baseline") return runKfmBaseline(runtime, out);
+    if (scenarioName == "kfm-air-state") return runKfmAirState(runtime, out);
+    if (scenarioName == "kfm-movement-direction-audit") return runKfmMovementDirectionAudit(runtime, out);
+    if (scenarioName == "evilryu-high-jump") return runEvilRyuHighJumpMovementAudit(runtime, out);
+    if (scenarioName == "kfm-down-hit-profile") return runKfmDownHitProfile(runtime, out);
+    if (scenarioName == "kfm-specials-supers") return runKfmSpecialsSupers(runtime, out);
+    if (scenarioName == "evilken-specials-supers") return runEvilKenSpecialsSupers(runtime, out);
+    if (scenarioName == "evilken-helper-lifecycle") return runEvilKenHelperLifecycle(runtime, out);
+    if (scenarioName == "evilken-training-demo-hit") return runEvilKenTrainingCommandDemo(runtime, out);
+    if (scenarioName == "evilryu-specials-supers") return runEvilRyuSpecialsSupers(runtime, out);
+    if (scenarioName == "evilken-smoke") return runEvilKenSmoke(runtime, out);
+    if (scenarioName == "evilken-trip-grounding") return runEvilKenTripGrounding(runtime, out);
+    if (scenarioName == "cpu-baseline") return runCpuBaseline(runtime, out);
+    if (scenarioName == "arena-cpu-1") return runArenaSmoke(runtime, out, 1);
+    if (scenarioName == "arena-cpu-2") return runArenaSmoke(runtime, out, 2);
+    if (scenarioName == "arena-cpu-3") return runArenaSmoke(runtime, out, 3);
+    if (scenarioName == "evilryu-dash") return runEvilRyuDash(runtime, out);
 
     out << "VERIFY " << scenarioName << "\n"
         << "BLOCKED unknown_scenario\n"
-        << "  supported: kfm-baseline, kfm-air-state, evilken-smoke, evilken-trip-grounding, cpu-baseline, arena-cpu-1, arena-cpu-2, arena-cpu-3, evilryu-dash\n"
+        << "  supported: kfm-baseline, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-training-demo-hit, evilryu-specials-supers, evilken-smoke, evilken-trip-grounding, cpu-baseline, arena-cpu-1, arena-cpu-2, arena-cpu-3, evilryu-dash\n"
         << "SUMMARY pass=0 partial=0 fail=0 blocked=1\n";
     return 2;
 }

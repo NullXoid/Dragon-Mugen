@@ -73,6 +73,10 @@ add_library(dragon_core
     engine/src/Input.cpp
     engine/src/VerificationScenario.cpp
     engine/src/VerificationScenarioEvilKen.cpp
+    engine/src/VerificationScenarioEvilRyu.cpp
+    engine/src/VerificationScenarioKfmHit.cpp
+    engine/src/VerificationScenarioMovement.cpp
+    engine/src/VerificationScenarioSpecials.cpp
     engine/src/App.cpp
 )
 

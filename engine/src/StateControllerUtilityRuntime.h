@@ -9,6 +9,88 @@ int stateControllerFireKey(int controllerId, const FighterState& fighter, int an
     return controllerId * 100000 + std::max(0, fighter.stateTime) * 100 + std::max(0, animElem);
 }
 
+bool stateRuntimeControllerAlreadyFired(const FighterState& fighter, int controllerId);
+void markStateRuntimeControllerFired(FighterState& fighter, int controllerId);
+bool shouldRunStateRuntimeController(
+    const AppState& state,
+    FighterState& fighter,
+    int controllerId,
+    const StateControllerTrigger& trigger,
+    const FighterState* opponent,
+    const StageSlot* stage);
+bool shouldRunSimpleStateRuntimeController(
+    const AppState& state,
+    FighterState& fighter,
+    int controllerId,
+    const StateControllerTrigger& trigger,
+    int triggerTime,
+    int triggerAnimElem);
+
+int stateControllerDomainKey(int domain, int controllerId) {
+    return -(domain * 100000 + std::max(1, controllerId));
+}
+
+StateControllerCooldown* findStateRuntimeControllerCooldown(FighterState& fighter, int controllerId) {
+    auto it = std::find_if(
+        fighter.stateRuntimeControllerCooldowns.begin(),
+        fighter.stateRuntimeControllerCooldowns.end(),
+        [controllerId](const StateControllerCooldown& cooldown) {
+            return cooldown.controllerId == controllerId;
+        });
+    return it == fighter.stateRuntimeControllerCooldowns.end() ? nullptr : &*it;
+}
+
+int stateRuntimeControllerCooldownTicks(FighterState& fighter, int controllerId) {
+    if (const auto* cooldown = findStateRuntimeControllerCooldown(fighter, controllerId)) {
+        return cooldown->ticks;
+    }
+    return 0;
+}
+
+void setStateRuntimeControllerCooldown(FighterState& fighter, int controllerId, int ticks) {
+    if (ticks <= 0) {
+        return;
+    }
+    if (auto* cooldown = findStateRuntimeControllerCooldown(fighter, controllerId)) {
+        cooldown->ticks = std::max(cooldown->ticks, ticks);
+        return;
+    }
+    fighter.stateRuntimeControllerCooldowns.push_back(StateControllerCooldown{ controllerId, ticks });
+}
+
+bool stateRuntimeControllerBlockedByHitPause(
+    const FighterState& fighter,
+    int controllerId,
+    const StateControllerTrigger& trigger) {
+    if (fighter.hitPauseTicks <= 0) {
+        return false;
+    }
+    if (fighter.hitPauseChangeStateControllerId == controllerId) {
+        return true;
+    }
+    return !trigger.ignoreHitPause;
+}
+
+bool stateRuntimeControllerPersistenceAllowsRun(
+    FighterState& fighter,
+    int controllerId,
+    const StateControllerTrigger& trigger) {
+    if (trigger.persistent == 0) {
+        if (stateRuntimeControllerAlreadyFired(fighter, controllerId)) {
+            return false;
+        }
+        markStateRuntimeControllerFired(fighter, controllerId);
+        return true;
+    }
+    if (trigger.persistent > 1) {
+        if (stateRuntimeControllerCooldownTicks(fighter, controllerId) > 0) {
+            return false;
+        }
+        setStateRuntimeControllerCooldown(fighter, controllerId, trigger.persistent);
+    }
+    return true;
+}
+
 bool stateSoundFireKeyAlreadyFired(const FighterState& fighter, int fireKey) {
     return std::find(
         fighter.firedStateSoundControllerIds.begin(),
@@ -43,21 +125,22 @@ bool stateSoundTriggerActive(AppState& state, FighterState& fighter, const State
 
 void executePlaySoundController(AppState& state, FighterState& fighter, const StateSoundController& sound) {
     const int animElem = currentAnimElemForFighter(state, fighter);
-    if (!stateSoundTriggerActive(state, fighter, sound)) {
-        return;
-    }
+    const int controllerKey = stateControllerDomainKey(1, sound.id);
     if (sound.trigger.hasTrigger) {
-        if (sound.trigger.persistent == 0) {
-            if (stateSoundControllerIdAlreadyFired(fighter, sound.id)) {
-                return;
-            }
-            markStateSoundControllerIdFired(fighter, sound.id);
-        } else if (sound.trigger.persistent > 1 && fighter.stateTime % sound.trigger.persistent != 0) {
+        if (!shouldRunStateRuntimeController(state, fighter, controllerKey, sound.trigger, nullptr, nullptr)) {
             return;
         }
+    } else if (!shouldRunSimpleStateRuntimeController(
+        state,
+        fighter,
+        controllerKey,
+        sound.trigger,
+        sound.triggerTime,
+        sound.triggerAnimElem)) {
+        return;
     }
 
-    const int fireKey = stateControllerFireKey(sound.id, fighter, animElem);
+    const int fireKey = stateControllerFireKey(controllerKey, fighter, animElem);
     if (stateSoundFireKeyAlreadyFired(fighter, fireKey)) {
         return;
     }
@@ -88,6 +171,19 @@ void markStateRuntimeControllerFired(FighterState& fighter, int controllerId) {
     }
 }
 
+bool stateRuntimeControllerFrameKeyAlreadyFired(const FighterState& fighter, int fireKey) {
+    return std::find(
+        fighter.firedStateRuntimeControllerFrameKeys.begin(),
+        fighter.firedStateRuntimeControllerFrameKeys.end(),
+        fireKey) != fighter.firedStateRuntimeControllerFrameKeys.end();
+}
+
+void markStateRuntimeControllerFrameKeyFired(FighterState& fighter, int fireKey) {
+    if (!stateRuntimeControllerFrameKeyAlreadyFired(fighter, fireKey)) {
+        fighter.firedStateRuntimeControllerFrameKeys.push_back(fireKey);
+    }
+}
+
 bool shouldRunStateRuntimeController(
     const AppState& state,
     FighterState& fighter,
@@ -95,20 +191,58 @@ bool shouldRunStateRuntimeController(
     const StateControllerTrigger& trigger,
     const FighterState* opponent = nullptr,
     const StageSlot* stage = nullptr) {
+    if (stateRuntimeControllerBlockedByHitPause(fighter, controllerId, trigger)) {
+        return false;
+    }
     if (!stateControllerTriggerActive(state, fighter, trigger, opponent, stage)) {
         return false;
     }
-    if (trigger.persistent == 0) {
-        if (stateRuntimeControllerAlreadyFired(fighter, controllerId)) {
-            return false;
-        }
-        markStateRuntimeControllerFired(fighter, controllerId);
-        return true;
-    }
-    if (trigger.persistent > 1 && fighter.stateTime % trigger.persistent != 0) {
+    return stateRuntimeControllerPersistenceAllowsRun(fighter, controllerId, trigger);
+}
+
+bool shouldRunSimpleStateRuntimeController(
+    const AppState& state,
+    FighterState& fighter,
+    int controllerId,
+    const StateControllerTrigger& trigger,
+    int triggerTime,
+    int triggerAnimElem) {
+    if (stateRuntimeControllerBlockedByHitPause(fighter, controllerId, trigger)) {
         return false;
     }
+    if (!simpleControllerTriggerActive(state, fighter, triggerTime, triggerAnimElem)) {
+        return false;
+    }
+    return stateRuntimeControllerPersistenceAllowsRun(fighter, controllerId, trigger);
+}
+
+bool shouldRunStateOneShotController(
+    const AppState& state,
+    FighterState& fighter,
+    int controllerId,
+    const StateControllerTrigger& trigger,
+    const FighterState* opponent = nullptr,
+    const StageSlot* stage = nullptr) {
+    if (!shouldRunStateRuntimeController(state, fighter, controllerId, trigger, opponent, stage)) {
+        return false;
+    }
+
+    const int fireKey = stateControllerFireKey(controllerId, fighter, currentAnimElemForFighter(state, fighter));
+    if (stateRuntimeControllerFrameKeyAlreadyFired(fighter, fireKey)) {
+        return false;
+    }
+    markStateRuntimeControllerFrameKeyFired(fighter, fireKey);
     return true;
+}
+
+bool shouldRunStatePauseController(
+    const AppState& state,
+    FighterState& fighter,
+    int controllerId,
+    const StateControllerTrigger& trigger,
+    const FighterState* opponent = nullptr,
+    const StageSlot* stage = nullptr) {
+    return shouldRunStateOneShotController(state, fighter, controllerId, trigger, opponent, stage);
 }
 
 void executeStopSoundController(
@@ -124,13 +258,16 @@ void executeStopSoundController(
         }
         triggerActive = true;
     } else {
-        triggerActive = simpleControllerTriggerActive(state, fighter, stopSound.triggerTime, stopSound.triggerAnimElem);
-        if (triggerActive) {
-            if (stateRuntimeControllerAlreadyFired(fighter, stopSound.id)) {
-                return;
-            }
-            markStateRuntimeControllerFired(fighter, stopSound.id);
+        if (!shouldRunSimpleStateRuntimeController(
+            state,
+            fighter,
+            stopSound.id,
+            stopSound.trigger,
+            stopSound.triggerTime,
+            stopSound.triggerAnimElem)) {
+            return;
         }
+        triggerActive = true;
     }
 
     if (triggerActive) {
@@ -248,6 +385,9 @@ ActorBlendMode transBlendMode(std::string_view trans) {
     const std::string value = lowercaseCopy(trim(trans));
     if (value.find("addalpha") != std::string::npos) {
         return ActorBlendMode::AddAlpha;
+    }
+    if (value.find("add1") != std::string::npos) {
+        return ActorBlendMode::Add1;
     }
     if (value.find("add") != std::string::npos) {
         return ActorBlendMode::Add;
@@ -461,13 +601,19 @@ void updateStateVisualControllers(
         if (!shouldRunStateRuntimeController(state, fighter, afterImage.id, afterImage.trigger, opponent, stage)) {
             continue;
         }
+        fighter.afterImage.configured = true;
         fighter.afterImage.active = true;
         fighter.afterImage.ticksLeft = afterImage.time < 0 ? 9999 : std::max(0, afterImage.time);
         fighter.afterImage.length = std::max(1, afterImage.length);
         fighter.afterImage.timeGap = std::max(1, afterImage.timeGap);
         fighter.afterImage.frameGap = std::max(1, afterImage.frameGap);
         fighter.afterImage.captureCountdown = 0;
-        fighter.afterImage.additive = afterImage.additive;
+        fighter.afterImage.blendMode = transBlendMode(afterImage.trans);
+        fighter.afterImage.palBright = afterImage.palBright;
+        fighter.afterImage.palContrast = afterImage.palContrast;
+        fighter.afterImage.palPostBright = afterImage.palPostBright;
+        fighter.afterImage.palAdd = afterImage.palAdd;
+        fighter.afterImage.palMul = afterImage.palMul;
         fighter.afterImage.trail.clear();
     }
 
@@ -475,11 +621,17 @@ void updateStateVisualControllers(
         if (!shouldRunStateRuntimeController(state, fighter, afterImageTime.id, afterImageTime.trigger, opponent, stage)) {
             continue;
         }
+        if (!fighter.afterImage.configured || fighter.afterImage.timeGap <= 0) {
+            continue;
+        }
         const auto value = evalMugenExpression(state, fighter, afterImageTime.timeExpression, opponent, stage);
         if (!value) {
             continue;
         }
-        const int ticks = static_cast<int>(std::lround(*value));
+        int ticks = static_cast<int>(std::lround(*value));
+        if (ticks == 1) {
+            ticks = 0;
+        }
         fighter.afterImage.ticksLeft = ticks < 0 ? 9999 : std::max(0, ticks);
         fighter.afterImage.active = fighter.afterImage.ticksLeft > 0;
         if (!fighter.afterImage.active) {
@@ -542,7 +694,7 @@ void updateAfterImageEffect(FighterState& fighter) {
             fighter.facing,
             0,
         });
-        afterImage.captureCountdown = afterImage.timeGap;
+        afterImage.captureCountdown = std::max(0, afterImage.timeGap - 1);
         while (static_cast<int>(afterImage.trail.size()) > afterImage.length) {
             afterImage.trail.erase(afterImage.trail.begin());
         }

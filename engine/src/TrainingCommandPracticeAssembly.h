@@ -357,8 +357,113 @@ const CommandStateEntry* selectedTrainingCommandEntry(const AppState& state, int
     return entries[static_cast<size_t>(selected)];
 }
 
+bool cycleSelectedTrainingCommandEntry(AppState& state, int direction) {
+    const auto entries = displayableMoveListEntries(state);
+    if (entries.empty() || direction == 0) {
+        return false;
+    }
+
+    const int count = static_cast<int>(entries.size());
+    const int current = std::clamp(state.training.options.selectedMoveListEntry, 0, count - 1);
+    const int selected = (current + direction + count) % count;
+    state.training.options.selectedMoveListEntry = selected;
+
+    constexpr int visibleRows = 7;
+    const int maxScroll = std::max(0, count - visibleRows);
+    if (selected < state.training.options.moveListScroll) {
+        state.training.options.moveListScroll = selected;
+    } else if (selected >= state.training.options.moveListScroll + visibleRows) {
+        state.training.options.moveListScroll = selected - visibleRows + 1;
+    }
+    state.training.options.moveListScroll = std::clamp(state.training.options.moveListScroll, 0, maxScroll);
+
+    state.messages.lastHitText = "Move: " + moveListEntryName(*entries[static_cast<size_t>(selected)]);
+    state.messages.lastHitTextTicks = 90;
+    return true;
+}
+
 bool trainingCommandDemoActive(const AppState& state) {
     return state.frontend.pendingMode == PendingMode::Training && state.training.commandDemo.active;
+}
+
+float trainingDemoFighterDistance(AppState& state, const CommandStateEntry& entry) {
+    if (state.fighters.size() < 2) {
+        return 72.0f;
+    }
+
+    auto& p1 = state.fighters[0];
+    auto& p2 = state.fighters[1];
+    p1.facing = 1;
+    p2.facing = -1;
+
+    const float pushWidth =
+        fighterPlayerWidthToward(state, p1, 1.0f)
+        + fighterPlayerWidthToward(state, p2, -1.0f);
+    const float extraRange = commandEntryCategory(entry) == TrainingMoveCategory::Normals ? 6.0f : 36.0f;
+    return std::max(34.0f, pushWidth + extraRange);
+}
+
+void resetTrainingDemoFighter(AppState& state, FighterState& fighter) {
+    fighter.inputHistory.clear();
+    clearFighterHitRuntime(fighter);
+    clearFighterVariables(fighter);
+    fighter.vx = 0.0f;
+    fighter.vy = 0.0f;
+    fighter.y = 0.0f;
+    fighter.onGround = true;
+    fighter.life = 1000;
+    fighter.hitCount = 0;
+    fighter.defenceMultiplier = 1.0f;
+    fighter.attackMultiplier = 1.0f;
+    fighter.attackDistanceOverride = -1;
+    fighter.drawAngle = 0.0f;
+    fighter.angleDrawActive = false;
+    fighter.displayOffsetX = 0.0f;
+    fighter.displayOffsetY = 0.0f;
+    fighter.paletteEffect = {};
+    fighter.transEffect = {};
+    fighter.afterImage = {};
+    fighter.paletteRemaps.clear();
+    enterState(state, fighter, 0);
+}
+
+void resetTrainingCommandDemoScene(AppState& state, const CommandStateEntry& entry) {
+    if (state.fighters.size() < 2) {
+        return;
+    }
+
+    const StageSlot fallbackStage;
+    const StageSlot& stage = selectedStageSlot(state.selection) ? *selectedStageSlot(state.selection) : fallbackStage;
+
+    state.runtimeEffects.clear();
+    state.helpers.clear();
+    state.projectiles.clear();
+    clearGlobalPause(state);
+    clearEnvShake(state);
+    clearPaletteRuntime(state);
+    clearComboCounters(state);
+
+    auto& p1 = state.fighters[0];
+    auto& p2 = state.fighters[1];
+    resetTrainingDemoFighter(state, p1);
+    resetTrainingDemoFighter(state, p2);
+
+    const float distance = trainingDemoFighterDistance(state, entry);
+    const float halfDistance = distance * 0.5f;
+    const float centerMin = stage.leftbound + halfDistance;
+    const float centerMax = stage.rightbound - halfDistance;
+    const float center = centerMin <= centerMax
+        ? std::clamp(stage.cameraStartx, centerMin, centerMax)
+        : stage.cameraStartx;
+
+    p1.x = clampFighterOriginToStage(center - halfDistance, stage);
+    p2.x = clampFighterOriginToStage(center + halfDistance, stage);
+    p1.y = 0.0f;
+    p2.y = 0.0f;
+    p1.facing = 1;
+    p2.facing = -1;
+    state.cameraX = std::clamp(center, stage.cameraBoundleft, stage.cameraBoundright);
+    state.cameraY = stage.cameraStarty;
 }
 
 void stopTrainingCommandDemo(AppState& state) {
@@ -385,14 +490,17 @@ void beginTrainingCommandDemo(AppState& state) {
     demo.elapsedTicks = 0;
     demo.flashTicks = 0;
 
+    resetTrainingCommandDemoScene(state, *entry);
+
     auto& p2 = state.fighters[1];
-    clearFighterHitRuntime(p2);
-    enterState(state, p2, 0);
     p2.ctrl = true;
     p2.vx = 0.0f;
     p2.vy = 0.0f;
     p2.y = 0.0f;
     p2.onGround = true;
+    p2.power = std::max(p2.power, commandEntryRequiredPower(*entry));
+    state.messages.lastHitText = "Demo: " + moveListEntryName(*entry);
+    state.messages.lastHitTextTicks = 90;
 }
 
 FighterInputState nextTrainingCommandDemoInput(AppState& state, FighterState& demoFighter) {

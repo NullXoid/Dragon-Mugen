@@ -31,9 +31,7 @@
             auto& state = states[static_cast<size_t>(currentStateIndex)];
             StatePosAddController posAdd;
             posAdd.id = controllerTrigger ? nextRuntimeControllerId++ : nextPosAddControllerId++;
-            if (controllerTrigger) {
-                posAdd.trigger = *controllerTrigger;
-            }
+            posAdd.trigger = controllerTrigger ? *controllerTrigger : controllerOptions;
             posAdd.triggerTime = triggerTime;
             posAdd.triggerAnimElem = triggerAnimElem;
             posAdd.x = findProperty(section, "x") ? parseFloatValue(findProperty(section, "x")->value, 0.0f) : 0.0f;
@@ -50,13 +48,15 @@
             auto& state = states[static_cast<size_t>(currentStateIndex)];
             StateChangeAnimController changeAnim;
             changeAnim.id = controllerTrigger ? nextRuntimeControllerId++ : nextChangeAnimControllerId++;
-            if (controllerTrigger) {
-                changeAnim.trigger = *controllerTrigger;
-            }
+            changeAnim.trigger = controllerTrigger ? *controllerTrigger : controllerOptions;
             changeAnim.triggerTime = triggerTime;
             changeAnim.triggerAnimElem = triggerAnimElem;
             changeAnim.value = parseIntValue(value->value, state.anim);
-            changeAnim.elem = findProperty(section, "elem") ? parseIntValue(findProperty(section, "elem")->value, 1) : 1;
+            changeAnim.valueExpression = trim(value->value);
+            if (const auto* elem = findProperty(section, "elem")) {
+                changeAnim.elem = parseIntValue(elem->value, 1);
+                changeAnim.elemExpression = trim(elem->value);
+            }
             changeAnim.requiresMoveContact = requiresMoveContact;
             changeAnim.animElemTimeConditions = std::move(animElemTimeConditions);
             state.changeAnims.push_back(std::move(changeAnim));
@@ -87,6 +87,14 @@
             }
             if (const auto* facing = findProperty(section, "facing")) {
                 helper.facing = parseIntValue(facing->value, helper.facing);
+            }
+            if (const auto* pauseMoveTime = findProperty(section, "pausemovetime")) {
+                helper.pauseMoveTime = parseIntValue(pauseMoveTime->value, helper.pauseMoveTime);
+            }
+            if (const auto* superMoveTime = findProperty(section, "supermovetime")) {
+                helper.superMoveTime = parseIntValue(superMoveTime->value, helper.pauseMoveTime);
+            } else {
+                helper.superMoveTime = helper.pauseMoveTime;
             }
             state.helpers.push_back(std::move(helper));
             continue;

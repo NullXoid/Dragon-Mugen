@@ -44,11 +44,14 @@ bool compareFloatValue(float lhs, CompareOp op, float rhs) {
 }
 
 float animationTimeValue(const AppState& state, const FighterState& fighter) {
-    const AnimationClip* clip = findExactClip(state, fighter.action);
+    const AnimationClip* clip = findExactClipForActor(state, fighter, fighter.action);
     if (!clip) {
         return 0.0f;
     }
-    return static_cast<float>(std::min(0, fighter.animTick - clip->loopTicks));
+    if (clip->hasInfiniteDuration && fighter.animTick >= clip->infiniteStartTick) {
+        return -1.0f;
+    }
+    return static_cast<float>(std::min(0, fighter.animTick + 1 - clip->loopTicks));
 }
 
 std::vector<std::string> collectFighterCommands(
@@ -79,6 +82,8 @@ float stateTriggerSubjectValue(
     switch (subject) {
     case StateTriggerSubject::Time:
         return static_cast<float>(fighter.stateTime);
+    case StateTriggerSubject::Anim:
+        return static_cast<float>(fighter.action);
     case StateTriggerSubject::AnimTime:
         return animationTimeValue(state, fighter);
     case StateTriggerSubject::VelX:
@@ -275,6 +280,14 @@ std::optional<float> evalMugenFunctionExpression(
         const auto value = evalMugenExpression(state, fighter, body, opponent, stage);
         return value ? std::optional<float>{ std::ceil(*value) } : std::nullopt;
     }
+    if (name == "sin") {
+        const auto value = evalMugenExpression(state, fighter, body, opponent, stage);
+        return value ? std::optional<float>{ std::sin(*value) } : std::nullopt;
+    }
+    if (name == "cos") {
+        const auto value = evalMugenExpression(state, fighter, body, opponent, stage);
+        return value ? std::optional<float>{ std::cos(*value) } : std::nullopt;
+    }
     if (name == "abs") {
         const auto value = evalMugenExpression(state, fighter, body, opponent, stage);
         return value ? std::optional<float>{ std::fabs(*value) } : std::nullopt;
@@ -334,6 +347,18 @@ std::optional<float> evalMugenFunctionExpression(
         if (key == "fall.damage") {
             return static_cast<float>(fighter.hitFallDamage);
         }
+        if (key == "down.recover") {
+            return fighter.hitDownRecover ? 1.0f : 0.0f;
+        }
+        if (key == "down.recovertime") {
+            return static_cast<float>(fighter.hitDownRecoverTime);
+        }
+        if (key == "down.velocity.x") {
+            return fighter.hitDownVelocityX;
+        }
+        if (key == "down.velocity.y") {
+            return fighter.hitDownVelocityY;
+        }
         if (key == "fall.xvel") {
             return fighter.hitFallBounceXVelocity;
         }
@@ -350,7 +375,7 @@ std::optional<float> evalMugenFunctionExpression(
         if (!action) {
             return std::nullopt;
         }
-        return findExactClip(state, static_cast<int>(std::lround(*action))) ? 1.0f : 0.0f;
+        return findExactClipForActor(state, fighter, static_cast<int>(std::lround(*action))) ? 1.0f : 0.0f;
     }
     if (name == "numhelper") {
         if (body.empty()) {
@@ -526,6 +551,9 @@ std::optional<float> evalMugenExpression(
     if (lowered == "random") {
         return static_cast<float>(pseudoMugenRandom(state, fighter));
     }
+    if (lowered == "pi") {
+        return static_cast<float>(std::numbers::pi);
+    }
     if (lowered == "numhelper") {
         return static_cast<float>(ownedHelperCount(state, fighter));
     }
@@ -550,6 +578,9 @@ std::optional<float> evalMugenExpression(
     }
     if (lowered == "animtime") {
         return animationTimeValue(state, fighter);
+    }
+    if (lowered == "anim") {
+        return static_cast<float>(fighter.action);
     }
     if (lowered == "stateno") {
         return static_cast<float>(fighter.stateNo);

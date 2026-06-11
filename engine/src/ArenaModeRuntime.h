@@ -205,6 +205,9 @@ void updateArenaPhaseTimers(AppState& state) {
 
     switch (state.matchPhase) {
     case MatchPhase::RoundStart:
+        if (anyFighterHasAssertSpecialFlag(state, "intro")) {
+            break;
+        }
         ++state.matchPhaseTicks;
         if (state.matchPhaseTicks >= singleFightRoundStartTotalTicks(state)) {
             state.matchPhase = MatchPhase::Fight;

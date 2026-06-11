@@ -89,6 +89,55 @@ std::array<Uint8, 3> paletteEffectColorMod(const ActivePaletteEffect& effect) {
     };
 }
 
+ActivePaletteEffect afterImagePaletteEffect(const ActiveAfterImageEffect& afterImage, int step) {
+    ActivePaletteEffect effect;
+    effect.ticksLeft = 1;
+    effect.spec.enabled = true;
+
+    std::array<int, 3> add = afterImage.palBright;
+    std::array<int, 3> mul = afterImage.palContrast;
+    for (int i = 1; i <= step; ++i) {
+        for (size_t channel = 0; channel < add.size(); ++channel) {
+            add[channel] += afterImage.palAdd[channel];
+            if (i == 1) {
+                add[channel] += afterImage.palPostBright[channel];
+            }
+            mul[channel] = static_cast<int>(std::lround(static_cast<float>(mul[channel]) * afterImage.palMul[channel]));
+        }
+    }
+
+    effect.spec.addR = add[0];
+    effect.spec.addG = add[1];
+    effect.spec.addB = add[2];
+    effect.spec.mulR = mul[0];
+    effect.spec.mulG = mul[1];
+    effect.spec.mulB = mul[2];
+    return effect;
+}
+
+int afterImageAlpha(const ActiveAfterImageEffect& afterImage, int step) {
+    int baseAlpha = 190;
+    switch (afterImage.blendMode) {
+    case ActorBlendMode::Add1:
+        baseAlpha = 82;
+        break;
+    case ActorBlendMode::Add:
+    case ActorBlendMode::AddAlpha:
+        baseAlpha = 150;
+        break;
+    case ActorBlendMode::Normal:
+    default:
+        baseAlpha = 190;
+        break;
+    }
+    const float fade = std::pow(0.86f, static_cast<float>(std::max(0, step)));
+    return std::clamp(static_cast<int>(std::lround(static_cast<float>(baseAlpha) * fade)), 0, 255);
+}
+
+bool actorBlendModeIsAdditive(ActorBlendMode mode) {
+    return mode == ActorBlendMode::Add || mode == ActorBlendMode::Add1 || mode == ActorBlendMode::AddAlpha;
+}
+
 void drawPaletteOverlay(SDL_Renderer* renderer, const AppState& state, const ActivePaletteEffect& effect, int alphaLimit) {
     if (effect.ticksLeft <= 0) {
         return;
@@ -110,23 +159,10 @@ void drawPaletteOverlay(SDL_Renderer* renderer, const AppState& state, const Act
 struct ActorVisualFrame {
     int action = 0;
     int animTick = 0;
-    float displayOffsetX = 0.0f;
 };
 
-ActorVisualFrame visualFrameForFighter(const AppState& state, const FighterState& fighter, size_t actorIndex) {
-    ActorVisualFrame visual{ fighter.action, fighter.animTick, 0.0f };
-    if (state.frontend.pendingMode == PendingMode::Arena
-        && fighter.stateNo == 101
-        && fighter.action == 108
-        && lowercaseCopy(arenaFighterName(state, actorIndex)).find("evil ryu") != std::string::npos) {
-        const AnimationClip* flipClip = findClipForFighter(state, actorIndex, 106);
-        if (flipClip && flipClip->action == 106) {
-            visual.action = 106;
-            visual.animTick = fighter.animTick * 2;
-            visual.displayOffsetX = -35.0f;
-        }
-    }
-    return visual;
+ActorVisualFrame visualFrameForFighter(const FighterState& fighter) {
+    return ActorVisualFrame{ fighter.action, fighter.animTick };
 }
 
 void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState& fighter, size_t actorIndex) {
@@ -182,6 +218,20 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
         SDL_SetTextureColorMod(frame->sprite.texture, colorMod[0], colorMod[1], colorMod[2]);
         SDL_SetTextureAlphaMod(frame->sprite.texture, static_cast<Uint8>(std::clamp(alpha, 0, 255)));
         SDL_RenderTextureRotated(renderer, frame->sprite.texture, nullptr, &dst, 0.0, nullptr, static_cast<SDL_FlipMode>(flipMode));
+        if (palette) {
+            const auto add = paletteEffectAdd(*palette);
+            const int overlayAlpha = std::clamp(std::max({ add[0], add[1], add[2] }), 0, std::clamp(alpha, 0, 255));
+            if (overlayAlpha > 0) {
+                SDL_SetTextureBlendMode(frame->sprite.texture, SDL_BLENDMODE_ADD);
+                SDL_SetTextureColorMod(
+                    frame->sprite.texture,
+                    static_cast<Uint8>(std::clamp(add[0], 0, 255)),
+                    static_cast<Uint8>(std::clamp(add[1], 0, 255)),
+                    static_cast<Uint8>(std::clamp(add[2], 0, 255)));
+                SDL_SetTextureAlphaMod(frame->sprite.texture, static_cast<Uint8>(overlayAlpha));
+                SDL_RenderTextureRotated(renderer, frame->sprite.texture, nullptr, &dst, 0.0, nullptr, static_cast<SDL_FlipMode>(flipMode));
+            }
+        }
 
         SDL_SetTextureBlendMode(frame->sprite.texture, previousBlend);
         SDL_SetTextureColorMod(frame->sprite.texture, previousR, previousG, previousB);
@@ -190,8 +240,20 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
     };
 
     if (fighter.afterImage.active || !fighter.afterImage.trail.empty()) {
-        for (const auto& snapshot : fighter.afterImage.trail) {
-            const int alpha = std::clamp(150 - snapshot.ageTicks * 10, 20, 150);
+        const int frameGap = std::max(1, fighter.afterImage.frameGap);
+        const int sampleCount = std::min(
+            static_cast<int>(fighter.afterImage.trail.size()),
+            std::max(1, fighter.afterImage.length));
+        const int end = (sampleCount / frameGap) * frameGap;
+        for (int offset = end; offset >= frameGap; offset -= frameGap) {
+            const size_t snapshotIndex = fighter.afterImage.trail.size() - static_cast<size_t>(offset);
+            const auto& snapshot = fighter.afterImage.trail[snapshotIndex];
+            const int step = offset / frameGap - 1;
+            ActivePaletteEffect palette = afterImagePaletteEffect(fighter.afterImage, step);
+            const int alpha = afterImageAlpha(fighter.afterImage, step);
+            if (alpha <= 0) {
+                continue;
+            }
             drawActorSprite(
                 snapshot.action,
                 snapshot.animTick,
@@ -199,12 +261,12 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
                 snapshot.y,
                 snapshot.facing,
                 alpha,
-                fighter.afterImage.additive,
-                nullptr);
+                actorBlendModeIsAdditive(fighter.afterImage.blendMode),
+                &palette);
         }
     }
 
-    const ActorVisualFrame visual = visualFrameForFighter(state, fighter, actorIndex);
+    const ActorVisualFrame visual = visualFrameForFighter(fighter);
     const AnimationClip* clip = findClipForFighter(state, actorIndex, visual.action);
     const AnimationFrame* frame = clip ? frameForClip(*clip, visual.animTick) : nullptr;
     const bool drawHitFeedback = state.frontend.pendingMode == PendingMode::Training
@@ -214,7 +276,7 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
     if (frame && frame->sprite.texture) {
         const float originX = screenCenterX(state) + fighter.x - state.cameraX;
         const float originY = stage.zoffset + fighter.y - state.cameraY;
-        const float displayOriginX = originX + (fighter.displayOffsetX + visual.displayOffsetX) * static_cast<float>(fighter.facing);
+        const float displayOriginX = originX + fighter.displayOffsetX * static_cast<float>(fighter.facing);
         const float displayOriginY = originY + fighter.displayOffsetY;
         const bool facingLeft = fighter.facing < 0;
         const bool flipH = frame->flipX != facingLeft;
@@ -252,8 +314,7 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
         Uint8 previousA = 255;
         SDL_GetTextureAlphaMod(frame->sprite.texture, &previousA);
         const auto colorMod = paletteEffectColorMod(fighter.paletteEffect);
-        const bool additiveTrans = fighter.transEffect.active
-            && (fighter.transEffect.mode == ActorBlendMode::Add || fighter.transEffect.mode == ActorBlendMode::AddAlpha);
+        const bool additiveTrans = fighter.transEffect.active && actorBlendModeIsAdditive(fighter.transEffect.mode);
         const int sourceAlpha = fighter.transEffect.active ? fighter.transEffect.alphaSource : 256;
         SDL_SetTextureBlendMode(frame->sprite.texture, additiveTrans ? SDL_BLENDMODE_ADD : SDL_BLENDMODE_BLEND);
         SDL_SetTextureColorMod(frame->sprite.texture, colorMod[0], colorMod[1], colorMod[2]);
@@ -321,7 +382,7 @@ void drawFighter(SDL_Renderer* renderer, const AppState& state, size_t fighterIn
 }
 
 void drawRuntimeEffect(SDL_Renderer* renderer, const AppState& state, const StageSlot& stage, const RuntimeEffect& effect) {
-    const AnimationClip* clip = effect.fromFightFx ? findFightFxClip(state, effect.action) : findExactClip(state, effect.action);
+    const AnimationClip* clip = findExactClipForRuntimeEffect(state, effect);
     const AnimationFrame* frame = clip ? frameForClip(*clip, effect.animTick) : nullptr;
     if (!frame || !frame->sprite.texture) {
         return;
@@ -378,7 +439,10 @@ void drawRuntimeEffect(SDL_Renderer* renderer, const AppState& state, const Stag
 }
 
 void drawRuntimeProjectile(SDL_Renderer* renderer, const AppState& state, const StageSlot& stage, const RuntimeProjectile& projectile) {
-    const AnimationClip* clip = findExactClip(state, projectile.action);
+    if (projectile.ownerIndex < 0 || projectile.ownerIndex >= static_cast<int>(state.fighters.size())) {
+        return;
+    }
+    const AnimationClip* clip = findClipForFighter(state, static_cast<size_t>(projectile.ownerIndex), projectile.action);
     const AnimationFrame* frame = clip ? frameForClip(*clip, projectile.animTick) : nullptr;
     if (!frame || !frame->sprite.texture) {
         return;

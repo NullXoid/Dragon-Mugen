@@ -112,8 +112,42 @@
                 afterImage.frameGap = std::max(1, parseIntValue(frameGap->value, afterImage.frameGap));
             }
             if (const auto* trans = findProperty(section, "trans")) {
-                const std::string mode = lowercaseCopy(trim(trans->value));
-                afterImage.additive = mode.find("add") != std::string::npos;
+                afterImage.trans = lowercaseCopy(trim(trans->value));
+            }
+            if (const auto* palBright = findProperty(section, "palbright")) {
+                afterImage.palBright = parseIntTripleValue(
+                    palBright->value,
+                    afterImage.palBright[0],
+                    afterImage.palBright[1],
+                    afterImage.palBright[2]);
+            }
+            if (const auto* palContrast = findProperty(section, "palcontrast")) {
+                afterImage.palContrast = parseIntTripleValue(
+                    palContrast->value,
+                    afterImage.palContrast[0],
+                    afterImage.palContrast[1],
+                    afterImage.palContrast[2]);
+            }
+            if (const auto* palPostBright = findProperty(section, "palpostbright")) {
+                afterImage.palPostBright = parseIntTripleValue(
+                    palPostBright->value,
+                    afterImage.palPostBright[0],
+                    afterImage.palPostBright[1],
+                    afterImage.palPostBright[2]);
+            }
+            if (const auto* palAdd = findProperty(section, "paladd")) {
+                afterImage.palAdd = parseIntTripleValue(
+                    palAdd->value,
+                    afterImage.palAdd[0],
+                    afterImage.palAdd[1],
+                    afterImage.palAdd[2]);
+            }
+            if (const auto* palMul = findProperty(section, "palmul")) {
+                afterImage.palMul = parseFloatTripleValue(
+                    palMul->value,
+                    afterImage.palMul[0],
+                    afterImage.palMul[1],
+                    afterImage.palMul[2]);
             }
             state.afterImages.push_back(std::move(afterImage));
             continue;
@@ -348,6 +382,32 @@
             if (const auto* fallDamage = findProperty(section, "fall.damage")) {
                 projectile.hitDef.fallDamage = parseIntValue(fallDamage->value, 0);
                 projectile.hitDef.fallDamageExpression = trim(fallDamage->value);
+            }
+            if (const auto* downRecover = findProperty(section, "down.recover")) {
+                projectile.hitDef.downRecover = parseIntValue(downRecover->value, 1) != 0;
+                projectile.hitDef.downRecoverExpression = trim(downRecover->value);
+            }
+            if (const auto* downRecoverTime = findProperty(section, "down.recovertime")) {
+                projectile.hitDef.downRecoverTime =
+                    parseIntValue(downRecoverTime->value, projectile.hitDef.downRecoverTime);
+                projectile.hitDef.downRecoverTimeExpression = trim(downRecoverTime->value);
+            }
+            if (const auto* downVelocity = findProperty(section, "down.velocity")) {
+                const auto values = parseFloatPairValue(downVelocity->value);
+                projectile.hitDef.hasDownVelocity = true;
+                projectile.hitDef.downVelocityX = values.first;
+                projectile.hitDef.downVelocityY = values.second;
+                const auto expressions = parseExpressionPairValue(downVelocity->value);
+                projectile.hitDef.downVelocityXExpression = expressions.first;
+                projectile.hitDef.downVelocityYExpression = expressions.second;
+            }
+            if (const auto* downHitTime = findProperty(section, "down.hittime")) {
+                projectile.hitDef.downHitTime = parseIntValue(downHitTime->value, projectile.hitDef.downHitTime);
+                projectile.hitDef.downHitTimeExpression = trim(downHitTime->value);
+            }
+            if (const auto* downBounce = findProperty(section, "down.bounce")) {
+                projectile.hitDef.downBounce = parseIntValue(downBounce->value, 0) != 0;
+                projectile.hitDef.downBounceExpression = trim(downBounce->value);
             }
             if (const auto* fallXVelocity = findProperty(section, "fall.xvelocity")) {
                 projectile.hitDef.hasFallXVelocity = true;

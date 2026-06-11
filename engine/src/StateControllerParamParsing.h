@@ -90,6 +90,18 @@ std::array<int, 3> parseIntTripleValue(const std::string& value, int fallbackR, 
     };
 }
 
+std::array<float, 3> parseFloatTripleValue(const std::string& value, float fallbackR, float fallbackG, float fallbackB) {
+    const auto parts = splitCsv(value);
+    if (parts.empty()) {
+        return { fallbackR, fallbackG, fallbackB };
+    }
+    return {
+        parseFloatValue(parts[0], fallbackR),
+        parts.size() >= 2 ? parseFloatValue(parts[1], fallbackG) : fallbackG,
+        parts.size() >= 3 ? parseFloatValue(parts[2], fallbackB) : fallbackB,
+    };
+}
+
 std::array<std::string, 3> parseExpressionTripleValue(
     const std::string& value,
     std::array<std::string, 3> fallback = {}) {

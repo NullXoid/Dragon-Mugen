@@ -189,6 +189,9 @@ MainSettings cycleMainSetting(MainSettings settings, int row, int direction, int
         settings.p2GamepadAssignment =
             cycleGamepadAssignmentValue(settings.p2GamepadAssignment, gamepadDeviceCount, direction);
         break;
+    case 6:
+        settings.fallFallbacksEnabled = !settings.fallFallbacksEnabled;
+        break;
     default:
         break;
     }
@@ -213,6 +216,7 @@ std::string_view mainSettingLabel(int option) {
         "PAD LABELS",
         "P1 GAMEPAD",
         "P2 GAMEPAD",
+        "FALL FALLBACKS",
         "BACK",
     };
     return labels[static_cast<size_t>(std::clamp(option, 0, kMainSettingsCount - 1))];

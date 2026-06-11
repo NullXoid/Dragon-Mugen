@@ -76,9 +76,7 @@
             auto& state = states[static_cast<size_t>(currentStateIndex)];
             StateSoundController soundController;
             soundController.id = nextSoundControllerId++;
-            if (controllerTrigger) {
-                soundController.trigger = *controllerTrigger;
-            }
+            soundController.trigger = controllerTrigger ? *controllerTrigger : controllerOptions;
             soundController.triggerTime = triggerTime;
             soundController.triggerAnimElem = triggerAnimElem;
             soundController.group = sound->group;
@@ -120,9 +118,7 @@
             auto& state = states[static_cast<size_t>(currentStateIndex)];
             StateStopSoundController stopSound;
             stopSound.id = nextRuntimeControllerId++;
-            if (controllerTrigger) {
-                stopSound.trigger = *controllerTrigger;
-            }
+            stopSound.trigger = controllerTrigger ? *controllerTrigger : controllerOptions;
             stopSound.triggerTime = triggerTime;
             stopSound.triggerAnimElem = triggerAnimElem;
             stopSound.channel = parsedChannel;
@@ -142,9 +138,7 @@
             auto& state = states[static_cast<size_t>(currentStateIndex)];
             StateCtrlController ctrlSet;
             ctrlSet.id = nextCtrlControllerId++;
-            if (controllerTrigger) {
-                ctrlSet.trigger = *controllerTrigger;
-            }
+            ctrlSet.trigger = controllerTrigger ? *controllerTrigger : controllerOptions;
             ctrlSet.triggerTime = triggerTime;
             ctrlSet.triggerAnimElem = triggerAnimElem;
             ctrlSet.value = parseIntValue(value->value, 0) != 0;
@@ -217,13 +211,19 @@
             } else {
                 velocity.operation = StateVelocityOperation::Set;
             }
-            if (const auto x = parseControllerFloatProperty(section, "x", constants)) {
+            if (const auto* xProperty = findProperty(section, "x")) {
                 velocity.hasX = true;
-                velocity.x = *x;
+                velocity.xExpression = trim(xProperty->value);
+                if (const auto x = parseControllerFloatValue(velocity.xExpression, constants)) {
+                    velocity.x = *x;
+                }
             }
-            if (const auto y = parseControllerFloatProperty(section, "y", constants)) {
+            if (const auto* yProperty = findProperty(section, "y")) {
                 velocity.hasY = true;
-                velocity.y = *y;
+                velocity.yExpression = trim(yProperty->value);
+                if (const auto y = parseControllerFloatValue(velocity.yExpression, constants)) {
+                    velocity.y = *y;
+                }
             }
             if (!velocity.hasX && !velocity.hasY) {
                 continue;

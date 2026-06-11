@@ -12,19 +12,24 @@ void updateStatePosAddControllersForDefinition(
     const FighterState* opponent,
     const StageSlot* stage) {
     for (const auto& posAdd : stateDef.posAdds) {
+        const int controllerKey = posAdd.trigger.hasTrigger ? posAdd.id : stateControllerDomainKey(3, posAdd.id);
         if (posAdd.trigger.hasTrigger) {
-            if (!shouldRunStateRuntimeController(state, fighter, posAdd.id, posAdd.trigger, opponent, stage)) {
+            if (!shouldRunStateRuntimeController(state, fighter, controllerKey, posAdd.trigger, opponent, stage)) {
                 continue;
             }
             fighter.x += posAdd.x * static_cast<float>(fighter.facing);
             fighter.y += posAdd.y;
             continue;
         }
-        if (statePosAddAlreadyFired(fighter, posAdd.id)
-            || !simpleControllerTriggerActive(state, fighter, posAdd.triggerTime, posAdd.triggerAnimElem)) {
+        if (!shouldRunSimpleStateRuntimeController(
+            state,
+            fighter,
+            controllerKey,
+            posAdd.trigger,
+            posAdd.triggerTime,
+            posAdd.triggerAnimElem)) {
             continue;
         }
-        markStatePosAddFired(fighter, posAdd.id);
         fighter.x += posAdd.x * static_cast<float>(fighter.facing);
         fighter.y += posAdd.y;
     }

@@ -40,6 +40,7 @@ struct CharacterSize {
 struct CharacterConstants {
     CharacterSize size;
     int maxPower = 3000;
+    int liedownTime = 60;
     int attackDistance = 160;
     float velocityWalkFwdX = 2.4f;
     float velocityWalkBackX = -2.2f;
@@ -47,7 +48,30 @@ struct CharacterConstants {
     float velocityRunFwdY = 0.0f;
     float velocityRunBackX = -4.5f;
     float velocityRunBackY = -3.8f;
+    float velocityJumpNeuX = 0.0f;
+    float velocityJumpY = -8.4f;
+    float velocityJumpFwdX = 2.5f;
+    float velocityJumpBackX = -2.55f;
+    float velocityRunJumpFwdX = 4.0f;
+    float velocityRunJumpFwdY = -8.1f;
+    float velocityRunJumpBackX = -2.55f;
+    float velocityRunJumpBackY = -8.1f;
+    float velocityAirJumpNeuX = 0.0f;
+    float velocityAirJumpY = -8.1f;
+    float velocityAirJumpFwdX = 2.5f;
+    float velocityAirJumpBackX = -2.55f;
+    int movementAirJumpNum = 0;
+    int movementAirJumpHeight = 35;
+    float movementStandFriction = 0.85f;
+    float movementCrouchFriction = 0.82f;
+    float movementStandFrictionThreshold = 2.0f;
+    float movementCrouchFrictionThreshold = 2.0f;
     float movementYAccel = 0.42f;
+    float movementDownBounceOffsetX = 0.0f;
+    float movementDownBounceOffsetY = 20.0f;
+    float movementDownBounceYAccel = 0.4f;
+    float movementDownBounceGroundLevel = 12.0f;
+    float movementDownFrictionThreshold = 0.05f;
 };
 
 struct StageSlot {

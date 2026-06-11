@@ -189,6 +189,9 @@
                 if (const auto* moveTime = findProperty(section, "movetime")) {
                     pause.moveTime = std::max(0, parseIntValue(moveTime->value, pause.moveTime));
                 }
+                if (const auto* powerAdd = findProperty(section, "poweradd")) {
+                    pause.powerAdd = parseIntValue(powerAdd->value, pause.powerAdd);
+                }
                 if (const auto* sound = findProperty(section, "sound")) {
                     if (const auto parsed = parseSoundValue(sound->value)) {
                         pause.soundGroup = parsed->group;

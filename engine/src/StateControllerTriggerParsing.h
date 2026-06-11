@@ -265,13 +265,23 @@ std::optional<size_t> findTopLevelBinaryOperator(
                 || expression.substr(i, op.size()) != op) {
                 continue;
             }
-            if ((op == "+" || op == "-") && i == 0) {
-                continue;
-            }
-            if ((op == "+" || op == "-")
-                && i > 0
-                && (expression[i - 1] == 'e' || expression[i - 1] == 'E')) {
-                continue;
+            if (op == "+" || op == "-") {
+                size_t previous = i;
+                while (previous > 0 && std::isspace(static_cast<unsigned char>(expression[previous - 1]))) {
+                    --previous;
+                }
+                if (previous == 0) {
+                    continue;
+                }
+                const char before = expression[previous - 1];
+                if (before == 'e' || before == 'E'
+                    || before == '(' || before == '[' || before == ','
+                    || before == '+' || before == '-' || before == '*'
+                    || before == '/' || before == '%' || before == '='
+                    || before == '!' || before == '<' || before == '>'
+                    || before == '&' || before == '|') {
+                    continue;
+                }
             }
             return i;
         }
@@ -398,6 +408,10 @@ std::optional<StateTriggerSubject> parseStateTriggerSubject(const std::string& c
         subjectEnd = 4;
         return StateTriggerSubject::Time;
     }
+    if (startsWithNoCase(lowered, "anim") && (lowered.size() == 4 || !isIdentifierChar(lowered[4]))) {
+        subjectEnd = 4;
+        return StateTriggerSubject::Anim;
+    }
     if (startsWithNoCase(lowered, "animtime") && (lowered.size() == 8 || !isIdentifierChar(lowered[8]))) {
         subjectEnd = 8;
         return StateTriggerSubject::AnimTime;
@@ -503,6 +517,10 @@ bool parseStateFloatCondition(const std::string& clause, StateTriggerGroup& grou
         group.floatConditions.push_back(StateFloatCondition{ StateTriggerSubject::AnimTime, CompareOp::Equal, 0.0f });
         return true;
     }
+    if (equalsNoCase(clause, "!hitshakeover")) {
+        group.floatConditions.push_back(StateFloatCondition{ StateTriggerSubject::HitShakeOver, CompareOp::Equal, 0.0f });
+        return true;
+    }
 
     size_t subjectEnd = 0;
     const auto subject = parseStateTriggerSubject(clause, subjectEnd);
@@ -513,6 +531,10 @@ bool parseStateFloatCondition(const std::string& clause, StateTriggerGroup& grou
     const std::string tail = trim(std::string_view(clause).substr(subjectEnd));
     const auto compare = findCompareOp(tail);
     if (!compare) {
+        if (tail.empty()) {
+            group.floatConditions.push_back(StateFloatCondition{ *subject, CompareOp::NotEqual, 0.0f });
+            return true;
+        }
         return false;
     }
 
@@ -680,11 +702,19 @@ void appendNumberedTriggerExpression(std::vector<std::pair<std::string, std::str
     expressions.push_back({ loweredKey, value });
 }
 
-std::optional<StateControllerTrigger> parseStateControllerTrigger(const MugenSection& section) {
+StateControllerTrigger parseStateControllerTriggerOptions(const MugenSection& section) {
     StateControllerTrigger trigger;
     if (const auto* persistent = findProperty(section, "persistent")) {
         trigger.persistent = std::max(0, parseIntValue(persistent->value, 1));
     }
+    if (const auto* ignoreHitPause = findProperty(section, "ignorehitpause")) {
+        trigger.ignoreHitPause = parseIntValue(ignoreHitPause->value, 0) != 0;
+    }
+    return trigger;
+}
+
+std::optional<StateControllerTrigger> parseStateControllerTrigger(const MugenSection& section) {
+    StateControllerTrigger trigger = parseStateControllerTriggerOptions(section);
 
     std::vector<std::pair<std::string, std::string>> numberedExpressions;
     for (const auto& property : section.properties) {

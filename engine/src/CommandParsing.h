@@ -230,7 +230,7 @@ void applyCommandTriggerClause(CommandStateEntry& entry, const std::string& clau
 }
 
 void applyCommandTriggerExpression(CommandStateEntry& entry, const std::string& value) {
-    for (const auto& clause : splitAndClauses(value)) {
+    for (const auto& clause : splitTopLevelClauses(value, "&&")) {
         applyCommandTriggerClause(entry, clause);
     }
 }
@@ -270,8 +270,8 @@ std::vector<CommandStateEntry> loadCommandStateEntries(const CharacterFiles& fil
         }
 
         for (const auto& property : section.properties) {
-            const bool isTriggerAll = startsWithNoCase(property.key, "triggerall");
-            const bool isPrimaryTrigger = startsWithNoCase(property.key, "trigger1");
+            const bool isTriggerAll = equalsNoCase(property.key, "triggerall");
+            const bool isPrimaryTrigger = equalsNoCase(property.key, "trigger1");
             if (!isTriggerAll && !isPrimaryTrigger) {
                 continue;
             }

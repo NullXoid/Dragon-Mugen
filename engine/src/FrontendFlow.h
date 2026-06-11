@@ -630,6 +630,10 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
             resetFightState(state);
         } else if (key == SDLK_H) {
             beginTrainingCommandDemo(state);
+        } else if (key == SDLK_PAGEDOWN) {
+            cycleSelectedTrainingCommandEntry(state, 1);
+        } else if (key == SDLK_PAGEUP) {
+            cycleSelectedTrainingCommandEntry(state, -1);
         }
         return;
     }
@@ -679,6 +683,9 @@ std::optional<SDL_Keycode> gamepadMenuKeyForButton(const AppState& state, SDL_Ga
         }
         if (button == SDL_GAMEPAD_BUTTON_START) {
             return SDLK_F2;
+        }
+        if (button == SDL_GAMEPAD_BUTTON_BACK && state.frontend.pendingMode == PendingMode::Training) {
+            return SDLK_PAGEDOWN;
         }
         if (button == SDL_GAMEPAD_BUTTON_BACK) {
             return SDLK_ESCAPE;

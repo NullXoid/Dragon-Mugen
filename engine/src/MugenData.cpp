@@ -497,6 +497,9 @@ CharacterConstants loadCharacterConstants(const CharacterFiles& files) {
             if (const auto* power = findProperty(*data, "power")) {
                 constants.maxPower = parseIntValue(power->value, constants.maxPower);
             }
+            if (const auto* liedownTime = findProperty(*data, "liedown.time")) {
+                constants.liedownTime = parseIntValue(liedownTime->value, constants.liedownTime);
+            }
         }
         if (const auto* size = findSection(doc, "Size")) {
             constants.size.groundBack = parseFloatOr(size, "ground.back", constants.size.groundBack);
@@ -521,9 +524,79 @@ CharacterConstants loadCharacterConstants(const CharacterFiles& files) {
                 constants.velocityRunBackX = values.first;
                 constants.velocityRunBackY = values.second;
             }
+            if (const auto* jumpNeutral = findProperty(*velocity, "jump.neu")) {
+                const auto values =
+                    parseCharacterFloatPairValue(jumpNeutral->value, constants.velocityJumpNeuX, constants.velocityJumpY);
+                constants.velocityJumpNeuX = values.first;
+                constants.velocityJumpY = values.second;
+            }
+            constants.velocityJumpFwdX = parseFloatOr(velocity, "jump.fwd", constants.velocityJumpFwdX);
+            constants.velocityJumpBackX = parseFloatOr(velocity, "jump.back", constants.velocityJumpBackX);
+            if (const auto* runJumpFwd = findProperty(*velocity, "runjump.fwd")) {
+                const auto values = parseCharacterFloatPairValue(
+                    runJumpFwd->value,
+                    constants.velocityRunJumpFwdX,
+                    constants.velocityRunJumpFwdY);
+                constants.velocityRunJumpFwdX = values.first;
+                constants.velocityRunJumpFwdY = values.second;
+            }
+            if (const auto* runJumpBack = findProperty(*velocity, "runjump.back")) {
+                const auto values = parseCharacterFloatPairValue(
+                    runJumpBack->value,
+                    constants.velocityRunJumpBackX,
+                    constants.velocityRunJumpBackY);
+                constants.velocityRunJumpBackX = values.first;
+                constants.velocityRunJumpBackY = values.second;
+            }
+            if (const auto* airJumpNeutral = findProperty(*velocity, "airjump.neu")) {
+                const auto values =
+                    parseCharacterFloatPairValue(airJumpNeutral->value, constants.velocityAirJumpNeuX, constants.velocityAirJumpY);
+                constants.velocityAirJumpNeuX = values.first;
+                constants.velocityAirJumpY = values.second;
+            }
+            if (const auto* airJumpFwd = findProperty(*velocity, "airjump.fwd")) {
+                const auto values =
+                    parseCharacterFloatPairValue(airJumpFwd->value, constants.velocityAirJumpFwdX, constants.velocityAirJumpY);
+                constants.velocityAirJumpFwdX = values.first;
+            }
+            if (const auto* airJumpBack = findProperty(*velocity, "airjump.back")) {
+                const auto values =
+                    parseCharacterFloatPairValue(airJumpBack->value, constants.velocityAirJumpBackX, constants.velocityAirJumpY);
+                constants.velocityAirJumpBackX = values.first;
+            }
         }
         if (const auto* movement = findSection(doc, "Movement")) {
+            constants.movementAirJumpNum = parseIntValue(
+                findProperty(*movement, "airjump.num")
+                    ? findProperty(*movement, "airjump.num")->value
+                    : std::to_string(constants.movementAirJumpNum),
+                constants.movementAirJumpNum);
+            constants.movementAirJumpHeight = parseIntValue(
+                findProperty(*movement, "airjump.height")
+                    ? findProperty(*movement, "airjump.height")->value
+                    : std::to_string(constants.movementAirJumpHeight),
+                constants.movementAirJumpHeight);
+            constants.movementStandFriction = parseFloatOr(movement, "stand.friction", constants.movementStandFriction);
+            constants.movementCrouchFriction = parseFloatOr(movement, "crouch.friction", constants.movementCrouchFriction);
+            constants.movementStandFrictionThreshold =
+                parseFloatOr(movement, "stand.friction.threshold", constants.movementStandFrictionThreshold);
+            constants.movementCrouchFrictionThreshold =
+                parseFloatOr(movement, "crouch.friction.threshold", constants.movementCrouchFrictionThreshold);
             constants.movementYAccel = parseFloatOr(movement, "yaccel", constants.movementYAccel);
+            if (const auto* downBounceOffset = findProperty(*movement, "down.bounce.offset")) {
+                const auto values = parseCharacterFloatPairValue(
+                    downBounceOffset->value,
+                    constants.movementDownBounceOffsetX,
+                    constants.movementDownBounceOffsetY);
+                constants.movementDownBounceOffsetX = values.first;
+                constants.movementDownBounceOffsetY = values.second;
+            }
+            constants.movementDownBounceYAccel =
+                parseFloatOr(movement, "down.bounce.yaccel", constants.movementDownBounceYAccel);
+            constants.movementDownBounceGroundLevel =
+                parseFloatOr(movement, "down.bounce.groundlevel", constants.movementDownBounceGroundLevel);
+            constants.movementDownFrictionThreshold =
+                parseFloatOr(movement, "down.friction.threshold", constants.movementDownFrictionThreshold);
         }
     }
     return constants;

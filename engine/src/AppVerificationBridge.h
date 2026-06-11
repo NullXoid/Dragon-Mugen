@@ -131,6 +131,14 @@ public:
         }
     }
 
+    void setFighterPower(int fighterIndex, int power) override {
+        if (fighterIndex < 0 || fighterIndex >= static_cast<int>(state_.fighters.size())) {
+            return;
+        }
+        auto& fighter = state_.fighters[static_cast<size_t>(fighterIndex)];
+        fighter.power = std::clamp(power, 0, std::max(0, state_.characterConstants.maxPower));
+    }
+
     void setFighterControl(int fighterIndex, bool enabled) override {
         if (fighterIndex < 0 || fighterIndex >= static_cast<int>(state_.fighters.size())) {
             return;
@@ -138,11 +146,85 @@ public:
         state_.fighters[static_cast<size_t>(fighterIndex)].ctrl = enabled;
     }
 
+    void setFighterHitPause(int fighterIndex, int ticks) override {
+        if (fighterIndex < 0 || fighterIndex >= static_cast<int>(state_.fighters.size())) {
+            return;
+        }
+        auto& fighter = state_.fighters[static_cast<size_t>(fighterIndex)];
+        fighter.hitPauseTicks = std::max(0, ticks);
+        if (fighter.hitPauseTicks <= 0) {
+            fighter.hitPauseChangeStateControllerId = 0;
+        }
+    }
+
     void forceFighterState(int fighterIndex, int stateNo) override {
         if (fighterIndex < 0 || fighterIndex >= static_cast<int>(state_.fighters.size())) {
             return;
         }
         enterState(state_, state_.fighters[static_cast<size_t>(fighterIndex)], stateNo);
+    }
+
+    void forceFighterLiedown(int fighterIndex, int hitStunTicks) override {
+        if (fighterIndex < 0 || fighterIndex >= static_cast<int>(state_.fighters.size())) {
+            return;
+        }
+        auto& fighter = state_.fighters[static_cast<size_t>(fighterIndex)];
+        enterState(state_, fighter, 5110);
+        fighter.stateType = 'L';
+        fighter.moveType = 'H';
+        fighter.physics = 'N';
+        fighter.ctrl = false;
+        fighter.onGround = true;
+        fighter.y = 0.0f;
+        fighter.vx = 0.0f;
+        fighter.vy = 0.0f;
+        fighter.hitFall = true;
+        fighter.hitFallRecover = false;
+        fighter.hitDowned = false;
+        fighter.hitStunTicks = std::max(1, hitStunTicks);
+        fighter.hitPauseTicks = 0;
+        setFighterAction(fighter, firstExistingAction(state_, { 5110, 5170, 5080, 0 }));
+    }
+
+    void spawnHelper(int ownerIndex, int helperId, int stateNo, int pauseMoveTime = 0, int superMoveTime = 0) override {
+        if (ownerIndex < 0 || ownerIndex >= static_cast<int>(state_.fighters.size())) {
+            return;
+        }
+        if (!findStateDefinition(state_, stateNo)) {
+            return;
+        }
+        const auto& owner = state_.fighters[static_cast<size_t>(ownerIndex)];
+        FighterState helper;
+        helper.helper = true;
+        helper.ownerIndex = ownerIndex;
+        helper.helperId = helperId;
+        helper.x = owner.x;
+        helper.y = owner.y;
+        helper.facing = owner.facing;
+        helper.onGround = true;
+        helper.life = 1000;
+        helper.pauseMoveTime = pauseMoveTime;
+        helper.superMoveTime = superMoveTime;
+        enterState(state_, helper, stateNo);
+        state_.helpers.push_back(std::move(helper));
+    }
+
+    bool selectTrainingMove(std::string_view label) override {
+        const std::string wanted = lowercaseCopy(label);
+        const auto entries = displayableMoveListEntries(state_);
+        for (int i = 0; i < static_cast<int>(entries.size()); ++i) {
+            if (lowercaseCopy(moveListEntryName(*entries[static_cast<size_t>(i)])) != wanted) {
+                continue;
+            }
+            state_.training.options.selectedMoveListEntry = i;
+            state_.training.options.moveListScroll = std::max(0, i - 2);
+            return true;
+        }
+        return false;
+    }
+
+    void startTrainingCommandDemo() override {
+        beginTrainingCommandDemo(state_);
     }
 
     verification::RuntimeSnapshot snapshot() const override {
@@ -154,13 +236,37 @@ public:
         out.activeSounds = static_cast<int>(state_.audio.activeVoices.size());
         out.comboHits = state_.display.comboCounters[0].displayHits;
         out.fighterCount = static_cast<int>(state_.fighters.size());
+        out.globalPauseTicks = state_.globalPauseTicks;
+        out.globalPauseOwnerMoveTicks = state_.globalPauseOwnerMoveTicks;
+        out.globalPauseIsSuper = state_.globalPauseIsSuper;
         for (const auto& fighter : state_.fighters) {
             if (fighter.life > 0) {
                 ++out.livingFighters;
             }
         }
+        for (const auto& helper : state_.helpers) {
+            if (helper.destroyRequested) {
+                continue;
+            }
+            if (out.activeHelpers == 0) {
+                out.firstHelperState = helper.stateNo;
+                out.firstHelperAction = helper.action;
+                out.firstHelperAnimTick = helper.animTick;
+            }
+            ++out.activeHelpers;
+            if (helper.stateNo == 0) {
+                ++out.idleHelpers;
+            }
+        }
         out.roundWinner = state_.roundWinner;
         out.lastHitText = state_.messages.lastHitText;
+        const auto p1Commands = collectCurrentFighterCommands(state_, state_.fighters[0]);
+        for (size_t i = 0; i < p1Commands.size(); ++i) {
+            if (i > 0) {
+                out.p1Commands += ",";
+            }
+            out.p1Commands += p1Commands[i];
+        }
         out.p1 = fighterSnapshot(state_.fighters[0]);
         out.p2 = fighterSnapshot(state_.fighters[1]);
         return out;
@@ -206,6 +312,11 @@ private:
             fighter.power,
             fighter.hitCount,
             fighter.hitPauseTicks,
+            fighter.hitStunTicks,
+            fighter.hitDownVelocityX,
+            fighter.hitDownVelocityY,
+            fighter.displayOffsetX,
+            fighter.displayOffsetY,
             fighter.stateType,
             fighter.moveType,
             fighter.ctrl,

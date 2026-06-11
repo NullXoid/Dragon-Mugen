@@ -60,6 +60,9 @@ std::vector<StateDefinition> loadStateDefinitions(const CharacterFiles& files, c
                 if (const auto* ctrl = findProperty(section, "ctrl")) {
                     state.ctrl = parseIntValue(ctrl->value, state.ctrl ? 1 : 0) != 0;
                 }
+                if (const auto* powerAdd = findProperty(section, "poweradd")) {
+                    state.powerAddExpression = trim(powerAdd->value);
+                }
                 if (const auto* sprPriority = findProperty(section, "sprpriority")) {
                     state.sprPriority = parseIntValue(sprPriority->value, state.sprPriority);
                 }
@@ -108,6 +111,7 @@ std::vector<StateDefinition> loadStateDefinitions(const CharacterFiles& files, c
                     }
                 }
             }
+            const StateControllerTrigger controllerOptions = parseStateControllerTriggerOptions(section);
             const auto controllerTrigger = parseStateControllerTrigger(section);
 
 // Controller handler bodies are split into internal fragments to keep parser debt bounded.

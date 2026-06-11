@@ -187,6 +187,25 @@ bool commandStepMatches(const std::vector<CommandInputFrame>& history, size_t in
     return !hasPressAtom || hasFreshPressAtom;
 }
 
+bool commandStepHasButtonAtom(const CommandStep& step) {
+    return std::any_of(step.atoms.begin(), step.atoms.end(), [](const CommandAtom& atom) {
+        return buttonAtomSymbol(atom.symbol);
+    });
+}
+
+bool commandStepHasDirectionAtom(const CommandStep& step) {
+    return std::any_of(step.atoms.begin(), step.atoms.end(), [](const CommandAtom& atom) {
+        return !buttonAtomSymbol(atom.symbol);
+    });
+}
+
+bool commandStepAllowsPreviousOverlap(const CommandStep& previousStep, const CommandStep& step) {
+    return commandStepHasDirectionAtom(previousStep)
+        && !commandStepHasButtonAtom(previousStep)
+        && commandStepHasButtonAtom(step)
+        && !commandStepHasDirectionAtom(step);
+}
+
 bool commandDefinitionActive(const CommandDefinition& definition, const FighterState& fighter) {
     if (definition.steps.empty() || fighter.inputHistory.empty()) {
         return false;
@@ -210,7 +229,12 @@ bool commandDefinitionActive(const CommandDefinition& definition, const FighterS
                 if (lastMatchedTick < 0) {
                     lastMatchedTick = fighter.inputHistory[static_cast<size_t>(frameIndex)].tick;
                 }
-                searchIndex = frameIndex - 1;
+                searchIndex = stepIndex > 0
+                    && commandStepAllowsPreviousOverlap(
+                        definition.steps[static_cast<size_t>(stepIndex - 1)],
+                        definition.steps[static_cast<size_t>(stepIndex)])
+                    ? frameIndex
+                    : frameIndex - 1;
                 break;
             }
         }
