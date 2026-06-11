@@ -389,6 +389,18 @@ int runShotoSpecialsSupers(
         && stepSequenceAndObserve(runtime, dpSequence('x'), { 1500, 1550, 1600, 1650, 1700, 1750 }, observed, &commands, 45);
     recordObservedState(out, counts, upper, "dp_upper_enters_special", upperReady, observed, commands);
 
+    FighterSnapshot blockedObserved;
+    std::string blockedCommands;
+    const bool blockedReady = resetSpecialProbe(runtime, 0);
+    const bool blockedSuper = blockedReady
+        && stepSequenceAndObserve(runtime, simpleDoubleQcfSequence('x'), superStates, blockedObserved, &blockedCommands, 45);
+    record(out, counts, blockedReady && !blockedSuper ? Status::Pass : Status::Fail, "double_qcf_super_blocked_without_power",
+        "ready=" + std::to_string(blockedReady ? 1 : 0)
+        + " state=" + std::to_string(blockedObserved.stateNo)
+        + " action=" + std::to_string(blockedObserved.action)
+        + " power=" + std::to_string(blockedObserved.power)
+        + " commands=" + blockedCommands);
+
     const bool superReady = resetSpecialProbe(runtime, 1000);
     const int powerBefore = runtime.snapshot().p1.power;
     const bool super = superReady && stepSequenceAndObserve(runtime, simpleDoubleQcfSequence('x'), superStates, observed, &commands, 45);
@@ -444,6 +456,18 @@ int runKfmSpecialsSupers(RuntimeProbe& runtime, std::ostream& out) {
     const bool knee = kneeReady
         && stepSequenceAndObserve(runtime, ffButtonSequence('a'), { 1050, 1051, 1052, 1055, 1056 }, observed, &commands, 45);
     recordObservedState(out, counts, knee, "ff_knee_enters_special", kneeReady, observed, commands);
+
+    FighterSnapshot blockedObserved;
+    std::string blockedCommands;
+    const bool blockedReady = resetSpecialProbe(runtime, 0);
+    const bool blockedSuper = blockedReady
+        && stepSequenceAndObserve(runtime, doubleQcfSequence('x'), { 3000 }, blockedObserved, &blockedCommands, 45);
+    record(out, counts, blockedReady && !blockedSuper ? Status::Pass : Status::Fail, "double_qcf_super_blocked_without_power",
+        "ready=" + std::to_string(blockedReady ? 1 : 0)
+        + " state=" + std::to_string(blockedObserved.stateNo)
+        + " action=" + std::to_string(blockedObserved.action)
+        + " power=" + std::to_string(blockedObserved.power)
+        + " commands=" + blockedCommands);
 
     const bool superReady = resetSpecialProbe(runtime, 1000);
     const int powerBefore = runtime.snapshot().p1.power;

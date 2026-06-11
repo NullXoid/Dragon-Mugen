@@ -30,6 +30,9 @@ build\dragon_mugen.exe --verify arena-z-draw-order
 build\dragon_mugen.exe --verify arena-z-cpu-align
 build\dragon_mugen.exe --verify arena-z-modifier-sidestep
 build\dragon_mugen.exe --verify arena-per-fighter-runtime
+build\dragon_mugen.exe --verify kfm-specials-supers
+build\dragon_mugen.exe --verify evilken-specials-supers
+build\dragon_mugen.exe --verify evilryu-specials-supers
 build\dragon_mugen.exe --verify evilryu-dash
 build\dragon_mugen.exe --verify evilken-trip-grounding
 ```
@@ -65,6 +68,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Arena depth affects hit gating, player push, CPU alignment, projected sprite position, and draw order only when Z Axis is enabled.
 - Arena gamepad Start opens pause/start behavior only and is not mapped as a fighter button or depth input.
 - Evil Ken crouch roundhouse trip follows the first low arc, hits the floor, then performs two small vertical-only floor bounces before knockdown without rising into air recovery.
+- KFM, Evil Ken, and Evil Ryu supers are blocked below their authored CMD power gate and still consume power through CNS `poweradd` after valid entry.
 - Training dummy behavior still works.
 - Training P2 control still switches the opponent to local P2 behavior.
 - Single Fight round timer, KO/time-over, pips, match result, and rematch/menu inputs still work.

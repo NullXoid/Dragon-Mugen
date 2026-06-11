@@ -389,9 +389,9 @@ std::optional<MugenExpressionCondition> parseMugenExpressionCondition(const std:
 
 bool expressionLooksSupported(std::string_view value) {
     const std::string lowered = lowercaseCopy(value);
-    constexpr std::array<std::string_view, 53> supportedTokens{
+    constexpr std::array<std::string_view, 54> supportedTokens{
         "var(", "fvar(", "sysvar(", "sysfvar(", "random", "ailevel", "teammode", "time", "animtime",
-        "stateno", "roundstate", "roundno", "roundsexisted", "power", "powermax", "hitcount", "life", "p2life", "statetype", "movetype",
+        "stateno", "roundstate", "roundno", "roundsexisted", "power", "powermax", "hitcount", "life", "p2life", "statetype", "movetype", "ctrl",
         "pos", "vel", "p2bodydist", "p2dist", "p2stateno", "p2statetype", "p2movetype", "movecontact", "movehit", "moveguarded",
         "numtarget", "frontedgedist", "backedgedist", "frontedgebodydist", "backedgebodydist", "facing", "alive", "selfanimexist", "numhelper", "numproj", "numprojid",
         "projhit", "projcontact", "projguarded", "projcontacttime", "projguardedtime", "gethitvar", "parent,", "root,",

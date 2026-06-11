@@ -197,6 +197,9 @@ void applyCommandTriggerClause(CommandStateEntry& entry, const std::string& clau
     }
 
     if (hasOr) {
+        if (expressionLooksSupported(clause)) {
+            entry.booleanExpressions.push_back(stripOuterParens(clause));
+        }
         return;
     }
 

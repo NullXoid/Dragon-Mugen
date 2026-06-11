@@ -150,7 +150,8 @@ bool canEnterCommandState(
         }
     }
     for (const auto& expression : entry.booleanExpressions) {
-        const auto value = evalMugenExpression(state, fighter, expression, opponent, nullptr);
+        const auto expandedExpression = replaceCommandComparisonsInExpression(expression, commands);
+        const auto value = evalMugenExpression(state, fighter, expandedExpression, opponent, nullptr);
         if (!value || *value == 0.0f) {
             return false;
         }

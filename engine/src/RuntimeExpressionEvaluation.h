@@ -609,6 +609,9 @@ std::optional<float> evalMugenExpression(
     if (lowered == "moveguarded") {
         return fighter.moveGuarded ? 1.0f : 0.0f;
     }
+    if (lowered == "ctrl") {
+        return fighter.ctrl ? 1.0f : 0.0f;
+    }
     if (lowered == "roundstate") {
         return mugenRoundStateValue(state);
     }
