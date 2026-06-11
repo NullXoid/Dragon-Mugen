@@ -32,6 +32,7 @@ struct FighterInputState {
     bool a = false;
     bool b = false;
     bool c = false;
+    bool depthModifier = false;
 };
 
 struct CommandInputFrame {

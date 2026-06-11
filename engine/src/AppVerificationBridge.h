@@ -112,8 +112,23 @@ public:
         state_.fighters[1].x = p2X;
         state_.fighters[0].y = 0.0f;
         state_.fighters[1].y = 0.0f;
+        state_.fighters[0].depthZ = 0.0f;
+        state_.fighters[1].depthZ = 0.0f;
+        state_.fighters[0].depthVz = 0.0f;
+        state_.fighters[1].depthVz = 0.0f;
         state_.fighters[0].facing = state_.fighters[0].x <= state_.fighters[1].x ? 1 : -1;
         state_.fighters[1].facing = -state_.fighters[0].facing;
+    }
+
+    void setFighterDepth(int fighterIndex, float depthZ) override {
+        if (fighterIndex < 0 || fighterIndex >= static_cast<int>(state_.fighters.size())) {
+            return;
+        }
+        auto& fighter = state_.fighters[static_cast<size_t>(fighterIndex)];
+        fighter.depthZ = arenaDepthActive(state_)
+            ? std::clamp(depthZ, state_.arenaConfig.depthMin, state_.arenaConfig.depthMax)
+            : 0.0f;
+        fighter.depthVz = 0.0f;
     }
 
     void setFighterLife(int fighterIndex, int life) override {
@@ -136,7 +151,7 @@ public:
             return;
         }
         auto& fighter = state_.fighters[static_cast<size_t>(fighterIndex)];
-        fighter.power = std::clamp(power, 0, std::max(0, state_.characterConstants.maxPower));
+        fighter.power = std::clamp(power, 0, std::max(0, characterConstantsForActor(state_, fighter).maxPower));
     }
 
     void setFighterControl(int fighterIndex, bool enabled) override {
@@ -190,16 +205,17 @@ public:
         if (ownerIndex < 0 || ownerIndex >= static_cast<int>(state_.fighters.size())) {
             return;
         }
-        if (!findStateDefinition(state_, stateNo)) {
+        const auto& owner = state_.fighters[static_cast<size_t>(ownerIndex)];
+        if (!findStateDefinitionForActor(state_, owner, stateNo)) {
             return;
         }
-        const auto& owner = state_.fighters[static_cast<size_t>(ownerIndex)];
         FighterState helper;
         helper.helper = true;
         helper.ownerIndex = ownerIndex;
         helper.helperId = helperId;
         helper.x = owner.x;
         helper.y = owner.y;
+        helper.depthZ = owner.depthZ;
         helper.facing = owner.facing;
         helper.onGround = true;
         helper.life = 1000;
@@ -236,6 +252,7 @@ public:
         out.activeSounds = static_cast<int>(state_.audio.activeVoices.size());
         out.comboHits = state_.display.comboCounters[0].displayHits;
         out.fighterCount = static_cast<int>(state_.fighters.size());
+        out.arenaRuntimeCount = static_cast<int>(state_.arenaRuntimes.size());
         out.globalPauseTicks = state_.globalPauseTicks;
         out.globalPauseOwnerMoveTicks = state_.globalPauseOwnerMoveTicks;
         out.globalPauseIsSuper = state_.globalPauseIsSuper;
@@ -269,6 +286,28 @@ public:
         }
         out.p1 = fighterSnapshot(state_.fighters[0]);
         out.p2 = fighterSnapshot(state_.fighters[1]);
+        std::vector<int> drawOrder;
+        drawOrder.reserve(state_.fighters.size());
+        for (int i = 0; i < static_cast<int>(state_.fighters.size()); ++i) {
+            drawOrder.push_back(i);
+        }
+        std::stable_sort(drawOrder.begin(), drawOrder.end(), [this](int lhs, int rhs) {
+            const auto& left = state_.fighters[static_cast<size_t>(lhs)];
+            const auto& right = state_.fighters[static_cast<size_t>(rhs)];
+            if (left.sprPriority != right.sprPriority) {
+                return left.sprPriority < right.sprPriority;
+            }
+            if (arenaDepthActive(state_) && std::fabs(left.depthZ - right.depthZ) > 0.001f) {
+                return left.depthZ < right.depthZ;
+            }
+            return lhs < rhs;
+        });
+        for (size_t i = 0; i < drawOrder.size(); ++i) {
+            if (i > 0) {
+                out.arenaDrawOrder += ",";
+            }
+            out.arenaDrawOrder += std::to_string(drawOrder[i]);
+        }
         return out;
     }
 
@@ -295,6 +334,7 @@ private:
             input.a,
             input.b,
             input.c,
+            input.depthModifier,
         };
     }
 
@@ -302,8 +342,10 @@ private:
         return verification::FighterSnapshot{
             fighter.x,
             fighter.y,
+            fighter.depthZ,
             fighter.vx,
             fighter.vy,
+            fighter.depthVz,
             fighter.stateNo,
             fighter.action,
             fighter.stateTime,

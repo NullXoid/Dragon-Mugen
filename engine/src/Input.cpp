@@ -77,7 +77,10 @@ FighterInputState collectFighterInput(const bool* keys, const FighterControls& c
     input.a = keys[controls.a] || gamepadButtonDown(gamepad, SDL_GAMEPAD_BUTTON_SOUTH);
     input.b = keys[controls.b] || gamepadButtonDown(gamepad, SDL_GAMEPAD_BUTTON_EAST);
     input.c = keys[controls.c] || gamepadButtonDown(gamepad, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER);
-    input.s = keys[controls.s] || gamepadButtonDown(gamepad, SDL_GAMEPAD_BUTTON_START);
+    input.s = keys[controls.s];
+    input.depthModifier = keys[SDL_SCANCODE_LSHIFT]
+        || keys[SDL_SCANCODE_RSHIFT]
+        || gamepadAxisGreaterThan(gamepad, SDL_GAMEPAD_AXIS_LEFT_TRIGGER, kGamepadAxisDeadzone);
     return input;
 }
 

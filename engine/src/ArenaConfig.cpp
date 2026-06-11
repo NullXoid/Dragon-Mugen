@@ -77,6 +77,20 @@ int findJsonInt(const std::string& text, std::string_view key, int fallback) {
     }
 }
 
+float findJsonFloat(const std::string& text, std::string_view key, float fallback) {
+    const std::regex pattern("\"" + std::string(key) + "\"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)");
+    std::smatch match;
+    if (!std::regex_search(text, match, pattern) || match.size() <= 1) {
+        return fallback;
+    }
+
+    try {
+        return std::stof(match[1].str());
+    } catch (...) {
+        return fallback;
+    }
+}
+
 bool findJsonBool(const std::string& text, std::string_view key, bool fallback) {
     const std::regex pattern("\"" + std::string(key) + "\"\\s*:\\s*(true|false)");
     std::smatch match;
@@ -124,6 +138,19 @@ ArenaConfig sanitizeArenaConfig(ArenaConfig config) {
     if (blank(config.endTitle)) {
         config.endTitle = defaults.endTitle;
     }
+    if (config.timerDefault != 0 && config.timerDefault != 30 && config.timerDefault != 60 && config.timerDefault != 99) {
+        config.timerDefault = defaults.timerDefault;
+    }
+    config.depthMin = std::clamp(config.depthMin, -160.0f, 0.0f);
+    config.depthMax = std::clamp(config.depthMax, 0.0f, 160.0f);
+    if (config.depthMin >= config.depthMax) {
+        config.depthMin = defaults.depthMin;
+        config.depthMax = defaults.depthMax;
+    }
+    config.depthProjectionScale = std::clamp(config.depthProjectionScale, 0.0f, 2.0f);
+    config.depthMoveSpeed = std::clamp(config.depthMoveSpeed, 0.25f, 8.0f);
+    config.fighterDepthHitTolerance = std::clamp(config.fighterDepthHitTolerance, 0.0f, 80.0f);
+    config.projectileDepthHitTolerance = std::clamp(config.projectileDepthHitTolerance, 0.0f, 80.0f);
     return config;
 }
 
@@ -147,6 +174,14 @@ ArenaConfig loadArenaConfig(const std::filesystem::path& gameRoot) {
     config.allowTeams = findJsonBool(text, "allowTeams", config.allowTeams);
     config.winTitle = findJsonString(text, "winTitle", config.winTitle);
     config.endTitle = findJsonString(text, "endTitle", config.endTitle);
+    config.timerDefault = findJsonInt(text, "timerDefault", config.timerDefault);
+    config.zAxisDefault = findJsonBool(text, "zAxisDefault", config.zAxisDefault);
+    config.depthMin = findJsonFloat(text, "depthMin", config.depthMin);
+    config.depthMax = findJsonFloat(text, "depthMax", config.depthMax);
+    config.depthProjectionScale = findJsonFloat(text, "depthProjectionScale", config.depthProjectionScale);
+    config.depthMoveSpeed = findJsonFloat(text, "depthMoveSpeed", config.depthMoveSpeed);
+    config.fighterDepthHitTolerance = findJsonFloat(text, "fighterDepthHitTolerance", config.fighterDepthHitTolerance);
+    config.projectileDepthHitTolerance = findJsonFloat(text, "projectileDepthHitTolerance", config.projectileDepthHitTolerance);
     return sanitizeArenaConfig(config);
 }
 

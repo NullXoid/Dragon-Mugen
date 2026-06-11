@@ -187,7 +187,7 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
                 state.selection.selectedP2Character =
                     defaultP2CharacterIndex(state.selection, state.selection.selectedCharacter);
             } else if (action.mode == PendingMode::Arena) {
-                setArenaCpuCount(state, state.arenaConfig.cpuCountDefault);
+                setArenaDefaultsFromConfig(state);
                 selectArenaDefaultStage(state);
             }
             state.frontend.screen = Screen::CharacterSelect;
@@ -275,6 +275,22 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
 
     if (state.frontend.screen == Screen::ArenaSetup) {
         const FrontendKey frontendKey = frontendKeyFromSdl(key, true);
+        const auto startArenaMatch = [&]() {
+            configureFightSessionSlotsFromSelection(state);
+            unloadCharacterRuntime(state);
+            state.frontend.screen = Screen::VersusScreen;
+            state.frontend.screenFrame = 0;
+            state.fightSessionPrepared = false;
+            state.fightSessionLoadFailed = false;
+            playMenuCursorDoneSound(state);
+        };
+        const auto backToFighterSelect = [&]() {
+            unloadCharacterRuntime(state);
+            state.frontend.screen = Screen::CharacterSelect;
+            state.frontend.screenFrame = 0;
+            playMenuCancelSound(state);
+        };
+
         if (frontendKey == FrontendKey::Up) {
             state.frontend.selectedArenaSetupOption =
                 (state.frontend.selectedArenaSetupOption + kArenaSetupOptionCount - 1) % kArenaSetupOptionCount;
@@ -283,28 +299,41 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
             state.frontend.selectedArenaSetupOption =
                 (state.frontend.selectedArenaSetupOption + 1) % kArenaSetupOptionCount;
             playMenuCursorMoveSound(state);
-        } else if (frontendKey == FrontendKey::Left && state.frontend.selectedArenaSetupOption == 0) {
-            setArenaCpuCount(state, arenaCpuCount(state) - 1);
+        } else if (frontendKey == FrontendKey::Escape) {
+            backToFighterSelect();
+        } else if (state.frontend.selectedArenaSetupOption == 0
+            && (frontendKey == FrontendKey::Left || frontendKey == FrontendKey::Right || frontendKey == FrontendKey::Accept)) {
+            setArenaCpuCount(state, arenaCpuCount(state) + (frontendKey == FrontendKey::Left ? -1 : 1));
             playMenuCursorMoveSound(state);
-        } else if ((frontendKey == FrontendKey::Right || frontendKey == FrontendKey::Accept)
-            && state.frontend.selectedArenaSetupOption == 0) {
-            setArenaCpuCount(state, arenaCpuCount(state) + 1);
+        } else if (state.frontend.selectedArenaSetupOption >= 1
+            && state.frontend.selectedArenaSetupOption <= 3
+            && (frontendKey == FrontendKey::Left || frontendKey == FrontendKey::Right || frontendKey == FrontendKey::Accept)) {
+            const int slot = state.frontend.selectedArenaSetupOption - 1;
+            if (slot < arenaCpuCount(state)) {
+                cycleArenaCpuCharacter(state, slot, frontendKey == FrontendKey::Left ? -1 : 1);
+                playMenuCursorMoveSound(state);
+            }
+        } else if (state.frontend.selectedArenaSetupOption == 4
+            && (frontendKey == FrontendKey::Left || frontendKey == FrontendKey::Right || frontendKey == FrontendKey::Accept)) {
+            const int stageCount = static_cast<int>(state.selection.stages.size());
+            if (stageCount > 0) {
+                const int direction = frontendKey == FrontendKey::Left ? -1 : 1;
+                state.selection.selectedStage = (state.selection.selectedStage + direction + stageCount) % stageCount;
+                playMenuCursorMoveSound(state);
+            }
+        } else if (state.frontend.selectedArenaSetupOption == 5
+            && (frontendKey == FrontendKey::Left || frontendKey == FrontendKey::Right || frontendKey == FrontendKey::Accept)) {
+            cycleArenaTimer(state, frontendKey == FrontendKey::Left ? -1 : 1);
             playMenuCursorMoveSound(state);
-        } else if (frontendKey == FrontendKey::Escape
-            || (frontendKey == FrontendKey::Accept && state.frontend.selectedArenaSetupOption == 2)) {
-            unloadCharacterRuntime(state);
-            state.frontend.screen = Screen::CharacterSelect;
-            state.frontend.screenFrame = 0;
-            playMenuCancelSound(state);
-        } else if (frontendKey == FrontendKey::Accept && state.frontend.selectedArenaSetupOption == 1) {
-            configureFightSessionSlotsFromSelection(state);
-            selectArenaDefaultStage(state);
-            unloadCharacterRuntime(state);
-            state.frontend.screen = Screen::VersusScreen;
-            state.frontend.screenFrame = 0;
-            state.fightSessionPrepared = false;
-            state.fightSessionLoadFailed = false;
-            playMenuCursorDoneSound(state);
+        } else if (state.frontend.selectedArenaSetupOption == 6
+            && (frontendKey == FrontendKey::Left || frontendKey == FrontendKey::Right || frontendKey == FrontendKey::Accept)) {
+            state.selection.sessionSlots.arenaZAxisEnabled = !state.selection.sessionSlots.arenaZAxisEnabled;
+            playMenuCursorMoveSound(state);
+        } else if (state.frontend.selectedArenaSetupOption == 7 && frontendKey == FrontendKey::Accept) {
+            startArenaMatch();
+        } else if (state.frontend.selectedArenaSetupOption == 8
+            && (frontendKey == FrontendKey::Accept || frontendKey == FrontendKey::Escape)) {
+            backToFighterSelect();
         }
         return;
     }

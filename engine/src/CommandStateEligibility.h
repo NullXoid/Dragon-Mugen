@@ -160,8 +160,8 @@ bool canEnterCommandState(
     if (!targetState) {
         return false;
     }
-    const StateDefinition* stateDef = findStateDefinition(state, *targetState);
-    return stateDef && (!stateDef->hasAnim || findExactClip(state, stateDef->anim));
+    const StateDefinition* stateDef = findStateDefinitionForActor(state, fighter, *targetState);
+    return stateDef && (!stateDef->hasAnim || findExactClipForActor(state, fighter, stateDef->anim));
 }
 
 const CommandStateEntry* activeCommandEntry(
@@ -169,7 +169,7 @@ const CommandStateEntry* activeCommandEntry(
     const FighterState& fighter,
     const FighterState* opponent,
     const std::vector<std::string>& commands) {
-    for (const auto& entry : state.commandEntries) {
+    for (const auto& entry : commandEntriesForActor(state, fighter)) {
         if (canEnterCommandState(state, fighter, opponent, entry, commands)) {
             return &entry;
         }

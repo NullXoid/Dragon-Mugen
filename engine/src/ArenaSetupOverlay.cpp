@@ -15,8 +15,20 @@ std::string setupLabel(int row, const ArenaSetupView& view) {
     case 0:
         return "CPU COUNT  " + std::to_string(view.cpuCount);
     case 1:
-        return "START MATCH";
+        return "CPU 1  " + view.cpuNames[0];
     case 2:
+        return view.cpuCount >= 2 ? "CPU 2  " + view.cpuNames[1] : "CPU 2  -";
+    case 3:
+        return view.cpuCount >= 3 ? "CPU 3  " + view.cpuNames[2] : "CPU 3  -";
+    case 4:
+        return "STAGE  " + view.stageName;
+    case 5:
+        return "TIMER  " + view.timerLabel;
+    case 6:
+        return std::string("Z AXIS  ") + (view.zAxisEnabled ? "ON" : "OFF");
+    case 7:
+        return "START MATCH";
+    case 8:
     default:
         return "BACK";
     }
@@ -30,9 +42,9 @@ void drawArenaSetupOverlay(const UiRenderContext& ui, const ArenaSetupView& view
     const float centerX = widthF * 0.5f;
     const float pulse = 0.5f + 0.5f * std::sin(static_cast<float>(view.frame) * 0.14f);
 
-    setColor(renderer, 12, 16, 22);
+    setColor(renderer, 6, 8, 12, 130);
     fillRect(renderer, 0, 0, widthF, static_cast<float>(ui.logicalHeight));
-    setColor(renderer, 24, 32, 46);
+    setColor(renderer, 24, 32, 46, 220);
     fillRect(renderer, 0, 0, widthF, 48);
     setColor(renderer, 158, 64, 58);
     fillRect(renderer, 0, 48, widthF, 2);
@@ -42,34 +54,39 @@ void drawArenaSetupOverlay(const UiRenderContext& ui, const ArenaSetupView& view
     setColor(renderer, 150, 162, 178);
     debugTextCentered(renderer, centerX, 30, view.description);
 
-    setColor(renderer, 6, 8, 12, 228);
-    fillRect(renderer, centerX - 128.0f, 64, 256, 62);
+    setColor(renderer, 6, 8, 12, 214);
+    fillRect(renderer, centerX - 142.0f, 58, 284, 68);
     setColor(renderer, 78, 90, 112);
-    drawRect(renderer, centerX - 128.0f, 64, 256, 62);
+    drawRect(renderer, centerX - 142.0f, 58, 284, 68);
     setColor(renderer, 230, 190, 105);
-    fillRect(renderer, centerX - 124.0f, 67, 248, 2);
+    fillRect(renderer, centerX - 138.0f, 61, 276, 2);
 
     setColor(renderer, 222, 226, 232);
-    debugText(renderer, centerX - 116.0f, 78, "FIGHTER  " + view.fighterName);
-    debugText(renderer, centerX - 116.0f, 94, "MODE     " + view.modeLabel);
-    debugText(renderer, centerX - 116.0f, 110, "STAGE    " + view.stageName);
+    debugText(renderer, centerX - 130.0f, 74, "FIGHTER  " + view.fighterName);
+    debugText(renderer, centerX - 130.0f, 90, "MODE     " + view.modeLabel);
+    debugText(renderer, centerX - 130.0f, 106, "DEPTH    " + std::string(view.zAxisEnabled ? "SHIFT+UP/DOWN" : "OFF"));
 
-    constexpr int rowCount = 3;
+    constexpr int rowCount = 9;
     const int selected = std::clamp(view.selectedOption, 0, rowCount - 1);
     for (int i = 0; i < rowCount; ++i) {
-        const float y = 146.0f + static_cast<float>(i * 18);
+        const float y = 136.0f + static_cast<float>(i * 11);
         if (i == selected) {
             setColor(renderer, 74, 170, 134, static_cast<Uint8>(188 + pulse * 52.0f));
-            fillRect(renderer, centerX - 72.0f, y - 4.0f, 144, 14);
+            fillRect(renderer, centerX - 142.0f, y - 3.0f, 284, 11);
             setColor(renderer, 8, 12, 16);
         } else {
-            setColor(renderer, 190, 202, 218);
+            const bool inactiveCpu = (i == 2 && view.cpuCount < 2) || (i == 3 && view.cpuCount < 3);
+            if (inactiveCpu) {
+                setColor(renderer, 108, 116, 130);
+            } else {
+                setColor(renderer, 210, 220, 232);
+            }
         }
-        debugTextCentered(renderer, centerX, y, setupLabel(i, view));
+        debugTextCentered(renderer, centerX, y, fitDebugText(setupLabel(i, view), 34));
     }
 
     setColor(renderer, 156, 166, 180);
-    debugTextCentered(renderer, centerX, 226, "UP/DOWN select  LEFT/RIGHT CPU  ENTER confirm  ESC back");
+    debugTextCentered(renderer, centerX, 226, "UP/DOWN row  LEFT/RIGHT change  ENTER select  ESC back");
 }
 
 } // namespace dragon

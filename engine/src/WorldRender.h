@@ -172,7 +172,7 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
         return;
     }
 
-    auto drawActorSprite = [&](int action, int animTick, float x, float y, int facing, int alpha, bool additive, const ActivePaletteEffect* palette) -> bool {
+    auto drawActorSprite = [&](int action, int animTick, float x, float y, float depthZ, int facing, int alpha, bool additive, const ActivePaletteEffect* palette) -> bool {
         const AnimationClip* clip = findClipForFighter(state, actorIndex, action);
         const AnimationFrame* frame = clip ? frameForClip(*clip, animTick) : nullptr;
         if (!frame || !frame->sprite.texture) {
@@ -180,7 +180,7 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
         }
 
         const float originX = screenCenterX(state) + x - state.cameraX;
-        const float originY = stage.zoffset + y - state.cameraY;
+        const float originY = stage.zoffset + y + arenaDepthProjectionOffset(state, depthZ) - state.cameraY;
         const bool facingLeft = facing < 0;
         const bool flipH = frame->flipX != facingLeft;
         const float drawX = facingLeft
@@ -259,6 +259,7 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
                 snapshot.animTick,
                 snapshot.x,
                 snapshot.y,
+                snapshot.depthZ,
                 snapshot.facing,
                 alpha,
                 actorBlendModeIsAdditive(fighter.afterImage.blendMode),
@@ -275,7 +276,7 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
 
     if (frame && frame->sprite.texture) {
         const float originX = screenCenterX(state) + fighter.x - state.cameraX;
-        const float originY = stage.zoffset + fighter.y - state.cameraY;
+        const float originY = stage.zoffset + fighter.y + arenaDepthProjectionOffset(state, fighter.depthZ) - state.cameraY;
         const float displayOriginX = originX + fighter.displayOffsetX * static_cast<float>(fighter.facing);
         const float displayOriginY = originY + fighter.displayOffsetY;
         const bool facingLeft = fighter.facing < 0;
@@ -358,7 +359,10 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
     }
 
     const float originX = screenCenterX(state) + fighter.x - state.cameraX;
-    const float originY = (selectedStageSlot(state.selection) ? selectedStageSlot(state.selection)->zoffset : 168.0f) + fighter.y - state.cameraY;
+    const float originY = (selectedStageSlot(state.selection) ? selectedStageSlot(state.selection)->zoffset : 168.0f)
+        + fighter.y
+        + arenaDepthProjectionOffset(state, fighter.depthZ)
+        - state.cameraY;
     if (actorIndex == 0) {
         setColor(renderer, 62, 118, 184);
     } else {
@@ -389,7 +393,7 @@ void drawRuntimeEffect(SDL_Renderer* renderer, const AppState& state, const Stag
     }
 
     const float originX = screenCenterX(state) + effect.x - state.cameraX;
-    const float originY = stage.zoffset + effect.y - state.cameraY;
+    const float originY = stage.zoffset + effect.y + arenaDepthProjectionOffset(state, arenaEffectDepth(state, effect)) - state.cameraY;
     SDL_FRect dst{
         originX + (static_cast<float>(frame->offsetX) - static_cast<float>(frame->sprite.axisX)) * effect.scaleX,
         originY + (static_cast<float>(frame->offsetY) - static_cast<float>(frame->sprite.axisY)) * effect.scaleY,
@@ -449,7 +453,7 @@ void drawRuntimeProjectile(SDL_Renderer* renderer, const AppState& state, const 
     }
 
     const float originX = screenCenterX(state) + projectile.x - state.cameraX;
-    const float originY = stage.zoffset + projectile.y - state.cameraY;
+    const float originY = stage.zoffset + projectile.y + arenaDepthProjectionOffset(state, arenaProjectileDepth(state, projectile)) - state.cameraY;
     const bool facingLeft = projectile.facing < 0;
     const bool flipH = frame->flipX != facingLeft;
     const float drawX = facingLeft
@@ -482,7 +486,7 @@ void drawRuntimeProjectile(SDL_Renderer* renderer, const AppState& state, const 
     if (projectile.shadowEnabled && projectile.y < 0.0f) {
         SDL_FRect shadowDst{
             dst.x,
-            stage.zoffset - state.cameraY - 3.0f,
+            stage.zoffset + arenaDepthProjectionOffset(state, arenaProjectileDepth(state, projectile)) - state.cameraY - 3.0f,
             dst.w,
             std::max(2.0f, dst.h * 0.18f),
         };
@@ -510,30 +514,37 @@ void drawWorldActors(SDL_Renderer* renderer, const AppState& state, const StageS
     struct DrawItem {
         int priority = 0;
         int kind = 0;
+        float depth = 0.0f;
         size_t index = 0;
     };
 
     std::vector<DrawItem> items;
     items.reserve(state.fighters.size() + state.helpers.size() + state.runtimeEffects.size() + state.projectiles.size());
     for (size_t i = 0; i < state.fighters.size(); ++i) {
-        items.push_back(DrawItem{ state.fighters[i].sprPriority, 0, i });
+        items.push_back(DrawItem{ state.fighters[i].sprPriority, 0, arenaActorDepth(state, state.fighters[i]), i });
     }
     for (size_t i = 0; i < state.helpers.size(); ++i) {
         if (!state.helpers[i].destroyRequested) {
-            items.push_back(DrawItem{ state.helpers[i].sprPriority, 1, i });
+            items.push_back(DrawItem{ state.helpers[i].sprPriority, 1, arenaActorDepth(state, state.helpers[i]), i });
         }
     }
     for (size_t i = 0; i < state.projectiles.size(); ++i) {
-        items.push_back(DrawItem{ 3, 3, i });
+        items.push_back(DrawItem{ 3, 3, arenaProjectileDepth(state, state.projectiles[i]), i });
     }
     if (state.frontend.pendingMode != PendingMode::Training || state.training.options.showHitSparks) {
         for (size_t i = 0; i < state.runtimeEffects.size(); ++i) {
-            items.push_back(DrawItem{ state.runtimeEffects[i].sprPriority, 2, i });
+            items.push_back(DrawItem{ state.runtimeEffects[i].sprPriority, 2, arenaEffectDepth(state, state.runtimeEffects[i]), i });
         }
     }
 
-    std::stable_sort(items.begin(), items.end(), [](const DrawItem& lhs, const DrawItem& rhs) {
-        return lhs.priority < rhs.priority;
+    std::stable_sort(items.begin(), items.end(), [&state](const DrawItem& lhs, const DrawItem& rhs) {
+        if (lhs.priority != rhs.priority) {
+            return lhs.priority < rhs.priority;
+        }
+        if (arenaDepthActive(state) && std::fabs(lhs.depth - rhs.depth) > 0.001f) {
+            return lhs.depth < rhs.depth;
+        }
+        return false;
     });
 
     for (const auto& item : items) {

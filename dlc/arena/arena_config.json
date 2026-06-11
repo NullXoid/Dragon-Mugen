@@ -12,7 +12,17 @@
   "rules": {
     "type": "free_for_all",
     "winCondition": "last_fighter_standing",
-    "allowTeams": false
+    "allowTeams": false,
+    "timerDefault": 0
+  },
+  "zAxis": {
+    "zAxisDefault": true,
+    "depthMin": -48,
+    "depthMax": 48,
+    "depthProjectionScale": 0.65,
+    "depthMoveSpeed": 1.5,
+    "fighterDepthHitTolerance": 16,
+    "projectileDepthHitTolerance": 12
   },
   "ui": {
     "winTitle": "Winner",

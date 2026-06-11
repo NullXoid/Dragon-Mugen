@@ -22,6 +22,6 @@ void updateStatePowerControllersForDefinition(
         fighter.power = std::clamp(
             fighter.power + static_cast<int>(std::lround(*value)),
             0,
-            std::max(0, state.characterConstants.maxPower));
+            std::max(0, characterConstantsForActor(state, fighter).maxPower));
     }
 }

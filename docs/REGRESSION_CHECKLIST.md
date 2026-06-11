@@ -22,6 +22,13 @@ Run these for Arena DLC fight-loop changes:
 build\dragon_mugen.exe --verify arena-cpu-1
 build\dragon_mugen.exe --verify arena-cpu-2
 build\dragon_mugen.exe --verify arena-cpu-3
+build\dragon_mugen.exe --verify arena-z-keyboard-controls
+build\dragon_mugen.exe --verify arena-z-gamepad-controls
+build\dragon_mugen.exe --verify arena-z-hit-depth
+build\dragon_mugen.exe --verify arena-z-push-depth
+build\dragon_mugen.exe --verify arena-z-draw-order
+build\dragon_mugen.exe --verify arena-z-cpu-align
+build\dragon_mugen.exe --verify arena-per-fighter-runtime
 build\dragon_mugen.exe --verify evilryu-dash
 build\dragon_mugen.exe --verify evilken-trip-grounding
 ```
@@ -36,6 +43,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - VS Mode enters character select.
 - Arena Mode enters character select and then Arena Setup.
 - Arena Setup can start 1, 2, and 3 CPU free-for-all matches.
+- Arena Setup can change CPU slots, stage, timer, and Z Axis without affecting Training, Single Player, or VS.
 - Character select moves with Up/Down/Left/Right only when a character exists in the destination cell.
 - Character select does not load full character runtime data.
 - Character and stage select labels do not duplicate, overlap, or show the wrong mode name.
@@ -51,6 +59,9 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Arena trip and heavy knockback hits resolve to floor impact before air recovery can take over.
 - Arena timer ticks down, hit-frozen fighters recover or resolve to KO, and knockdowns do not pull the camera upward.
 - Arena hitpause is brief, Rush counters reset after disappearing, debug hit boxes stay Training-only, and disabled timers show `INF`.
+- Arena Z-axis modifier moves depth with Shift/left trigger; normal Up/Down still jump/crouch and still feed quarter-circle commands when the modifier is not held.
+- Arena depth affects hit gating, player push, CPU alignment, projected sprite position, and draw order only when Z Axis is enabled.
+- Arena gamepad Start opens pause/start behavior only and is not mapped as a fighter button or depth input.
 - Evil Ken crouch roundhouse trip follows the first low arc, hits the floor, then performs two small vertical-only floor bounces before knockdown without rising into air recovery.
 - Training dummy behavior still works.
 - Training P2 control still switches the opponent to local P2 behavior.

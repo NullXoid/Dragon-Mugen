@@ -4,6 +4,7 @@
 
 #include <array>
 #include <string>
+#include <vector>
 
 namespace dragon {
 
@@ -12,8 +13,11 @@ struct ArenaSetupView {
     std::string description;
     std::string fighterName;
     int cpuCount = 1;
+    std::array<std::string, 3> cpuNames{ "Random", "Random", "Random" };
     std::string modeLabel = "Free-for-all";
     std::string stageName;
+    std::string timerLabel = "INF";
+    bool zAxisEnabled = true;
     int selectedOption = 0;
     int frame = 0;
 };

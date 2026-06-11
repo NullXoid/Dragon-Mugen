@@ -14,7 +14,9 @@ int nearestLivingEnemyIndex(const AppState& state, int ownerIndex) {
         if (static_cast<int>(i) == ownerIndex || state.fighters[i].life <= 0) {
             continue;
         }
-        const float distance = std::fabs(state.fighters[i].x - owner.x);
+        const float dx = state.fighters[i].x - owner.x;
+        const float dz = arenaDepthActive(state) ? state.fighters[i].depthZ - owner.depthZ : 0.0f;
+        const float distance = dx * dx + dz * dz;
         if (nearest < 0 || distance < nearestDistance) {
             nearest = static_cast<int>(i);
             nearestDistance = distance;

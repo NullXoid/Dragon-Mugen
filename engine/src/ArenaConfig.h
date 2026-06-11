@@ -19,6 +19,14 @@ struct ArenaConfig {
     bool allowTeams = false;
     std::string winTitle = "Winner";
     std::string endTitle = "Arena Match Complete";
+    int timerDefault = 0;
+    bool zAxisDefault = true;
+    float depthMin = -48.0f;
+    float depthMax = 48.0f;
+    float depthProjectionScale = 0.65f;
+    float depthMoveSpeed = 1.5f;
+    float fighterDepthHitTolerance = 16.0f;
+    float projectileDepthHitTolerance = 12.0f;
 };
 
 ArenaConfig loadArenaConfig(const std::filesystem::path& gameRoot);

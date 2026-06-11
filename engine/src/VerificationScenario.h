@@ -17,6 +17,7 @@ struct SymbolicInput {
     bool right = false;
     bool up = false;
     bool down = false;
+    bool depthModifier = false;
     bool s = false;
     bool x = false;
     bool y = false;
@@ -31,8 +32,10 @@ struct SymbolicInput {
 struct FighterSnapshot {
     float x = 0.0f;
     float y = 0.0f;
+    float depthZ = 0.0f;
     float vx = 0.0f;
     float vy = 0.0f;
+    float depthVz = 0.0f;
     int stateNo = 0;
     int action = 0;
     int stateTime = 0;
@@ -73,6 +76,8 @@ struct RuntimeSnapshot {
     int firstHelperAction = 0;
     int firstHelperAnimTick = 0;
     int roundWinner = 0;
+    int arenaRuntimeCount = 0;
+    std::string arenaDrawOrder;
     std::string lastHitText;
     std::string p1Commands;
     FighterSnapshot p1;
@@ -91,6 +96,7 @@ public:
         int arenaCpuCount = 1) = 0;
     virtual void step(const SymbolicInput& p1Input, int frames) = 0;
     virtual void positionFighters(float p1X, float p2X) = 0;
+    virtual void setFighterDepth(int fighterIndex, float depthZ) = 0;
     virtual void setFighterLife(int fighterIndex, int life) = 0;
     virtual void setFighterPower(int fighterIndex, int power) = 0;
     virtual void setFighterControl(int fighterIndex, bool enabled) = 0;

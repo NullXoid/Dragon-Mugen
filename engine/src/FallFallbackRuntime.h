@@ -12,35 +12,35 @@ int animationVariantMod(int action) {
     return mod < 0 ? mod + 10 : mod;
 }
 
-int variantActionOrBase(const AppState& state, int base, int sourceAction) {
+int variantActionOrBase(const AppState& state, const FighterState& fighter, int base, int sourceAction) {
     const int candidate = base + animationVariantMod(sourceAction);
-    if (candidate != base && findExactClip(state, candidate)) {
+    if (candidate != base && findExactClipForActor(state, fighter, candidate)) {
         return candidate;
     }
-    return findExactClip(state, base) ? base : 0;
+    return findExactClipForActor(state, fighter, base) ? base : 0;
 }
 
 int fallBounceActionForFighter(const AppState& state, const FighterState& fighter) {
-    const int action = variantActionOrBase(state, 5160, fighter.action);
+    const int action = variantActionOrBase(state, fighter, 5160, fighter.action);
     return action != 0 ? action : fallLandActionForFighter(state, fighter);
 }
 
 int liedownImpactActionForFighter(const AppState& state, const FighterState& fighter) {
-    const int action = variantActionOrBase(state, 5170, fighter.action);
+    const int action = variantActionOrBase(state, fighter, 5170, fighter.action);
     if (action != 0) {
         return action;
     }
-    return firstExistingAction(state, { 5110, fallLandActionForFighter(state, fighter), 0 });
+    return firstExistingActionForActor(state, fighter, { 5110, fallLandActionForFighter(state, fighter), 0 });
 }
 
 int liedownRestActionForFighter(const AppState& state, const FighterState& fighter) {
-    const int action = variantActionOrBase(state, 5110, fighter.action);
-    return action != 0 ? action : firstExistingAction(state, { 5110, fallLandActionForFighter(state, fighter), 0 });
+    const int action = variantActionOrBase(state, fighter, 5110, fighter.action);
+    return action != 0 ? action : firstExistingActionForActor(state, fighter, { 5110, fallLandActionForFighter(state, fighter), 0 });
 }
 
 int getUpActionForFighter(const AppState& state, const FighterState& fighter) {
-    const int action = variantActionOrBase(state, 5120, fighter.action);
-    return action != 0 ? action : (findExactClip(state, 5120) ? 5120 : 0);
+    const int action = variantActionOrBase(state, fighter, 5120, fighter.action);
+    return action != 0 ? action : (findExactClipForActor(state, fighter, 5120) ? 5120 : 0);
 }
 
 void enterGroundImpactState(const AppState& state, FighterState& fighter, int stateNo, int action) {
@@ -126,7 +126,7 @@ bool resolveArenaFallGrounding(AppState& state, FighterState& fighter) {
     }
     if (fighter.stateNo == 5101
         && fighter.vy > 0.0f
-        && fighter.y >= state.characterConstants.movementDownBounceGroundLevel) {
+        && fighter.y >= characterConstantsForActor(state, fighter).movementDownBounceGroundLevel) {
         fighter.y = 0.0f;
         fighter.vy = 0.0f;
         fighter.onGround = true;

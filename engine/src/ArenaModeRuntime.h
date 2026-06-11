@@ -28,7 +28,7 @@ void enterArenaFallbackDefeatPose(const AppState& state, FighterState& fighter, 
     if (!force && arenaFighterHasDefeatMotion(fighter)) {
         return;
     }
-    const int action = firstExistingAction(state, { 5110, 5120, 5100, 5000, 0 });
+    const int action = firstExistingActionForActor(state, fighter, { 5110, 5120, 5100, 5000, 0 });
     fighter.life = 0;
     fighter.ctrl = false;
     fighter.targetIndex = -1;
@@ -61,7 +61,7 @@ void holdArenaDefeatedRecoveryPose(const AppState& state, FighterState& fighter)
         return;
     }
     fighter.hitFallRecover = false;
-    if (fighter.stateNo == 5120 && findExactClip(state, 5110)) {
+    if (fighter.stateNo == 5120 && findExactClipForActor(state, fighter, 5110)) {
         fighter.stateNo = 5110;
         fighter.stateTime = 0;
         fighter.stateType = 'L';
@@ -237,12 +237,12 @@ void updateArenaPhaseTimers(AppState& state) {
         ++state.matchPhaseTicks;
         break;
     case MatchPhase::Fight:
-        if (state.mainSettings.matchTimerSeconds > 0
+        if (arenaTimerSeconds(state) > 0
             && state.matchTimerTicks > 0
             && !anyFighterHasAssertSpecialFlag(state, "timerfreeze")) {
             --state.matchTimerTicks;
         }
-        if (state.mainSettings.matchTimerSeconds > 0
+        if (arenaTimerSeconds(state) > 0
             && state.matchTimerTicks <= 0
             && !anyFighterHasAssertSpecialFlag(state, "roundnotover")
             && !anyFighterHasAssertSpecialFlag(state, "intro")) {

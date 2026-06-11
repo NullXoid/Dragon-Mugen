@@ -64,7 +64,7 @@ std::vector<std::string> collectCurrentFighterCommands(const AppState& state, co
     if (fighter.inputHistory.empty()) {
         return {};
     }
-    return collectFighterCommands(fighter.inputHistory.back().input, fighter, state.commandDefinitions);
+    return collectFighterCommands(fighter.inputHistory.back().input, fighter, commandDefinitionsForActor(state, fighter));
 }
 
 float p2AxisDistXValue(const FighterState& fighter, const FighterState* opponent);
@@ -304,7 +304,7 @@ std::optional<float> evalMugenFunctionExpression(
         return evalMugenExpression(state, fighter, *condition != 0.0f ? parts[1] : parts[2], opponent, stage);
     }
     if (name == "const") {
-        return lookupCharacterConstant(state.characterConstants, body);
+        return lookupCharacterConstant(characterConstantsForActor(state, fighter), body);
     }
     if (name == "gethitvar") {
         const std::string key = lowercaseCopy(trim(body));
@@ -589,7 +589,7 @@ std::optional<float> evalMugenExpression(
         return static_cast<float>(fighter.power);
     }
     if (lowered == "powermax") {
-        return static_cast<float>(state.characterConstants.maxPower);
+        return static_cast<float>(characterConstantsForActor(state, fighter).maxPower);
     }
     if (lowered == "palno") {
         return static_cast<float>(fighter.paletteNo);

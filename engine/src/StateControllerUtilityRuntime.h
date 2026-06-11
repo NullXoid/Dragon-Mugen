@@ -146,6 +146,7 @@ void executePlaySoundController(AppState& state, FighterState& fighter, const St
     }
     markStateSoundFireKeyFired(fighter, fireKey);
     if (shouldPlayFightSounds(state)) {
+        const int ownerIndex = fighter.helper ? fighter.ownerIndex : fighterIndexInState(state, fighter);
         playSound(
             state,
             sound.group,
@@ -154,7 +155,8 @@ void executePlaySoundController(AppState& state, FighterState& fighter, const St
             sound.channel,
             sound.lowPriority,
             sound.gain,
-            sound.loop);
+            sound.loop,
+            ownerIndex);
     }
 }
 
@@ -455,10 +457,11 @@ std::string formatClipboardText(
 }
 
 std::string selectedVictoryQuoteText(const AppState& state, const FighterState& fighter) {
-    if (fighter.victoryQuote < 0 || fighter.victoryQuote >= static_cast<int>(state.victoryQuotes.size())) {
+    const auto& quotes = victoryQuotesForActor(state, fighter);
+    if (fighter.victoryQuote < 0 || fighter.victoryQuote >= static_cast<int>(quotes.size())) {
         return {};
     }
-    return state.victoryQuotes[static_cast<size_t>(fighter.victoryQuote)];
+    return quotes[static_cast<size_t>(fighter.victoryQuote)];
 }
 
 std::optional<PaletteRemap> evaluatePaletteRemap(
@@ -691,6 +694,7 @@ void updateAfterImageEffect(FighterState& fighter) {
             fighter.animTick,
             fighter.x,
             fighter.y,
+            fighter.depthZ,
             fighter.facing,
             0,
         });

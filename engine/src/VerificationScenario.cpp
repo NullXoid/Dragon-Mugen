@@ -17,6 +17,13 @@ int runEvilRyuSpecialsSupers(RuntimeProbe& runtime, std::ostream& out);
 int runKfmMovementDirectionAudit(RuntimeProbe& runtime, std::ostream& out);
 int runEvilRyuHighJumpMovementAudit(RuntimeProbe& runtime, std::ostream& out);
 int runEvilRyuDash(RuntimeProbe& runtime, std::ostream& out);
+int runArenaZKeyboardControls(RuntimeProbe& runtime, std::ostream& out);
+int runArenaZGamepadControls(RuntimeProbe& runtime, std::ostream& out);
+int runArenaZHitDepth(RuntimeProbe& runtime, std::ostream& out);
+int runArenaZPushDepth(RuntimeProbe& runtime, std::ostream& out);
+int runArenaZDrawOrder(RuntimeProbe& runtime, std::ostream& out);
+int runArenaZCpuAlign(RuntimeProbe& runtime, std::ostream& out);
+int runArenaPerFighterRuntime(RuntimeProbe& runtime, std::ostream& out);
 namespace {
 
 enum class Status {
@@ -845,6 +852,7 @@ int runCpuBaseline(RuntimeProbe& runtime, std::ostream& out) {
     summary(out, counts);
     return exitCode(counts);
 }
+
 int runArenaSmoke(RuntimeProbe& runtime, std::ostream& out, int cpuCount) {
     Counts counts;
     const std::string scenarioName = "arena-cpu-" + std::to_string(cpuCount);
@@ -873,6 +881,13 @@ int runArenaSmoke(RuntimeProbe& runtime, std::ostream& out, int cpuCount) {
     record(out, counts, start.livingFighters == expectedFighters ? Status::Pass : Status::Fail, "arena_initial_living_count",
         "expected=" + std::to_string(expectedFighters)
         + " actual=" + std::to_string(start.livingFighters));
+    record(out, counts, start.arenaRuntimeCount == expectedFighters ? Status::Pass : Status::Fail, "arena_runtime_count",
+        "expected=" + std::to_string(expectedFighters)
+        + " actual=" + std::to_string(start.arenaRuntimeCount));
+    record(out, counts, start.matchTimerTicks == 0 ? Status::Pass : Status::Fail, "arena_timer_default_inf",
+        "timer_ticks=" + std::to_string(start.matchTimerTicks));
+    record(out, counts, !start.arenaDrawOrder.empty() ? Status::Pass : Status::Fail, "arena_draw_order_available",
+        "draw_order=" + start.arenaDrawOrder);
 
     if (cpuCount == 1) {
         runtime.positionFighters(-18.0f, 24.0f); waitForControllableIdle(runtime, 120);
@@ -958,11 +973,18 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
     if (scenarioName == "arena-cpu-1") return runArenaSmoke(runtime, out, 1);
     if (scenarioName == "arena-cpu-2") return runArenaSmoke(runtime, out, 2);
     if (scenarioName == "arena-cpu-3") return runArenaSmoke(runtime, out, 3);
+    if (scenarioName == "arena-z-keyboard-controls") return runArenaZKeyboardControls(runtime, out);
+    if (scenarioName == "arena-z-gamepad-controls") return runArenaZGamepadControls(runtime, out);
+    if (scenarioName == "arena-z-hit-depth") return runArenaZHitDepth(runtime, out);
+    if (scenarioName == "arena-z-push-depth") return runArenaZPushDepth(runtime, out);
+    if (scenarioName == "arena-z-draw-order") return runArenaZDrawOrder(runtime, out);
+    if (scenarioName == "arena-z-cpu-align") return runArenaZCpuAlign(runtime, out);
+    if (scenarioName == "arena-per-fighter-runtime") return runArenaPerFighterRuntime(runtime, out);
     if (scenarioName == "evilryu-dash") return runEvilRyuDash(runtime, out);
 
     out << "VERIFY " << scenarioName << "\n"
         << "BLOCKED unknown_scenario\n"
-        << "  supported: kfm-baseline, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-training-demo-hit, evilryu-specials-supers, evilken-smoke, evilken-trip-grounding, cpu-baseline, arena-cpu-1, arena-cpu-2, arena-cpu-3, evilryu-dash\n"
+        << "  supported: kfm-baseline, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-training-demo-hit, evilryu-specials-supers, evilken-smoke, evilken-trip-grounding, cpu-baseline, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-z-cpu-align, arena-per-fighter-runtime, evilryu-dash\n"
         << "SUMMARY pass=0 partial=0 fail=0 blocked=1\n";
     return 2;
 }

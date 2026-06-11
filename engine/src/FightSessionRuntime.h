@@ -29,7 +29,7 @@ void configureFightSessionSlotsFromSelection(AppState& state) {
 }
 
 void enterRoundInitialState(const AppState& state, FighterState& fighter) {
-    enterState(state, fighter, findStateDefinition(state, 5900) ? 5900 : 0);
+    enterState(state, fighter, findStateDefinitionForActor(state, fighter, 5900) ? 5900 : 0);
 }
 
 void clearFighterVariables(FighterState& fighter) {
@@ -70,8 +70,12 @@ void resetTrainingPositions(AppState& state) {
     state.training.commandDemo = {};
     state.fighters[0].x = stage.p1startx;
     state.fighters[0].y = stage.p1starty;
+    state.fighters[0].depthZ = 0.0f;
+    state.fighters[0].depthVz = 0.0f;
     state.fighters[1].x = stage.p2startx;
     state.fighters[1].y = stage.p2starty;
+    state.fighters[1].depthZ = 0.0f;
+    state.fighters[1].depthVz = 0.0f;
     state.fighters[0].inputHistory.clear();
     state.fighters[1].inputHistory.clear();
     clearFighterHitRuntime(state.fighters[0]);
@@ -144,10 +148,20 @@ void resetFightRound(AppState& state) {
             stage.p1starty,
             stage.p2starty,
         };
+        const std::array<float, 4> depthPositions{
+            0.0f,
+            0.0f,
+            -24.0f,
+            24.0f,
+        };
         for (size_t i = 0; i < state.fighters.size(); ++i) {
             auto& fighter = state.fighters[i];
             fighter.x = clampFighterOriginToStage(xPositions[i], stage);
             fighter.y = yPositions[i];
+            fighter.depthZ = arenaDepthActive(state)
+                ? std::clamp(depthPositions[i], state.arenaConfig.depthMin, state.arenaConfig.depthMax)
+                : 0.0f;
+            fighter.depthVz = 0.0f;
             fighter.facing = fighter.x <= stage.cameraStartx ? 1 : -1;
             fighter.onGround = true;
             fighter.life = 1000;
@@ -174,7 +188,8 @@ void resetFightRound(AppState& state) {
         state.frontend.selectedMatchResultOption = 0;
         state.matchPhase = MatchPhase::RoundStart;
         state.roundEndReason = RoundEndReason::None;
-        state.matchTimerTicks = matchTimerTicksFromSettings(state.mainSettings);
+        const int arenaTimer = arenaTimerSeconds(state);
+        state.matchTimerTicks = arenaTimer > 0 ? arenaTimer * 60 : 0;
         state.matchPhaseTicks = 0;
         state.roundWinner = 0;
         state.roundScoreApplied = false;
@@ -192,8 +207,12 @@ void resetFightRound(AppState& state) {
     state.projectiles.clear();
     state.fighters[0].x = stage.p1startx;
     state.fighters[0].y = stage.p1starty;
+    state.fighters[0].depthZ = 0.0f;
+    state.fighters[0].depthVz = 0.0f;
     state.fighters[1].x = stage.p2startx;
     state.fighters[1].y = stage.p2starty;
+    state.fighters[1].depthZ = 0.0f;
+    state.fighters[1].depthVz = 0.0f;
     state.fighters[0].facing = state.fighters[0].x <= state.fighters[1].x ? 1 : -1;
     state.fighters[1].facing = -state.fighters[0].facing;
     state.fighters[0].onGround = true;

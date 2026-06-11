@@ -167,12 +167,22 @@ const DecodedSoundSample* findDecodedSoundSample(const std::vector<DecodedSoundS
     return nullptr;
 }
 
-const DecodedSoundSample* findPlaybackSound(const AppState& state, int group, int index, bool forceCommon = false) {
+const DecodedSoundSample* findPlaybackSound(
+    const AppState& state,
+    int group,
+    int index,
+    bool forceCommon = false,
+    int ownerIndex = -1) {
     if (forceCommon) {
         if (const auto* sample = findDecodedSoundSample(state.audio.commonSamples, group, index)) {
             return sample;
         }
         return findDecodedSoundSample(state.audio.fightSamples, group, index);
+    }
+    if (const auto* arenaSamples = arenaCharacterSamplesForOwner(state, ownerIndex)) {
+        if (const auto* sample = findDecodedSoundSample(*arenaSamples, group, index)) {
+            return sample;
+        }
     }
     if (const auto* sample = findDecodedSoundSample(state.audio.characterSamples, group, index)) {
         return sample;
@@ -277,12 +287,13 @@ void playSound(
     int channel = -1,
     bool lowPriority = false,
     float gain = 1.0f,
-    bool loop = false) {
+    bool loop = false,
+    int ownerIndex = -1) {
     if (!state.audio.stream || group < 0 || index < 0) {
         return;
     }
 
-    const DecodedSoundSample* sample = findPlaybackSound(state, group, index, forceCommon);
+    const DecodedSoundSample* sample = findPlaybackSound(state, group, index, forceCommon, ownerIndex);
     if (!sample || sample->audio.empty()) {
         SDL_Log("SND sample not found: %d,%d", group, index);
         return;
