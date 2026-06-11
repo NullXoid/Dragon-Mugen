@@ -21,6 +21,9 @@
     "depthMax": 48,
     "depthProjectionScale": 0.65,
     "depthMoveSpeed": 1.5,
+    "depthSidestepDistance": 24,
+    "depthSidestepFrames": 10,
+    "depthModifierDoubleTapFrames": 18,
     "fighterDepthHitTolerance": 16,
     "projectileDepthHitTolerance": 12
   },

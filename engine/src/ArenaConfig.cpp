@@ -149,6 +149,9 @@ ArenaConfig sanitizeArenaConfig(ArenaConfig config) {
     }
     config.depthProjectionScale = std::clamp(config.depthProjectionScale, 0.0f, 2.0f);
     config.depthMoveSpeed = std::clamp(config.depthMoveSpeed, 0.25f, 8.0f);
+    config.depthSidestepDistance = std::clamp(config.depthSidestepDistance, 1.0f, 80.0f);
+    config.depthSidestepFrames = std::clamp(config.depthSidestepFrames, 1, 40);
+    config.depthModifierDoubleTapFrames = std::clamp(config.depthModifierDoubleTapFrames, 6, 30);
     config.fighterDepthHitTolerance = std::clamp(config.fighterDepthHitTolerance, 0.0f, 80.0f);
     config.projectileDepthHitTolerance = std::clamp(config.projectileDepthHitTolerance, 0.0f, 80.0f);
     return config;
@@ -180,6 +183,9 @@ ArenaConfig loadArenaConfig(const std::filesystem::path& gameRoot) {
     config.depthMax = findJsonFloat(text, "depthMax", config.depthMax);
     config.depthProjectionScale = findJsonFloat(text, "depthProjectionScale", config.depthProjectionScale);
     config.depthMoveSpeed = findJsonFloat(text, "depthMoveSpeed", config.depthMoveSpeed);
+    config.depthSidestepDistance = findJsonFloat(text, "depthSidestepDistance", config.depthSidestepDistance);
+    config.depthSidestepFrames = findJsonInt(text, "depthSidestepFrames", config.depthSidestepFrames);
+    config.depthModifierDoubleTapFrames = findJsonInt(text, "depthModifierDoubleTapFrames", config.depthModifierDoubleTapFrames);
     config.fighterDepthHitTolerance = findJsonFloat(text, "fighterDepthHitTolerance", config.fighterDepthHitTolerance);
     config.projectileDepthHitTolerance = findJsonFloat(text, "projectileDepthHitTolerance", config.projectileDepthHitTolerance);
     return sanitizeArenaConfig(config);

@@ -25,6 +25,9 @@ struct ArenaConfig {
     float depthMax = 48.0f;
     float depthProjectionScale = 0.65f;
     float depthMoveSpeed = 1.5f;
+    float depthSidestepDistance = 24.0f;
+    int depthSidestepFrames = 10;
+    int depthModifierDoubleTapFrames = 18;
     float fighterDepthHitTolerance = 16.0f;
     float projectileDepthHitTolerance = 12.0f;
 };

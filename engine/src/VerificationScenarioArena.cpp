@@ -396,6 +396,69 @@ int runArenaZCpuAlign(RuntimeProbe& runtime, std::ostream& out) {
     return exitCode(counts);
 }
 
+int runArenaZModifierSidestep(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!setupArenaFight(runtime, out, counts, "arena-z-modifier-sidestep")) {
+        return exitCode(counts);
+    }
+
+    runtime.positionFighters(-60.0f, 60.0f);
+    runtime.setFighterControl(1, false);
+    const bool idle = waitForControllableIdle(runtime, 240);
+    record(out, counts, idle ? Status::Pass : Status::Fail, "controllable_idle_ready",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo)
+        + " ctrl=" + std::to_string(runtime.snapshot().p1.ctrl ? 1 : 0));
+    if (!idle) {
+        record(out, counts, Status::Blocked, "sidestep_checks", "controllable idle gate failed");
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    runtime.setFighterDepth(0, 0.0f);
+    const auto neutralBefore = runtime.snapshot();
+    runtime.step(SymbolicInput{ .depthModifier = true }, 1);
+    runtime.step({}, 4);
+    runtime.step(SymbolicInput{ .depthModifier = true }, 1);
+    runtime.step({}, 12);
+    const auto neutralAfter = runtime.snapshot();
+    const bool modifierOnlySidestep = neutralAfter.p1.depthZ > neutralBefore.p1.depthZ + 16.0f
+        && neutralAfter.p1.onGround
+        && std::fabs(neutralAfter.p1.y - neutralBefore.p1.y) <= 0.5f
+        && neutralAfter.p1.stateType != 'A'
+        && neutralAfter.p1.stateType != 'C';
+    record(out, counts, modifierOnlySidestep ? Status::Pass : Status::Fail,
+        "double_tap_modifier_sidestep",
+        "depth_before=" + std::to_string(neutralBefore.p1.depthZ)
+        + " depth_after=" + std::to_string(neutralAfter.p1.depthZ)
+        + " y_after=" + std::to_string(neutralAfter.p1.y)
+        + " state_type=" + std::string(1, neutralAfter.p1.stateType));
+
+    runtime.positionFighters(-60.0f, 60.0f);
+    runtime.setFighterControl(1, false);
+    waitForControllableIdle(runtime, 240);
+    runtime.setFighterDepth(0, 0.0f);
+    const auto upBefore = runtime.snapshot();
+    runtime.step(SymbolicInput{ .depthModifier = true }, 1);
+    runtime.step({}, 4);
+    runtime.step(SymbolicInput{ .up = true, .depthModifier = true }, 1);
+    runtime.step({}, 12);
+    const auto upAfter = runtime.snapshot();
+    const bool upSidestep = upAfter.p1.depthZ < upBefore.p1.depthZ - 16.0f
+        && upAfter.p1.onGround
+        && std::fabs(upAfter.p1.y - upBefore.p1.y) <= 0.5f
+        && upAfter.p1.stateType != 'A';
+    record(out, counts, upSidestep ? Status::Pass : Status::Fail,
+        "double_tap_modifier_up_sidestep",
+        "depth_before=" + std::to_string(upBefore.p1.depthZ)
+        + " depth_after=" + std::to_string(upAfter.p1.depthZ)
+        + " y_after=" + std::to_string(upAfter.p1.y)
+        + " state_type=" + std::string(1, upAfter.p1.stateType));
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
 int runArenaPerFighterRuntime(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
     if (!setupArenaFight(runtime, out, counts, "arena-per-fighter-runtime", "EvilKen")) {

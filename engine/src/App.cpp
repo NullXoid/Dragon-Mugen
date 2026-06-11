@@ -1278,6 +1278,11 @@ struct FighterState {
     float vx = 0.0f;
     float vy = 0.0f;
     float depthVz = 0.0f;
+    bool arenaDepthModifierHeld = false;
+    int arenaDepthModifierLastTapFrame = -100000;
+    int arenaDepthSidestepTicks = 0;
+    float arenaDepthSidestepVelocity = 0.0f;
+    int arenaDepthSidestepDirection = 1;
     int facing = 1;
     int stateNo = 0;
     int stateTime = 0;
@@ -7716,7 +7721,16 @@ void updateControlledFighter(
     const FighterState* opponent,
     const FighterInputState& input) {
     FighterInputState commandInput = input;
-    const bool depthInputActive = arenaDepthActive(state) && input.depthModifier;
+    const bool arenaDepth = arenaDepthActive(state);
+    if (!arenaDepth) {
+        fighter.arenaDepthModifierHeld = false;
+        fighter.arenaDepthModifierLastTapFrame = -100000;
+        fighter.arenaDepthSidestepTicks = 0;
+        fighter.arenaDepthSidestepVelocity = 0.0f;
+    }
+    const bool depthModifierPressedThisFrame = arenaDepth && input.depthModifier && !fighter.arenaDepthModifierHeld;
+    fighter.arenaDepthModifierHeld = arenaDepth && input.depthModifier;
+    const bool depthInputActive = arenaDepth && input.depthModifier;
     if (depthInputActive) {
         commandInput.up = false;
         commandInput.down = false;
@@ -7775,10 +7789,43 @@ void updateControlledFighter(
         fighter.jumpPeakActionApplied = false;
     };
 
-    if (arenaDepthActive(state) && fighter.ctrl && !movementLocked && fighter.onGround && input.depthModifier && input.up != input.down) {
-        fighter.depthVz = input.down ? state.arenaConfig.depthMoveSpeed : -state.arenaConfig.depthMoveSpeed;
-    } else if (arenaDepthActive(state)) {
-        fighter.depthVz = 0.0f;
+    if (arenaDepth) {
+        const bool canMoveDepth = fighter.ctrl && !movementLocked && fighter.onGround;
+        if (!canMoveDepth) {
+            fighter.depthVz = 0.0f;
+            fighter.arenaDepthSidestepTicks = 0;
+            fighter.arenaDepthSidestepVelocity = 0.0f;
+        } else {
+            if (depthModifierPressedThisFrame) {
+                const bool doubleTap =
+                    state.frame - fighter.arenaDepthModifierLastTapFrame <= state.arenaConfig.depthModifierDoubleTapFrames;
+                if (doubleTap) {
+                    int direction = input.down != input.up
+                        ? (input.down ? 1 : -1)
+                        : (fighter.arenaDepthSidestepDirection >= 0 ? 1 : -1);
+                    if (fighter.depthZ >= state.arenaConfig.depthMax - 0.5f) {
+                        direction = -1;
+                    } else if (fighter.depthZ <= state.arenaConfig.depthMin + 0.5f) {
+                        direction = 1;
+                    }
+                    fighter.arenaDepthSidestepTicks = state.arenaConfig.depthSidestepFrames;
+                    fighter.arenaDepthSidestepVelocity =
+                        static_cast<float>(direction) * state.arenaConfig.depthSidestepDistance
+                        / static_cast<float>(std::max(1, state.arenaConfig.depthSidestepFrames));
+                    fighter.arenaDepthSidestepDirection = -direction;
+                }
+                fighter.arenaDepthModifierLastTapFrame = state.frame;
+            }
+
+            if (fighter.arenaDepthSidestepTicks > 0) {
+                fighter.depthVz = fighter.arenaDepthSidestepVelocity;
+                --fighter.arenaDepthSidestepTicks;
+            } else if (input.depthModifier && input.up != input.down) {
+                fighter.depthVz = input.down ? state.arenaConfig.depthMoveSpeed : -state.arenaConfig.depthMoveSpeed;
+            } else {
+                fighter.depthVz = 0.0f;
+            }
+        }
     }
 
     const auto commands = collectFighterCommands(commandInput, fighter, commandDefinitionsForActor(state, fighter));

@@ -28,6 +28,7 @@ build\dragon_mugen.exe --verify arena-z-hit-depth
 build\dragon_mugen.exe --verify arena-z-push-depth
 build\dragon_mugen.exe --verify arena-z-draw-order
 build\dragon_mugen.exe --verify arena-z-cpu-align
+build\dragon_mugen.exe --verify arena-z-modifier-sidestep
 build\dragon_mugen.exe --verify arena-per-fighter-runtime
 build\dragon_mugen.exe --verify evilryu-dash
 build\dragon_mugen.exe --verify evilken-trip-grounding
@@ -60,6 +61,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Arena timer ticks down, hit-frozen fighters recover or resolve to KO, and knockdowns do not pull the camera upward.
 - Arena hitpause is brief, Rush counters reset after disappearing, debug hit boxes stay Training-only, and disabled timers show `INF`.
 - Arena Z-axis modifier moves depth with Shift/left trigger; normal Up/Down still jump/crouch and still feed quarter-circle commands when the modifier is not held.
+- Arena double-tapping the Z-axis modifier performs a short sidestep; Up/Down on the second tap chooses the sidestep depth direction.
 - Arena depth affects hit gating, player push, CPU alignment, projected sprite position, and draw order only when Z Axis is enabled.
 - Arena gamepad Start opens pause/start behavior only and is not mapped as a fighter button or depth input.
 - Evil Ken crouch roundhouse trip follows the first low arc, hits the floor, then performs two small vertical-only floor bounces before knockdown without rising into air recovery.

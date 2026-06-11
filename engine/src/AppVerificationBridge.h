@@ -116,6 +116,16 @@ public:
         state_.fighters[1].depthZ = 0.0f;
         state_.fighters[0].depthVz = 0.0f;
         state_.fighters[1].depthVz = 0.0f;
+        state_.fighters[0].arenaDepthModifierHeld = false;
+        state_.fighters[1].arenaDepthModifierHeld = false;
+        state_.fighters[0].arenaDepthModifierLastTapFrame = -100000;
+        state_.fighters[1].arenaDepthModifierLastTapFrame = -100000;
+        state_.fighters[0].arenaDepthSidestepTicks = 0;
+        state_.fighters[1].arenaDepthSidestepTicks = 0;
+        state_.fighters[0].arenaDepthSidestepVelocity = 0.0f;
+        state_.fighters[1].arenaDepthSidestepVelocity = 0.0f;
+        state_.fighters[0].arenaDepthSidestepDirection = 1;
+        state_.fighters[1].arenaDepthSidestepDirection = 1;
         state_.fighters[0].facing = state_.fighters[0].x <= state_.fighters[1].x ? 1 : -1;
         state_.fighters[1].facing = -state_.fighters[0].facing;
     }
@@ -129,6 +139,8 @@ public:
             ? std::clamp(depthZ, state_.arenaConfig.depthMin, state_.arenaConfig.depthMax)
             : 0.0f;
         fighter.depthVz = 0.0f;
+        fighter.arenaDepthSidestepTicks = 0;
+        fighter.arenaDepthSidestepVelocity = 0.0f;
     }
 
     void setFighterLife(int fighterIndex, int life) override {
