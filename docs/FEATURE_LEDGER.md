@@ -28,18 +28,19 @@ Static audits do not count as live verification. Parsed M.U.G.E.N controllers re
 | Item | Current Value |
 | --- | ---: |
 | Starting `App.cpp` count | 16820 |
-| Current `App.cpp` count | 9878 |
-| Total removed | 6942 |
-| Reduction | 41.3% |
-| Remaining to 50% reduction | 1468 |
+| Current `App.cpp` count | 9986 |
+| Total removed | 6834 |
+| Reduction | 40.6% |
+| Remaining to 50% reduction | 1576 |
 
-Latest pass: Arena now has an opt-in Camera Rotate setup toggle. When Z Axis and Camera Rotate are both on, actors/effects use an eased pseudo-yaw projection from Arena `x + depthZ` space while combat, CPU targeting, push, camera bounds, and M.U.G.E.N backgrounds remain world-space/X-focused. Focused checks passed for `arena-camera-rotation-toggle`, `arena-camera-rotation-projection`, `arena-camera-rotation-draw-order`, `arena-z-keyboard-controls`, `arena-z-gamepad-controls`, and `arena-z-modifier-sidestep`; build passed. `tools/check_file_sizes.py` still fails only the known oversized `engine/src/App.cpp` debt at `9878` lines.
+Latest pass: Fight Freeze Watch is available with `F3` during Fight View. Normal play now shows only a small status badge; expanded actor details appear only for sustained runtime stalls or per-actor pose stalls where the rendered animation element/position stops changing while the fight keeps updating. It also logs sustained stalls to SDL output. Evil Ken air special state `1862` now exits on contact landing because CNS `pos y` trigger evaluation can see the raw one-tick landing overshoot before render/physics clamp returns `y` to floor `0`. Guard recovery still treats common state `130` as stand guard and exits controlled fighters through guard-end when back is released. Helper spawns require a valid target state, looped authored animations no longer auto-finish, and repeated trigger parsing preserves grouped trigger logic so held Evil Ken power charge stays in the authored charge loop without spawning idle helper clones. Evil Ryu air-special audit fixed M.U.G.E.N `movetype` trigger mapping so attack `A` and hit `H` are distinct; his global hit-state variable reset no longer fires while he is attacking. Build and focused verifiers passed for `arena-evilryu-air-special-contact-landing`, `evilryu-air-special-contact-landing`, `evilryu-specials-supers`, `evilken-specials-supers`, `evilken-air-special-contact-landing`, `kfm-guard-recovery`, `cpu-baseline`, and `arena-cpu-1`. `tools/check_file_sizes.py` still fails only the known oversized `engine/src/App.cpp` debt at `9986` lines.
 
 ## Current Runtime Features To Preserve
 
 | Status | Area | Current Behavior | Preserve Until |
 | --- | --- | --- | --- |
 | `[VERIFIED-STATIC]` | M.U.G.E.N folder layout | Runtime content lives under `game/chars`, `game/data`, `game/font`, `game/sound`, `game/stages`, `game/plugins`, and `game/save`. | A deliberate roadmap update changes the content model. |
+| `[VERIFIED-STATIC]` | Fight freeze diagnostics | Fight View supports Freeze Watch toggled by `F3`. Normal play shows only a small `F3 OK/WATCH/POSE/STALL` badge. Expanded details appear only after sustained runtime stalls or per-actor pose stalls, and SDL logs include the stalled actor/state details. It is intended for debugging stuck states such as air-special contact pauses without covering normal gameplay. | Replace only with a richer debugger or trace recorder. |
 | `[VERIFIED-STATIC]` | M.U.G.E.N customization preservation policy | M.U.G.E.N customization preservation policy is documented in `docs/REPOSITORY_POLICY.md`, `docs/DRAGON_EXTENSIONS.md`, and `docs/STRICT_ROADMAP.md`. This means the policy is repo-visible; it does not mean full runtime enforcement has been audited. Runtime support may still be partial. The policy preserves editability and source-of-truth ownership, not instant perfect compatibility with every M.U.G.E.N character. | Always, for M.U.G.E.N-style customization. |
 | `[VERIFIED-STATIC]` | Roster loading | Characters and stages are selected through `game/data/select.def`; character folders alone do not make a character selectable. | Always, for M.U.G.E.N compatibility. |
 | `[VERIFIED-STATIC]` | Character file resolution | Selected character DEF `[Files]` resolves CMD, CNS/ST, `stcommon`, AIR, SFF, SND, and ACT files. | Always, for compatibility-era loading. |

@@ -390,6 +390,11 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
     }
 
     if (state.frontend.screen == Screen::FightView) {
+        if (key == SDLK_F3) {
+            state.freezeWatch.visible = !state.freezeWatch.visible;
+            return;
+        }
+
         if (isMatchMode(state)) {
             if (state.frontend.singleFightPauseOpen) {
                 switch (key) {

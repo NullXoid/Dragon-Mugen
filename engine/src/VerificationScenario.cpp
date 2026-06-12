@@ -9,11 +9,13 @@
 namespace dragon::verification {
 int runEvilKenTripGrounding(RuntimeProbe& runtime, std::ostream& out);
 int runKfmDownHitProfile(RuntimeProbe& runtime, std::ostream& out);
+int runKfmGuardRecovery(RuntimeProbe& runtime, std::ostream& out);
 int runKfmSpecialsSupers(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenSpecialsSupers(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenHelperLifecycle(RuntimeProbe& runtime, std::ostream& out);
+int runEvilKenPowerChargeHelper(RuntimeProbe& runtime, std::ostream& out), runEvilKenAirSpecialContactLanding(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenTrainingCommandDemo(RuntimeProbe& runtime, std::ostream& out);
-int runEvilRyuSpecialsSupers(RuntimeProbe& runtime, std::ostream& out);
+int runEvilRyuSpecialsSupers(RuntimeProbe& runtime, std::ostream& out), runEvilRyuAirSpecialContactLanding(RuntimeProbe& runtime, std::ostream& out);
 int runKfmMovementDirectionAudit(RuntimeProbe& runtime, std::ostream& out);
 int runEvilRyuHighJumpMovementAudit(RuntimeProbe& runtime, std::ostream& out);
 int runEvilRyuDash(RuntimeProbe& runtime, std::ostream& out);
@@ -24,15 +26,10 @@ int runArenaCameraRotationToggle(RuntimeProbe& runtime, std::ostream& out), runA
 int runArenaZCpuAlign(RuntimeProbe& runtime, std::ostream& out);
 int runArenaZModifierSidestep(RuntimeProbe& runtime, std::ostream& out);
 int runArenaPerFighterRuntime(RuntimeProbe& runtime, std::ostream& out);
-int runArenaOpenBorScrollStage(RuntimeProbe& runtime, std::ostream& out);
+int runArenaOpenBorScrollStage(RuntimeProbe& runtime, std::ostream& out), runArenaEvilRyuAirSpecialContactLanding(RuntimeProbe& runtime, std::ostream& out);
 namespace {
 
-enum class Status {
-    Pass,
-    Partial,
-    Fail,
-    Blocked,
-};
+enum class Status { Pass, Partial, Fail, Blocked };
 
 struct Counts {
     int pass = 0;
@@ -702,7 +699,7 @@ int runEvilKenSmoke(RuntimeProbe& runtime, std::ostream& out) {
         sawAir = sawAir || !p1.onGround || p1.stateType == 'A';
     }
     record(out, counts, sawAir ? Status::Pass : Status::Fail, "jump_airborne", "airborne_observed=" + std::to_string(sawAir ? 1 : 0));
-    runtime.positionFighters(-220.0f, 220.0f);
+    runtime.positionFighters(-18.0f, 24.0f);
     waitForControllableIdle(runtime, 360);
     runtime.step({}, 10);
     char command = '?';
@@ -963,11 +960,15 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
     if (scenarioName == "kfm-movement-direction-audit") return runKfmMovementDirectionAudit(runtime, out);
     if (scenarioName == "evilryu-high-jump") return runEvilRyuHighJumpMovementAudit(runtime, out);
     if (scenarioName == "kfm-down-hit-profile") return runKfmDownHitProfile(runtime, out);
+    if (scenarioName == "kfm-guard-recovery") return runKfmGuardRecovery(runtime, out);
     if (scenarioName == "kfm-specials-supers") return runKfmSpecialsSupers(runtime, out);
     if (scenarioName == "evilken-specials-supers") return runEvilKenSpecialsSupers(runtime, out);
     if (scenarioName == "evilken-helper-lifecycle") return runEvilKenHelperLifecycle(runtime, out);
+    if (scenarioName == "evilken-power-charge-helper") return runEvilKenPowerChargeHelper(runtime, out);
+    if (scenarioName == "evilken-air-special-contact-landing") return runEvilKenAirSpecialContactLanding(runtime, out);
     if (scenarioName == "evilken-training-demo-hit") return runEvilKenTrainingCommandDemo(runtime, out);
     if (scenarioName == "evilryu-specials-supers") return runEvilRyuSpecialsSupers(runtime, out);
+    if (scenarioName == "evilryu-air-special-contact-landing") return runEvilRyuAirSpecialContactLanding(runtime, out);
     if (scenarioName == "evilken-smoke") return runEvilKenSmoke(runtime, out);
     if (scenarioName == "evilken-trip-grounding") return runEvilKenTripGrounding(runtime, out);
     if (scenarioName == "cpu-baseline") return runCpuBaseline(runtime, out);
@@ -986,11 +987,12 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
     if (scenarioName == "arena-z-modifier-sidestep") return runArenaZModifierSidestep(runtime, out);
     if (scenarioName == "arena-per-fighter-runtime") return runArenaPerFighterRuntime(runtime, out);
     if (scenarioName == "arena-openbor-scroll-stage") return runArenaOpenBorScrollStage(runtime, out);
+    if (scenarioName == "arena-evilryu-air-special-contact-landing") return runArenaEvilRyuAirSpecialContactLanding(runtime, out);
     if (scenarioName == "evilryu-dash") return runEvilRyuDash(runtime, out);
 
     out << "VERIFY " << scenarioName << "\n"
         << "BLOCKED unknown_scenario\n"
-        << "  supported: kfm-baseline, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-training-demo-hit, evilryu-specials-supers, evilken-smoke, evilken-trip-grounding, cpu-baseline, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-camera-rotation-toggle, arena-camera-rotation-projection, arena-camera-rotation-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-per-fighter-runtime, arena-openbor-scroll-stage, evilryu-dash\n"
+        << "  supported: kfm-baseline, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-guard-recovery, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-power-charge-helper, evilken-air-special-contact-landing, evilken-training-demo-hit, evilryu-specials-supers, evilryu-air-special-contact-landing, evilken-smoke, evilken-trip-grounding, cpu-baseline, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-camera-rotation-toggle, arena-camera-rotation-projection, arena-camera-rotation-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-per-fighter-runtime, arena-openbor-scroll-stage, arena-evilryu-air-special-contact-landing, evilryu-dash\n"
         << "SUMMARY pass=0 partial=0 fail=0 blocked=1\n";
     return 2;
 }

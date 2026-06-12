@@ -113,6 +113,8 @@ public:
         state_.fighters[1].x = p2X;
         state_.fighters[0].y = 0.0f;
         state_.fighters[1].y = 0.0f;
+        state_.fighters[0].triggerY = 0.0f;
+        state_.fighters[1].triggerY = 0.0f;
         state_.fighters[0].depthZ = 0.0f;
         state_.fighters[1].depthZ = 0.0f;
         state_.fighters[0].depthVz = 0.0f;
@@ -129,6 +131,20 @@ public:
         state_.fighters[1].arenaDepthSidestepDirection = 1;
         state_.fighters[0].facing = state_.fighters[0].x <= state_.fighters[1].x ? 1 : -1;
         state_.fighters[1].facing = -state_.fighters[0].facing;
+    }
+
+    void setFighterPosition(int fighterIndex, float x, float y) override {
+        if (fighterIndex < 0 || fighterIndex >= static_cast<int>(state_.fighters.size())) {
+            return;
+        }
+        auto& fighter = state_.fighters[static_cast<size_t>(fighterIndex)];
+        fighter.x = x;
+        fighter.y = y;
+        fighter.triggerY = y;
+        fighter.onGround = y >= 0.0f;
+        if (!fighter.onGround && fighter.stateType != 'A') {
+            fighter.stateType = 'A';
+        }
     }
 
     void setFighterDepth(int fighterIndex, float depthZ) override {
@@ -165,6 +181,30 @@ public:
         }
         auto& fighter = state_.fighters[static_cast<size_t>(fighterIndex)];
         fighter.power = std::clamp(power, 0, std::max(0, characterConstantsForActor(state_, fighter).maxPower));
+    }
+
+    void setFighterVar(int fighterIndex, int varIndex, int value) override {
+        if (fighterIndex < 0 || fighterIndex >= static_cast<int>(state_.fighters.size()) || varIndex < 0 || varIndex >= 60) {
+            return;
+        }
+        state_.fighters[static_cast<size_t>(fighterIndex)].vars[static_cast<size_t>(varIndex)] = value;
+    }
+
+    int fighterVar(int fighterIndex, int varIndex) const override {
+        if (fighterIndex < 0 || fighterIndex >= static_cast<int>(state_.fighters.size()) || varIndex < 0 || varIndex >= 60) {
+            return 0;
+        }
+        return state_.fighters[static_cast<size_t>(fighterIndex)].vars[static_cast<size_t>(varIndex)];
+    }
+
+    void setFighterMoveContact(int fighterIndex, bool hit, bool guarded) override {
+        if (fighterIndex < 0 || fighterIndex >= static_cast<int>(state_.fighters.size())) {
+            return;
+        }
+        auto& fighter = state_.fighters[static_cast<size_t>(fighterIndex)];
+        fighter.moveContact = hit || guarded;
+        fighter.moveHit = hit;
+        fighter.moveGuarded = guarded;
     }
 
     void setFighterControl(int fighterIndex, bool enabled) override {
@@ -244,7 +284,9 @@ public:
         helper.life = 1000;
         helper.pauseMoveTime = pauseMoveTime;
         helper.superMoveTime = superMoveTime;
-        enterState(state_, helper, stateNo);
+        if (!enterState(state_, helper, stateNo)) {
+            return;
+        }
         state_.helpers.push_back(std::move(helper));
     }
 

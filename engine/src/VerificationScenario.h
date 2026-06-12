@@ -106,9 +106,13 @@ public:
         int arenaCpuCount = 1) = 0;
     virtual void step(const SymbolicInput& p1Input, int frames) = 0;
     virtual void positionFighters(float p1X, float p2X) = 0;
+    virtual void setFighterPosition(int fighterIndex, float x, float y) = 0;
     virtual void setFighterDepth(int fighterIndex, float depthZ) = 0;
     virtual void setFighterLife(int fighterIndex, int life) = 0;
     virtual void setFighterPower(int fighterIndex, int power) = 0;
+    virtual void setFighterVar(int fighterIndex, int varIndex, int value) = 0;
+    virtual int fighterVar(int fighterIndex, int varIndex) const = 0;
+    virtual void setFighterMoveContact(int fighterIndex, bool hit, bool guarded) = 0;
     virtual void setFighterControl(int fighterIndex, bool enabled) = 0;
     virtual void setArenaZAxisEnabled(bool enabled) = 0;
     virtual void setArenaCameraRotationEnabled(bool enabled) = 0;

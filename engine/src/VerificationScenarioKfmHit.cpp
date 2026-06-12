@@ -1,5 +1,7 @@
 #include "VerificationScenario.h"
 
+#include "AppTypes.h"
+
 #include <cmath>
 #include <ostream>
 #include <string>
@@ -74,6 +76,16 @@ bool waitForControllableIdle(RuntimeProbe& runtime, int maxFrames) {
     return p1.stateNo == 0 && p1.ctrl && p1.onGround && p1.moveType == 'I';
 }
 
+bool waitForFight(RuntimeProbe& runtime, int maxFrames) {
+    for (int i = 0; i < maxFrames; ++i) {
+        if (runtime.snapshot().matchPhase == static_cast<int>(MatchPhase::Fight)) {
+            return true;
+        }
+        runtime.step({}, 1);
+    }
+    return runtime.snapshot().matchPhase == static_cast<int>(MatchPhase::Fight);
+}
+
 } // namespace
 
 int runKfmDownHitProfile(RuntimeProbe& runtime, std::ostream& out) {
@@ -145,6 +157,64 @@ int runKfmDownHitProfile(RuntimeProbe& runtime, std::ostream& out) {
         "state=" + std::to_string(hitTarget.stateNo)
         + " action=" + std::to_string(hitTarget.action)
         + " on_ground=" + std::to_string(hitTarget.onGround ? 1 : 0));
+
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runKfmGuardRecovery(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("EvilRyu", "Mountainside", ScenarioMode::SinglePlayer, out)) {
+        record(out, counts, Status::Blocked, "setup", "Evil Ryu/Mountainside single-player setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "kfm-guard-recovery");
+
+    const bool fightStarted = waitForFight(runtime, 420);
+    record(out, counts, fightStarted ? Status::Pass : Status::Fail, "fight_phase_ready",
+        "match_phase=" + std::to_string(runtime.snapshot().matchPhase));
+    const bool settled = fightStarted && waitForControllableIdle(runtime, 420);
+    record(out, counts, settled ? Status::Pass : Status::Fail, "controllable_idle_ready",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo));
+    if (!settled) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    runtime.positionFighters(-30.0f, 30.0f);
+    runtime.forceFighterState(0, 0);
+    runtime.forceFighterState(1, 130);
+    runtime.setFighterControl(1, true);
+    const auto forced = runtime.snapshot().p2;
+    record(out, counts, forced.stateNo == 130 ? Status::Pass : Status::Fail, "p2_forced_stand_guard",
+        "state=" + std::to_string(forced.stateNo)
+        + " action=" + std::to_string(forced.action)
+        + " ctrl=" + std::to_string(forced.ctrl ? 1 : 0));
+
+    bool sawGuardEnd = false;
+    FighterSnapshot recovered = forced;
+    for (int i = 0; i < 120; ++i) {
+        runtime.step({}, 1);
+        const auto p2 = runtime.snapshot().p2;
+        sawGuardEnd = sawGuardEnd || p2.stateNo == 140;
+        if (p2.stateNo == 0 && p2.ctrl && p2.moveType == 'I') {
+            recovered = p2;
+            break;
+        }
+        recovered = p2;
+    }
+
+    record(out, counts, sawGuardEnd ? Status::Pass : Status::Fail, "guard_end_state_seen",
+        "final_state=" + std::to_string(recovered.stateNo)
+        + " action=" + std::to_string(recovered.action)
+        + " time=" + std::to_string(recovered.stateTime));
+    record(out, counts, recovered.stateNo == 0 && recovered.ctrl && recovered.moveType == 'I' ? Status::Pass : Status::Fail,
+        "guard_idle_recovers_to_neutral",
+        "state=" + std::to_string(recovered.stateNo)
+        + " action=" + std::to_string(recovered.action)
+        + " ctrl=" + std::to_string(recovered.ctrl ? 1 : 0)
+        + " move_type=" + std::string(1, recovered.moveType));
 
     summary(out, counts);
     return exitCode(counts);

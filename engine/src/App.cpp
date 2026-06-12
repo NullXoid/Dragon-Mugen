@@ -1278,6 +1278,7 @@ struct FighterState {
     float vx = 0.0f;
     float vy = 0.0f;
     float depthVz = 0.0f;
+    float triggerY = 0.0f;
     bool arenaDepthModifierHeld = false;
     int arenaDepthModifierLastTapFrame = -100000;
     int arenaDepthSidestepTicks = 0;
@@ -1403,6 +1404,59 @@ struct FighterState {
     int bindTicks = 0;
 };
 
+struct FreezeWatchFighterSample {
+    float x = 0.0f;
+    float y = 0.0f;
+    float vx = 0.0f;
+    float vy = 0.0f;
+    float depthZ = 0.0f;
+    int stateNo = 0;
+    int stateTime = 0;
+    int action = 0;
+    int animTick = 0;
+    int animElem = 0;
+    int life = 0;
+    int power = 0;
+    int hitPauseTicks = 0;
+    int hitStunTicks = 0;
+    int pauseMoveTime = 0;
+    int superMoveTime = 0;
+    int ownerIndex = -1;
+    char stateType = 'S';
+    char moveType = 'I';
+    char physics = 'S';
+    bool ctrl = false;
+    bool onGround = true;
+    bool helper = false;
+    bool destroyRequested = false;
+};
+
+struct FreezeWatchSnapshot {
+    MatchPhase matchPhase = MatchPhase::Fight;
+    int matchPhaseTicks = 0;
+    int globalPauseTicks = 0;
+    int globalPauseOwnerIndex = -1;
+    int globalPauseOwnerMoveTicks = 0;
+    bool globalPauseIsSuper = false;
+    int activeProjectiles = 0;
+    int activeEffects = 0;
+    std::vector<FreezeWatchFighterSample> fighters;
+    std::vector<FreezeWatchFighterSample> helpers;
+};
+
+struct FreezeWatchState {
+    bool visible = false;
+    bool hasSnapshot = false;
+    int fighterStalledFrames = 0;
+    int poseStalledFrames = 0;
+    int lastLogStallFrame = 0;
+    int lastLogPoseStallFrame = 0;
+    std::string poseStalledLabel;
+    std::vector<int> fighterPoseStallFrames;
+    std::vector<int> helperPoseStallFrames;
+    FreezeWatchSnapshot previous;
+};
+
 struct AppState {
     std::filesystem::path gameRoot;
     LoadedContentSummary content;
@@ -1438,6 +1492,7 @@ struct AppState {
     float cameraY = 0.0f;
     float arenaCameraYawDeg = 0.0f;
     float arenaCameraTargetYawDeg = 0.0f;
+    FreezeWatchState freezeWatch;
     std::vector<FighterState> fighters = std::vector<FighterState>(2);
     std::vector<FighterState> helpers;
     std::vector<RuntimeProjectile> projectiles;
@@ -3659,7 +3714,7 @@ bool fighterAnimationEnded(const AppState& state, const FighterState& fighter);
 void finishStateIfAnimationEnded(const AppState& state, FighterState& fighter);
 void enterCommonLandingState(const AppState& state, FighterState& fighter);
 
-void enterState(const AppState& state, FighterState& fighter, int stateNo) {
+bool enterState(const AppState& state, FighterState& fighter, int stateNo) {
     fighter.guarding = false;
     if (stateNo == 0) {
         fighter.prevStateNo = fighter.stateNo;
@@ -3683,12 +3738,12 @@ void enterState(const AppState& state, FighterState& fighter, int stateNo) {
         fighter.stateType = fighter.onGround ? 'S' : 'A';
         fighter.sprPriority = 0;
         setFighterAction(fighter, chooseMovementAction(state, fighter));
-        return;
+        return true;
     }
 
     const StateDefinition* stateDef = findStateDefinitionForActor(state, fighter, stateNo);
     if (!stateDef || (stateDef->hasAnim && !findExactClipForActor(state, fighter, stateDef->anim))) {
-        return;
+        return false;
     }
 
     fighter.prevStateNo = fighter.stateNo;
@@ -3720,6 +3775,7 @@ void enterState(const AppState& state, FighterState& fighter, int stateNo) {
         setFighterAction(fighter, stateDef->anim);
     }
     applyStateDefinitionPowerAdd(state, fighter, *stateDef);
+    return true;
 }
 
 int hitAnimTypeIndex(std::string_view animtype) {
@@ -3965,9 +4021,7 @@ bool fighterIsCrouchingForHit(const FighterState& fighter) {
         || fighter.stateNo == 10
         || fighter.stateNo == 11
         || fighter.stateNo == 12
-        || fighter.stateNo == 130
-        || fighter.stateNo == 131
-        || fighter.stateNo == 132;
+        || fighter.stateNo == 131;
 }
 
 bool fighterIsLyingDownForHit(const FighterState& fighter) {
@@ -4001,16 +4055,28 @@ int fallLandActionForFighter(const AppState& state, const FighterState& target) 
     return findExactClipForActor(state, target, 5100) ? 5100 : 0;
 }
 
+int guardStartStateNo() {
+    return 120;
+}
+
+int guardIdleStateNo(GuardStance stance) {
+    return stance == GuardStance::Crouch ? 131 : 130;
+}
+
+int guardEndStateNo() {
+    return 140;
+}
+
 int guardStartAction(GuardStance stance) {
-    return stance == GuardStance::Crouch ? 130 : 120;
+    return stance == GuardStance::Crouch ? 121 : 120;
 }
 
 int guardIdleAction(GuardStance stance) {
-    return stance == GuardStance::Crouch ? 131 : 121;
+    return stance == GuardStance::Crouch ? 131 : 130;
 }
 
 int guardEndAction(GuardStance stance) {
-    return stance == GuardStance::Crouch ? 132 : 122;
+    return stance == GuardStance::Crouch ? 141 : 140;
 }
 
 bool isGroundGuardCommonState(int stateNo) {
@@ -4019,21 +4085,27 @@ bool isGroundGuardCommonState(int stateNo) {
         || stateNo == 122
         || stateNo == 130
         || stateNo == 131
-        || stateNo == 132;
+        || stateNo == 140;
 }
 
-GuardStance guardStanceFromCommonState(int stateNo) {
-    return stateNo >= 130 && stateNo <= 132 ? GuardStance::Crouch : GuardStance::Stand;
+GuardStance guardStanceFromCommonState(const FighterState& target) {
+    return target.crouchGuard
+        || target.stateType == 'C'
+        || target.stateNo == guardIdleStateNo(GuardStance::Crouch)
+        || target.action == guardStartAction(GuardStance::Crouch)
+        || target.action == guardEndAction(GuardStance::Crouch)
+        ? GuardStance::Crouch
+        : GuardStance::Stand;
 }
 
 void enterGroundGuardReadyState(const AppState& state, FighterState& target, GuardStance stance) {
     const bool crouch = stance == GuardStance::Crouch;
     const int startAction = guardStartAction(stance);
     const int idleAction = guardIdleAction(stance);
-    const int action = firstExistingActionForActor(state, target, { startAction, idleAction, crouch ? 130 : 120, 0 });
+    const int action = firstExistingActionForActor(state, target, { startAction, idleAction, 0 });
     target.guarding = false;
     target.crouchGuard = crouch;
-    target.stateNo = action == idleAction ? idleAction : startAction;
+    target.stateNo = action == idleAction ? guardIdleStateNo(stance) : guardStartStateNo();
     target.stateTime = 0;
     clearStateRuntimeControllerTracking(target);
     target.moveContact = false;
@@ -4065,7 +4137,7 @@ void enterGroundGuardReadyState(const AppState& state, FighterState& target, Gua
 }
 
 void enterGroundGuardEndState(const AppState& state, FighterState& target) {
-    const GuardStance stance = guardStanceFromCommonState(target.stateNo);
+    const GuardStance stance = guardStanceFromCommonState(target);
     const int action = findExactClipForActor(state, target, guardEndAction(stance)) ? guardEndAction(stance) : 0;
     if (action == 0) {
         enterState(state, target, 0);
@@ -4074,7 +4146,7 @@ void enterGroundGuardEndState(const AppState& state, FighterState& target) {
 
     target.guarding = false;
     target.crouchGuard = stance == GuardStance::Crouch;
-    target.stateNo = guardEndAction(stance);
+    target.stateNo = guardEndStateNo();
     target.stateTime = 0;
     target.moveType = 'I';
     target.stateType = target.crouchGuard ? 'C' : 'S';
@@ -4091,23 +4163,47 @@ void updateGroundGuardReadyState(const AppState& state, FighterState& target) {
         return;
     }
 
-    const GuardStance stance = guardStanceFromCommonState(target.stateNo);
+    const GuardStance stance = guardStanceFromCommonState(target);
     const int startAction = guardStartAction(stance);
     const int idleAction = guardIdleAction(stance);
-    const int endAction = guardEndAction(stance);
 
     target.vx = 0.0f;
     target.vy = 0.0f;
     target.onGround = true;
-    if (target.stateNo == startAction && fighterAnimationEnded(state, target)) {
-        target.stateNo = findExactClipForActor(state, target, idleAction) ? idleAction : startAction;
+    if (target.stateNo == guardStartStateNo() && fighterAnimationEnded(state, target)) {
+        target.stateNo = findExactClipForActor(state, target, idleAction) ? guardIdleStateNo(stance) : guardStartStateNo();
         target.stateTime = 0;
         setFighterAction(target, findExactClipForActor(state, target, idleAction) ? idleAction : startAction);
         return;
     }
-    if (target.stateNo == endAction && fighterAnimationEnded(state, target)) {
+    if (target.stateNo == guardEndStateNo() && fighterAnimationEnded(state, target)) {
         enterState(state, target, 0);
     }
+}
+
+bool updateGroundGuardInputState(const AppState& state, FighterState& target, const FighterInputState& input) {
+    if (!isGroundGuardCommonState(target.stateNo)) {
+        return false;
+    }
+
+    if (target.stateNo == guardEndStateNo()) {
+        updateGroundGuardReadyState(state, target);
+        return true;
+    }
+
+    if (!fighterInputHoldingBack(input, target)) {
+        enterGroundGuardEndState(state, target);
+        return true;
+    }
+
+    const GuardStance desiredStance = input.down && target.onGround ? GuardStance::Crouch : GuardStance::Stand;
+    if (target.stateNo != guardStartStateNo() && guardStanceFromCommonState(target) != desiredStance) {
+        enterGroundGuardReadyState(state, target, desiredStance);
+        return true;
+    }
+
+    updateGroundGuardReadyState(state, target);
+    return true;
 }
 
 int fightHitPauseTicks(const AppState& state, int ticks, int minimum) {
@@ -4383,7 +4479,7 @@ bool isCrouchStateNo(int stateNo) {
 
 bool fighterAnimationEnded(const AppState& state, const FighterState& fighter) {
     const AnimationClip* clip = findExactClipForActor(state, fighter, fighter.action);
-    return clip && !clip->hasInfiniteDuration && fighter.animTick >= clip->loopTicks;
+    return clip && !clip->hasInfiniteDuration && !clip->hasLoopStart && fighter.animTick >= clip->loopTicks;
 }
 
 void enterCrouchState(const AppState& state, FighterState& fighter, int stateNo) {
@@ -5005,7 +5101,9 @@ void spawnStateHelper(AppState& state, const FighterState& owner, const StateHel
     helper.sprPriority = controller.sprPriority;
     helper.pauseMoveTime = controller.pauseMoveTime;
     helper.superMoveTime = controller.superMoveTime;
-    enterState(state, helper, controller.stateNo);
+    if (!enterState(state, helper, controller.stateNo)) {
+        return;
+    }
     state.helpers.push_back(std::move(helper));
 }
 
@@ -5471,6 +5569,7 @@ void resetFighterOneTickBounds(AppState& state) {
         fighter.playerPush = true;
         fighter.posFreezeX = false;
         fighter.posFreezeY = false;
+        fighter.triggerY = fighter.y;
         fighter.edgeWidthFront = -1.0f;
         fighter.edgeWidthBack = -1.0f;
         fighter.playerWidthFront = -1.0f;
@@ -5649,6 +5748,7 @@ void updateFighterPhysics(const AppState& state, FighterState& fighter, const St
     if (!fighter.posFreezeY) {
         fighter.y += fighter.vy;
     }
+    fighter.triggerY = fighter.y;
     if (!fighter.posFreezeY && !fighter.onGround && fighter.physics == 'A') {
         const CharacterConstants& constants = characterConstantsForActor(state, fighter);
         fighter.vy += fighter.hitFall && fighter.hitFallYAccel > 0.0f
@@ -7457,8 +7557,8 @@ void finishStateIfAnimationEnded(const AppState& state, FighterState& fighter) {
     if (fighter.stateNo == 0
         || fighter.moveType == 'H'
         || isCrouchStateNo(fighter.stateNo)
-        || fighter.stateNo == 20 || fighter.stateNo == 130
-        || fighter.stateNo == 131) {
+        || fighter.stateNo == 20
+        || isGroundGuardCommonState(fighter.stateNo)) {
         return;
     }
 
@@ -7937,6 +8037,10 @@ void updateControlledFighter(
         return;
     }
 
+    if (updateGroundGuardInputState(state, fighter, commandInput)) {
+        return;
+    }
+
     updateStateZeroFromMovement(state, fighter);
     const bool holdingDown = commandInput.down && fighter.onGround;
     updatePlayerCrouchInput(state, fighter, holdingDown);
@@ -8073,14 +8177,14 @@ void updateTrainingDummy(AppState& state, FighterState& dummy) {
         const GuardStance idleGuard = dummyGuardIdleStance(state.training.options.dummyGuardMode);
         if (idleGuard != GuardStance::None) {
             if (!isGroundGuardCommonState(dummy.stateNo)
-                || guardStanceFromCommonState(dummy.stateNo) != idleGuard
-                || dummy.stateNo == guardEndAction(idleGuard)) {
+                || guardStanceFromCommonState(dummy) != idleGuard
+                || dummy.stateNo == guardEndStateNo()) {
                 enterGroundGuardReadyState(state, dummy, idleGuard);
             } else {
                 updateGroundGuardReadyState(state, dummy);
             }
         } else if (isGroundGuardCommonState(dummy.stateNo)) {
-            if (dummy.stateNo == guardEndAction(guardStanceFromCommonState(dummy.stateNo))) {
+            if (dummy.stateNo == guardEndStateNo()) {
                 updateGroundGuardReadyState(state, dummy);
             } else {
                 enterGroundGuardEndState(state, dummy);
@@ -8779,6 +8883,8 @@ void updateFight(AppState& state) {
     finishStateIfAnimationEnded(state, p1);
     finishStateIfAnimationEnded(state, p2);
 }
+
+#include "FightFreezeWatchRuntime.h"
 
 void drawStageSelectPreviewBackground(SDL_Renderer* renderer, const AppState& state);
 void ensureSelectedStagePreviewBackground(SDL_Renderer* renderer, AppState& state);
@@ -9714,6 +9820,7 @@ void drawFightView(SDL_Renderer* renderer, const AppState& state) {
         drawMatchResultScreen(renderer, state);
     }
 
+    drawFightFreezeWatchOverlay(renderer, state);
     SDL_RenderPresent(renderer);
 }
 
@@ -9766,6 +9873,7 @@ void fixedUpdate(AppState& state) {
         updateFight(state);
         applyTrainingPowerMode(state);
     }
+    updateFightFreezeWatch(state, fightPaused);
     updateAudioMixer(state);
 }
 

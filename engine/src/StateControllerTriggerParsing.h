@@ -57,6 +57,35 @@ std::optional<std::pair<CompareOp, size_t>> findCompareOp(std::string_view value
 std::string stripOuterParens(std::string value) {
     value = trim(value);
     while (value.size() >= 2 && value.front() == '(' && value.back() == ')') {
+        int depth = 0;
+        bool inQuote = false;
+        bool wrapsWholeExpression = true;
+        for (size_t i = 0; i < value.size(); ++i) {
+            const char ch = value[i];
+            if (ch == '"') {
+                inQuote = !inQuote;
+                continue;
+            }
+            if (inQuote) {
+                continue;
+            }
+            if (ch == '(') {
+                ++depth;
+            } else if (ch == ')') {
+                --depth;
+                if (depth == 0 && i + 1 < value.size()) {
+                    wrapsWholeExpression = false;
+                    break;
+                }
+                if (depth < 0) {
+                    wrapsWholeExpression = false;
+                    break;
+                }
+            }
+        }
+        if (!wrapsWholeExpression || depth != 0) {
+            break;
+        }
         value = trim(std::string_view(value).substr(1, value.size() - 2));
     }
     return value;
@@ -673,16 +702,61 @@ bool parseStateTriggerClause(const std::string& clause, StateTriggerGroup& group
     return false;
 }
 
+void appendStateTriggerGroup(StateTriggerGroup& target, const StateTriggerGroup& source) {
+    target.floatConditions.insert(target.floatConditions.end(), source.floatConditions.begin(), source.floatConditions.end());
+    target.rangeConditions.insert(target.rangeConditions.end(), source.rangeConditions.begin(), source.rangeConditions.end());
+    target.stateTypeConditions.insert(target.stateTypeConditions.end(), source.stateTypeConditions.begin(), source.stateTypeConditions.end());
+    target.expressionConditions.insert(target.expressionConditions.end(), source.expressionConditions.begin(), source.expressionConditions.end());
+    target.booleanExpressions.insert(target.booleanExpressions.end(), source.booleanExpressions.begin(), source.booleanExpressions.end());
+    target.animElemTimeConditions.insert(target.animElemTimeConditions.end(), source.animElemTimeConditions.begin(), source.animElemTimeConditions.end());
+    target.requiredCommands.insert(target.requiredCommands.end(), source.requiredCommands.begin(), source.requiredCommands.end());
+    target.forbiddenCommands.insert(target.forbiddenCommands.end(), source.forbiddenCommands.begin(), source.forbiddenCommands.end());
+    target.requiresMoveContact = target.requiresMoveContact || source.requiresMoveContact;
+}
+
+std::optional<std::vector<StateTriggerGroup>> parseStateTriggerClauseAlternatives(const std::string& clause) {
+    const std::string trimmed = stripOuterParens(clause);
+    const auto orClauses = splitTopLevelClauses(trimmed, "||", true);
+    std::vector<StateTriggerGroup> alternatives;
+    alternatives.reserve(std::max<size_t>(1, orClauses.size()));
+    for (const auto& orClause : orClauses) {
+        StateTriggerGroup group;
+        if (!parseStateTriggerClause(orClause, group)) {
+            return std::nullopt;
+        }
+        alternatives.push_back(std::move(group));
+    }
+    if (alternatives.empty()) {
+        StateTriggerGroup group;
+        if (!parseStateTriggerClause(trimmed, group)) {
+            return std::nullopt;
+        }
+        alternatives.push_back(std::move(group));
+    }
+    return alternatives;
+}
+
 std::optional<std::vector<StateTriggerGroup>> parseStateTriggerExpressionGroups(const std::string& expression) {
     std::vector<StateTriggerGroup> groups;
     for (const auto& orClause : splitTopLevelClauses(expression, "||", true)) {
-        StateTriggerGroup group;
+        std::vector<StateTriggerGroup> andGroups{ StateTriggerGroup{} };
         for (const auto& andClause : splitTopLevelClauses(orClause, "&&")) {
-            if (!parseStateTriggerClause(andClause, group)) {
+            const auto alternatives = parseStateTriggerClauseAlternatives(andClause);
+            if (!alternatives) {
                 return std::nullopt;
             }
+            std::vector<StateTriggerGroup> expanded;
+            expanded.reserve(andGroups.size() * alternatives->size());
+            for (const auto& base : andGroups) {
+                for (const auto& alternative : *alternatives) {
+                    StateTriggerGroup combined = base;
+                    appendStateTriggerGroup(combined, alternative);
+                    expanded.push_back(std::move(combined));
+                }
+            }
+            andGroups = std::move(expanded);
         }
-        groups.push_back(std::move(group));
+        groups.insert(groups.end(), andGroups.begin(), andGroups.end());
     }
     if (groups.empty()) {
         groups.push_back({});
@@ -694,8 +768,7 @@ void appendNumberedTriggerExpression(std::vector<std::pair<std::string, std::str
     const std::string loweredKey = lowercaseCopy(key);
     for (auto& [currentKey, expression] : expressions) {
         if (currentKey == loweredKey) {
-            expression += " && ";
-            expression += value;
+            expression = "(" + expression + ") && (" + value + ")";
             return;
         }
     }

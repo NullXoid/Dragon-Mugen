@@ -34,9 +34,14 @@ build\dragon_mugen.exe --verify arena-z-cpu-align
 build\dragon_mugen.exe --verify arena-z-modifier-sidestep
 build\dragon_mugen.exe --verify arena-per-fighter-runtime
 build\dragon_mugen.exe --verify arena-openbor-scroll-stage
+build\dragon_mugen.exe --verify arena-evilryu-air-special-contact-landing
+build\dragon_mugen.exe --verify kfm-guard-recovery
 build\dragon_mugen.exe --verify kfm-specials-supers
 build\dragon_mugen.exe --verify evilken-specials-supers
+build\dragon_mugen.exe --verify evilken-air-special-contact-landing
+build\dragon_mugen.exe --verify evilken-power-charge-helper
 build\dragon_mugen.exe --verify evilryu-specials-supers
+build\dragon_mugen.exe --verify evilryu-air-special-contact-landing
 build\dragon_mugen.exe --verify evilryu-dash
 build\dragon_mugen.exe --verify evilken-trip-grounding
 ```
@@ -61,6 +66,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Stage confirmation opens the VS screen first.
 - Fight view loads selected character and selected stage after VS.
 - Fight view fully repaints the window during hitpause, camera shake, and result overlays; no stale desktop/debug text should appear around the game viewport.
+- Fight view `F3` toggles Freeze Watch. Normal play should show only a small status badge; expanded fighter/helper details should appear only for sustained runtime or pose stalls.
 - Arena and classic sweep/trip hits leave hitpause by entering the trip/fall/lying states instead of staying in grounded hitstun.
 - Arena shows one health bar per active fighter, not a shared CPU health average.
 - Arena knockdowns land on the floor and do not trigger viewport hitshake.

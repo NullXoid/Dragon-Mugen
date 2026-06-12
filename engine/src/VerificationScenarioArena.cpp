@@ -733,4 +733,214 @@ int runArenaOpenBorScrollStage(RuntimeProbe& runtime, std::ostream& out) {
     return exitCode(counts);
 }
 
+int runArenaEvilRyuAirSpecialContactLanding(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!setupArenaFight(runtime, out, counts, "arena-evilryu-air-special-contact-landing", "EvilRyu")) {
+        return exitCode(counts);
+    }
+
+    runtime.setArenaZAxisEnabled(false);
+    runtime.positionFighters(-36.0f, 28.0f);
+    runtime.forceFighterState(0, 4054);
+    runtime.forceFighterState(1, 0);
+    runtime.setFighterPosition(0, -36.0f, -68.0f);
+    runtime.setFighterPosition(1, 28.0f, 0.0f);
+    runtime.setFighterControl(0, false);
+    runtime.setFighterControl(1, false);
+
+    bool saw4055 = false;
+    bool sawLanding = false;
+    bool sawIdle = false;
+    bool sawContact = false;
+    bool sawStale4055 = false;
+    int peakHelpers = 0;
+    FighterSnapshot last = runtime.snapshot().p1;
+    std::string hitText;
+    for (int i = 0; i < 220; ++i) {
+        runtime.step({}, 1);
+        const auto snapshot = runtime.snapshot();
+        last = snapshot.p1;
+        peakHelpers = std::max(peakHelpers, snapshot.activeHelpers);
+        saw4055 = saw4055 || snapshot.p1.stateNo == 4055;
+        sawLanding = sawLanding || snapshot.p1.stateNo == 4044;
+        sawIdle = sawIdle || (snapshot.p1.stateNo == 0 && snapshot.p1.ctrl && snapshot.p1.onGround);
+        sawContact = sawContact
+            || snapshot.p1.moveContact
+            || snapshot.p1.moveHit
+            || snapshot.p1.moveGuarded
+            || snapshot.lastHitText.find("P1 hit") != std::string::npos
+            || snapshot.lastHitText.find("P1 guard") != std::string::npos;
+        if (!snapshot.lastHitText.empty()) {
+            hitText = snapshot.lastHitText;
+        }
+        sawStale4055 = sawStale4055 || (snapshot.p1.stateNo == 4055 && snapshot.p1.stateTime > 120);
+        if (sawIdle) {
+            break;
+        }
+    }
+
+    const auto final = runtime.snapshot();
+    const bool leftAirSpecial = last.stateNo != 4054 && last.stateNo != 4055;
+    record(out, counts, saw4055 ? Status::Pass : Status::Fail, "arena_air_chain_reaches_descent_4055",
+        "final_state=" + std::to_string(last.stateNo)
+        + " final_time=" + std::to_string(last.stateTime)
+        + " final_y=" + std::to_string(last.y)
+        + " global_pause=" + std::to_string(final.globalPauseTicks));
+    record(out, counts, sawContact ? Status::Pass : Status::Fail, "arena_air_special_contact_observed",
+        "peak_helpers=" + std::to_string(peakHelpers)
+        + " hit=\"" + hitText + "\"");
+    record(out, counts, sawLanding ? Status::Pass : Status::Fail, "arena_air_special_lands_via_4044",
+        "final_state=" + std::to_string(last.stateNo)
+        + " final_time=" + std::to_string(last.stateTime)
+        + " final_y=" + std::to_string(last.y));
+    record(out, counts, sawIdle ? Status::Pass : Status::Fail, "arena_air_special_recovers_idle",
+        "final_state=" + std::to_string(last.stateNo)
+        + " final_action=" + std::to_string(last.action)
+        + " final_time=" + std::to_string(last.stateTime)
+        + " final_x=" + std::to_string(last.x)
+        + " final_y=" + std::to_string(last.y));
+    record(out, counts, leftAirSpecial && !sawStale4055 ? Status::Pass : Status::Fail, "arena_air_special_not_stuck_in_4054_4055",
+        "state=" + std::to_string(last.stateNo)
+        + " time=" + std::to_string(last.stateTime)
+        + " stale4055=" + std::to_string(sawStale4055 ? 1 : 0)
+        + " helpers=" + std::to_string(final.activeHelpers));
+
+    runtime.positionFighters(-36.0f, 28.0f);
+    runtime.forceFighterState(0, 4050);
+    runtime.forceFighterState(1, 0);
+    runtime.setFighterPosition(0, -36.0f, -68.0f);
+    runtime.setFighterPosition(1, 28.0f, 0.0f);
+    runtime.setFighterControl(0, false);
+    runtime.setFighterControl(1, false);
+    runtime.step({}, 1);
+    runtime.setFighterVar(0, 28, 3);
+    runtime.setFighterVar(0, 46, 100);
+    runtime.setFighterMoveContact(0, true, false);
+    runtime.step({}, 1);
+    const auto forcedContact = runtime.snapshot();
+    const int forcedVar28 = runtime.fighterVar(0, 28);
+    const int forcedVar46 = runtime.fighterVar(0, 46);
+    record(out, counts, forcedContact.p1.stateNo == 4054 ? Status::Pass : Status::Fail, "arena_parent_4050_forced_movecontact_branches",
+        "state=" + std::to_string(forcedContact.p1.stateNo)
+        + " time=" + std::to_string(forcedContact.p1.stateTime)
+        + " var28=" + std::to_string(forcedVar28)
+        + " var46=" + std::to_string(forcedVar46)
+        + " move_contact=" + std::to_string(forcedContact.p1.moveContact ? 1 : 0)
+        + " move_hit=" + std::to_string(forcedContact.p1.moveHit ? 1 : 0));
+
+    runtime.positionFighters(-36.0f, 28.0f);
+    runtime.forceFighterState(0, 4050);
+    runtime.forceFighterState(1, 0);
+    runtime.setFighterPosition(0, -36.0f, -68.0f);
+    runtime.setFighterPosition(1, 28.0f, 0.0f);
+    runtime.setFighterPower(0, 3000);
+    runtime.setFighterVar(0, 28, 3);
+    runtime.setFighterControl(0, false);
+    runtime.setFighterControl(1, false);
+
+    bool parentSaw4054 = false;
+    bool parentSaw4055 = false;
+    bool parentSawLanding = false;
+    bool parentSawIdle = false;
+    bool parentSawContact = false;
+    bool parentStale = false;
+    int parentContactFrame = -1;
+    int parentContactState = 0;
+    int parentContactTime = 0;
+    int parentContactHitPause = 0;
+    int parentContactVar28 = 0;
+    int parentContactVar46 = 0;
+    float parentContactY = 0.0f;
+    int parentFreeContactFrame = -1;
+    int parentFreeContactTime = 0;
+    FighterSnapshot parentLast = runtime.snapshot().p1;
+    std::string parentHitText;
+    for (int i = 0; i < 360; ++i) {
+        runtime.setFighterVar(0, 28, 3);
+        runtime.step({}, 1);
+        const auto snapshot = runtime.snapshot();
+        parentLast = snapshot.p1;
+        parentSaw4054 = parentSaw4054 || snapshot.p1.stateNo == 4054;
+        parentSaw4055 = parentSaw4055 || snapshot.p1.stateNo == 4055;
+        parentSawLanding = parentSawLanding || snapshot.p1.stateNo == 4044;
+        parentSawIdle = parentSawIdle || (snapshot.p1.stateNo == 0 && snapshot.p1.ctrl && snapshot.p1.onGround);
+        parentSawContact = parentSawContact
+            || snapshot.p1.moveContact
+            || snapshot.p1.moveHit
+            || snapshot.p1.moveGuarded
+            || snapshot.lastHitText.find("P1 hit") != std::string::npos
+            || snapshot.lastHitText.find("P1 guard") != std::string::npos;
+        if (parentContactFrame < 0 && (snapshot.p1.moveContact || snapshot.p1.moveHit || snapshot.p1.moveGuarded)) {
+            parentContactFrame = i;
+            parentContactState = snapshot.p1.stateNo;
+            parentContactTime = snapshot.p1.stateTime;
+            parentContactHitPause = snapshot.p1.hitPauseTicks;
+            parentContactVar28 = runtime.fighterVar(0, 28);
+            parentContactVar46 = runtime.fighterVar(0, 46);
+            parentContactY = snapshot.p1.y;
+        }
+        if (parentFreeContactFrame < 0
+            && snapshot.p1.stateNo == 4050
+            && snapshot.p1.moveContact
+            && snapshot.p1.hitPauseTicks <= 0) {
+            parentFreeContactFrame = i;
+            parentFreeContactTime = snapshot.p1.stateTime;
+        }
+        if (!snapshot.lastHitText.empty()) {
+            parentHitText = snapshot.lastHitText;
+        }
+        parentStale = parentStale
+            || (snapshot.p1.stateNo == 4050 && snapshot.p1.stateTime > 180)
+            || (snapshot.p1.stateNo == 4054 && snapshot.p1.stateTime > 120)
+            || (snapshot.p1.stateNo == 4055 && snapshot.p1.stateTime > 120);
+        if (parentSawIdle) {
+            break;
+        }
+    }
+
+    if (parentSawIdle) {
+        for (int i = 0; i < 45; ++i) {
+            runtime.step({}, 1);
+        }
+        parentLast = runtime.snapshot().p1;
+    }
+    const auto parentFinal = runtime.snapshot();
+    const int parentFinalVar28 = runtime.fighterVar(0, 28);
+    const int parentFinalVar46 = runtime.fighterVar(0, 46);
+    const bool parentLeftAirSpecial = parentLast.stateNo != 4050 && parentLast.stateNo != 4054 && parentLast.stateNo != 4055;
+    record(out, counts, parentSawContact ? Status::Pass : Status::Fail, "arena_parent_4050_contact_observed",
+        "frame=" + std::to_string(parentContactFrame)
+        + " state=" + std::to_string(parentContactState)
+        + " time=" + std::to_string(parentContactTime)
+        + " hitpause=" + std::to_string(parentContactHitPause)
+        + " var28=" + std::to_string(parentContactVar28)
+        + " var46=" + std::to_string(parentContactVar46)
+        + " y=" + std::to_string(parentContactY)
+        + " free_contact_frame=" + std::to_string(parentFreeContactFrame)
+        + " free_contact_time=" + std::to_string(parentFreeContactTime)
+        + " hit=\"" + parentHitText + "\"");
+    record(out, counts, parentSaw4054 && (parentSaw4055 || parentSawLanding || parentSawIdle) ? Status::Pass : Status::Fail, "arena_parent_4050_branches_to_descent",
+        "saw4054=" + std::to_string(parentSaw4054 ? 1 : 0)
+        + " saw4055=" + std::to_string(parentSaw4055 ? 1 : 0)
+        + " final_state=" + std::to_string(parentLast.stateNo)
+        + " final_time=" + std::to_string(parentLast.stateTime)
+        + " final_var28=" + std::to_string(parentFinalVar28)
+        + " final_var46=" + std::to_string(parentFinalVar46));
+    record(out, counts, parentSawLanding && parentSawIdle ? Status::Pass : Status::Fail, "arena_parent_4050_recovers_idle",
+        "landed=" + std::to_string(parentSawLanding ? 1 : 0)
+        + " final_state=" + std::to_string(parentLast.stateNo)
+        + " final_x=" + std::to_string(parentLast.x)
+        + " final_y=" + std::to_string(parentLast.y)
+        + " global_pause=" + std::to_string(parentFinal.globalPauseTicks));
+    record(out, counts, parentLeftAirSpecial && !parentStale ? Status::Pass : Status::Fail, "arena_parent_4050_not_stuck",
+        "state=" + std::to_string(parentLast.stateNo)
+        + " time=" + std::to_string(parentLast.stateTime)
+        + " stale=" + std::to_string(parentStale ? 1 : 0)
+        + " helpers=" + std::to_string(parentFinal.activeHelpers));
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
 } // namespace dragon::verification

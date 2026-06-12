@@ -93,7 +93,7 @@ float stateTriggerSubjectValue(
     case StateTriggerSubject::PosX:
         return fighter.x;
     case StateTriggerSubject::PosY:
-        return fighter.y;
+        return fighter.triggerY;
     case StateTriggerSubject::P2BodyDistX:
         return p2BodyDistXExpressionValue(fighter, opponent);
     case StateTriggerSubject::P2BodyDistY:
@@ -173,7 +173,7 @@ float mugenStateTypeValue(char stateType) {
 float mugenMoveTypeValue(char moveType) {
     switch (static_cast<char>(SDL_toupper(static_cast<unsigned char>(moveType)))) {
     case 'A':
-        return 2.0f;
+        return 1.0f;
     case 'H':
         return 2.0f;
     case 'I':
@@ -682,7 +682,7 @@ std::optional<float> evalMugenExpression(
         return fighter.x;
     }
     if (lowered == "pos y") {
-        return fighter.y;
+        return fighter.triggerY;
     }
     if (lowered == "vel x") {
         return fighter.vx;
