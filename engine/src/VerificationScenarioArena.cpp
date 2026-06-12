@@ -153,13 +153,16 @@ int runArenaZKeyboardControls(RuntimeProbe& runtime, std::ostream& out) {
     const bool stayedGrounded = depthAfter.p1.onGround
         && std::fabs(depthAfter.p1.y - depthBefore.p1.y) <= 0.5f
         && depthAfter.p1.stateType != 'C';
-    record(out, counts, movedDepth && stayedGrounded ? Status::Pass : Status::Fail,
+    const bool walkingAction = depthAfter.p1.action == 20 || depthAfter.p1.action == 21;
+    record(out, counts, movedDepth && stayedGrounded && walkingAction ? Status::Pass : Status::Fail,
         "shift_down_moves_depth_without_crouch",
         "depth_before=" + std::to_string(depthBefore.p1.depthZ)
         + " depth_after=" + std::to_string(depthAfter.p1.depthZ)
         + " y_after=" + std::to_string(depthAfter.p1.y)
         + " state_type=" + std::string(1, depthAfter.p1.stateType)
-        + " state=" + std::to_string(depthAfter.p1.stateNo));
+        + " state=" + std::to_string(depthAfter.p1.stateNo)
+        + " action=" + std::to_string(depthAfter.p1.action)
+        + " anim_tick=" + std::to_string(depthAfter.p1.animTick));
 
     runtime.positionFighters(-60.0f, 60.0f);
     runtime.setFighterControl(1, false);
@@ -228,12 +231,15 @@ int runArenaZGamepadControls(RuntimeProbe& runtime, std::ostream& out) {
     const bool leftTriggerDepth = depthAfter.p1.depthZ > depthBefore.p1.depthZ + 4.0f
         && depthAfter.p1.onGround
         && depthAfter.p1.stateType != 'C';
-    record(out, counts, leftTriggerDepth ? Status::Pass : Status::Fail,
+    const bool walkingAction = depthAfter.p1.action == 20 || depthAfter.p1.action == 21;
+    record(out, counts, leftTriggerDepth && walkingAction ? Status::Pass : Status::Fail,
         "left_trigger_down_moves_depth",
         "depth_before=" + std::to_string(depthBefore.p1.depthZ)
         + " depth_after=" + std::to_string(depthAfter.p1.depthZ)
         + " state_type=" + std::string(1, depthAfter.p1.stateType)
-        + " y_after=" + std::to_string(depthAfter.p1.y));
+        + " y_after=" + std::to_string(depthAfter.p1.y)
+        + " action=" + std::to_string(depthAfter.p1.action)
+        + " anim_tick=" + std::to_string(depthAfter.p1.animTick));
 
     record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
     summary(out, counts);
@@ -385,12 +391,15 @@ int runArenaZCpuAlign(RuntimeProbe& runtime, std::ostream& out) {
     const auto after = runtime.snapshot();
     const bool alignedCloser = depthDistance(after) < depthDistance(before) - 10.0f
         && after.p2.depthZ > before.p2.depthZ + 4.0f;
-    record(out, counts, alignedCloser ? Status::Pass : Status::Fail,
+    const bool walkingAction = after.p2.action == 20 || after.p2.action == 21;
+    record(out, counts, alignedCloser && walkingAction ? Status::Pass : Status::Fail,
         "cpu_aligns_depth_toward_target",
         "depth_distance_before=" + std::to_string(depthDistance(before))
         + " depth_distance_after=" + std::to_string(depthDistance(after))
         + " p2_depth_before=" + std::to_string(before.p2.depthZ)
-        + " p2_depth_after=" + std::to_string(after.p2.depthZ));
+        + " p2_depth_after=" + std::to_string(after.p2.depthZ)
+        + " p2_action=" + std::to_string(after.p2.action)
+        + " p2_anim_tick=" + std::to_string(after.p2.animTick));
 
     record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
     summary(out, counts);
@@ -420,19 +429,26 @@ int runArenaZModifierSidestep(RuntimeProbe& runtime, std::ostream& out) {
     runtime.step(SymbolicInput{ .depthModifier = true }, 1);
     runtime.step({}, 4);
     runtime.step(SymbolicInput{ .depthModifier = true }, 1);
-    runtime.step({}, 12);
+    runtime.step({}, 2);
+    const auto neutralMid = runtime.snapshot();
+    runtime.step({}, 10);
     const auto neutralAfter = runtime.snapshot();
     const bool modifierOnlySidestep = neutralAfter.p1.depthZ > neutralBefore.p1.depthZ + 16.0f
+        && neutralMid.p1.depthZ > neutralBefore.p1.depthZ + 2.0f
         && neutralAfter.p1.onGround
         && std::fabs(neutralAfter.p1.y - neutralBefore.p1.y) <= 0.5f
         && neutralAfter.p1.stateType != 'A'
-        && neutralAfter.p1.stateType != 'C';
+        && neutralAfter.p1.stateType != 'C'
+        && (neutralMid.p1.action == 20 || neutralMid.p1.action == 21);
     record(out, counts, modifierOnlySidestep ? Status::Pass : Status::Fail,
         "double_tap_modifier_sidestep",
         "depth_before=" + std::to_string(neutralBefore.p1.depthZ)
+        + " depth_mid=" + std::to_string(neutralMid.p1.depthZ)
         + " depth_after=" + std::to_string(neutralAfter.p1.depthZ)
         + " y_after=" + std::to_string(neutralAfter.p1.y)
-        + " state_type=" + std::string(1, neutralAfter.p1.stateType));
+        + " state_type=" + std::string(1, neutralAfter.p1.stateType)
+        + " mid_action=" + std::to_string(neutralMid.p1.action)
+        + " mid_anim_tick=" + std::to_string(neutralMid.p1.animTick));
 
     runtime.positionFighters(-60.0f, 60.0f);
     runtime.setFighterControl(1, false);
@@ -442,18 +458,25 @@ int runArenaZModifierSidestep(RuntimeProbe& runtime, std::ostream& out) {
     runtime.step(SymbolicInput{ .depthModifier = true }, 1);
     runtime.step({}, 4);
     runtime.step(SymbolicInput{ .up = true, .depthModifier = true }, 1);
-    runtime.step({}, 12);
+    runtime.step({}, 2);
+    const auto upMid = runtime.snapshot();
+    runtime.step({}, 10);
     const auto upAfter = runtime.snapshot();
     const bool upSidestep = upAfter.p1.depthZ < upBefore.p1.depthZ - 16.0f
+        && upMid.p1.depthZ < upBefore.p1.depthZ - 2.0f
         && upAfter.p1.onGround
         && std::fabs(upAfter.p1.y - upBefore.p1.y) <= 0.5f
-        && upAfter.p1.stateType != 'A';
+        && upAfter.p1.stateType != 'A'
+        && (upMid.p1.action == 20 || upMid.p1.action == 21);
     record(out, counts, upSidestep ? Status::Pass : Status::Fail,
         "double_tap_modifier_up_sidestep",
         "depth_before=" + std::to_string(upBefore.p1.depthZ)
+        + " depth_mid=" + std::to_string(upMid.p1.depthZ)
         + " depth_after=" + std::to_string(upAfter.p1.depthZ)
         + " y_after=" + std::to_string(upAfter.p1.y)
-        + " state_type=" + std::string(1, upAfter.p1.stateType));
+        + " state_type=" + std::string(1, upAfter.p1.stateType)
+        + " mid_action=" + std::to_string(upMid.p1.action)
+        + " mid_anim_tick=" + std::to_string(upMid.p1.animTick));
 
     record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
     summary(out, counts);

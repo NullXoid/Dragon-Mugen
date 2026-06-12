@@ -12,8 +12,8 @@
 - End screen appears.
 - Return to menu works.
 - Z Axis can be toggled on/off from Arena Setup.
-- Holding Shift or left trigger moves along depth only while Z Axis is on.
-- Double-tapping Shift or left trigger performs a short sidestep.
+- Holding Shift or left trigger moves along depth only while Z Axis is on and uses the fighter's walk animation.
+- Double-tapping Shift or left trigger performs a short sidestep using the fighter's walk animation during movement.
 - `OpenBOR Scroll Test` starts in Arena and scrolls forward only.
 - `OpenBOR Scroll Test` camera clamps at the configured end and does not scroll backward.
 - Classic mode still works.

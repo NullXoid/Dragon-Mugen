@@ -303,7 +303,7 @@ void updateArenaFight(AppState& state) {
         updateArenaRoundFinishWorld(state, stage);
         updateArenaPhaseTimers(state);
         updateArenaCamera(state, stage);
-        applyScreenBounds(state, stage);
+        applyArenaScreenBounds(state, stage);
         return;
     }
     if (state.matchPhase == MatchPhase::RoundResult || state.matchPhase == MatchPhase::MatchResult) {
@@ -413,6 +413,10 @@ void updateArenaFight(AppState& state) {
         updateStateAudioControllers(state, state.fighters[i], target, &stage);
     }
 
+    for (auto& fighter : state.fighters) {
+        updateStateZeroFromMovement(state, fighter);
+    }
+
     updateFightAssertSpecialControllers(state, stage);
     if (livingArenaFighterCount(state) <= 1) {
         startArenaRoundFinish(state, arenaWinnerIndex(state));
@@ -425,7 +429,7 @@ void updateArenaFight(AppState& state) {
     }
 
     updateArenaCamera(state, stage);
-    applyScreenBounds(state, stage);
+    applyArenaScreenBounds(state, stage);
     updateArenaPhaseTimers(state);
 
     for (size_t i = 0; i < state.fighters.size(); ++i) {

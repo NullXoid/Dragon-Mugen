@@ -64,8 +64,8 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Arena trip and heavy knockback hits resolve to floor impact before air recovery can take over.
 - Arena timer ticks down, hit-frozen fighters recover or resolve to KO, and knockdowns do not pull the camera upward.
 - Arena hitpause is brief, Rush counters reset after disappearing, debug hit boxes stay Training-only, and disabled timers show `INF`.
-- Arena Z-axis modifier moves depth with Shift/left trigger; normal Up/Down still jump/crouch and still feed quarter-circle commands when the modifier is not held.
-- Arena double-tapping the Z-axis modifier performs a short sidestep; Up/Down on the second tap chooses the sidestep depth direction.
+- Arena Z-axis modifier moves depth with Shift/left trigger using authored walk animation; normal Up/Down still jump/crouch and still feed quarter-circle commands when the modifier is not held.
+- Arena double-tapping the Z-axis modifier performs a short sidestep using authored walk animation; Up/Down on the second tap chooses the sidestep depth direction.
 - Arena depth affects hit gating, player push, CPU alignment, projected sprite position, and draw order only when Z Axis is enabled.
 - Arena can select `OpenBOR Scroll Test`; in Arena it scrolls forward only, clamps at the configured end, and does not make Training, Single Player, or VS stages auto-scroll.
 - Arena gamepad Start opens pause/start behavior only and is not mapped as a fighter button or depth input.

@@ -5763,6 +5763,27 @@ bool arenaOpenBorScrollerActive(const AppState& state, const StageSlot& stage) {
     return isArenaMode(state) && stage.openborScrolling;
 }
 
+bool arenaFighterCanUseForcedWalkAction(const FighterState& fighter) {
+    return fighter.life > 0
+        && fighter.stateNo == 0
+        && fighter.moveType == 'I'
+        && fighter.onGround
+        && !fighter.guarding
+        && !fighter.customHitState
+        && fighter.hitPauseTicks <= 0;
+}
+
+void setArenaForcedWalkActionForDelta(const AppState& state, FighterState& fighter, float deltaX) {
+    if (!arenaFighterCanUseForcedWalkAction(fighter) || std::fabs(deltaX) <= 0.05f) {
+        return;
+    }
+
+    const int action = deltaX * static_cast<float>(fighter.facing) >= 0.0f ? 20 : 21;
+    if (findExactClipForActor(state, fighter, action)) {
+        setFighterAction(fighter, action);
+    }
+}
+
 void updateArenaOpenBorScrollingCamera(AppState& state, const StageSlot& stage) {
     const float minCamera = std::max(stage.cameraBoundleft, std::min(stage.openborScrollStartx, stage.openborScrollEndx));
     const float maxCamera = std::min(stage.cameraBoundright, std::max(stage.openborScrollStartx, stage.openborScrollEndx));
@@ -5797,6 +5818,25 @@ void updateArenaOpenBorScrollingCamera(AppState& state, const StageSlot& stage) 
     }
 
     state.cameraY = std::clamp(stage.cameraStarty, stage.cameraBoundhigh, stage.cameraBoundlow);
+}
+
+void applyArenaScreenBounds(AppState& state, const StageSlot& stage) {
+    if (!arenaOpenBorScrollerActive(state, stage)) {
+        applyScreenBounds(state, stage);
+        return;
+    }
+
+    std::vector<float> beforeX;
+    beforeX.reserve(state.fighters.size());
+    for (const auto& fighter : state.fighters) {
+        beforeX.push_back(fighter.x);
+    }
+
+    applyScreenBounds(state, stage);
+
+    for (size_t i = 0; i < state.fighters.size() && i < beforeX.size(); ++i) {
+        setArenaForcedWalkActionForDelta(state, state.fighters[i], state.fighters[i].x - beforeX[i]);
+    }
 }
 
 void updateArenaCamera(AppState& state, const StageSlot& stage) {
@@ -7870,6 +7910,9 @@ void updateControlledFighter(
             } else {
                 fighter.depthVz = 0.0f;
             }
+        }
+        if (fighter.stateNo == 0) {
+            updateStateZeroFromMovement(state, fighter);
         }
     }
 
