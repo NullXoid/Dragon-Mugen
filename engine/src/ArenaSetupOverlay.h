@@ -18,6 +18,7 @@ struct ArenaSetupView {
     std::string stageName;
     std::string timerLabel = "INF";
     bool zAxisEnabled = true;
+    bool cameraRotationEnabled = false;
     int selectedOption = 0;
     int frame = 0;
 };

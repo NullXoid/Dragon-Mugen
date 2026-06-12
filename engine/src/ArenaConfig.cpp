@@ -154,6 +154,8 @@ ArenaConfig sanitizeArenaConfig(ArenaConfig config) {
     config.depthModifierDoubleTapFrames = std::clamp(config.depthModifierDoubleTapFrames, 6, 30);
     config.fighterDepthHitTolerance = std::clamp(config.fighterDepthHitTolerance, 0.0f, 80.0f);
     config.projectileDepthHitTolerance = std::clamp(config.projectileDepthHitTolerance, 0.0f, 80.0f);
+    config.cameraRotationMaxYawDeg = std::clamp(config.cameraRotationMaxYawDeg, 0.0f, 45.0f);
+    config.cameraRotationEase = std::clamp(config.cameraRotationEase, 0.01f, 1.0f);
     return config;
 }
 
@@ -188,6 +190,9 @@ ArenaConfig loadArenaConfig(const std::filesystem::path& gameRoot) {
     config.depthModifierDoubleTapFrames = findJsonInt(text, "depthModifierDoubleTapFrames", config.depthModifierDoubleTapFrames);
     config.fighterDepthHitTolerance = findJsonFloat(text, "fighterDepthHitTolerance", config.fighterDepthHitTolerance);
     config.projectileDepthHitTolerance = findJsonFloat(text, "projectileDepthHitTolerance", config.projectileDepthHitTolerance);
+    config.cameraRotationDefault = findJsonBool(text, "cameraRotationDefault", config.cameraRotationDefault);
+    config.cameraRotationMaxYawDeg = findJsonFloat(text, "cameraRotationMaxYawDeg", config.cameraRotationMaxYawDeg);
+    config.cameraRotationEase = findJsonFloat(text, "cameraRotationEase", config.cameraRotationEase);
     return sanitizeArenaConfig(config);
 }
 

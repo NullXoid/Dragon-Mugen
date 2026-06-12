@@ -179,8 +179,9 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
             return false;
         }
 
-        const float originX = screenCenterX(state) + x - state.cameraX;
-        const float originY = stage.zoffset + y + arenaDepthProjectionOffset(state, depthZ) - state.cameraY;
+        const ArenaProjectedPoint projected = projectArenaWorldPoint(state, stage, x, y, depthZ);
+        const float originX = projected.screenX;
+        const float originY = projected.screenY;
         const bool facingLeft = facing < 0;
         const bool flipH = frame->flipX != facingLeft;
         const float drawX = facingLeft
@@ -275,8 +276,9 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
         && (fighter.moveType == 'H' || fighter.hitPauseTicks > 0);
 
     if (frame && frame->sprite.texture) {
-        const float originX = screenCenterX(state) + fighter.x - state.cameraX;
-        const float originY = stage.zoffset + fighter.y + arenaDepthProjectionOffset(state, fighter.depthZ) - state.cameraY;
+        const ArenaProjectedPoint projected = projectArenaWorldPoint(state, stage, fighter.x, fighter.y, fighter.depthZ);
+        const float originX = projected.screenX;
+        const float originY = projected.screenY;
         const float displayOriginX = originX + fighter.displayOffsetX * static_cast<float>(fighter.facing);
         const float displayOriginY = originY + fighter.displayOffsetY;
         const bool facingLeft = fighter.facing < 0;
@@ -358,11 +360,14 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
         return;
     }
 
-    const float originX = screenCenterX(state) + fighter.x - state.cameraX;
-    const float originY = (selectedStageSlot(state.selection) ? selectedStageSlot(state.selection)->zoffset : 168.0f)
-        + fighter.y
-        + arenaDepthProjectionOffset(state, fighter.depthZ)
-        - state.cameraY;
+    const ArenaProjectedPoint projected = projectArenaWorldPoint(
+        state,
+        selectedStageSlot(state.selection) ? *selectedStageSlot(state.selection) : stage,
+        fighter.x,
+        fighter.y,
+        fighter.depthZ);
+    const float originX = projected.screenX;
+    const float originY = projected.screenY;
     if (actorIndex == 0) {
         setColor(renderer, 62, 118, 184);
     } else {
@@ -392,8 +397,9 @@ void drawRuntimeEffect(SDL_Renderer* renderer, const AppState& state, const Stag
         return;
     }
 
-    const float originX = screenCenterX(state) + effect.x - state.cameraX;
-    const float originY = stage.zoffset + effect.y + arenaDepthProjectionOffset(state, arenaEffectDepth(state, effect)) - state.cameraY;
+    const ArenaProjectedPoint projected = projectArenaWorldPoint(state, stage, effect.x, effect.y, arenaEffectDepth(state, effect));
+    const float originX = projected.screenX;
+    const float originY = projected.screenY;
     SDL_FRect dst{
         originX + (static_cast<float>(frame->offsetX) - static_cast<float>(frame->sprite.axisX)) * effect.scaleX,
         originY + (static_cast<float>(frame->offsetY) - static_cast<float>(frame->sprite.axisY)) * effect.scaleY,
@@ -452,8 +458,14 @@ void drawRuntimeProjectile(SDL_Renderer* renderer, const AppState& state, const 
         return;
     }
 
-    const float originX = screenCenterX(state) + projectile.x - state.cameraX;
-    const float originY = stage.zoffset + projectile.y + arenaDepthProjectionOffset(state, arenaProjectileDepth(state, projectile)) - state.cameraY;
+    const ArenaProjectedPoint projected = projectArenaWorldPoint(
+        state,
+        stage,
+        projectile.x,
+        projectile.y,
+        arenaProjectileDepth(state, projectile));
+    const float originX = projected.screenX;
+    const float originY = projected.screenY;
     const bool facingLeft = projectile.facing < 0;
     const bool flipH = frame->flipX != facingLeft;
     const float drawX = facingLeft
@@ -484,9 +496,15 @@ void drawRuntimeProjectile(SDL_Renderer* renderer, const AppState& state, const 
     SDL_GetTextureAlphaMod(frame->sprite.texture, &previousA);
 
     if (projectile.shadowEnabled && projectile.y < 0.0f) {
+        const ArenaProjectedPoint shadowProjected = projectArenaWorldPoint(
+            state,
+            stage,
+            projectile.x,
+            0.0f,
+            arenaProjectileDepth(state, projectile));
         SDL_FRect shadowDst{
             dst.x,
-            stage.zoffset + arenaDepthProjectionOffset(state, arenaProjectileDepth(state, projectile)) - state.cameraY - 3.0f,
+            shadowProjected.screenY - 3.0f,
             dst.w,
             std::max(2.0f, dst.h * 0.18f),
         };
@@ -521,19 +539,35 @@ void drawWorldActors(SDL_Renderer* renderer, const AppState& state, const StageS
     std::vector<DrawItem> items;
     items.reserve(state.fighters.size() + state.helpers.size() + state.runtimeEffects.size() + state.projectiles.size());
     for (size_t i = 0; i < state.fighters.size(); ++i) {
-        items.push_back(DrawItem{ state.fighters[i].sprPriority, 0, arenaActorDepth(state, state.fighters[i]), i });
+        items.push_back(DrawItem{
+            state.fighters[i].sprPriority,
+            0,
+            arenaProjectedViewDepth(state, state.fighters[i].x, arenaActorDepth(state, state.fighters[i])),
+            i });
     }
     for (size_t i = 0; i < state.helpers.size(); ++i) {
         if (!state.helpers[i].destroyRequested) {
-            items.push_back(DrawItem{ state.helpers[i].sprPriority, 1, arenaActorDepth(state, state.helpers[i]), i });
+            items.push_back(DrawItem{
+                state.helpers[i].sprPriority,
+                1,
+                arenaProjectedViewDepth(state, state.helpers[i].x, arenaActorDepth(state, state.helpers[i])),
+                i });
         }
     }
     for (size_t i = 0; i < state.projectiles.size(); ++i) {
-        items.push_back(DrawItem{ 3, 3, arenaProjectileDepth(state, state.projectiles[i]), i });
+        items.push_back(DrawItem{
+            3,
+            3,
+            arenaProjectedViewDepth(state, state.projectiles[i].x, arenaProjectileDepth(state, state.projectiles[i])),
+            i });
     }
     if (state.frontend.pendingMode != PendingMode::Training || state.training.options.showHitSparks) {
         for (size_t i = 0; i < state.runtimeEffects.size(); ++i) {
-            items.push_back(DrawItem{ state.runtimeEffects[i].sprPriority, 2, arenaEffectDepth(state, state.runtimeEffects[i]), i });
+            items.push_back(DrawItem{
+                state.runtimeEffects[i].sprPriority,
+                2,
+                arenaProjectedViewDepth(state, state.runtimeEffects[i].x, arenaEffectDepth(state, state.runtimeEffects[i])),
+                i });
         }
     }
 

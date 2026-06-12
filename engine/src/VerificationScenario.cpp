@@ -19,9 +19,8 @@ int runEvilRyuHighJumpMovementAudit(RuntimeProbe& runtime, std::ostream& out);
 int runEvilRyuDash(RuntimeProbe& runtime, std::ostream& out);
 int runArenaZKeyboardControls(RuntimeProbe& runtime, std::ostream& out);
 int runArenaZGamepadControls(RuntimeProbe& runtime, std::ostream& out);
-int runArenaZHitDepth(RuntimeProbe& runtime, std::ostream& out);
-int runArenaZPushDepth(RuntimeProbe& runtime, std::ostream& out);
-int runArenaZDrawOrder(RuntimeProbe& runtime, std::ostream& out);
+int runArenaZHitDepth(RuntimeProbe& runtime, std::ostream& out), runArenaZPushDepth(RuntimeProbe& runtime, std::ostream& out), runArenaZDrawOrder(RuntimeProbe& runtime, std::ostream& out);
+int runArenaCameraRotationToggle(RuntimeProbe& runtime, std::ostream& out), runArenaCameraRotationProjection(RuntimeProbe& runtime, std::ostream& out), runArenaCameraRotationDrawOrder(RuntimeProbe& runtime, std::ostream& out);
 int runArenaZCpuAlign(RuntimeProbe& runtime, std::ostream& out);
 int runArenaZModifierSidestep(RuntimeProbe& runtime, std::ostream& out);
 int runArenaPerFighterRuntime(RuntimeProbe& runtime, std::ostream& out);
@@ -980,6 +979,9 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
     if (scenarioName == "arena-z-hit-depth") return runArenaZHitDepth(runtime, out);
     if (scenarioName == "arena-z-push-depth") return runArenaZPushDepth(runtime, out);
     if (scenarioName == "arena-z-draw-order") return runArenaZDrawOrder(runtime, out);
+    if (scenarioName == "arena-camera-rotation-toggle") return runArenaCameraRotationToggle(runtime, out);
+    if (scenarioName == "arena-camera-rotation-projection") return runArenaCameraRotationProjection(runtime, out);
+    if (scenarioName == "arena-camera-rotation-draw-order") return runArenaCameraRotationDrawOrder(runtime, out);
     if (scenarioName == "arena-z-cpu-align") return runArenaZCpuAlign(runtime, out);
     if (scenarioName == "arena-z-modifier-sidestep") return runArenaZModifierSidestep(runtime, out);
     if (scenarioName == "arena-per-fighter-runtime") return runArenaPerFighterRuntime(runtime, out);
@@ -988,7 +990,7 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
 
     out << "VERIFY " << scenarioName << "\n"
         << "BLOCKED unknown_scenario\n"
-        << "  supported: kfm-baseline, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-training-demo-hit, evilryu-specials-supers, evilken-smoke, evilken-trip-grounding, cpu-baseline, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-per-fighter-runtime, arena-openbor-scroll-stage, evilryu-dash\n"
+        << "  supported: kfm-baseline, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-training-demo-hit, evilryu-specials-supers, evilken-smoke, evilken-trip-grounding, cpu-baseline, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-camera-rotation-toggle, arena-camera-rotation-projection, arena-camera-rotation-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-per-fighter-runtime, arena-openbor-scroll-stage, evilryu-dash\n"
         << "SUMMARY pass=0 partial=0 fail=0 blocked=1\n";
     return 2;
 }

@@ -30,6 +30,9 @@ struct ArenaConfig {
     int depthModifierDoubleTapFrames = 18;
     float fighterDepthHitTolerance = 16.0f;
     float projectileDepthHitTolerance = 12.0f;
+    bool cameraRotationDefault = false;
+    float cameraRotationMaxYawDeg = 18.0f;
+    float cameraRotationEase = 0.10f;
 };
 
 ArenaConfig loadArenaConfig(const std::filesystem::path& gameRoot);

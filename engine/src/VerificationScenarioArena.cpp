@@ -131,6 +131,7 @@ int runArenaZKeyboardControls(RuntimeProbe& runtime, std::ostream& out) {
     if (!setupArenaFight(runtime, out, counts, "arena-z-keyboard-controls")) {
         return exitCode(counts);
     }
+    runtime.setArenaCameraRotationEnabled(true);
 
     runtime.positionFighters(-60.0f, 60.0f);
     runtime.setFighterControl(1, false);
@@ -154,10 +155,13 @@ int runArenaZKeyboardControls(RuntimeProbe& runtime, std::ostream& out) {
         && std::fabs(depthAfter.p1.y - depthBefore.p1.y) <= 0.5f
         && depthAfter.p1.stateType != 'C';
     const bool walkingAction = depthAfter.p1.action == 20 || depthAfter.p1.action == 21;
-    record(out, counts, movedDepth && stayedGrounded && walkingAction ? Status::Pass : Status::Fail,
+    record(out, counts, movedDepth && stayedGrounded && walkingAction && depthAfter.arenaCameraRotationActive
+            ? Status::Pass
+            : Status::Fail,
         "shift_down_moves_depth_without_crouch",
         "depth_before=" + std::to_string(depthBefore.p1.depthZ)
         + " depth_after=" + std::to_string(depthAfter.p1.depthZ)
+        + " yaw=" + std::to_string(depthAfter.arenaCameraYawDeg)
         + " y_after=" + std::to_string(depthAfter.p1.y)
         + " state_type=" + std::string(1, depthAfter.p1.stateType)
         + " state=" + std::to_string(depthAfter.p1.stateNo)
@@ -195,6 +199,7 @@ int runArenaZGamepadControls(RuntimeProbe& runtime, std::ostream& out) {
     if (!setupArenaFight(runtime, out, counts, "arena-z-gamepad-controls")) {
         return exitCode(counts);
     }
+    runtime.setArenaCameraRotationEnabled(true);
 
     runtime.positionFighters(-60.0f, 60.0f);
     runtime.setFighterControl(1, false);
@@ -232,10 +237,13 @@ int runArenaZGamepadControls(RuntimeProbe& runtime, std::ostream& out) {
         && depthAfter.p1.onGround
         && depthAfter.p1.stateType != 'C';
     const bool walkingAction = depthAfter.p1.action == 20 || depthAfter.p1.action == 21;
-    record(out, counts, leftTriggerDepth && walkingAction ? Status::Pass : Status::Fail,
+    record(out, counts, leftTriggerDepth && walkingAction && depthAfter.arenaCameraRotationActive
+            ? Status::Pass
+            : Status::Fail,
         "left_trigger_down_moves_depth",
         "depth_before=" + std::to_string(depthBefore.p1.depthZ)
         + " depth_after=" + std::to_string(depthAfter.p1.depthZ)
+        + " yaw=" + std::to_string(depthAfter.arenaCameraYawDeg)
         + " state_type=" + std::string(1, depthAfter.p1.stateType)
         + " y_after=" + std::to_string(depthAfter.p1.y)
         + " action=" + std::to_string(depthAfter.p1.action)
@@ -376,6 +384,164 @@ int runArenaZDrawOrder(RuntimeProbe& runtime, std::ostream& out) {
     return exitCode(counts);
 }
 
+int runArenaCameraRotationToggle(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!setupArenaFight(runtime, out, counts, "arena-camera-rotation-toggle")) {
+        return exitCode(counts);
+    }
+
+    const auto defaults = runtime.snapshot();
+    record(out, counts,
+        defaults.arenaZAxisEnabled
+            && !defaults.arenaCameraRotationSelected
+            && !defaults.arenaCameraRotationActive
+            && std::fabs(defaults.arenaCameraYawDeg) <= 0.01f
+            ? Status::Pass
+            : Status::Fail,
+        "camera_rotation_defaults_off",
+        "z_axis=" + std::to_string(defaults.arenaZAxisEnabled ? 1 : 0)
+        + " selected=" + std::to_string(defaults.arenaCameraRotationSelected ? 1 : 0)
+        + " active=" + std::to_string(defaults.arenaCameraRotationActive ? 1 : 0)
+        + " yaw=" + std::to_string(defaults.arenaCameraYawDeg));
+
+    runtime.setFighterDepth(0, 48.0f);
+    runtime.setArenaCameraRotationEnabled(true);
+    runtime.step({}, 24);
+    const auto enabled = runtime.snapshot();
+    record(out, counts,
+        enabled.arenaCameraRotationSelected
+            && enabled.arenaCameraRotationActive
+            && enabled.arenaCameraTargetYawDeg < -10.0f
+            && enabled.arenaCameraYawDeg < -10.0f
+            ? Status::Pass
+            : Status::Fail,
+        "camera_rotation_toggle_enters_match",
+        "selected=" + std::to_string(enabled.arenaCameraRotationSelected ? 1 : 0)
+        + " active=" + std::to_string(enabled.arenaCameraRotationActive ? 1 : 0)
+        + " yaw=" + std::to_string(enabled.arenaCameraYawDeg)
+        + " target=" + std::to_string(enabled.arenaCameraTargetYawDeg));
+
+    runtime.setArenaZAxisEnabled(false);
+    const auto zOff = runtime.snapshot();
+    record(out, counts,
+        !zOff.arenaZAxisEnabled
+            && zOff.arenaCameraRotationSelected
+            && !zOff.arenaCameraRotationActive
+            && std::fabs(zOff.arenaCameraYawDeg) <= 0.01f
+            && std::fabs(zOff.arenaCameraTargetYawDeg) <= 0.01f
+            && std::fabs(zOff.p1.viewDepth) <= 0.01f
+            ? Status::Pass
+            : Status::Fail,
+        "z_axis_off_forces_neutral_projection",
+        "z_axis=" + std::to_string(zOff.arenaZAxisEnabled ? 1 : 0)
+        + " selected=" + std::to_string(zOff.arenaCameraRotationSelected ? 1 : 0)
+        + " active=" + std::to_string(zOff.arenaCameraRotationActive ? 1 : 0)
+        + " yaw=" + std::to_string(zOff.arenaCameraYawDeg)
+        + " view_depth=" + std::to_string(zOff.p1.viewDepth));
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runArenaCameraRotationProjection(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!setupArenaFight(runtime, out, counts, "arena-camera-rotation-projection")) {
+        return exitCode(counts);
+    }
+
+    runtime.positionFighters(-80.0f, 80.0f);
+    runtime.setFighterLife(1, 0);
+    runtime.forceFighterState(1, 0);
+    runtime.setFighterControl(1, false);
+    waitForControllableIdle(runtime, 240);
+    runtime.setFighterDepth(0, 48.0f);
+    runtime.setFighterDepth(1, 0.0f);
+    runtime.setArenaCameraRotationEnabled(false);
+    runtime.step({}, 2);
+    const auto baseline = runtime.snapshot();
+
+    runtime.setArenaCameraRotationEnabled(true);
+    runtime.step({}, 36);
+    const auto rotated = runtime.snapshot();
+    const bool yawApproachesTarget = rotated.arenaCameraRotationActive
+        && rotated.arenaCameraTargetYawDeg <= -17.0f
+        && rotated.arenaCameraYawDeg <= -15.0f;
+    record(out, counts, yawApproachesTarget ? Status::Pass : Status::Fail,
+        "positive_depth_drives_negative_yaw",
+        "yaw=" + std::to_string(rotated.arenaCameraYawDeg)
+        + " target=" + std::to_string(rotated.arenaCameraTargetYawDeg)
+        + " depth=" + std::to_string(rotated.p1.depthZ));
+
+    const bool projectionChanged =
+        std::fabs(rotated.p1.screenX - baseline.p1.screenX) > 6.0f
+        && std::fabs(rotated.p1.screenY - baseline.p1.screenY) > 4.0f
+        && std::fabs(rotated.p1.viewDepth - baseline.p1.viewDepth) > 10.0f;
+    record(out, counts, projectionChanged ? Status::Pass : Status::Fail,
+        "yaw_changes_fighter_projection",
+        "baseline_x=" + std::to_string(baseline.p1.screenX)
+        + " rotated_x=" + std::to_string(rotated.p1.screenX)
+        + " baseline_y=" + std::to_string(baseline.p1.screenY)
+        + " rotated_y=" + std::to_string(rotated.p1.screenY)
+        + " baseline_view_depth=" + std::to_string(baseline.p1.viewDepth)
+        + " rotated_view_depth=" + std::to_string(rotated.p1.viewDepth));
+
+    runtime.setFighterDepth(0, 0.0f);
+    runtime.step({}, 54);
+    const auto neutral = runtime.snapshot();
+    record(out, counts,
+        std::fabs(neutral.arenaCameraTargetYawDeg) <= 0.01f
+            && std::fabs(neutral.arenaCameraYawDeg) < 1.0f
+            ? Status::Pass
+            : Status::Fail,
+        "neutral_depth_eases_yaw_to_zero",
+        "yaw=" + std::to_string(neutral.arenaCameraYawDeg)
+        + " target=" + std::to_string(neutral.arenaCameraTargetYawDeg));
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runArenaCameraRotationDrawOrder(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!setupArenaFight(runtime, out, counts, "arena-camera-rotation-draw-order")) {
+        return exitCode(counts);
+    }
+
+    runtime.positionFighters(-120.0f, 120.0f);
+    runtime.setFighterLife(1, 0);
+    runtime.forceFighterState(0, 0);
+    runtime.forceFighterState(1, 0);
+    runtime.setFighterControl(1, false);
+    waitForControllableIdle(runtime, 240);
+    runtime.setFighterDepth(0, 48.0f);
+    runtime.setFighterDepth(1, 48.0f);
+    runtime.setArenaCameraRotationEnabled(false);
+    const auto flat = runtime.snapshot();
+    record(out, counts, flat.arenaDrawOrder == "0,1" ? Status::Pass : Status::Fail,
+        "equal_depth_flat_order_stable",
+        "draw_order=" + flat.arenaDrawOrder
+        + " p1_view_depth=" + std::to_string(flat.p1.viewDepth)
+        + " p2_view_depth=" + std::to_string(flat.p2.viewDepth));
+
+    runtime.setArenaCameraRotationEnabled(true);
+    runtime.step({}, 36);
+    const auto rotated = runtime.snapshot();
+    const bool rotatedDepthOrders = rotated.arenaDrawOrder == "1,0"
+        && rotated.p1.viewDepth > rotated.p2.viewDepth + 20.0f;
+    record(out, counts, rotatedDepthOrders ? Status::Pass : Status::Fail,
+        "rotated_view_depth_controls_order",
+        "draw_order=" + rotated.arenaDrawOrder
+        + " yaw=" + std::to_string(rotated.arenaCameraYawDeg)
+        + " p1_view_depth=" + std::to_string(rotated.p1.viewDepth)
+        + " p2_view_depth=" + std::to_string(rotated.p2.viewDepth));
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
 int runArenaZCpuAlign(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
     if (!setupArenaFight(runtime, out, counts, "arena-z-cpu-align")) {
@@ -411,6 +577,7 @@ int runArenaZModifierSidestep(RuntimeProbe& runtime, std::ostream& out) {
     if (!setupArenaFight(runtime, out, counts, "arena-z-modifier-sidestep")) {
         return exitCode(counts);
     }
+    runtime.setArenaCameraRotationEnabled(true);
 
     runtime.positionFighters(-60.0f, 60.0f);
     runtime.setFighterControl(1, false);
@@ -440,11 +607,14 @@ int runArenaZModifierSidestep(RuntimeProbe& runtime, std::ostream& out) {
         && neutralAfter.p1.stateType != 'A'
         && neutralAfter.p1.stateType != 'C'
         && (neutralMid.p1.action == 20 || neutralMid.p1.action == 21);
-    record(out, counts, modifierOnlySidestep ? Status::Pass : Status::Fail,
+    record(out, counts, modifierOnlySidestep && neutralAfter.arenaCameraRotationActive
+            ? Status::Pass
+            : Status::Fail,
         "double_tap_modifier_sidestep",
         "depth_before=" + std::to_string(neutralBefore.p1.depthZ)
         + " depth_mid=" + std::to_string(neutralMid.p1.depthZ)
         + " depth_after=" + std::to_string(neutralAfter.p1.depthZ)
+        + " yaw=" + std::to_string(neutralAfter.arenaCameraYawDeg)
         + " y_after=" + std::to_string(neutralAfter.p1.y)
         + " state_type=" + std::string(1, neutralAfter.p1.stateType)
         + " mid_action=" + std::to_string(neutralMid.p1.action)
@@ -468,11 +638,12 @@ int runArenaZModifierSidestep(RuntimeProbe& runtime, std::ostream& out) {
         && std::fabs(upAfter.p1.y - upBefore.p1.y) <= 0.5f
         && upAfter.p1.stateType != 'A'
         && (upMid.p1.action == 20 || upMid.p1.action == 21);
-    record(out, counts, upSidestep ? Status::Pass : Status::Fail,
+    record(out, counts, upSidestep && upAfter.arenaCameraRotationActive ? Status::Pass : Status::Fail,
         "double_tap_modifier_up_sidestep",
         "depth_before=" + std::to_string(upBefore.p1.depthZ)
         + " depth_mid=" + std::to_string(upMid.p1.depthZ)
         + " depth_after=" + std::to_string(upAfter.p1.depthZ)
+        + " yaw=" + std::to_string(upAfter.arenaCameraYawDeg)
         + " y_after=" + std::to_string(upAfter.p1.y)
         + " state_type=" + std::string(1, upAfter.p1.stateType)
         + " mid_action=" + std::to_string(upMid.p1.action)

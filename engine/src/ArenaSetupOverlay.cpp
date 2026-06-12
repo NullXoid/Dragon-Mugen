@@ -27,8 +27,10 @@ std::string setupLabel(int row, const ArenaSetupView& view) {
     case 6:
         return std::string("Z AXIS  ") + (view.zAxisEnabled ? "ON" : "OFF");
     case 7:
-        return "START MATCH";
+        return std::string("CAMERA ROTATE  ") + (view.cameraRotationEnabled ? "ON" : "OFF");
     case 8:
+        return "START MATCH";
+    case 9:
     default:
         return "BACK";
     }
@@ -66,13 +68,13 @@ void drawArenaSetupOverlay(const UiRenderContext& ui, const ArenaSetupView& view
     debugText(renderer, centerX - 130.0f, 90, "MODE     " + view.modeLabel);
     debugText(renderer, centerX - 130.0f, 106, "DEPTH    " + std::string(view.zAxisEnabled ? "SHIFT+UP/DOWN" : "OFF"));
 
-    constexpr int rowCount = 9;
+    constexpr int rowCount = 10;
     const int selected = std::clamp(view.selectedOption, 0, rowCount - 1);
     for (int i = 0; i < rowCount; ++i) {
-        const float y = 136.0f + static_cast<float>(i * 11);
+        const float y = 132.0f + static_cast<float>(i * 10);
         if (i == selected) {
             setColor(renderer, 74, 170, 134, static_cast<Uint8>(188 + pulse * 52.0f));
-            fillRect(renderer, centerX - 142.0f, y - 3.0f, 284, 11);
+            fillRect(renderer, centerX - 142.0f, y - 3.0f, 284, 10);
             setColor(renderer, 8, 12, 16);
         } else {
             const bool inactiveCpu = (i == 2 && view.cpuCount < 2) || (i == 3 && view.cpuCount < 3);
@@ -86,7 +88,7 @@ void drawArenaSetupOverlay(const UiRenderContext& ui, const ArenaSetupView& view
     }
 
     setColor(renderer, 156, 166, 180);
-    debugTextCentered(renderer, centerX, 226, "UP/DOWN row  LEFT/RIGHT change  ENTER select  ESC back");
+    debugTextCentered(renderer, centerX, 230, "UP/DOWN row  LEFT/RIGHT change  ENTER select  ESC back");
 }
 
 } // namespace dragon

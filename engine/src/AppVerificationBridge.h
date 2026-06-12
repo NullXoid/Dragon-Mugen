@@ -61,6 +61,7 @@ public:
         state_.selection.selectedCharacter = findCharacterIndex(p1Id);
         if (mode == verification::ScenarioMode::Arena) {
             state_.frontend.pendingMode = PendingMode::Arena;
+            setArenaDefaultsFromConfig(state_);
             state_.selection.sessionSlots.arenaCpuCount = arenaCpuCount;
             setArenaCpuCount(state_, arenaCpuCount);
             state_.selection.sessionSlots.opponentType = OpponentType::Cpu;
@@ -173,6 +174,16 @@ public:
         state_.fighters[static_cast<size_t>(fighterIndex)].ctrl = enabled;
     }
 
+    void setArenaZAxisEnabled(bool enabled) override {
+        state_.selection.sessionSlots.arenaZAxisEnabled = enabled;
+        updateArenaCameraRotation(state_);
+    }
+
+    void setArenaCameraRotationEnabled(bool enabled) override {
+        state_.selection.sessionSlots.arenaCameraRotationEnabled = enabled;
+        updateArenaCameraRotation(state_);
+    }
+
     void setFighterHitPause(int fighterIndex, int ticks) override {
         if (fighterIndex < 0 || fighterIndex >= static_cast<int>(state_.fighters.size())) {
             return;
@@ -260,6 +271,8 @@ public:
         out.frame = state_.frame;
         out.cameraX = state_.cameraX;
         out.cameraY = state_.cameraY;
+        out.arenaCameraYawDeg = state_.arenaCameraYawDeg;
+        out.arenaCameraTargetYawDeg = state_.arenaCameraTargetYawDeg;
         out.matchTimerTicks = state_.matchTimerTicks;
         out.matchPhase = static_cast<int>(state_.matchPhase);
         out.activeEffects = static_cast<int>(state_.runtimeEffects.size());
@@ -290,6 +303,9 @@ public:
             }
         }
         out.roundWinner = state_.roundWinner;
+        out.arenaZAxisEnabled = arenaZAxisEnabled(state_);
+        out.arenaCameraRotationSelected = arenaCameraRotationSelected(state_);
+        out.arenaCameraRotationActive = arenaCameraRotationActive(state_);
         out.lastHitText = state_.messages.lastHitText;
         const auto p1Commands = collectCurrentFighterCommands(state_, state_.fighters[0]);
         for (size_t i = 0; i < p1Commands.size(); ++i) {
@@ -300,6 +316,10 @@ public:
         }
         out.p1 = fighterSnapshot(state_.fighters[0]);
         out.p2 = fighterSnapshot(state_.fighters[1]);
+        const StageSlot fallbackStage;
+        const StageSlot& stage = selectedStageSlot(state_.selection) ? *selectedStageSlot(state_.selection) : fallbackStage;
+        applyProjectedSnapshot(stage, state_.fighters[0], out.p1);
+        applyProjectedSnapshot(stage, state_.fighters[1], out.p2);
         std::vector<int> drawOrder;
         drawOrder.reserve(state_.fighters.size());
         for (int i = 0; i < static_cast<int>(state_.fighters.size()); ++i) {
@@ -311,8 +331,10 @@ public:
             if (left.sprPriority != right.sprPriority) {
                 return left.sprPriority < right.sprPriority;
             }
-            if (arenaDepthActive(state_) && std::fabs(left.depthZ - right.depthZ) > 0.001f) {
-                return left.depthZ < right.depthZ;
+            const float leftDepth = arenaProjectedViewDepth(state_, left.x, arenaActorDepth(state_, left));
+            const float rightDepth = arenaProjectedViewDepth(state_, right.x, arenaActorDepth(state_, right));
+            if (arenaDepthActive(state_) && std::fabs(leftDepth - rightDepth) > 0.001f) {
+                return leftDepth < rightDepth;
             }
             return lhs < rhs;
         });
@@ -335,6 +357,13 @@ public:
     }
 
 private:
+    void applyProjectedSnapshot(const StageSlot& stage, const FighterState& fighter, verification::FighterSnapshot& snapshot) const {
+        const ArenaProjectedPoint projected = projectArenaWorldPoint(state_, stage, fighter.x, fighter.y, fighter.depthZ);
+        snapshot.screenX = projected.screenX;
+        snapshot.screenY = projected.screenY;
+        snapshot.viewDepth = projected.viewZ;
+    }
+
     static FighterInputState toFighterInput(const verification::SymbolicInput& input) {
         return FighterInputState{
             input.left,
@@ -373,6 +402,9 @@ private:
             fighter.hitDownVelocityY,
             fighter.displayOffsetX,
             fighter.displayOffsetY,
+            0.0f,
+            0.0f,
+            0.0f,
             fighter.stateType,
             fighter.moveType,
             fighter.ctrl,

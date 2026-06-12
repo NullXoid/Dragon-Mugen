@@ -25,7 +25,10 @@
     "depthSidestepFrames": 10,
     "depthModifierDoubleTapFrames": 18,
     "fighterDepthHitTolerance": 16,
-    "projectileDepthHitTolerance": 12
+    "projectileDepthHitTolerance": 12,
+    "cameraRotationDefault": false,
+    "cameraRotationMaxYawDeg": 18,
+    "cameraRotationEase": 0.10
   },
   "ui": {
     "winTitle": "Winner",

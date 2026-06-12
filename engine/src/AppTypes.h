@@ -23,7 +23,7 @@ inline constexpr int kTrainingMoveListOption = 18;
 inline constexpr int kTrainingResetOption = 19;
 inline constexpr int kSingleFightPauseOptionCount = 5;
 inline constexpr int kMatchResultOptionCount = 4;
-inline constexpr int kArenaSetupOptionCount = 9;
+inline constexpr int kArenaSetupOptionCount = 10;
 inline constexpr int kMainSettingsCount = 8;
 inline constexpr int kVersusPrepareStartFrames = 2;
 inline constexpr int kCharacterSelectColumns = 5;
@@ -154,6 +154,7 @@ struct FightSessionSlots {
     std::array<int, 3> arenaCpuCharacters{ -1, -1, -1 };
     int arenaTimerSeconds = 0;
     bool arenaZAxisEnabled = true;
+    bool arenaCameraRotationEnabled = false;
 };
 
 } // namespace dragon

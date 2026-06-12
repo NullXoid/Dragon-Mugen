@@ -99,10 +99,15 @@ bool arenaZAxisEnabled(const AppState& state) {
     return state.selection.sessionSlots.arenaZAxisEnabled;
 }
 
+bool arenaCameraRotationSelected(const AppState& state) {
+    return state.selection.sessionSlots.arenaCameraRotationEnabled;
+}
+
 void setArenaDefaultsFromConfig(AppState& state) {
     setArenaCpuCount(state, state.arenaConfig.cpuCountDefault);
     state.selection.sessionSlots.arenaTimerSeconds = state.arenaConfig.timerDefault;
     state.selection.sessionSlots.arenaZAxisEnabled = state.arenaConfig.zAxisDefault;
+    state.selection.sessionSlots.arenaCameraRotationEnabled = state.arenaConfig.cameraRotationDefault;
 }
 
 int cycleArenaCpuCharacter(AppState& state, int slot, int direction) {

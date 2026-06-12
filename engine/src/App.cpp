@@ -1436,6 +1436,8 @@ struct AppState {
     int frame = 0;
     float cameraX = 0.0f;
     float cameraY = 0.0f;
+    float arenaCameraYawDeg = 0.0f;
+    float arenaCameraTargetYawDeg = 0.0f;
     std::vector<FighterState> fighters = std::vector<FighterState>(2);
     std::vector<FighterState> helpers;
     std::vector<RuntimeProjectile> projectiles;
@@ -1610,6 +1612,58 @@ bool arenaDepthActive(const AppState& state) {
 
 float arenaDepthProjectionOffset(const AppState& state, float depthZ) {
     return arenaDepthActive(state) ? depthZ * state.arenaConfig.depthProjectionScale : 0.0f;
+}
+
+bool arenaCameraRotationActive(const AppState& state) {
+    return arenaDepthActive(state) && arenaCameraRotationSelected(state);
+}
+
+float arenaRotationDepthExtent(const AppState& state) {
+    return std::max({ std::fabs(state.arenaConfig.depthMin), std::fabs(state.arenaConfig.depthMax), 1.0f });
+}
+
+float arenaCameraYawRadians(const AppState& state) {
+    constexpr float degToRad = 0.017453292519943295f;
+    return state.arenaCameraYawDeg * degToRad;
+}
+
+struct ArenaProjectedPoint {
+    float screenX = 0.0f;
+    float screenY = 0.0f;
+    float viewZ = 0.0f;
+};
+
+ArenaProjectedPoint projectArenaWorldPoint(
+    const AppState& state,
+    const StageSlot& stage,
+    float x,
+    float y,
+    float depthZ) {
+    const float effectiveDepth = arenaDepthActive(state) ? depthZ : 0.0f;
+    const float worldX = x - state.cameraX;
+    float viewX = worldX;
+    float viewZ = effectiveDepth;
+    if (arenaCameraRotationActive(state)) {
+        const float yaw = arenaCameraYawRadians(state);
+        const float c = std::cos(yaw);
+        const float s = std::sin(yaw);
+        viewX = worldX * c - effectiveDepth * s;
+        viewZ = worldX * s + effectiveDepth * c;
+    }
+    return ArenaProjectedPoint{
+        screenCenterX(state) + viewX,
+        stage.zoffset + y + viewZ * state.arenaConfig.depthProjectionScale - state.cameraY,
+        viewZ,
+    };
+}
+
+float arenaProjectedViewDepth(const AppState& state, float x, float depthZ) {
+    const float effectiveDepth = arenaDepthActive(state) ? depthZ : 0.0f;
+    if (!arenaCameraRotationActive(state)) {
+        return effectiveDepth;
+    }
+    const float yaw = arenaCameraYawRadians(state);
+    return (x - state.cameraX) * std::sin(yaw) + effectiveDepth * std::cos(yaw);
 }
 
 float arenaActorDepth(const AppState& state, const FighterState& actor) {
@@ -5735,6 +5789,44 @@ void applyArenaPlayerPush(AppState& state, const StageSlot& stage) {
     }
 }
 
+float arenaCameraRotationSourceDepth(const AppState& state) {
+    if (!state.fighters.empty() && state.fighters[0].life > 0) {
+        return state.fighters[0].depthZ;
+    }
+
+    float totalDepth = 0.0f;
+    int living = 0;
+    for (const auto& fighter : state.fighters) {
+        if (fighter.life <= 0) {
+            continue;
+        }
+        totalDepth += fighter.depthZ;
+        ++living;
+    }
+    return living > 0 ? totalDepth / static_cast<float>(living) : 0.0f;
+}
+
+void updateArenaCameraRotation(AppState& state) {
+    if (!arenaCameraRotationActive(state)) {
+        state.arenaCameraYawDeg = 0.0f;
+        state.arenaCameraTargetYawDeg = 0.0f;
+        return;
+    }
+
+    const float sourceDepth = arenaCameraRotationSourceDepth(state);
+    const float depthExtent = arenaRotationDepthExtent(state);
+    state.arenaCameraTargetYawDeg = std::clamp(
+        -sourceDepth / depthExtent * state.arenaConfig.cameraRotationMaxYawDeg,
+        -state.arenaConfig.cameraRotationMaxYawDeg,
+        state.arenaConfig.cameraRotationMaxYawDeg);
+    state.arenaCameraYawDeg += (state.arenaCameraTargetYawDeg - state.arenaCameraYawDeg)
+        * state.arenaConfig.cameraRotationEase;
+    if (std::fabs(state.arenaCameraYawDeg) < 0.001f && std::fabs(state.arenaCameraTargetYawDeg) < 0.001f) {
+        state.arenaCameraYawDeg = 0.0f;
+        state.arenaCameraTargetYawDeg = 0.0f;
+    }
+}
+
 void updateCamera(AppState& state, const StageSlot& stage) {
     const float minFighterX = std::min(state.fighters[0].x, state.fighters[1].x);
     const float maxFighterX = std::max(state.fighters[0].x, state.fighters[1].x);
@@ -5842,6 +5934,7 @@ void applyArenaScreenBounds(AppState& state, const StageSlot& stage) {
 void updateArenaCamera(AppState& state, const StageSlot& stage) {
     if (arenaOpenBorScrollerActive(state, stage)) {
         updateArenaOpenBorScrollingCamera(state, stage);
+        updateArenaCameraRotation(state);
         return;
     }
 
@@ -5866,6 +5959,7 @@ void updateArenaCamera(AppState& state, const StageSlot& stage) {
     }
     if (!any) {
         updateCamera(state, stage);
+        updateArenaCameraRotation(state);
         return;
     }
 
@@ -5883,6 +5977,7 @@ void updateArenaCamera(AppState& state, const StageSlot& stage) {
     state.cameraX = std::clamp(targetX, stage.cameraBoundleft, stage.cameraBoundright);
 
     state.cameraY = std::clamp(stage.cameraStarty, stage.cameraBoundhigh, stage.cameraBoundlow);
+    updateArenaCameraRotation(state);
 }
 
 void startEnvShake(AppState& state, const EnvShakeSpec& shake) {
@@ -8704,6 +8799,7 @@ void drawArenaSetup(SDL_Renderer* renderer, AppState& state) {
     view.stageName = compactSettingText(selectedStageName(state.selection), 22);
     view.timerLabel = arenaTimerLabel(state);
     view.zAxisEnabled = arenaZAxisEnabled(state);
+    view.cameraRotationEnabled = arenaCameraRotationSelected(state);
     view.selectedOption = state.frontend.selectedArenaSetupOption;
     view.frame = state.frame;
     drawArenaSetupOverlay(uiRenderContext(renderer, state), view);

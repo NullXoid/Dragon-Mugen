@@ -329,9 +329,13 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
             && (frontendKey == FrontendKey::Left || frontendKey == FrontendKey::Right || frontendKey == FrontendKey::Accept)) {
             state.selection.sessionSlots.arenaZAxisEnabled = !state.selection.sessionSlots.arenaZAxisEnabled;
             playMenuCursorMoveSound(state);
-        } else if (state.frontend.selectedArenaSetupOption == 7 && frontendKey == FrontendKey::Accept) {
+        } else if (state.frontend.selectedArenaSetupOption == 7
+            && (frontendKey == FrontendKey::Left || frontendKey == FrontendKey::Right || frontendKey == FrontendKey::Accept)) {
+            state.selection.sessionSlots.arenaCameraRotationEnabled = !state.selection.sessionSlots.arenaCameraRotationEnabled;
+            playMenuCursorMoveSound(state);
+        } else if (state.frontend.selectedArenaSetupOption == 8 && frontendKey == FrontendKey::Accept) {
             startArenaMatch();
-        } else if (state.frontend.selectedArenaSetupOption == 8
+        } else if (state.frontend.selectedArenaSetupOption == 9
             && (frontendKey == FrontendKey::Accept || frontendKey == FrontendKey::Escape)) {
             backToFighterSelect();
         }

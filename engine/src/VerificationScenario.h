@@ -49,6 +49,9 @@ struct FighterSnapshot {
     float hitDownVelocityY = 0.0f;
     float displayOffsetX = 0.0f;
     float displayOffsetY = 0.0f;
+    float screenX = 0.0f;
+    float screenY = 0.0f;
+    float viewDepth = 0.0f;
     char stateType = 'S';
     char moveType = 'I';
     bool ctrl = false;
@@ -62,6 +65,8 @@ struct RuntimeSnapshot {
     int frame = 0;
     float cameraX = 0.0f;
     float cameraY = 0.0f;
+    float arenaCameraYawDeg = 0.0f;
+    float arenaCameraTargetYawDeg = 0.0f;
     int matchTimerTicks = 0;
     int matchPhase = 0;
     int activeEffects = 0;
@@ -79,6 +84,9 @@ struct RuntimeSnapshot {
     int firstHelperAnimTick = 0;
     int roundWinner = 0;
     int arenaRuntimeCount = 0;
+    bool arenaZAxisEnabled = false;
+    bool arenaCameraRotationSelected = false;
+    bool arenaCameraRotationActive = false;
     std::string arenaDrawOrder;
     std::string lastHitText;
     std::string p1Commands;
@@ -102,6 +110,8 @@ public:
     virtual void setFighterLife(int fighterIndex, int life) = 0;
     virtual void setFighterPower(int fighterIndex, int power) = 0;
     virtual void setFighterControl(int fighterIndex, bool enabled) = 0;
+    virtual void setArenaZAxisEnabled(bool enabled) = 0;
+    virtual void setArenaCameraRotationEnabled(bool enabled) = 0;
     virtual void setFighterHitPause(int fighterIndex, int ticks) = 0;
     virtual void forceFighterState(int fighterIndex, int stateNo) = 0;
     virtual void forceFighterLiedown(int fighterIndex, int hitStunTicks) = 0;

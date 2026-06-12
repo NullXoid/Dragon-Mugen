@@ -27,6 +27,9 @@ build\dragon_mugen.exe --verify arena-z-gamepad-controls
 build\dragon_mugen.exe --verify arena-z-hit-depth
 build\dragon_mugen.exe --verify arena-z-push-depth
 build\dragon_mugen.exe --verify arena-z-draw-order
+build\dragon_mugen.exe --verify arena-camera-rotation-toggle
+build\dragon_mugen.exe --verify arena-camera-rotation-projection
+build\dragon_mugen.exe --verify arena-camera-rotation-draw-order
 build\dragon_mugen.exe --verify arena-z-cpu-align
 build\dragon_mugen.exe --verify arena-z-modifier-sidestep
 build\dragon_mugen.exe --verify arena-per-fighter-runtime
@@ -48,7 +51,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - VS Mode enters character select.
 - Arena Mode enters character select and then Arena Setup.
 - Arena Setup can start 1, 2, and 3 CPU free-for-all matches.
-- Arena Setup can change CPU slots, stage, timer, and Z Axis without affecting Training, Single Player, or VS.
+- Arena Setup can change CPU slots, stage, timer, Z Axis, and Camera Rotate without affecting Training, Single Player, or VS.
 - Character select moves with Up/Down/Left/Right only when a character exists in the destination cell.
 - Character select does not load full character runtime data.
 - Character and stage select labels do not duplicate, overlap, or show the wrong mode name.
@@ -67,6 +70,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Arena Z-axis modifier moves depth with Shift/left trigger using authored walk animation; normal Up/Down still jump/crouch and still feed quarter-circle commands when the modifier is not held.
 - Arena double-tapping the Z-axis modifier performs a short sidestep using authored walk animation; Up/Down on the second tap chooses the sidestep depth direction.
 - Arena depth affects hit gating, player push, CPU alignment, projected sprite position, and draw order only when Z Axis is enabled.
+- Arena Camera Rotate defaults off, only activates when Z Axis is also on, eases yaw from P1/living-fighter depth, and changes actor/effect projection and depth draw order without rotating backgrounds or combat math.
 - Arena can select `OpenBOR Scroll Test`; in Arena it scrolls forward only, clamps at the configured end, and does not make Training, Single Player, or VS stages auto-scroll.
 - Arena gamepad Start opens pause/start behavior only and is not mapped as a fighter button or depth input.
 - Evil Ken crouch roundhouse trip follows the first low arc, hits the floor, then performs two small vertical-only floor bounces before knockdown without rising into air recovery.

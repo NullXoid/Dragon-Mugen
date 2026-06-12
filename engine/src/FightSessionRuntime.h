@@ -123,6 +123,8 @@ void resetTrainingPositions(AppState& state) {
     state.fighters[1].facing = -state.fighters[0].facing;
     state.cameraX = stage.cameraStartx;
     state.cameraY = stage.cameraStarty;
+    state.arenaCameraYawDeg = 0.0f;
+    state.arenaCameraTargetYawDeg = 0.0f;
     state.runtimeEffects.clear();
     state.helpers.clear();
     state.projectiles.clear();
@@ -212,6 +214,8 @@ void resetFightRound(AppState& state) {
         state.matchComplete = false;
         state.cameraX = stage.cameraStartx;
         state.cameraY = stage.cameraStarty;
+        state.arenaCameraYawDeg = 0.0f;
+        state.arenaCameraTargetYawDeg = 0.0f;
         return;
     }
 
@@ -314,6 +318,8 @@ void resetFightRound(AppState& state) {
     state.roundPoseApplied = false;
     state.cameraX = stage.cameraStartx;
     state.cameraY = stage.cameraStarty;
+    state.arenaCameraYawDeg = 0.0f;
+    state.arenaCameraTargetYawDeg = 0.0f;
     enterRoundInitialState(state, state.fighters[0]);
     enterRoundInitialState(state, state.fighters[1]);
 }
