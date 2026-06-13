@@ -57,6 +57,7 @@ struct FighterSnapshot {
     float screenX = 0.0f;
     float screenY = 0.0f;
     float viewDepth = 0.0f;
+    int facing = 1;
     char stateType = 'S';
     char moveType = 'I';
     char physics = 'S';
@@ -112,6 +113,7 @@ struct RuntimeSnapshot {
     std::string lastHitText;
     std::string p1Commands;
     std::string p2Commands;
+    std::string selectedTrainingMoveLabel;
     FighterSnapshot p1;
     FighterSnapshot p2;
 };

@@ -73,11 +73,15 @@
             helper.id = nextRuntimeControllerId++;
             helper.trigger = *controllerTrigger;
             helper.stateNo = parseIntValue(stateNo->value, 0);
+            helper.stateNoExpression = trim(stateNo->value);
             helper.helperId = findProperty(section, "id") ? parseIntValue(findProperty(section, "id")->value, helper.stateNo) : helper.stateNo;
             if (const auto* pos = findProperty(section, "pos")) {
                 const auto values = parseExplodPosition(pos->value, constants);
+                const auto expressions = parseExpressionPairValue(pos->value);
                 helper.x = values.first;
                 helper.y = values.second;
+                helper.xExpression = expressions.first;
+                helper.yExpression = expressions.second;
             }
             if (const auto* postype = findProperty(section, "postype")) {
                 helper.postype = lowercaseCopy(trim(postype->value));
@@ -95,6 +99,14 @@
                 helper.superMoveTime = parseIntValue(superMoveTime->value, helper.pauseMoveTime);
             } else {
                 helper.superMoveTime = helper.pauseMoveTime;
+            }
+            if (const auto* scaleX = findProperty(section, "size.xscale")) {
+                helper.scaleX = parseFloatValue(scaleX->value, helper.scaleX);
+                helper.scaleXExpression = trim(scaleX->value);
+            }
+            if (const auto* scaleY = findProperty(section, "size.yscale")) {
+                helper.scaleY = parseFloatValue(scaleY->value, helper.scaleY);
+                helper.scaleYExpression = trim(scaleY->value);
             }
             state.helpers.push_back(std::move(helper));
             continue;

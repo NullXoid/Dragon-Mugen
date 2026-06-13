@@ -39,7 +39,9 @@ struct TrainingCommandHudView {
     std::string categoryLabel;
     std::string pageLabel;
     std::string showMeLabel;
+    std::string completionLabel;
     bool completeFlash = false;
+    bool completionVisible = false;
     bool demoActive = false;
     bool commandsVisible = false;
 };

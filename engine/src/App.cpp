@@ -255,6 +255,11 @@ struct HitDefinition {
     std::string airVelocityXExpression;
     std::string airVelocityYExpression;
     std::string airHitTimeExpression;
+    bool hasSnap = false;
+    float snapX = 0.0f;
+    float snapY = 0.0f;
+    std::string snapXExpression;
+    std::string snapYExpression;
     bool fall = false;
     bool airFall = false;
     std::string fallExpression;
@@ -295,12 +300,16 @@ struct HitDefinition {
     std::string guardVelocityYExpression;
     int p1StateNo = -1;
     std::string p1StateNoExpression;
+    bool hasP1Facing = false;
+    int p1Facing = 0;
+    std::string p1FacingExpression;
     int p2StateNo = -1;
     std::string p2StateNoExpression;
     bool p2GetP1State = false;
     std::string p2GetP1StateExpression;
     bool hasP2Facing = false;
     int p2Facing = 0;
+    std::string p2FacingExpression;
     EnvShakeSpec envShake;
     EnvShakeSpec fallEnvShake;
     PaletteEffectSpec palFx;
@@ -504,13 +513,20 @@ struct StateHelperController {
     StateControllerTrigger trigger;
     int helperId = 0;
     int stateNo = 0;
+    std::string stateNoExpression;
     float x = 0.0f;
     float y = 0.0f;
+    std::string xExpression;
+    std::string yExpression;
     std::string postype = "p1";
     int sprPriority = 0;
     int facing = 0;
     int pauseMoveTime = 0;
     int superMoveTime = 0;
+    float scaleX = 1.0f;
+    float scaleY = 1.0f;
+    std::string scaleXExpression;
+    std::string scaleYExpression;
 };
 
 struct StateDestroySelfController {
@@ -1381,8 +1397,12 @@ struct FighterState {
     bool destroyRequested = false;
     int ownerIndex = -1;
     int helperId = 0;
+    float scaleX = 1.0f;
+    float scaleY = 1.0f;
     int pauseMoveTime = 0;
     int superMoveTime = 0;
+    int jumpInputBufferTicks = 0;
+    bool jumpInputConsumedWhileHeld = false;
     int jumpBaseAction = 0;
     bool jumpPeakActionApplied = false;
     bool screenBound = true;
@@ -1417,6 +1437,10 @@ struct FighterState {
     int targetTicks = 0;
     int boundByIndex = -1;
     int bindTicks = 0;
+    bool targetBindPositionActive = false;
+    float targetBindOffsetX = 0.0f;
+    float targetBindOffsetY = 0.0f;
+    int targetBindFacing = 0;
 };
 
 struct FreezeWatchFighterSample {
@@ -2784,6 +2808,15 @@ std::vector<HitDefinition> loadHitDefinitions(const CharacterFiles& files) {
                 hitDef.airHitTime = parseIntValue(airHitTime->value, hitDef.airHitTime);
                 hitDef.airHitTimeExpression = trim(airHitTime->value);
             }
+            if (const auto* snap = findProperty(section, "snap")) {
+                const auto values = parseFloatPairValue(snap->value);
+                const auto expressions = parseExpressionPairValue(snap->value);
+                hitDef.hasSnap = true;
+                hitDef.snapX = values.first;
+                hitDef.snapY = values.second;
+                hitDef.snapXExpression = expressions.first;
+                hitDef.snapYExpression = expressions.second;
+            }
             if (const auto* fall = findProperty(section, "fall")) {
                 hitDef.fall = parseIntValue(fall->value, 0) != 0;
                 hitDef.fallExpression = trim(fall->value);
@@ -2863,6 +2896,11 @@ std::vector<HitDefinition> loadHitDefinitions(const CharacterFiles& files) {
                 hitDef.p1StateNo = parseIntValue(p1StateNo->value, -1);
                 hitDef.p1StateNoExpression = trim(p1StateNo->value);
             }
+            if (const auto* p1Facing = findProperty(section, "p1facing")) {
+                hitDef.hasP1Facing = true;
+                hitDef.p1Facing = parseIntValue(p1Facing->value, 0);
+                hitDef.p1FacingExpression = trim(p1Facing->value);
+            }
             if (const auto* p2StateNo = findProperty(section, "p2stateno")) {
                 hitDef.p2StateNo = parseIntValue(p2StateNo->value, -1);
                 hitDef.p2StateNoExpression = trim(p2StateNo->value);
@@ -2875,6 +2913,7 @@ std::vector<HitDefinition> loadHitDefinitions(const CharacterFiles& files) {
             if (const auto* p2Facing = findProperty(section, "p2facing")) {
                 hitDef.hasP2Facing = true;
                 hitDef.p2Facing = parseIntValue(p2Facing->value, 0);
+                hitDef.p2FacingExpression = trim(p2Facing->value);
             }
             if (const auto* envShakeTime = findProperty(section, "envshake.time")) {
                 hitDef.envShake.time = std::max(0, parseIntValue(envShakeTime->value, hitDef.envShake.time));
@@ -4043,6 +4082,19 @@ bool hitDefCausesFall(const HitDefinition& hitDef, const FighterState& target) {
     return hitDefCausesFall(hitDef, !target.onGround || target.stateType == 'A');
 }
 
+int hitTimeForGetHitVars(const HitDefinition& hitDef, bool wasAirborne, bool wasLyingDown, float hitVelocityY) {
+    if (wasLyingDown) {
+        return std::max(0, hitDef.downHitTime);
+    }
+
+    // M.U.G.E.N/Ikemen use air.hittime for grounded hits that launch with a Y velocity.
+    if (wasAirborne || std::abs(hitVelocityY) > 0.001f) {
+        return std::max(0, hitDef.airHitTime);
+    }
+
+    return std::max(0, hitDef.groundHitTime);
+}
+
 void setGetHitVarsFromHitDef(
     FighterState& target,
     const HitDefinition& hitDef,
@@ -4057,11 +4109,7 @@ void setGetHitVarsFromHitDef(
     target.getHitGroundType = hitGroundTypeValue(hitDef.groundType);
     target.getHitAirType = hitAirTypeValue(hitDef.animtype);
     target.getHitSlideTime = wasAirborne ? 0 : std::max(0, hitDef.groundSlideTime);
-    target.getHitHitTime = wasLyingDown
-        ? std::max(0, hitDef.downHitTime)
-        : (wasAirborne && hitDef.airHitTime > 0
-        ? hitDef.airHitTime
-        : std::max(0, hitDef.groundHitTime));
+    target.getHitHitTime = hitTimeForGetHitVars(hitDef, wasAirborne, wasLyingDown, hitVelocityY);
     target.getHitCtrlTime = target.getHitHitTime;
     target.getHitHitCount = std::max(0, target.getHitHitCount + 1);
     target.hitVelocityX = hitVelocityX;
@@ -4111,6 +4159,22 @@ int fallLandActionForFighter(const AppState& state, const FighterState& target) 
         return candidate;
     }
     return findExactClipForActor(state, target, 5100) ? 5100 : 0;
+}
+
+void applyHitDefP1Facing(FighterState& attacker, const HitDefinition& hitDef) {
+    if (!hitDef.hasP1Facing || hitDef.p1Facing == 0) {
+        return;
+    }
+    if (hitDef.p1Facing < 0) {
+        attacker.facing *= -1;
+    }
+}
+
+void applyHitDefP2Facing(FighterState& target, const HitDefinition& hitDef, int attackerFacing) {
+    if (!hitDef.hasP2Facing || hitDef.p2Facing == 0) {
+        return;
+    }
+    target.facing = hitDef.p2Facing > 0 ? -attackerFacing : attackerFacing;
 }
 
 int guardStartStateNo() {
@@ -4302,7 +4366,13 @@ void clampArenaAppliedFallVelocity(const AppState& state, FighterState& fighter,
     }
 }
 
-void enterGroundGetHitState(const AppState& state, FighterState& target, const HitDefinition& hitDef, int attackerFacing) {
+void enterGroundGetHitState(
+    const AppState& state,
+    FighterState& target,
+    const HitDefinition& hitDef,
+    float sourceX,
+    float sourceY,
+    int attackerFacing) {
     const bool wasAirborne = !target.onGround || target.stateType == 'A';
     const bool wasCrouching = fighterIsCrouchingForHit(target);
     const bool wasLyingDown = fighterIsLyingDownForHit(target);
@@ -4338,12 +4408,15 @@ void enterGroundGetHitState(const AppState& state, FighterState& target, const H
     target.physics = wasAirborne || liedownBounce ? 'A' : 'N';
     target.ctrl = false;
     target.onGround = !(wasAirborne || liedownBounce);
+    if (hitDef.hasSnap) {
+        target.x = sourceX + hitDef.snapX * static_cast<float>(attackerFacing);
+        target.y = sourceY + hitDef.snapY;
+        target.triggerY = target.y;
+    }
     target.vx = 0.0f;
     target.vy = 0.0f;
     target.hitPauseTicks = fightHitPauseTicks(state, hitDef.pausetimeP2, 1);
-    const int hitTime = wasLyingDown
-        ? hitDef.downHitTime
-        : (wasAirborne && hitDef.airHitTime > 0 ? hitDef.airHitTime : hitDef.groundHitTime);
+    const int hitTime = hitTimeForGetHitVars(hitDef, wasAirborne, wasLyingDown, hitVelocityY);
     target.hitStunTicks = std::max(hitTime, target.hitPauseTicks);
     target.hitSlideTicks = wasAirborne ? 0 : std::max(0, hitDef.groundSlideTime);
     setGetHitVarsFromHitDef(
@@ -4392,6 +4465,7 @@ void enterGroundGetHitState(const AppState& state, FighterState& target, const H
     const int tripAction = target.hitFallTrip && !wasLyingDown && findExactClipForActor(state, target, 5070) ? 5070 : 0;
     const int shakeAction = tripAction != 0 && !wasAirborne ? tripAction : firstExistingActionForActor(state, target, { action, 5000, 0 });
     setFighterAction(target, shakeAction);
+    applyHitDefP2Facing(target, hitDef, attackerFacing);
 }
 
 bool enterCustomHitState(
@@ -4439,9 +4513,7 @@ bool enterCustomHitState(
         hitVelocityY,
         downVelocityX,
         downVelocityY);
-    if (hitDef.hasP2Facing && hitDef.p2Facing != 0) {
-        target.facing = hitDef.p2Facing > 0 ? -attackerFacing : attackerFacing;
-    }
+    applyHitDefP2Facing(target, hitDef, attackerFacing);
     return true;
 }
 
@@ -4524,6 +4596,10 @@ void clearFighterHitRuntime(FighterState& fighter) {
     fighter.targetTicks = 0;
     fighter.boundByIndex = -1;
     fighter.bindTicks = 0;
+    fighter.targetBindPositionActive = false;
+    fighter.targetBindOffsetX = 0.0f;
+    fighter.targetBindOffsetY = 0.0f;
+    fighter.targetBindFacing = 0;
     fighter.appliedHitDefIds.clear();
     clearStateRuntimeControllerTracking(fighter);
     fighter.moveContact = false;
@@ -4611,8 +4687,22 @@ int liedownRecoveryTicks(const AppState& state, const FighterState& fighter) {
     return std::max(1, characterConstantsForActor(state, fighter).liedownTime);
 }
 
+void applyGroundPhysicsFriction(const AppState& state, FighterState& fighter) {
+    const CharacterConstants& constants = characterConstantsForActor(state, fighter);
+    const bool crouching = fighter.physics == 'C' || fighter.stateType == 'C';
+    const float friction = crouching ? constants.movementCrouchFriction : constants.movementStandFriction;
+    const float threshold = std::max(0.0f, crouching
+        ? constants.movementCrouchFrictionThreshold
+        : constants.movementStandFrictionThreshold);
+    if (std::abs(fighter.vx) < threshold) {
+        fighter.vx = 0.0f;
+        return;
+    }
+    fighter.vx *= friction;
+}
+
 void startFallGroundLiedownRecovery(const AppState& state, FighterState& fighter) {
-    fighter.hitStunTicks = liedownRecoveryTicks(state, fighter);
+    fighter.hitStunTicks = std::max(fighter.hitStunTicks, liedownRecoveryTicks(state, fighter));
 }
 
 void restoreTripFallImpactRuntime(const AppState& state, FighterState& fighter, int previousStateNo, int targetState) {
@@ -4786,9 +4876,11 @@ bool fighterCanUpdateDuringGlobalPause(const AppState& state, int fighterIndex) 
 
 void startGlobalPause(AppState& state, FighterState& fighter, const StatePauseController& pause) {
     const int ownerIndex = fighter.helper ? fighter.ownerIndex : fighterIndexInState(state, fighter);
-    state.globalPauseTicks = std::max(state.globalPauseTicks, pause.time);
+    const int effectivePauseTicks = pause.time > 0 ? pause.time + 1 : 0;
+    const int effectiveMoveTicks = pause.moveTime > 0 ? pause.moveTime + 1 : pause.moveTime;
+    state.globalPauseTicks = std::max(state.globalPauseTicks, effectivePauseTicks);
     state.globalPauseOwnerIndex = ownerIndex;
-    state.globalPauseOwnerMoveTicks = std::max(state.globalPauseOwnerMoveTicks, pause.moveTime);
+    state.globalPauseOwnerMoveTicks = std::max(state.globalPauseOwnerMoveTicks, effectiveMoveTicks);
     state.globalPauseIsSuper = pause.superPause;
     if (pause.powerAdd != 0) {
         fighter.power = std::clamp(
@@ -5162,13 +5254,45 @@ const FighterState* opponentForActor(const AppState& state, const FighterState& 
     return &state.fighters[static_cast<size_t>(ownerIndex == 0 ? 1 : 0)];
 }
 
-void spawnStateHelper(AppState& state, const FighterState& owner, const StateHelperController& controller) {
+void spawnStateHelper(
+    AppState& state,
+    const FighterState& owner,
+    const FighterState* opponent,
+    const StageSlot* stage,
+    const StateHelperController& controller) {
     const int ownerIndex = fighterIndexInState(state, owner);
-    if (ownerIndex < 0 || !findStateDefinitionForActor(state, owner, controller.stateNo)) {
+    if (ownerIndex < 0) {
         return;
     }
 
-    const FighterState* opponent = opponentForActor(state, owner);
+    const auto evalFloat = [&](const std::string& expression, float fallback) {
+        if (trim(expression).empty()) {
+            return fallback;
+        }
+        if (const auto value = evalMugenExpression(state, owner, expression, opponent, stage)) {
+            return *value;
+        }
+        return fallback;
+    };
+    const auto evalInt = [&](const std::string& expression, int fallback) {
+        if (trim(expression).empty()) {
+            return fallback;
+        }
+        if (const auto value = evalMugenExpression(state, owner, expression, opponent, stage)) {
+            return static_cast<int>(std::lround(*value));
+        }
+        return fallback;
+    };
+
+    const int stateNo = evalInt(controller.stateNoExpression, controller.stateNo);
+    if (!findStateDefinitionForActor(state, owner, stateNo)) {
+        return;
+    }
+
+    const float offsetX = evalFloat(controller.xExpression, controller.x);
+    const float offsetY = evalFloat(controller.yExpression, controller.y);
+    const float scaleX = evalFloat(controller.scaleXExpression, controller.scaleX);
+    const float scaleY = evalFloat(controller.scaleYExpression, controller.scaleY);
     float baseX = owner.x;
     float baseY = owner.y;
     float offsetFacing = static_cast<float>(owner.facing);
@@ -5184,8 +5308,8 @@ void spawnStateHelper(AppState& state, const FighterState& owner, const StateHel
     helper.helper = true;
     helper.ownerIndex = ownerIndex;
     helper.helperId = controller.helperId;
-    helper.x = baseX + controller.x * offsetFacing;
-    helper.y = baseY + controller.y;
+    helper.x = baseX + offsetX * offsetFacing;
+    helper.y = baseY + offsetY;
     helper.depthZ = owner.depthZ;
     helper.facing = controller.facing == 0 ? baseFacing : (controller.facing > 0 ? baseFacing : -baseFacing);
     helper.onGround = helper.y >= 0.0f;
@@ -5193,7 +5317,9 @@ void spawnStateHelper(AppState& state, const FighterState& owner, const StateHel
     helper.sprPriority = controller.sprPriority;
     helper.pauseMoveTime = controller.pauseMoveTime;
     helper.superMoveTime = controller.superMoveTime;
-    if (!enterState(state, helper, controller.stateNo)) {
+    helper.scaleX = scaleX;
+    helper.scaleY = scaleY;
+    if (!enterState(state, helper, stateNo)) {
         return;
     }
     state.helpers.push_back(std::move(helper));
@@ -5336,7 +5462,7 @@ void updateStateHelperControllers(AppState& state, FighterState& fighter, const 
             if (!shouldRunStateOneShotController(state, fighter, helper.id, helper.trigger, opponent, stage)) {
                 continue;
             }
-            spawnStateHelper(state, fighter, helper);
+            spawnStateHelper(state, fighter, opponent, stage, helper);
         }
 
     for (const auto& bind : stateDef.bindToParents) {
@@ -5691,6 +5817,10 @@ void resetFighterOneTickBounds(AppState& state) {
             --fighter.bindTicks;
             if (fighter.bindTicks <= 0) {
                 fighter.boundByIndex = -1;
+                fighter.targetBindPositionActive = false;
+                fighter.targetBindOffsetX = 0.0f;
+                fighter.targetBindOffsetY = 0.0f;
+                fighter.targetBindFacing = 0;
             }
         }
     };
@@ -6645,6 +6775,11 @@ HitDefinition resolveHitDefinitionExpressions(
         resolved.airVelocityY = evalFloat(source.airVelocityYExpression, source.airVelocityY);
     }
     resolved.airHitTime = evalInt(source.airHitTimeExpression, source.airHitTime);
+    resolved.hasSnap = source.hasSnap;
+    if (source.hasSnap) {
+        resolved.snapX = evalFloat(source.snapXExpression, source.snapX);
+        resolved.snapY = evalFloat(source.snapYExpression, source.snapY);
+    }
     resolved.fall = evalBool(source.fallExpression, source.fall);
     resolved.airFall = evalBool(source.airFallExpression, source.airFall);
     resolved.fallRecover = evalBool(source.fallRecoverExpression, source.fallRecover);
@@ -6682,8 +6817,16 @@ HitDefinition resolveHitDefinitionExpressions(
         resolved.guardVelocityY = resolved.groundVelocityY;
     }
     resolved.p1StateNo = evalInt(source.p1StateNoExpression, source.p1StateNo);
+    resolved.hasP1Facing = source.hasP1Facing;
+    if (source.hasP1Facing) {
+        resolved.p1Facing = evalInt(source.p1FacingExpression, source.p1Facing);
+    }
     resolved.p2StateNo = evalInt(source.p2StateNoExpression, source.p2StateNo);
     resolved.p2GetP1State = evalBool(source.p2GetP1StateExpression, source.p2GetP1State);
+    resolved.hasP2Facing = source.hasP2Facing;
+    if (source.hasP2Facing) {
+        resolved.p2Facing = evalInt(source.p2FacingExpression, source.p2Facing);
+    }
 
     return resolved;
 }
@@ -6753,16 +6896,6 @@ void updateStateTargetControllers(
     forEachRuntimeControllerStateDefinition(state, fighter, [&](const StateDefinition& runtimeStateDef) {
         const StateDefinition* stateDef = &runtimeStateDef;
 
-    for (const auto& targetDrop : stateDef->targetDrops) {
-        if (!shouldRunStateRuntimeController(state, fighter, targetDrop.id, targetDrop.trigger, opponent, stage)) {
-            continue;
-        }
-        if (targetDrop.excludeId < 0 || targetDrop.excludeId != fighter.targetHitId) {
-            clearFighterTargetLink(fighter);
-            return false;
-        }
-    }
-
     for (const auto& targetState : stateDef->targetStates) {
         if (!targetControllerMatchesStoredTarget(fighter, targetState.targetId)) {
             continue;
@@ -6793,13 +6926,14 @@ void updateStateTargetControllers(
         if (!shouldRunStateRuntimeController(state, fighter, targetBind.id, targetBind.trigger, opponent, stage)) {
             continue;
         }
-        target.x = fighter.x + targetBind.x * static_cast<float>(fighter.facing);
-        target.y = fighter.y + targetBind.y;
         target.boundByIndex = binderIndex;
         target.bindTicks = targetBind.time < 0 ? 9999 : std::max(1, targetBind.time);
+        target.targetBindPositionActive = true;
+        target.targetBindOffsetX = targetBind.x;
+        target.targetBindOffsetY = targetBind.y;
+        target.targetBindFacing = fighter.facing;
         target.vx = 0.0f;
         target.vy = 0.0f;
-        target.onGround = target.y >= 0.0f;
         refreshStoredTargetLink(fighter);
     }
 
@@ -6871,8 +7005,36 @@ void updateStateTargetControllers(
         }
         refreshStoredTargetLink(fighter);
     }
+
+    for (const auto& targetDrop : stateDef->targetDrops) {
+        if (!shouldRunStateRuntimeController(state, fighter, targetDrop.id, targetDrop.trigger, opponent, stage)) {
+            continue;
+        }
+        if (targetDrop.excludeId < 0 || targetDrop.excludeId != fighter.targetHitId) {
+            clearFighterTargetLink(fighter);
+            return false;
+        }
+    }
         return true;
     });
+}
+
+void applyTargetBindings(AppState& state) {
+    for (auto& target : state.fighters) {
+        if (!target.targetBindPositionActive
+            || target.bindTicks <= 0
+            || target.boundByIndex < 0
+            || target.boundByIndex >= static_cast<int>(state.fighters.size())) {
+            continue;
+        }
+        const FighterState& binder = state.fighters[static_cast<size_t>(target.boundByIndex)];
+        const int bindFacing = target.targetBindFacing == 0 ? binder.facing : target.targetBindFacing;
+        target.x = binder.x + target.targetBindOffsetX * static_cast<float>(bindFacing);
+        target.y = binder.y + target.targetBindOffsetY;
+        target.vx = static_cast<float>(target.facing * binder.facing) * binder.vx;
+        target.vy = binder.vy;
+        target.onGround = target.y >= 0.0f;
+    }
 }
 
 CollisionBox collisionBoxToWorld(const CollisionBox& box, const FighterState& fighter, const AnimationFrame& frame) {
@@ -6943,9 +7105,19 @@ bool fighterBoxesOverlap(
     const FighterState& defender,
     const AnimationFrame& defendFrame) {
     for (const auto& attackBox : attackFrame.clsn1) {
-        const CollisionBox attackWorld = collisionBoxToWorld(attackBox, attacker, attackFrame);
+        const CollisionBox attackWorld = collisionBoxToWorldScaled(
+            attackBox,
+            attacker,
+            attackFrame,
+            attacker.scaleX,
+            attacker.scaleY);
         for (const auto& hurtBox : defendFrame.clsn2) {
-            const CollisionBox hurtWorld = collisionBoxToWorld(hurtBox, defender, defendFrame);
+            const CollisionBox hurtWorld = collisionBoxToWorldScaled(
+                hurtBox,
+                defender,
+                defendFrame,
+                defender.scaleX,
+                defender.scaleY);
             if (boxesOverlap(attackWorld, hurtWorld)) {
                 return true;
             }
@@ -7174,6 +7346,7 @@ void applyHitBetween(AppState& state, size_t attackerIndex, size_t defenderIndex
         if (damageDone > 0) {
             defender.life = std::max(0, defender.life - damageDone);
         }
+        applyHitDefP1Facing(attacker, *hitDef);
         if (trainingDummy && state.training.options.dummyFrozen) {
             clearFighterHitRuntime(defender);
             enterState(state, defender, 0);
@@ -7199,10 +7372,11 @@ void applyHitBetween(AppState& state, size_t attackerIndex, size_t defenderIndex
                 hitDef->groundVelocityY,
                 downVelocityX,
                 downVelocityY);
+            applyHitDefP2Facing(defender, *hitDef, attacker.facing);
         } else if (enterCustomHitState(state, defender, *hitDef, attacker.facing, attackerStateOwnerIndex)) {
             // Custom p2stateno states are driven by the character CNS after entry.
         } else {
-            enterGroundGetHitState(state, defender, *hitDef, attacker.facing);
+            enterGroundGetHitState(state, defender, *hitDef, attacker.x, attacker.y, attacker.facing);
         }
         if (hitDef->p1StateNo >= 0 && enterState(state, attacker, hitDef->p1StateNo)) {
             attacker.ctrl = false;
@@ -7450,7 +7624,12 @@ void applyProjectileHit(AppState& state, RuntimeProjectile& projectile, size_t d
     for (const auto& attackBox : attackFrame->clsn1) {
         const CollisionBox attackWorld = collisionBoxToWorldScaled(attackBox, projectileActor, *attackFrame, projectile.scaleX, projectile.scaleY);
         for (const auto& hurtBox : defendFrame->clsn2) {
-            const CollisionBox hurtWorld = collisionBoxToWorld(hurtBox, defender, *defendFrame);
+            const CollisionBox hurtWorld = collisionBoxToWorldScaled(
+                hurtBox,
+                defender,
+                *defendFrame,
+                defender.scaleX,
+                defender.scaleY);
             if (boxesOverlap(attackWorld, hurtWorld)) {
                 hitBoxesOverlap = true;
                 break;
@@ -7551,10 +7730,11 @@ void applyProjectileHit(AppState& state, RuntimeProjectile& projectile, size_t d
                 hitDef.groundVelocityY,
                 downVelocityX,
                 downVelocityY);
+            applyHitDefP2Facing(defender, hitDef, projectile.facing);
         } else if (enterCustomHitState(state, defender, hitDef, projectile.facing, projectile.ownerIndex)) {
             // Custom projectile p2stateno states are driven by the target CNS after entry.
         } else {
-            enterGroundGetHitState(state, defender, hitDef, projectile.facing);
+            enterGroundGetHitState(state, defender, hitDef, projectile.x, projectile.y, projectile.facing);
         }
         spawnHitSpark(state, hitDef, projectileActor, defender);
         if (shouldPlayFightSounds(state)) {
@@ -7676,6 +7856,7 @@ void updateHelperActors(AppState& state, const StageSlot& stage) {
         updateStateTargetControllers(state, helper, opponent, &stage);
         updateStateChangeAnimControllers(state, helper, opponent, &stage);
         updateStatePosAddControllers(state, helper, opponent, &stage);
+        applyTargetBindings(state);
         updateStateCtrlControllers(state, helper);
         updateStateAudioControllers(state, helper, opponent, &stage);
         if (helper.hitPauseTicks > 0) {
@@ -8064,15 +8245,6 @@ void updateGroundGetHitState(AppState& state, FighterState& target) {
         return;
     }
 
-    if (target.hitFall
-        && target.hitFallRecover
-        && (target.stateNo == 5050 || target.stateNo == 5071)
-        && !target.onGround
-        && target.stateTime >= std::max(20, target.hitFallRecoverTime)) {
-        enterAirRecoveryState(state, target, target.vy > 0.0f && target.y > -48.0f);
-        return;
-    }
-
     if (fallFallbacksEnabled(state) && target.hitFall && target.stateNo == 5100 && fighterAnimationEnded(state, target)) {
         if (std::abs(target.hitFallBounceYVelocity) < 0.05f || !findExactClipForActor(state, target, 5160)) {
             const int action = liedownImpactActionForFighter(state, target);
@@ -8191,7 +8363,7 @@ void updateGroundGetHitState(AppState& state, FighterState& target) {
                 target.onGround = false;
             } else if (target.hitAirborne || target.hitFall || target.hitVelocityY < 0.0f) {
                 target.stateType = 'A';
-                target.physics = 'A';
+                target.physics = target.hitFall ? 'N' : 'A';
                 target.onGround = false;
             } else {
                 target.stateType = target.hitCrouch ? 'C' : 'S';
@@ -8209,6 +8381,15 @@ void updateGroundGetHitState(AppState& state, FighterState& target) {
         return;
     }
 
+    if (target.hitFall && !target.onGround && !findStateDefinitionForActor(state, target, target.stateNo)) {
+        if (target.stateNo == 5050 || target.stateNo == 5071) {
+            const CharacterConstants& constants = characterConstantsForActor(state, target);
+            target.vy += target.hitFallYAccel > 0.0f ? target.hitFallYAccel : constants.movementYAccel;
+        } else if (target.stateNo == 5101 || target.stateNo == 5160) {
+            target.vy += characterConstantsForActor(state, target).movementDownBounceYAccel;
+        }
+    }
+
     if (target.hitFall && (target.stateNo == 5050 || target.stateNo == 5071)) {
         return;
     }
@@ -8223,8 +8404,17 @@ void updateGroundGetHitState(AppState& state, FighterState& target) {
         target.vx = 0.0f;
     }
 
+    const bool groundedHitSlide = !target.hitFall
+        && !target.hitAirborne
+        && target.onGround
+        && (target.physics == 'S' || target.physics == 'C');
     if (target.hitSlideTicks > 0) {
         --target.hitSlideTicks;
+        if (groundedHitSlide) {
+            applyGroundPhysicsFriction(state, target);
+        }
+    } else if (groundedHitSlide) {
+        target.vx = 0.0f;
     } else {
         target.vx *= 0.6f;
     }
@@ -8303,6 +8493,7 @@ void updateGroundGuardState(const AppState& state, FighterState& target) {
     target.physics = crouch ? 'C' : 'S';
     if (target.hitSlideTicks > 0) {
         --target.hitSlideTicks;
+        applyGroundPhysicsFriction(state, target);
     } else {
         target.vx = 0.0f;
         target.vy = 0.0f;
@@ -8315,6 +8506,57 @@ void updateGroundGuardState(const AppState& state, FighterState& target) {
         clearFighterHitRuntime(target);
         enterGroundGuardReadyState(state, target, crouch ? GuardStance::Crouch : GuardStance::Stand);
     }
+}
+
+constexpr int kJumpInputBufferTicks = 18;
+
+void updateJumpInputBuffer(
+    FighterState& fighter,
+    const FighterInputState& input,
+    bool jumpPressedThisFrame,
+    bool commandButtonHeld) {
+    if (fighter.guarding || fighter.moveType == 'H') {
+        fighter.jumpInputBufferTicks = 0;
+        if (!input.up) {
+            fighter.jumpInputConsumedWhileHeld = false;
+        }
+        return;
+    }
+
+    if (!input.up) {
+        fighter.jumpInputConsumedWhileHeld = false;
+        if (fighter.jumpInputBufferTicks > 0) {
+            --fighter.jumpInputBufferTicks;
+        }
+        return;
+    }
+
+    if (jumpPressedThisFrame) {
+        fighter.jumpInputBufferTicks = kJumpInputBufferTicks;
+        fighter.jumpInputConsumedWhileHeld = false;
+        return;
+    }
+
+    const bool waitingForActionableGround =
+        !fighter.ctrl
+        || !fighter.onGround
+        || fighter.moveType != 'I'
+        || fighter.stateNo != 0
+        || fighter.hitPauseTicks > 0
+        || fighter.guarding;
+    if (!fighter.jumpInputConsumedWhileHeld && (waitingForActionableGround || commandButtonHeld)) {
+        fighter.jumpInputBufferTicks = kJumpInputBufferTicks;
+        return;
+    }
+
+    if (fighter.jumpInputBufferTicks > 0) {
+        --fighter.jumpInputBufferTicks;
+    }
+}
+
+void consumeJumpInputBuffer(FighterState& fighter) {
+    fighter.jumpInputBufferTicks = 0;
+    fighter.jumpInputConsumedWhileHeld = true;
 }
 
 void updateControlledFighter(
@@ -8339,6 +8581,9 @@ void updateControlledFighter(
         commandInput.down = false;
     }
     pushFighterInputFrame(fighter, commandInput, state.frame);
+    const bool attackButtonHeld = input.s || input.x || input.y || input.z || input.a || input.b || input.c;
+    const bool jumpPressedThisFrame = commandInput.up && !previousFighterInputHeldUp(fighter);
+    updateJumpInputBuffer(fighter, commandInput, jumpPressedThisFrame, attackButtonHeld);
 
     if (fighter.guarding) {
         updateGroundGuardState(state, fighter);
@@ -8372,14 +8617,10 @@ void updateControlledFighter(
     updatePlayerCrouchInput(state, fighter, holdingDown);
     const bool holdingHorizontal = commandInput.left != commandInput.right;
     const bool holdingUp = commandInput.up;
-    const bool jumpPressedThisFrame = commandInput.up && !previousFighterInputHeldUp(fighter);
-    constexpr int kJumpInputBufferTicks = 8;
-    const bool jumpPressedRecently = jumpPressedThisFrame
-        || fighterPressedUpWithin(fighter, state.frame, kJumpInputBufferTicks);
     const bool movementLocked = fighterHasAssertSpecialFlag(fighter, "nowalk");
-    const bool attackButtonHeld = input.s || input.x || input.y || input.z || input.a || input.b || input.c;
     const int heldWalkAction = ((fighter.facing >= 0 && input.right) || (fighter.facing < 0 && input.left)) ? 20 : 21;
     const auto startFallbackJump = [&state, &fighter, &input]() {
+        consumeJumpInputBuffer(fighter);
         const CharacterConstants& constants = characterConstantsForActor(state, fighter);
         const bool holdingForward = (fighter.facing >= 0 && input.right) || (fighter.facing < 0 && input.left);
         const bool holdingBack = (fighter.facing >= 0 && input.left) || (fighter.facing < 0 && input.right);
@@ -8481,7 +8722,13 @@ void updateControlledFighter(
                 }
             }
         }
-        if (!changedStateFromCommand && !movementLocked && !holdingDown && fighter.ctrl && jumpPressedRecently && fighter.onGround) {
+        if (!changedStateFromCommand
+            && !movementLocked
+            && !holdingDown
+            && fighter.ctrl
+            && !attackButtonHeld
+            && fighter.jumpInputBufferTicks > 0
+            && fighter.onGround) {
             startFallbackJump();
         }
     }
@@ -8597,6 +8844,12 @@ void updateCpuOpponent(AppState& state, FighterState& opponent, const FighterSta
 bool trainingCommandDemoActive(const AppState& state);
 const CommandStateEntry* selectedTrainingCommandEntry(const AppState& state, int* selectedIndex);
 FighterInputState nextTrainingCommandDemoInput(AppState& state, FighterState& demoFighter);
+void updateTrainingCommandPracticeTimers(AppState& state);
+void updateTrainingCommandPracticeProgress(
+    AppState& state,
+    const FighterState& fighterBeforeUpdate,
+    const FighterState& fighterAfterUpdate,
+    const FighterState* opponent);
 
 std::string fighterResultName(const AppState& state, int winner) {
     if (state.frontend.pendingMode == PendingMode::Arena) {
@@ -8897,6 +9150,7 @@ void updateRoundStartWorld(AppState& state, const StageSlot& stage) {
     updateStateChangeAnimControllers(state, p2, &p1, &stage);
     updateStatePosAddControllers(state, p1, &p2, &stage);
     updateStatePosAddControllers(state, p2, &p1, &stage);
+    applyTargetBindings(state);
     updateStateCtrlControllers(state, p1);
     updateStateCtrlControllers(state, p2);
     updateStateAudioControllers(state, p1, &p2, &stage);
@@ -8995,6 +9249,7 @@ void updateSingleFightRoundFinishWorld(AppState& state, const StageSlot& stage) 
         updateStateCtrlControllers(state, p2);
         updateStateAudioControllers(state, p2, &p1, &stage);
     }
+    applyTargetBindings(state);
     updateFightAssertSpecialControllers(state, stage);
     if (state.matchPhaseTicks >= state.fightRoundSettings.overWaitTime) {
         p1.ctrl = false;
@@ -9088,6 +9343,7 @@ void updateFight(AppState& state) {
     clearFightAssertSpecialFlags(state);
     updateFightAssertSpecialControllers(state, stage);
     resetFighterOneTickBounds(state);
+    updateTrainingCommandPracticeTimers(state);
 
     if (isMatchMode(state) && state.matchPhase == MatchPhase::RoundStart) {
         updateRoundStartWorld(state, stage);
@@ -9118,7 +9374,9 @@ void updateFight(AppState& state) {
     const FighterInputState neutralP1Input;
     const FighterInputState& p1Input = trainingCommandDemoActive(state) ? neutralP1Input : liveP1Input;
     if (fighterCanUpdateDuringGlobalPause(state, 0)) {
+        const FighterState p1BeforeUpdate = p1;
         updateControlledFighter(state, p1, &p2, p1Input);
+        updateTrainingCommandPracticeProgress(state, p1BeforeUpdate, p1, &p2);
     }
     if (!fighterCanUpdateDuringGlobalPause(state, 1)) {
         p2.vx = 0.0f;
@@ -9215,6 +9473,7 @@ void updateFight(AppState& state) {
         updateStateCtrlControllers(state, p2);
         updateStateAudioControllers(state, p2, &p1, &stage);
     }
+    applyTargetBindings(state);
     updateFightAssertSpecialControllers(state, stage);
     if (state.frontend.pendingMode == PendingMode::Training
         && activeOpponentType(state) == OpponentType::Dummy
@@ -9699,7 +9958,7 @@ TrainingCommandHudView trainingCommandHudView(
     const FighterState* opponent = state.fighters.size() > 1 ? &state.fighters[1] : nullptr;
     const std::vector<std::string> commands = fighter.inputHistory.empty()
         ? std::vector<std::string>{}
-        : collectFighterCommands(fighter.inputHistory.back().input, fighter, state.commandDefinitions);
+        : collectFighterCommands(fighter.inputHistory.back().input, fighter, commandDefinitionsForActor(state, fighter));
     const CommandStateEntry* activeEntry = activeCommandEntry(state, fighter, opponent, commands);
 
     if (view.input.visible) {
@@ -9745,6 +10004,9 @@ TrainingCommandHudView trainingCommandHudView(
             : std::to_string(selected + 1) + "/" + std::to_string(entries.size());
         view.showMeLabel = "H SHOW ME";
         view.demoActive = trainingCommandDemoActive(state);
+        view.completionVisible = state.training.commandPractice.flashTicks > 0
+            && !state.training.commandPractice.notification.empty();
+        view.completionLabel = fitDebugText(state.training.commandPractice.notification, 21);
         if (activeEntry) {
             view.activeCommandLabel = fitDebugText(activeEntry->label, 19);
         }
@@ -9754,7 +10016,7 @@ TrainingCommandHudView trainingCommandHudView(
             const CommandDefinition* definition = practiceCommandDefinitionForEntry(state, entry, commands);
             view.currentMoveName = fitDebugText(moveListEntryName(entry), 20);
             view.currentMoveInput = fitDebugText(definition ? commandDefinitionInputLabel(*definition) : moveListInputText(entry), 25);
-            view.completeFlash = complete;
+            view.completeFlash = complete || view.completionVisible;
 
             if (definition) {
                 appendDefinitionPracticeSteps(steps, fighter, *definition, complete || commandDefinitionActive(*definition, fighter));
@@ -9781,18 +10043,25 @@ void drawTrainingCommandHud(SDL_Renderer* renderer, const AppState& state) {
 
 TrainingOptionsMenuView trainingOptionsMenuView(const AppState& state, std::vector<TrainingOptionRowView>& rows) {
     rows.clear();
-    rows.reserve(kTrainingOptionCount);
     const auto& options = state.training.options;
-    for (int i = 0; i < kTrainingOptionCount; ++i) {
+    const int pageCount = (kTrainingOptionCount + kTrainingOptionRows - 1) / kTrainingOptionRows;
+    const int selected = std::clamp(options.selectedOption, 0, kTrainingOptionCount - 1);
+    const int page = std::clamp(selected / kTrainingOptionRows, 0, pageCount - 1);
+    const int firstOption = page * kTrainingOptionRows;
+    const int lastOption = std::min(kTrainingOptionCount, firstOption + kTrainingOptionRows);
+
+    rows.reserve(kTrainingOptionRows);
+    for (int i = firstOption; i < lastOption; ++i) {
         rows.push_back(TrainingOptionRowView{
             std::string(trainingOptionLabel(i)),
             trainingOptionStatus(options, i),
-            i == options.selectedOption,
+            i == selected,
         });
     }
 
     TrainingOptionsMenuView view;
     view.rows = rows;
+    view.pageLabel = std::to_string(page + 1) + "/" + std::to_string(pageCount);
     return view;
 }
 

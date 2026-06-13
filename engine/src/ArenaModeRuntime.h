@@ -386,6 +386,7 @@ void updateArenaFight(AppState& state) {
             state.fighters[i].vy = 0.0f;
             state.fighters[i].onGround = true;
         }
+        updateNeutralAirLandingFallback(state, state.fighters[i]);
         resolveArenaFallGrounding(state, state.fighters[i]);
     }
 
@@ -413,6 +414,7 @@ void updateArenaFight(AppState& state) {
         updateStateCtrlControllers(state, state.fighters[i]);
         updateStateAudioControllers(state, state.fighters[i], target, &stage);
     }
+    applyTargetBindings(state);
 
     for (auto& fighter : state.fighters) {
         updateStateZeroFromMovement(state, fighter);

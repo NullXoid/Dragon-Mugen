@@ -1,20 +1,29 @@
 #include "VerificationScenario.h"
 
 #include "AppTypes.h"
+#include "TrainingOptionsBehavior.h"
+#include "TrainingOptionsOverlay.h"
 
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <ostream>
+#include <string>
+#include <vector>
 namespace dragon::verification {
+int runTrainingOptionsMenuGeometry(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenTripGrounding(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenOverheadTripChain(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenOverheadTripChainStress(RuntimeProbe& runtime, std::ostream& out);
+int runEvilKenTripJumpBuffer(RuntimeProbe& runtime, std::ostream& out);
+int runEvilKenAttackJumpBufferRelease(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenThrow(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenKuuchuuShakunetsu(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenTrainingDemoAll(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenShinryukenRecovery(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenShunGokuSatsu(RuntimeProbe& runtime, std::ostream& out);
+int runEvilKenShoukiHatsudouSpacing(RuntimeProbe& runtime, std::ostream& out);
+int runEvilKenTrainingCommandPracticeAdvance(RuntimeProbe& runtime, std::ostream& out);
 int runKfmDownHitProfile(RuntimeProbe& runtime, std::ostream& out);
 int runKfmGuardRecovery(RuntimeProbe& runtime, std::ostream& out);
 int runKfmSpecialsSupers(RuntimeProbe& runtime, std::ostream& out);
@@ -22,7 +31,7 @@ int runEvilKenSpecialsSupers(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenHelperLifecycle(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenPowerChargeHelper(RuntimeProbe& runtime, std::ostream& out), runEvilKenAirSpecialContactLanding(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenTrainingCommandDemo(RuntimeProbe& runtime, std::ostream& out);
-int runEvilRyuSpecialsSupers(RuntimeProbe& runtime, std::ostream& out), runEvilRyuSuperStress(RuntimeProbe& runtime, std::ostream& out), runEvilRyuAirSpecialContactLanding(RuntimeProbe& runtime, std::ostream& out);
+int runEvilRyuSpecialsSupers(RuntimeProbe& runtime, std::ostream& out), runEvilRyuShinShoryukenStun(RuntimeProbe& runtime, std::ostream& out), runEvilRyuSuperStress(RuntimeProbe& runtime, std::ostream& out), runEvilRyuAirSpecialContactLanding(RuntimeProbe& runtime, std::ostream& out), runEvilRyuPowerChargeHelper(RuntimeProbe& runtime, std::ostream& out), runEvilRyuThrowBind(RuntimeProbe& runtime, std::ostream& out), runEvilRyuTrainingThrowDemo(RuntimeProbe& runtime, std::ostream& out);
 int runKfmMovementDirectionAudit(RuntimeProbe& runtime, std::ostream& out);
 int runEvilRyuHighJumpMovementAudit(RuntimeProbe& runtime, std::ostream& out);
 int runEvilRyuDash(RuntimeProbe& runtime, std::ostream& out);
@@ -32,6 +41,7 @@ int runArenaZHitDepth(RuntimeProbe& runtime, std::ostream& out), runArenaZPushDe
 int runArenaCameraRotationToggle(RuntimeProbe& runtime, std::ostream& out), runArenaCameraRotationProjection(RuntimeProbe& runtime, std::ostream& out), runArenaCameraRotationDrawOrder(RuntimeProbe& runtime, std::ostream& out);
 int runArenaZCpuAlign(RuntimeProbe& runtime, std::ostream& out);
 int runArenaZModifierSidestep(RuntimeProbe& runtime, std::ostream& out);
+int runArenaEvilKenForwardDashBounds(RuntimeProbe& runtime, std::ostream& out);
 int runArenaPerFighterRuntime(RuntimeProbe& runtime, std::ostream& out);
 int runArenaOpenBorScrollStage(RuntimeProbe& runtime, std::ostream& out), runArenaEvilRyuAirSpecialContactLanding(RuntimeProbe& runtime, std::ostream& out);
 namespace {
@@ -1106,7 +1116,64 @@ int runVsP2Runtime(RuntimeProbe& runtime, std::ostream& out) {
 
 } // namespace
 
+int runTrainingOptionsMenuGeometry(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY training-options-menu-geometry\n";
+
+    const int pageCount = (kTrainingOptionCount + kTrainingOptionRows - 1) / kTrainingOptionRows;
+    record(out, counts, pageCount == 2 ? Status::Pass : Status::Fail, "page_count",
+        "page_count=" + std::to_string(pageCount)
+        + " option_count=" + std::to_string(kTrainingOptionCount)
+        + " page_rows=" + std::to_string(kTrainingOptionRows));
+
+    for (int page = 0; page < pageCount; ++page) {
+        TrainingOptions options;
+        options.selectedOption = page * kTrainingOptionRows;
+        options.dummyGuardMode = DummyGuardMode::Crouch;
+        options.moveCategory = TrainingMoveCategory::Specials;
+
+        std::vector<TrainingOptionRowView> rows;
+        const int firstOption = page * kTrainingOptionRows;
+        const int lastOption = std::min(kTrainingOptionCount, firstOption + kTrainingOptionRows);
+        rows.reserve(kTrainingOptionRows);
+        for (int option = firstOption; option < lastOption; ++option) {
+            rows.push_back(TrainingOptionRowView{
+                std::string(trainingOptionLabel(option)),
+                trainingOptionStatus(options, option),
+                option == options.selectedOption,
+            });
+        }
+
+        TrainingOptionsMenuView view;
+        view.rows = rows;
+        view.pageLabel = std::to_string(page + 1) + "/" + std::to_string(pageCount);
+
+        const auto selectedRows = std::count_if(rows.begin(), rows.end(), [](const TrainingOptionRowView& row) {
+            return row.selected;
+        });
+        const auto geometry = verifyTrainingOptionsMenuGeometry(view);
+        const std::string pageName = "page_" + std::to_string(page + 1);
+        record(out, counts, rows.size() == static_cast<std::size_t>(kTrainingOptionRows) ? Status::Pass : Status::Fail,
+            pageName + "_row_count",
+            "rows=" + std::to_string(rows.size())
+            + " first_option=" + std::to_string(firstOption)
+            + " last_option=" + std::to_string(lastOption - 1));
+        record(out, counts, selectedRows == 1 ? Status::Pass : Status::Fail,
+            pageName + "_selected_row",
+            "selected_rows=" + std::to_string(selectedRows)
+            + " selected_option=" + std::to_string(options.selectedOption));
+        record(out, counts, geometry.ok ? Status::Pass : Status::Fail,
+            pageName + "_geometry_fits",
+            geometry.detail);
+    }
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
 int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::ostream& out) {
+    if (scenarioName == "training-options-menu-geometry") return runTrainingOptionsMenuGeometry(runtime, out);
     if (scenarioName == "kfm-baseline") return runKfmBaseline(runtime, out);
     if (scenarioName == "kfm-throw") return runKfmThrow(runtime, out);
     if (scenarioName == "kfm-air-state") return runKfmAirState(runtime, out);
@@ -1120,18 +1187,26 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
     if (scenarioName == "evilken-power-charge-helper") return runEvilKenPowerChargeHelper(runtime, out);
     if (scenarioName == "evilken-air-special-contact-landing") return runEvilKenAirSpecialContactLanding(runtime, out);
     if (scenarioName == "evilken-training-demo-hit") return runEvilKenTrainingCommandDemo(runtime, out);
+    if (scenarioName == "evilken-training-command-practice-advance") return runEvilKenTrainingCommandPracticeAdvance(runtime, out);
     if (scenarioName == "evilryu-specials-supers") return runEvilRyuSpecialsSupers(runtime, out);
+    if (scenarioName == "evilryu-shin-shoryuken-stun") return runEvilRyuShinShoryukenStun(runtime, out);
     if (scenarioName == "evilryu-super-stress") return runEvilRyuSuperStress(runtime, out);
     if (scenarioName == "evilryu-air-special-contact-landing") return runEvilRyuAirSpecialContactLanding(runtime, out);
+    if (scenarioName == "evilryu-power-charge-helper") return runEvilRyuPowerChargeHelper(runtime, out);
+    if (scenarioName == "evilryu-throw-bind") return runEvilRyuThrowBind(runtime, out);
+    if (scenarioName == "evilryu-training-throw-demo") return runEvilRyuTrainingThrowDemo(runtime, out);
     if (scenarioName == "evilken-smoke") return runEvilKenSmoke(runtime, out);
     if (scenarioName == "evilken-trip-grounding") return runEvilKenTripGrounding(runtime, out);
     if (scenarioName == "evilken-overhead-trip-chain") return runEvilKenOverheadTripChain(runtime, out);
     if (scenarioName == "evilken-overhead-trip-chain-stress") return runEvilKenOverheadTripChainStress(runtime, out);
+    if (scenarioName == "evilken-trip-jump-buffer") return runEvilKenTripJumpBuffer(runtime, out);
+    if (scenarioName == "evilken-attack-jump-buffer-release") return runEvilKenAttackJumpBufferRelease(runtime, out);
     if (scenarioName == "evilken-throw") return runEvilKenThrow(runtime, out);
     if (scenarioName == "evilken-kuuchuu-shakunetsu") return runEvilKenKuuchuuShakunetsu(runtime, out);
     if (scenarioName == "evilken-training-demo-all") return runEvilKenTrainingDemoAll(runtime, out);
     if (scenarioName == "evilken-shinryuken-recovery") return runEvilKenShinryukenRecovery(runtime, out);
     if (scenarioName == "evilken-shun-goku-satsu") return runEvilKenShunGokuSatsu(runtime, out);
+    if (scenarioName == "evilken-shouki-hatsudou-spacing") return runEvilKenShoukiHatsudouSpacing(runtime, out);
     if (scenarioName == "cpu-baseline") return runCpuBaseline(runtime, out);
     if (scenarioName == "vs-p2-runtime") return runVsP2Runtime(runtime, out);
     if (scenarioName == "arena-cpu-1") return runArenaSmoke(runtime, out, 1);
@@ -1147,6 +1222,7 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
     if (scenarioName == "arena-camera-rotation-draw-order") return runArenaCameraRotationDrawOrder(runtime, out);
     if (scenarioName == "arena-z-cpu-align") return runArenaZCpuAlign(runtime, out);
     if (scenarioName == "arena-z-modifier-sidestep") return runArenaZModifierSidestep(runtime, out);
+    if (scenarioName == "arena-evilken-forward-dash-bounds") return runArenaEvilKenForwardDashBounds(runtime, out);
     if (scenarioName == "arena-per-fighter-runtime") return runArenaPerFighterRuntime(runtime, out);
     if (scenarioName == "arena-openbor-scroll-stage") return runArenaOpenBorScrollStage(runtime, out);
     if (scenarioName == "arena-evilryu-air-special-contact-landing") return runArenaEvilRyuAirSpecialContactLanding(runtime, out);
@@ -1154,7 +1230,7 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
 
     out << "VERIFY " << scenarioName << "\n"
         << "BLOCKED unknown_scenario\n"
-        << "  supported: kfm-baseline, kfm-throw, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-guard-recovery, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-power-charge-helper, evilken-air-special-contact-landing, evilken-training-demo-hit, evilryu-specials-supers, evilryu-super-stress, evilryu-air-special-contact-landing, evilken-smoke, evilken-trip-grounding, evilken-overhead-trip-chain, evilken-overhead-trip-chain-stress, evilken-throw, evilken-kuuchuu-shakunetsu, evilken-training-demo-all, evilken-shinryuken-recovery, evilken-shun-goku-satsu, cpu-baseline, vs-p2-runtime, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-camera-rotation-toggle, arena-camera-rotation-projection, arena-camera-rotation-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-per-fighter-runtime, arena-openbor-scroll-stage, arena-evilryu-air-special-contact-landing, evilryu-dash\n"
+        << "  supported: training-options-menu-geometry, kfm-baseline, kfm-throw, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-guard-recovery, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-power-charge-helper, evilken-air-special-contact-landing, evilken-training-demo-hit, evilken-training-command-practice-advance, evilryu-specials-supers, evilryu-shin-shoryuken-stun, evilryu-super-stress, evilryu-air-special-contact-landing, evilryu-power-charge-helper, evilryu-throw-bind, evilryu-training-throw-demo, evilken-smoke, evilken-trip-grounding, evilken-overhead-trip-chain, evilken-overhead-trip-chain-stress, evilken-trip-jump-buffer, evilken-attack-jump-buffer-release, evilken-throw, evilken-kuuchuu-shakunetsu, evilken-training-demo-all, evilken-shinryuken-recovery, evilken-shun-goku-satsu, evilken-shouki-hatsudou-spacing, cpu-baseline, vs-p2-runtime, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-camera-rotation-toggle, arena-camera-rotation-projection, arena-camera-rotation-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-evilken-forward-dash-bounds, arena-per-fighter-runtime, arena-openbor-scroll-stage, arena-evilryu-air-special-contact-landing, evilryu-dash\n"
         << "SUMMARY pass=0 partial=0 fail=0 blocked=1\n";
     return 2;
 }

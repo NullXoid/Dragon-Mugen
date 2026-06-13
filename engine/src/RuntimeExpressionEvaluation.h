@@ -486,8 +486,16 @@ std::optional<float> evalMugenExpression(
     if (const auto compare = findTopLevelCompareOp(value)) {
         const auto [op, pos] = *compare;
         const size_t opLength = op == CompareOp::GreaterEqual || op == CompareOp::LessEqual || op == CompareOp::NotEqual ? 2 : 1;
-        const auto lhs = evalMugenExpression(state, fighter, trim(std::string_view(value).substr(0, pos)), opponent, stage);
         const std::string rhsExpression = trim(std::string_view(value).substr(pos + opLength));
+        const std::string lhsExpression = trim(std::string_view(value).substr(0, pos));
+        if (lowercaseCopy(lhsExpression) == "command") {
+            const std::string commandName = unquote(rhsExpression);
+            if (commandName != rhsExpression && (op == CompareOp::Equal || op == CompareOp::NotEqual)) {
+                const bool active = commandActive(collectCurrentFighterCommands(state, fighter), commandName);
+                return (op == CompareOp::Equal ? active : !active) ? 1.0f : 0.0f;
+            }
+        }
+        const auto lhs = evalMugenExpression(state, fighter, lhsExpression, opponent, stage);
         if (const auto range = parseMugenFloatRangeExpression(rhsExpression)) {
             if (!lhs || (op != CompareOp::Equal && op != CompareOp::NotEqual)) {
                 return std::nullopt;

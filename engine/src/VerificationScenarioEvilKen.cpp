@@ -366,8 +366,8 @@ int runEvilKenTripGrounding(RuntimeProbe& runtime, std::ostream& out) {
 
 int runEvilKenOverheadTripChain(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
-    if (!runtime.setup("EvilKen", "Mountainside", ScenarioMode::Versus, out)) {
-        record(out, counts, Status::Blocked, "setup", "Evil Ken/Mountainside Versus setup failed");
+    if (!runtime.setup("EvilKen", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Evil Ken/Mountainside Training setup failed");
         summary(out, counts);
         return 2;
     }
@@ -458,6 +458,176 @@ int runEvilKenOverheadTripChain(RuntimeProbe& runtime, std::ostream& out) {
         + " final_p1_state=" + std::to_string(finalP1.stateNo)
         + " final_p1_action=" + std::to_string(finalP1.action)
         + " final_p1_ground=" + std::to_string(finalP1.onGround ? 1 : 0));
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runEvilKenTripJumpBuffer(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("EvilKen", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Evil Ken/Mountainside Training setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "evilken-trip-jump-buffer");
+
+    const bool idle = waitForControllableIdle(runtime, 420);
+    record(out, counts, idle ? Status::Pass : Status::Fail, "controllable_idle_ready",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo));
+    if (!idle) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    runtime.forceFighterState(0, 1834);
+    runtime.setFighterPosition(0, -40.0f, -64.0f);
+    runtime.setFighterPosition(1, 180.0f, 0.0f);
+    runtime.setFighterControl(0, false);
+    runtime.setFighterControl(1, false);
+
+    SymbolicInput up;
+    up.up = true;
+    bool heldUpDuringRecovery = false;
+    bool sawTripFollowup = false;
+    bool sawLandingOrIdle = false;
+    bool sawBufferedJump = false;
+    int heldStartFrame = -1;
+    int jumpFrame = -1;
+    FighterSnapshot heldFrame;
+    FighterSnapshot landingFrame;
+    FighterSnapshot jumpSnapshot;
+    FighterSnapshot finalP1;
+
+    for (int frame = 0; frame < 260; ++frame) {
+        const auto snap = runtime.snapshot();
+        finalP1 = snap.p1;
+        sawTripFollowup = sawTripFollowup || snap.p1.stateNo == 1834 || snap.p1.stateNo == 1839;
+        if (snap.p1.stateNo == 52 || (snap.p1.stateNo == 0 && snap.p1.onGround)) {
+            sawLandingOrIdle = true;
+            landingFrame = snap.p1;
+        }
+        if (frame >= 6 && (!snap.p1.ctrl || !snap.p1.onGround || snap.p1.stateNo != 0)) {
+            heldUpDuringRecovery = true;
+            if (heldStartFrame < 0) {
+                heldStartFrame = frame;
+                heldFrame = snap.p1;
+            }
+        }
+        if (heldUpDuringRecovery && snap.p1.stateNo == 50 && !snap.p1.onGround && snap.p1.vy < -1.0f) {
+            sawBufferedJump = true;
+            jumpFrame = frame;
+            jumpSnapshot = snap.p1;
+            break;
+        }
+        runtime.step(frame >= 6 ? up : SymbolicInput{}, 1);
+    }
+
+    record(out, counts, sawTripFollowup ? Status::Pass : Status::Fail, "trip_followup_recovery_exercised",
+        "held_start_frame=" + std::to_string(heldStartFrame)
+        + " held_state=" + std::to_string(heldFrame.stateNo)
+        + " held_y=" + std::to_string(heldFrame.y)
+        + " held_ctrl=" + std::to_string(heldFrame.ctrl ? 1 : 0));
+    record(out, counts, heldUpDuringRecovery ? Status::Pass : Status::Fail, "up_held_before_actionable",
+        "held_start_frame=" + std::to_string(heldStartFrame)
+        + " held_state=" + std::to_string(heldFrame.stateNo)
+        + " held_ground=" + std::to_string(heldFrame.onGround ? 1 : 0)
+        + " held_ctrl=" + std::to_string(heldFrame.ctrl ? 1 : 0));
+    record(out, counts, sawLandingOrIdle ? Status::Pass : Status::Fail, "trip_recovery_reaches_ground_control_path",
+        "landing_state=" + std::to_string(landingFrame.stateNo)
+        + " landing_action=" + std::to_string(landingFrame.action)
+        + " landing_ctrl=" + std::to_string(landingFrame.ctrl ? 1 : 0)
+        + " final_state=" + std::to_string(finalP1.stateNo));
+    record(out, counts, sawBufferedJump ? Status::Pass : Status::Fail, "early_up_starts_jump_after_trip",
+        "jump_frame=" + std::to_string(jumpFrame)
+        + " jump_state=" + std::to_string(jumpSnapshot.stateNo)
+        + " jump_action=" + std::to_string(jumpSnapshot.action)
+        + " jump_y=" + std::to_string(jumpSnapshot.y)
+        + " jump_vy=" + std::to_string(jumpSnapshot.vy)
+        + " final_state=" + std::to_string(finalP1.stateNo)
+        + " final_ground=" + std::to_string(finalP1.onGround ? 1 : 0));
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runEvilKenAttackJumpBufferRelease(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("EvilKen", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Evil Ken/Mountainside Training setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "evilken-attack-jump-buffer-release");
+
+    const bool idle = waitForControllableIdle(runtime, 420);
+    record(out, counts, idle ? Status::Pass : Status::Fail, "controllable_idle_ready",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo));
+    if (!idle) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    runtime.setFighterPosition(0, -80.0f, 0.0f);
+    runtime.setFighterPosition(1, 160.0f, 0.0f);
+    runtime.setFighterControl(1, false);
+    runtime.step({}, 4);
+
+    SymbolicInput jab;
+    jab.x = true;
+    runtime.step(jab, 2);
+
+    SymbolicInput heldCommandJump;
+    heldCommandJump.up = true;
+    heldCommandJump.right = true;
+    heldCommandJump.x = true;
+
+    bool jumpedWhileCommandHeld = false;
+    FighterSnapshot commandHeldFinal;
+    for (int frame = 0; frame < 90; ++frame) {
+        runtime.step(heldCommandJump, 1);
+        const auto snap = runtime.snapshot();
+        commandHeldFinal = snap.p1;
+        if (snap.p1.stateNo == 50 || (!snap.p1.onGround && snap.p1.vy < -1.0f)) {
+            jumpedWhileCommandHeld = true;
+            break;
+        }
+    }
+
+    SymbolicInput releasedToJump;
+    releasedToJump.up = true;
+    releasedToJump.right = true;
+
+    bool jumpedAfterRelease = false;
+    int jumpFrame = -1;
+    FighterSnapshot jumpSnapshot;
+    for (int frame = 0; frame < 180; ++frame) {
+        runtime.step(releasedToJump, 1);
+        const auto snap = runtime.snapshot();
+        if (snap.p1.stateNo == 50 && !snap.p1.onGround && snap.p1.vy < -1.0f) {
+            jumpedAfterRelease = true;
+            jumpFrame = frame;
+            jumpSnapshot = snap.p1;
+            break;
+        }
+    }
+
+    record(out, counts, !jumpedWhileCommandHeld ? Status::Pass : Status::Fail, "held_command_suppresses_jump_consume",
+        "state=" + std::to_string(commandHeldFinal.stateNo)
+        + " action=" + std::to_string(commandHeldFinal.action)
+        + " ground=" + std::to_string(commandHeldFinal.onGround ? 1 : 0)
+        + " vx=" + std::to_string(commandHeldFinal.vx)
+        + " vy=" + std::to_string(commandHeldFinal.vy));
+    record(out, counts, jumpedAfterRelease ? Status::Pass : Status::Fail, "release_command_while_holding_up_jumps",
+        "jump_frame=" + std::to_string(jumpFrame)
+        + " state=" + std::to_string(jumpSnapshot.stateNo)
+        + " action=" + std::to_string(jumpSnapshot.action)
+        + " vx=" + std::to_string(jumpSnapshot.vx)
+        + " vy=" + std::to_string(jumpSnapshot.vy));
+    record(out, counts, jumpedAfterRelease && jumpSnapshot.vx > 0.1f ? Status::Pass : Status::Fail,
+        "held_up_right_keeps_forward_jump_direction",
+        "jump_action=" + std::to_string(jumpSnapshot.action)
+        + " jump_vx=" + std::to_string(jumpSnapshot.vx));
     record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
     summary(out, counts);
     return exitCode(counts);
@@ -607,6 +777,8 @@ int runEvilKenOverheadTripChainStress(RuntimeProbe& runtime, std::ostream& out) 
     return exitCode(counts);
 }
 
+std::string fighterBriefText(const FighterSnapshot& fighter);
+
 int runEvilKenThrow(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
     if (!runtime.setup("EvilKen", "Mountainside", ScenarioMode::Training, out)) {
@@ -752,6 +924,57 @@ int runEvilKenThrow(RuntimeProbe& runtime, std::ostream& out) {
         + " p2_recovered=" + std::to_string(p2Recovered ? 1 : 0)
         + " final_p1_state=" + std::to_string(finalP1.stateNo)
         + " final_p2_state=" + std::to_string(finalP2.stateNo));
+
+    runtime.forceFighterState(0, 0);
+    runtime.forceFighterState(1, 0);
+    runtime.setFighterPosition(0, -4.0f, 0.0f);
+    runtime.setFighterPosition(1, 4.0f, 0.0f);
+    runtime.setFighterControl(0, false);
+    runtime.setFighterControl(1, false);
+    runtime.step({}, 2);
+    runtime.forceFighterState(0, 900);
+    runtime.setFighterPosition(0, -4.0f, 0.0f);
+    runtime.setFighterPosition(1, 4.0f, 0.0f);
+    runtime.setFighterControl(0, false);
+    runtime.setFighterControl(1, false);
+
+    SymbolicInput holdForward;
+    holdForward.right = true;
+    bool forwardP1ThrowState = false;
+    bool forwardP1FacingApplied = false;
+    bool forwardP2FacesP1 = false;
+    bool forwardVictimTracksFlippedSide = false;
+    FighterSnapshot forwardP1;
+    FighterSnapshot forwardP2;
+    for (int frame = 0; frame < 180; ++frame) {
+        runtime.step(holdForward, 1);
+        const auto snap = runtime.snapshot();
+        if (snap.p1.stateNo == 920) {
+            forwardP1ThrowState = true;
+            forwardP1 = snap.p1;
+            forwardP2 = snap.p2;
+            forwardP1FacingApplied = forwardP1FacingApplied || snap.p1.facing < 0;
+            forwardP2FacesP1 = forwardP2FacesP1
+                || ((snap.p2.stateNo == 925 || snap.p2.stateNo == 926) && snap.p1.facing < 0 && snap.p2.facing > 0);
+            forwardVictimTracksFlippedSide = forwardVictimTracksFlippedSide
+                || (snap.p1.facing < 0 && snap.p2.x < snap.p1.x);
+        }
+        if (forwardP1FacingApplied && forwardP2FacesP1 && forwardVictimTracksFlippedSide) {
+            break;
+        }
+    }
+
+    record(out, counts, forwardP1ThrowState ? Status::Pass : Status::Fail, "forward_throw_enters_throw_state",
+        "p1=" + fighterBriefText(forwardP1)
+        + " p2=" + fighterBriefText(forwardP2));
+    record(out, counts, forwardP1FacingApplied ? Status::Pass : Status::Fail, "forward_throw_applies_p1facing",
+        "p1=" + fighterBriefText(forwardP1));
+    record(out, counts, forwardP2FacesP1 ? Status::Pass : Status::Fail, "forward_throw_p2_faces_p1",
+        "p1=" + fighterBriefText(forwardP1)
+        + " p2=" + fighterBriefText(forwardP2));
+    record(out, counts, forwardVictimTracksFlippedSide ? Status::Pass : Status::Fail, "forward_throw_victim_tracks_flipped_side",
+        "p1=" + fighterBriefText(forwardP1)
+        + " p2=" + fighterBriefText(forwardP2));
     record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
     summary(out, counts);
     return exitCode(counts);
@@ -908,8 +1131,11 @@ std::string fighterBriefText(const FighterSnapshot& fighter) {
     text << "state=" << fighter.stateNo
          << " action=" << fighter.action
          << " time=" << fighter.stateTime
+         << " x=" << fighter.x
          << " y=" << fighter.y
+         << " vx=" << fighter.vx
          << " vy=" << fighter.vy
+         << " facing=" << fighter.facing
          << " type=" << fighter.stateType
          << " move=" << fighter.moveType
          << " physics=" << fighter.physics
@@ -922,6 +1148,154 @@ std::string fighterBriefText(const FighterSnapshot& fighter) {
          << " hitpause=" << fighter.hitPauseTicks
          << " hitstun=" << fighter.hitStunTicks;
     return text.str();
+}
+
+int runEvilKenShoukiHatsudouSpacing(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("EvilKen", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Evil Ken/Mountainside Training setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "evilken-shouki-hatsudou-spacing");
+
+    const bool idle = waitForControllableIdle(runtime, 420);
+    record(out, counts, idle ? Status::Pass : Status::Fail, "controllable_idle_ready",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo));
+    if (!idle) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    runtime.forceFighterState(0, 0);
+    runtime.forceFighterState(1, 0);
+    runtime.setFighterPosition(0, -18.0f, 0.0f);
+    runtime.setFighterPosition(1, 8.0f, 0.0f);
+    runtime.setFighterControl(0, false);
+    runtime.setFighterControl(1, false);
+    runtime.setFighterPower(0, 3000);
+    runtime.setFighterLife(1, 1000);
+    runtime.step({}, 2);
+    runtime.forceFighterState(0, 4000);
+    runtime.setFighterPosition(0, -18.0f, 0.0f);
+    runtime.setFighterPosition(1, 8.0f, 0.0f);
+    runtime.setFighterControl(0, false);
+    runtime.setFighterControl(1, false);
+
+    bool sawStartup = false;
+    bool sawSecondState = false;
+    bool sawFinisherState = false;
+    bool sawFirstHit = false;
+    bool sawSecondHit = false;
+    bool sawThirdHit = false;
+    bool p1Recovered = false;
+    bool p2RecoveredOrDown = false;
+    float firstHitDistance = 0.0f;
+    float secondHitDistance = 0.0f;
+    float thirdHitDistance = 0.0f;
+    float maxDistanceAfterFirstBeforeSecond = 0.0f;
+    float maxChainDistance = 0.0f;
+    float minP2X = 100000.0f;
+    float maxP2X = -100000.0f;
+    int maxP2HitstunAfterFirst = 0;
+    int framesAfterFirstBeforeSecond = 0;
+    FighterSnapshot firstHitP1;
+    FighterSnapshot firstHitP2;
+    FighterSnapshot secondHitP1;
+    FighterSnapshot secondHitP2;
+    FighterSnapshot finalP1;
+    FighterSnapshot finalP2;
+    std::string firstHitText;
+    std::string secondHitText;
+    std::string thirdHitText;
+    std::string lastHitText;
+
+    for (int frame = 0; frame < 520; ++frame) {
+        const auto snap = runtime.snapshot();
+        finalP1 = snap.p1;
+        finalP2 = snap.p2;
+        sawStartup = sawStartup || snap.p1.stateNo == 4000;
+        sawSecondState = sawSecondState || snap.p1.stateNo == 4005;
+        sawFinisherState = sawFinisherState || snap.p1.stateNo == 4019 || snap.p1.stateNo == 4001;
+        const float distance = std::fabs(snap.p2.x - snap.p1.x);
+        maxChainDistance = std::max(maxChainDistance, distance);
+        minP2X = std::min(minP2X, snap.p2.x);
+        maxP2X = std::max(maxP2X, snap.p2.x);
+        if (!snap.lastHitText.empty()) {
+            lastHitText = snap.lastHitText;
+        }
+        if (!sawFirstHit && snap.lastHitText.find("P1 hit 4000#155") != std::string::npos) {
+            sawFirstHit = true;
+            firstHitText = snap.lastHitText;
+            firstHitDistance = distance;
+            firstHitP1 = snap.p1;
+            firstHitP2 = snap.p2;
+        }
+        if (sawFirstHit && !sawSecondHit) {
+            ++framesAfterFirstBeforeSecond;
+            maxDistanceAfterFirstBeforeSecond = std::max(maxDistanceAfterFirstBeforeSecond, distance);
+            maxP2HitstunAfterFirst = std::max(maxP2HitstunAfterFirst, snap.p2.hitStunTicks);
+        }
+        if (!sawSecondHit && snap.lastHitText.find("P1 hit 4005#") != std::string::npos) {
+            sawSecondHit = true;
+            secondHitText = snap.lastHitText;
+            secondHitDistance = distance;
+            secondHitP1 = snap.p1;
+            secondHitP2 = snap.p2;
+        }
+        if (!sawThirdHit && snap.lastHitText.find("P1 hit 4019#") != std::string::npos) {
+            sawThirdHit = true;
+            thirdHitText = snap.lastHitText;
+            thirdHitDistance = distance;
+        }
+        p1Recovered = p1Recovered || recoveredGroundIdle(snap.p1);
+        p2RecoveredOrDown = p2RecoveredOrDown
+            || recoveredGroundIdle(snap.p2)
+            || snap.p2.stateNo == 5110
+            || snap.p2.stateNo == 5120
+            || (snap.p2.onGround && snap.p2.stateType == 'L');
+        if (sawThirdHit && p1Recovered && p2RecoveredOrDown) {
+            break;
+        }
+        runtime.step({}, 1);
+    }
+
+    record(out, counts, sawStartup ? Status::Pass : Status::Fail, "shouki_startup_state_entered",
+        "final_p1=" + fighterBriefText(finalP1));
+    record(out, counts, sawFirstHit ? Status::Pass : Status::Fail, "first_hit_connected",
+        "first_hit=\"" + firstHitText + "\" first_distance=" + std::to_string(firstHitDistance)
+        + " p1=" + fighterBriefText(firstHitP1)
+        + " p2=" + fighterBriefText(firstHitP2));
+    const bool firstHitStayedInRange = sawFirstHit
+        && maxP2HitstunAfterFirst >= 30
+        && maxDistanceAfterFirstBeforeSecond <= 96.0f;
+    record(out, counts, firstHitStayedInRange ? Status::Pass : Status::Fail, "first_hit_stays_in_combo_range",
+        "max_distance_after_first_before_second=" + std::to_string(maxDistanceAfterFirstBeforeSecond)
+        + " frames_after_first_before_second=" + std::to_string(framesAfterFirstBeforeSecond)
+        + " max_p2_hitstun_after_first=" + std::to_string(maxP2HitstunAfterFirst)
+        + " p2_x_min=" + std::to_string(minP2X)
+        + " p2_x_max=" + std::to_string(maxP2X));
+    record(out, counts, sawSecondState ? Status::Pass : Status::Fail, "second_state_reached",
+        "final_p1=" + fighterBriefText(finalP1));
+    record(out, counts, sawSecondHit ? Status::Pass : Status::Fail, "second_hit_connected",
+        "second_hit=\"" + secondHitText + "\" second_distance=" + std::to_string(secondHitDistance)
+        + " p1=" + fighterBriefText(secondHitP1)
+        + " p2=" + fighterBriefText(secondHitP2)
+        + " last_hit=\"" + lastHitText + "\"");
+    record(out, counts, sawFinisherState ? Status::Pass : Status::Fail, "finisher_state_reached",
+        "final_p1=" + fighterBriefText(finalP1));
+    record(out, counts, sawThirdHit ? Status::Pass : Status::Fail, "third_hit_connected",
+        "third_hit=\"" + thirdHitText + "\" third_distance=" + std::to_string(thirdHitDistance)
+        + " max_chain_distance=" + std::to_string(maxChainDistance)
+        + " last_hit=\"" + lastHitText + "\"");
+    record(out, counts, p1Recovered && p2RecoveredOrDown ? Status::Pass : Status::Fail, "sequence_resolves",
+        "p1_recovered=" + std::to_string(p1Recovered ? 1 : 0)
+        + " p2_recovered_or_down=" + std::to_string(p2RecoveredOrDown ? 1 : 0)
+        + " final_p1=" + fighterBriefText(finalP1)
+        + " final_p2=" + fighterBriefText(finalP2));
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
 }
 
 int runEvilKenShinryukenRecovery(RuntimeProbe& runtime, std::ostream& out) {

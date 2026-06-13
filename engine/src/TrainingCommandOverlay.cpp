@@ -106,10 +106,15 @@ void drawTrainingCommandOverlay(const UiRenderContext& ui, const TrainingCommand
             scaledDebugText(renderer, scale, promptX + 30.0f, promptY + 34.0f, view.input.currentInput);
         }
 
-        setColor(renderer, view.demoActive ? 116 : 230, view.demoActive ? 190 : 220, view.demoActive ? 154 : 172);
-        scaledDebugText(renderer, scale, promptX, promptY + 47.0f, view.demoActive ? "CPU DEMO" : view.showMeLabel);
-        setColor(renderer, 130, 142, 156);
-        scaledDebugText(renderer, scale, promptX + 86.0f, promptY + 47.0f, "SEL/PgDn NEXT");
+        if (view.completionVisible) {
+            setColor(renderer, 116, 220, 154);
+            scaledDebugText(renderer, scale, promptX, promptY + 47.0f, view.completionLabel);
+        } else {
+            setColor(renderer, view.demoActive ? 116 : 230, view.demoActive ? 190 : 220, view.demoActive ? 154 : 172);
+            scaledDebugText(renderer, scale, promptX, promptY + 47.0f, view.demoActive ? "CPU DEMO" : view.showMeLabel);
+            setColor(renderer, 130, 142, 156);
+            scaledDebugText(renderer, scale, promptX + 86.0f, promptY + 47.0f, "SEL/PgDn NEXT");
+        }
         return;
     }
 

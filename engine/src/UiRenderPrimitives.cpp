@@ -6,6 +6,24 @@
 #include <cmath>
 
 namespace dragon {
+namespace {
+
+void renderDebugTextRaw(SDL_Renderer* renderer, float x, float y, const char* text) {
+    if (!text || text[0] == '\0') {
+        return;
+    }
+    SDL_RenderDebugText(renderer, x, y, text);
+}
+
+bool textColorNeedsShadow(Uint8 r, Uint8 g, Uint8 b, Uint8 a) {
+    if (a == 0) {
+        return false;
+    }
+    const int luminance = (static_cast<int>(r) * 299 + static_cast<int>(g) * 587 + static_cast<int>(b) * 114) / 1000;
+    return luminance >= 96;
+}
+
+} // namespace
 
 void setColor(SDL_Renderer* renderer, Uint8 r, Uint8 g, Uint8 b, Uint8 a) {
     SDL_SetRenderDrawColor(renderer, r, g, b, a);
@@ -44,11 +62,21 @@ void drawScaledRect(SDL_Renderer* renderer, float scale, float x, float y, float
 }
 
 void debugText(SDL_Renderer* renderer, float x, float y, const std::string& text) {
-    SDL_RenderDebugText(renderer, x, y, text.c_str());
+    debugText(renderer, x, y, text.c_str());
 }
 
 void debugText(SDL_Renderer* renderer, float x, float y, const char* text) {
-    SDL_RenderDebugText(renderer, x, y, text);
+    Uint8 r = 255;
+    Uint8 g = 255;
+    Uint8 b = 255;
+    Uint8 a = 255;
+    SDL_GetRenderDrawColor(renderer, &r, &g, &b, &a);
+    if (textColorNeedsShadow(r, g, b, a)) {
+        SDL_SetRenderDrawColor(renderer, 0, 0, 0, std::min<Uint8>(190, a));
+        renderDebugTextRaw(renderer, x + 1.0f, y + 1.0f, text);
+        SDL_SetRenderDrawColor(renderer, r, g, b, a);
+    }
+    renderDebugTextRaw(renderer, x, y, text);
 }
 
 void scaledDebugText(SDL_Renderer* renderer, float scale, float x, float y, const std::string& text) {

@@ -40,9 +40,16 @@ struct TrainingMoveListView {
 
 struct TrainingOptionsMenuView {
     std::span<const TrainingOptionRowView> rows;
+    std::string pageLabel;
+};
+
+struct TrainingOptionsMenuGeometryReport {
+    bool ok = false;
+    std::string detail;
 };
 
 void drawTrainingOptionsMenu(const UiRenderContext& ui, const TrainingOptionsMenuView& view);
 void drawTrainingMoveListPage(const UiRenderContext& ui, const TrainingMoveListView& view);
+TrainingOptionsMenuGeometryReport verifyTrainingOptionsMenuGeometry(const TrainingOptionsMenuView& view);
 
 } // namespace dragon

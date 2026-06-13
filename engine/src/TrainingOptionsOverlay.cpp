@@ -39,64 +39,42 @@ void drawSoftPanel(SDL_Renderer* renderer, float x, float y, float w, float h) {
     drawRect(renderer, x, y, w, h);
 }
 
-void drawStatusPill(SDL_Renderer* renderer, float x, float y, const std::string& status, bool selected) {
-    const float pillW = 32.0f;
-    setColor(renderer, selected ? 230 : 26, selected ? 220 : 34, selected ? 172 : 48, selected ? 238 : 232);
-    fillRect(renderer, x, y - 3.0f, pillW, 10.0f);
-    setColor(renderer, selected ? 255 : 92, selected ? 238 : 112, selected ? 160 : 142, selected ? 210 : 230);
-    drawRect(renderer, x, y - 3.0f, pillW, 10.0f);
-    setColor(renderer, selected ? 8 : 210, selected ? 12 : 222, selected ? 16 : 232);
-    debugText(renderer, x + std::max(2.0f, (pillW - static_cast<float>(status.size()) * 8.0f) * 0.5f), y, status);
-}
-
 std::string optionsMenuLabel(const std::string& label) {
     if (label == "DUMMY INV") {
-        return "INVINCIBLE";
-    }
-    if (label == "DUMMY FREEZE") {
-        return "FREEZE";
-    }
-    if (label == "DUMMY GUARD") {
-        return "GUARD";
+        return "DUMMY INVINCIBLE";
     }
     if (label == "GUARD DMG") {
-        return "DAMAGE";
-    }
-    if (label == "P2 CONTROL") {
-        return "P2 CTRL";
-    }
-    if (label == "COMMAND HUD") {
-        return "COMMAND";
-    }
-    if (label == "INPUT HUD") {
-        return "INPUT";
-    }
-    if (label == "MOVE TYPE") {
-        return "TYPE";
-    }
-    if (label == "MOVE LIST") {
-        return "LIST";
-    }
-    if (label == "RESET POS") {
-        return "RESET";
+        return "GUARD DAMAGE";
     }
     return label;
 }
 
 std::string optionsMenuStatus(const std::string& status) {
-    if (status == "NORMAL") {
-        return "NORM";
-    }
-    if (status == "SPECIAL") {
-        return "SPEC";
-    }
-    if (status == "STAND") {
-        return "STND";
-    }
-    if (status == "CROUCH") {
-        return "CRCH";
-    }
     return status;
+}
+
+struct OptionsMenuLayout {
+    float panelX = 10.0f;
+    float panelY = 30.0f;
+    float panelW = 300.0f;
+    float panelH = 184.0f;
+    float listX = 22.0f;
+    float listY = 58.0f;
+    float listW = 276.0f;
+    float listH = 126.0f;
+    float labelX = 34.0f;
+    float statusCellX = 196.0f;
+    float statusCellW = 70.0f;
+    float rowH = 12.0f;
+    float rowTextOffsetY = 3.0f;
+};
+
+OptionsMenuLayout optionsMenuLayout() {
+    return OptionsMenuLayout{};
+}
+
+float debugTextWidth(const std::string& text) {
+    return static_cast<float>(text.size()) * 8.0f;
 }
 
 } // namespace
@@ -198,53 +176,105 @@ void drawTrainingOptionsMenu(const UiRenderContext& ui, const TrainingOptionsMen
     SDL_Renderer* renderer = ui.renderer;
     ScopedUiScale scaledUi(ui, 320.0f, 240.0f);
 
-    constexpr float panelX = 16.0f;
-    constexpr float panelY = 28.0f;
-    constexpr float panelW = 292.0f;
-    constexpr float panelH = 198.0f;
-    drawSoftPanel(renderer, panelX, panelY, panelW, panelH);
+    const OptionsMenuLayout layout = optionsMenuLayout();
+    drawSoftPanel(renderer, layout.panelX, layout.panelY, layout.panelW, layout.panelH);
 
     setColor(renderer, 28, 42, 74);
-    fillRect(renderer, panelX + 2.0f, panelY + 2.0f, panelW - 4.0f, 18.0f);
+    fillRect(renderer, layout.panelX + 2.0f, layout.panelY + 2.0f, layout.panelW - 4.0f, 18.0f);
     setColor(renderer, 158, 64, 58);
-    fillRect(renderer, panelX + 2.0f, panelY + 20.0f, panelW - 4.0f, 2.0f);
+    fillRect(renderer, layout.panelX + 2.0f, layout.panelY + 20.0f, layout.panelW - 4.0f, 2.0f);
     setColor(renderer, 230, 220, 172);
-    debugText(renderer, panelX + 10.0f, panelY + 8.0f, "TRAINING OPTIONS");
+    debugText(renderer, layout.panelX + 10.0f, layout.panelY + 8.0f, "TRAINING OPTIONS");
     setColor(renderer, 126, 164, 214);
-    debugText(renderer, panelX + 254.0f, panelY + 8.0f, "F2");
+    debugText(renderer, layout.panelX + layout.panelW - 10.0f - debugTextWidth(view.pageLabel), layout.panelY + 8.0f, view.pageLabel);
+    setColor(renderer, 142, 154, 168);
+    debugText(renderer, layout.labelX, layout.listY - 9.0f, "SETTING");
+    debugText(renderer, layout.statusCellX + (layout.statusCellW - debugTextWidth("VALUE")) * 0.5f, layout.listY - 9.0f, "VALUE");
 
-    constexpr int rowsPerColumn = 10;
     setColor(renderer, 12, 17, 26, 210);
-    fillRect(renderer, panelX + 10.0f, panelY + 30.0f, 122.0f, 137.0f);
-    fillRect(renderer, panelX + 138.0f, panelY + 30.0f, 148.0f, 137.0f);
+    fillRect(renderer, layout.listX, layout.listY, layout.listW, layout.listH);
     setColor(renderer, 58, 72, 96);
-    drawRect(renderer, panelX + 10.0f, panelY + 30.0f, 122.0f, 137.0f);
-    drawRect(renderer, panelX + 138.0f, panelY + 30.0f, 148.0f, 137.0f);
+    drawRect(renderer, layout.listX, layout.listY, layout.listW, layout.listH);
+
     for (int i = 0; i < static_cast<int>(view.rows.size()); ++i) {
-        const int column = i / rowsPerColumn;
-        const int row = i % rowsPerColumn;
-        const float x = panelX + (column == 0 ? 16.0f : 144.0f);
-        const float statusX = column == 0 ? panelX + 94.0f : panelX + 246.0f;
-        const float y = panelY + 37.0f + static_cast<float>(row * 13);
         const auto& option = view.rows[static_cast<std::size_t>(i)];
-        const std::string status = fitted(optionsMenuStatus(option.status), 5);
+        const std::string label = optionsMenuLabel(option.label);
+        const std::string status = optionsMenuStatus(option.status);
+        const float rowTop = layout.listY + 4.0f + static_cast<float>(i) * layout.rowH;
+        const float textY = rowTop + layout.rowTextOffsetY;
         if (option.selected) {
             setColor(renderer, 74, 170, 134, 230);
-            fillRect(renderer, x - 6.0f, y - 4.0f, column == 0 ? 116.0f : 138.0f, 12.0f);
+            fillRect(renderer, layout.listX + 2.0f, rowTop, layout.listW - 4.0f, layout.rowH - 1.0f);
             setColor(renderer, 230, 220, 172, 220);
-            fillRect(renderer, x - 4.0f, y + 8.0f, column == 0 ? 112.0f : 134.0f, 1.0f);
+            fillRect(renderer, layout.listX + 4.0f, rowTop + layout.rowH - 1.0f, layout.listW - 8.0f, 1.0f);
             setColor(renderer, 8, 12, 18);
         } else {
+            setColor(renderer, i % 2 == 0 ? 16 : 10, i % 2 == 0 ? 22 : 16, i % 2 == 0 ? 32 : 24, 170);
+            fillRect(renderer, layout.listX + 2.0f, rowTop, layout.listW - 4.0f, layout.rowH - 1.0f);
             setColor(renderer, 186, 196, 208);
         }
-        debugText(renderer, x, y, optionsMenuLabel(option.label));
-        drawStatusPill(renderer, statusX, y, status, option.selected);
+        debugText(renderer, layout.labelX, textY, label);
+
+        setColor(renderer, option.selected ? 230 : 18, option.selected ? 220 : 24, option.selected ? 172 : 34, option.selected ? 238 : 232);
+        fillRect(renderer, layout.statusCellX, rowTop + 1.0f, layout.statusCellW, layout.rowH - 3.0f);
+        setColor(renderer, option.selected ? 255 : 82, option.selected ? 238 : 96, option.selected ? 160 : 124, 210);
+        drawRect(renderer, layout.statusCellX, rowTop + 1.0f, layout.statusCellW, layout.rowH - 3.0f);
+        setColor(renderer, option.selected ? 8 : 214, option.selected ? 12 : 224, option.selected ? 16 : 234);
+        const float statusX = layout.statusCellX + std::max(2.0f, (layout.statusCellW - debugTextWidth(status)) * 0.5f);
+        debugText(renderer, statusX, textY, status);
     }
 
     setColor(renderer, 32, 42, 58, 230);
-    fillRect(renderer, panelX + 1.0f, panelY + panelH - 18.0f, panelW - 2.0f, 17.0f);
+    fillRect(renderer, layout.panelX + 1.0f, layout.panelY + layout.panelH - 20.0f, layout.panelW - 2.0f, 19.0f);
     setColor(renderer, 142, 154, 168);
-    compactText(renderer, panelX + 10.0f, panelY + panelH - 12.0f, "ENTER toggle   ARROWS select   ESC/F2 close", 0.68f);
+    debugText(renderer, layout.panelX + 20.0f, layout.panelY + layout.panelH - 14.0f, "UP/DN SEL  ENT TOG  ESC/F2");
+}
+
+TrainingOptionsMenuGeometryReport verifyTrainingOptionsMenuGeometry(const TrainingOptionsMenuView& view) {
+    const OptionsMenuLayout layout = optionsMenuLayout();
+    if (view.rows.empty()) {
+        return { false, "no rows" };
+    }
+    if (view.rows.size() > 10) {
+        return { false, "too many rows: " + std::to_string(view.rows.size()) };
+    }
+    if (layout.panelX < 0.0f || layout.panelY < 0.0f
+        || layout.panelX + layout.panelW > 320.0f
+        || layout.panelY + layout.panelH > 240.0f) {
+        return { false, "panel outside 320x240 virtual frame" };
+    }
+    if (layout.panelX + 20.0f + debugTextWidth("UP/DN SEL  ENT TOG  ESC/F2") > layout.panelX + layout.panelW - 8.0f) {
+        return { false, "footer outside panel" };
+    }
+
+    for (int i = 0; i < static_cast<int>(view.rows.size()); ++i) {
+        const auto& option = view.rows[static_cast<std::size_t>(i)];
+        const std::string label = optionsMenuLabel(option.label);
+        const std::string status = optionsMenuStatus(option.status);
+        const float rowTop = layout.listY + 4.0f + static_cast<float>(i) * layout.rowH;
+        const float rowBottom = rowTop + layout.rowH;
+        if (rowTop < layout.listY || rowBottom > layout.listY + layout.listH) {
+            return { false, "row outside list panel: " + std::to_string(i) };
+        }
+
+        const float statusTextX = layout.statusCellX + std::max(2.0f, (layout.statusCellW - debugTextWidth(status)) * 0.5f);
+        const float labelRight = layout.labelX + debugTextWidth(label);
+        if (layout.statusCellX + layout.statusCellW > layout.listX + layout.listW - 4.0f) {
+            return { false, "status cell outside list panel" };
+        }
+        if (layout.statusCellX < layout.labelX) {
+            return { false, "status overlaps label column: " + option.status };
+        }
+        if (labelRight + 8.0f > layout.statusCellX) {
+            return { false, "label/status collision: " + label + " / " + status };
+        }
+        if (statusTextX < layout.statusCellX
+            || statusTextX + debugTextWidth(status) > layout.statusCellX + layout.statusCellW) {
+            return { false, "status outside list panel: " + status };
+        }
+    }
+
+    return { true, "rows=" + std::to_string(view.rows.size()) + " page=" + view.pageLabel };
 }
 
 } // namespace dragon

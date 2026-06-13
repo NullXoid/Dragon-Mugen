@@ -172,7 +172,7 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
         return;
     }
 
-    auto drawActorSprite = [&](int action, int animTick, float x, float y, float depthZ, int facing, int alpha, bool additive, const ActivePaletteEffect* palette) -> bool {
+    auto drawActorSprite = [&](int action, int animTick, float x, float y, float depthZ, int facing, float scaleX, float scaleY, int alpha, bool additive, const ActivePaletteEffect* palette) -> bool {
         const AnimationClip* clip = findClipForFighter(state, actorIndex, action);
         const AnimationFrame* frame = clip ? frameForClip(*clip, animTick) : nullptr;
         if (!frame || !frame->sprite.texture) {
@@ -185,15 +185,15 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
         const bool facingLeft = facing < 0;
         const bool flipH = frame->flipX != facingLeft;
         const float drawX = facingLeft
-            ? originX - static_cast<float>(frame->offsetX) - static_cast<float>(frame->sprite.width - frame->sprite.axisX)
-            : originX + static_cast<float>(frame->offsetX) - static_cast<float>(frame->sprite.axisX);
-        const float drawY = originY + static_cast<float>(frame->offsetY) - static_cast<float>(frame->sprite.axisY);
+            ? originX - static_cast<float>(frame->offsetX) * scaleX - static_cast<float>(frame->sprite.width - frame->sprite.axisX) * scaleX
+            : originX + static_cast<float>(frame->offsetX) * scaleX - static_cast<float>(frame->sprite.axisX) * scaleX;
+        const float drawY = originY + static_cast<float>(frame->offsetY) * scaleY - static_cast<float>(frame->sprite.axisY) * scaleY;
 
         SDL_FRect dst{
             drawX,
             drawY,
-            static_cast<float>(frame->sprite.width),
-            static_cast<float>(frame->sprite.height),
+            static_cast<float>(frame->sprite.width) * scaleX,
+            static_cast<float>(frame->sprite.height) * scaleY,
         };
         int flipMode = SDL_FLIP_NONE;
         if (flipH) {
@@ -262,6 +262,8 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
                 snapshot.y,
                 snapshot.depthZ,
                 snapshot.facing,
+                fighter.scaleX,
+                fighter.scaleY,
                 alpha,
                 actorBlendModeIsAdditive(fighter.afterImage.blendMode),
                 &palette);
@@ -284,15 +286,15 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
         const bool facingLeft = fighter.facing < 0;
         const bool flipH = frame->flipX != facingLeft;
         const float drawX = facingLeft
-            ? displayOriginX - static_cast<float>(frame->offsetX) - static_cast<float>(frame->sprite.width - frame->sprite.axisX)
-            : displayOriginX + static_cast<float>(frame->offsetX) - static_cast<float>(frame->sprite.axisX);
-        const float drawY = displayOriginY + static_cast<float>(frame->offsetY) - static_cast<float>(frame->sprite.axisY);
+            ? displayOriginX - static_cast<float>(frame->offsetX) * fighter.scaleX - static_cast<float>(frame->sprite.width - frame->sprite.axisX) * fighter.scaleX
+            : displayOriginX + static_cast<float>(frame->offsetX) * fighter.scaleX - static_cast<float>(frame->sprite.axisX) * fighter.scaleX;
+        const float drawY = displayOriginY + static_cast<float>(frame->offsetY) * fighter.scaleY - static_cast<float>(frame->sprite.axisY) * fighter.scaleY;
 
         SDL_FRect dst{
             drawX,
             drawY,
-            static_cast<float>(frame->sprite.width),
-            static_cast<float>(frame->sprite.height),
+            static_cast<float>(frame->sprite.width) * fighter.scaleX,
+            static_cast<float>(frame->sprite.height) * fighter.scaleY,
         };
         int flipMode = SDL_FLIP_NONE;
         if (flipH) {

@@ -415,6 +415,14 @@ public:
         out.arenaCameraRotationSelected = arenaCameraRotationSelected(state_);
         out.arenaCameraRotationActive = arenaCameraRotationActive(state_);
         out.lastHitText = state_.messages.lastHitText;
+        const auto trainingEntries = displayableMoveListEntries(state_);
+        if (!trainingEntries.empty()) {
+            const int selected = std::clamp(
+                state_.training.options.selectedMoveListEntry,
+                0,
+                static_cast<int>(trainingEntries.size()) - 1);
+            out.selectedTrainingMoveLabel = moveListEntryName(*trainingEntries[static_cast<size_t>(selected)]);
+        }
         const auto appendCommands = [](std::string& text, const std::vector<std::string>& commands) {
             for (size_t i = 0; i < commands.size(); ++i) {
                 if (i > 0) {
@@ -536,6 +544,7 @@ private:
             0.0f,
             0.0f,
             0.0f,
+            fighter.facing,
             fighter.stateType,
             fighter.moveType,
             fighter.physics,

@@ -438,7 +438,7 @@ const CommandStateEntry* selectedTrainingCommandEntry(const AppState& state, int
     return entries[static_cast<size_t>(selected)];
 }
 
-bool cycleSelectedTrainingCommandEntry(AppState& state, int direction) {
+bool cycleSelectedTrainingCommandEntry(AppState& state, int direction, bool announce = true) {
     const auto entries = displayableMoveListEntries(state);
     if (entries.empty() || direction == 0) {
         return false;
@@ -458,13 +458,95 @@ bool cycleSelectedTrainingCommandEntry(AppState& state, int direction) {
     }
     state.training.options.moveListScroll = std::clamp(state.training.options.moveListScroll, 0, maxScroll);
 
-    state.messages.lastHitText = "Move: " + moveListEntryName(*entries[static_cast<size_t>(selected)]);
-    state.messages.lastHitTextTicks = 90;
+    if (announce) {
+        state.messages.lastHitText = "Move: " + moveListEntryName(*entries[static_cast<size_t>(selected)]);
+        state.messages.lastHitTextTicks = 90;
+    }
     return true;
 }
 
 bool trainingCommandDemoActive(const AppState& state) {
     return state.frontend.pendingMode == PendingMode::Training && state.training.commandDemo.active;
+}
+
+void updateTrainingCommandPracticeTimers(AppState& state) {
+    auto& practice = state.training.commandPractice;
+    if (practice.flashTicks > 0) {
+        --practice.flashTicks;
+        if (practice.flashTicks == 0) {
+            practice.notification.clear();
+        }
+    }
+    if (practice.cooldownTicks > 0) {
+        --practice.cooldownTicks;
+    }
+}
+
+bool trainingCommandPracticeActive(const AppState& state) {
+    return state.frontend.pendingMode == PendingMode::Training
+        && state.training.options.showCommandHud
+        && !trainingCommandDemoActive(state);
+}
+
+void completeTrainingCommandPracticeMove(AppState& state, int selected, const CommandStateEntry& entry, int targetState) {
+    auto& practice = state.training.commandPractice;
+    const std::string completedName = moveListEntryName(entry);
+    practice.completedMoveListEntry = selected;
+    practice.completedTargetState = targetState;
+    practice.flashTicks = 72;
+    practice.cooldownTicks = 24;
+
+    cycleSelectedTrainingCommandEntry(state, 1, false);
+
+    int nextSelected = -1;
+    const CommandStateEntry* nextEntry = selectedTrainingCommandEntry(state, &nextSelected);
+    const std::string nextName = nextEntry ? moveListEntryName(*nextEntry) : "-";
+    practice.notification = "OK  NEXT " + fitDebugText(nextName, 12);
+
+    state.messages.lastHitText = "OK: " + completedName;
+    state.messages.lastHitTextTicks = 90;
+}
+
+void updateTrainingCommandPracticeProgress(
+    AppState& state,
+    const FighterState& fighterBeforeUpdate,
+    const FighterState& fighterAfterUpdate,
+    const FighterState* opponent) {
+    if (!trainingCommandPracticeActive(state) || state.training.commandPractice.cooldownTicks > 0) {
+        return;
+    }
+    if (fighterAfterUpdate.inputHistory.empty()) {
+        return;
+    }
+
+    int selected = -1;
+    const CommandStateEntry* selectedEntry = selectedTrainingCommandEntry(state, &selected);
+    if (!selectedEntry) {
+        return;
+    }
+
+    const auto& commandDefinitions = commandDefinitionsForActor(state, fighterBeforeUpdate);
+    const std::vector<std::string> commands =
+        collectFighterCommands(fighterAfterUpdate.inputHistory.back().input, fighterBeforeUpdate, commandDefinitions);
+    if (!canEnterCommandState(state, fighterBeforeUpdate, opponent, *selectedEntry, commands)) {
+        return;
+    }
+
+    const auto targetState = resolveCommandTargetState(state, fighterBeforeUpdate, opponent, *selectedEntry, commands);
+    if (!targetState || fighterAfterUpdate.stateNo != *targetState) {
+        return;
+    }
+    if (fighterBeforeUpdate.stateNo == fighterAfterUpdate.stateNo) {
+        return;
+    }
+
+    completeTrainingCommandPracticeMove(state, selected, *selectedEntry, *targetState);
+}
+
+bool trainingCommandEntryNeedsThrowRangeSetup(const CommandStateEntry& entry) {
+    const std::string loweredName = lowercaseCopy(moveListEntryName(entry));
+    return loweredName.find("throw") != std::string::npos
+        || loweredName.find("grab") != std::string::npos;
 }
 
 float trainingDemoFighterDistance(AppState& state, const CommandStateEntry& entry) {
@@ -480,6 +562,9 @@ float trainingDemoFighterDistance(AppState& state, const CommandStateEntry& entr
     const float pushWidth =
         fighterPlayerWidthToward(state, p1, 1.0f)
         + fighterPlayerWidthToward(state, p2, -1.0f);
+    if (trainingCommandEntryNeedsThrowRangeSetup(entry)) {
+        return 8.0f;
+    }
     const float extraRange = commandEntryCategory(entry) == TrainingMoveCategory::Normals ? 6.0f : 36.0f;
     return std::max(34.0f, pushWidth + extraRange);
 }

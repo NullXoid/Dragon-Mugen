@@ -654,6 +654,91 @@ int runArenaZModifierSidestep(RuntimeProbe& runtime, std::ostream& out) {
     return exitCode(counts);
 }
 
+int runArenaEvilKenForwardDashBounds(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!setupArenaFight(runtime, out, counts, "arena-evilken-forward-dash-bounds", "EvilKen")) {
+        return exitCode(counts);
+    }
+
+    runtime.positionFighters(120.0f, 190.0f);
+    runtime.setFighterControl(1, false);
+    const bool idle = waitForControllableIdle(runtime, 240);
+    record(out, counts, idle ? Status::Pass : Status::Fail, "controllable_idle_ready",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo)
+        + " ctrl=" + std::to_string(runtime.snapshot().p1.ctrl ? 1 : 0));
+    if (!idle) {
+        record(out, counts, Status::Blocked, "dash_bounds_checks", "controllable idle gate failed");
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    SymbolicInput forward;
+    forward.right = true;
+
+    bool sawDashAir = false;
+    bool sawGroundedRecovery = false;
+    bool allCyclesReturnedIdle = true;
+    float maxPositiveY = 0.0f;
+    float maxScreenX = runtime.snapshot().p1.screenX;
+    float minScreenX = runtime.snapshot().p1.screenX;
+    FighterSnapshot finalP1 = runtime.snapshot().p1;
+
+    for (int cycle = 0; cycle < 7; ++cycle) {
+        runtime.step(forward, 2);
+        runtime.step({}, 2);
+        runtime.step(forward, 2);
+
+        bool cycleReturnedIdle = false;
+        for (int frame = 0; frame < 90; ++frame) {
+            const auto snap = runtime.snapshot();
+            finalP1 = snap.p1;
+            sawDashAir = sawDashAir || snap.p1.stateNo == 101;
+            maxPositiveY = std::max(maxPositiveY, snap.p1.y);
+            maxScreenX = std::max(maxScreenX, snap.p1.screenX);
+            minScreenX = std::min(minScreenX, snap.p1.screenX);
+            if (snap.p1.stateNo == 0 && snap.p1.ctrl && snap.p1.onGround && std::fabs(snap.p1.y) <= 0.5f) {
+                sawGroundedRecovery = true;
+                cycleReturnedIdle = true;
+                break;
+            }
+            runtime.step({}, 1);
+        }
+
+        allCyclesReturnedIdle = allCyclesReturnedIdle && cycleReturnedIdle;
+        if (!cycleReturnedIdle) {
+            break;
+        }
+    }
+
+    const bool stayedVerticallyBound = maxPositiveY <= 8.0f
+        && finalP1.y <= 8.0f
+        && finalP1.stateType != 'A';
+    const bool stayedScreenBound = minScreenX >= -64.0f && maxScreenX <= 1024.0f;
+    record(out, counts, sawDashAir ? Status::Pass : Status::Fail, "forward_dash_air_state_observed",
+        "final_state=" + std::to_string(finalP1.stateNo)
+        + " final_y=" + std::to_string(finalP1.y));
+    record(out, counts, sawGroundedRecovery ? Status::Pass : Status::Fail, "forward_dash_grounded_recovery_observed",
+        "final_state=" + std::to_string(finalP1.stateNo)
+        + " final_action=" + std::to_string(finalP1.action)
+        + " final_ground=" + std::to_string(finalP1.onGround ? 1 : 0));
+    record(out, counts, stayedVerticallyBound ? Status::Pass : Status::Fail, "forward_dash_does_not_fall_through_stage",
+        "max_y=" + std::to_string(maxPositiveY)
+        + " final_y=" + std::to_string(finalP1.y)
+        + " final_state_type=" + std::string(1, finalP1.stateType)
+        + " final_ground=" + std::to_string(finalP1.onGround ? 1 : 0));
+    record(out, counts, stayedScreenBound ? Status::Pass : Status::Fail, "forward_dash_stays_screen_bound",
+        "min_screen_x=" + std::to_string(minScreenX)
+        + " max_screen_x=" + std::to_string(maxScreenX));
+    record(out, counts, allCyclesReturnedIdle ? Status::Pass : Status::Fail, "repeated_forward_dash_recovers_idle",
+        "final_state=" + std::to_string(finalP1.stateNo)
+        + " final_ctrl=" + std::to_string(finalP1.ctrl ? 1 : 0)
+        + " final_y=" + std::to_string(finalP1.y));
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
 int runArenaPerFighterRuntime(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
     if (!setupArenaFight(runtime, out, counts, "arena-per-fighter-runtime", "EvilKen")) {
