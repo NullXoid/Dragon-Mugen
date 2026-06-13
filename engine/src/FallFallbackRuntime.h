@@ -107,6 +107,60 @@ bool resolveTripFallGrounding(AppState& state, FighterState& fighter) {
     return enterFallGroundImpactIfAvailable(state, fighter);
 }
 
+bool commonAirFallImpactUsesFloorThreshold(const FighterState& fighter) {
+    return (fighter.action >= 5051 && fighter.action <= 5059)
+        || (fighter.action >= 5061 && fighter.action <= 5069);
+}
+
+bool enterCommonAirFallState(FighterState& fighter) {
+    fighter.prevStateNo = fighter.stateNo;
+    fighter.stateNo = 5050;
+    fighter.stateTime = 0;
+    clearStateRuntimeControllerTracking(fighter);
+    fighter.stateType = 'A';
+    fighter.moveType = 'H';
+    fighter.physics = 'N';
+    fighter.ctrl = false;
+    fighter.onGround = false;
+    fighter.hitAirborne = true;
+    return true;
+}
+
+bool resolveCommonAirFallGrounding(AppState& state, FighterState& fighter) {
+    if (!fallFallbacksEnabled(state) || !fighter.hitFall || fighter.hitPauseTicks > 0 || fighter.onGround) {
+        return false;
+    }
+    if (fighter.vy <= 0.0f) {
+        return false;
+    }
+    if (fighter.stateNo == 5030 || fighter.stateNo == 5035) {
+        if (fighter.y >= 25.0f) {
+            fighter.y = 0.0f;
+            fighter.triggerY = 0.0f;
+            fighter.vy = 0.0f;
+            fighter.onGround = true;
+            return enterFallGroundImpactIfAvailable(state, fighter);
+        }
+        if (fighter.y >= 10.0f) {
+            return enterCommonAirFallState(fighter);
+        }
+    }
+    if (fighter.stateNo != 5050) {
+        return false;
+    }
+
+    const float groundLevel = commonAirFallImpactUsesFloorThreshold(fighter) ? 0.0f : 25.0f;
+    if (fighter.y < groundLevel) {
+        return false;
+    }
+
+    fighter.y = 0.0f;
+    fighter.triggerY = 0.0f;
+    fighter.vy = 0.0f;
+    fighter.onGround = true;
+    return enterFallGroundImpactIfAvailable(state, fighter);
+}
+
 bool resolveArenaFallGrounding(AppState& state, FighterState& fighter) {
     if (!fallFallbacksEnabled(state) || !isArenaMode(state) || !fighter.hitFall || fighter.hitPauseTicks > 0) {
         return false;

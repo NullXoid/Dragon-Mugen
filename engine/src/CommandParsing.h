@@ -360,7 +360,7 @@ CommandDefinition parseCommandDefinitionSection(const MugenSection& section, int
     definition.maxTime = std::max(1, defaultTime);
     definition.bufferTime = std::max(1, defaultBufferTime);
     if (const auto* name = findProperty(section, "name")) {
-        definition.name = unquote(name->value);
+        definition.name = unquote(trim(name->value));
     }
     if (const auto* time = findProperty(section, "time")) {
         definition.maxTime = std::max(1, parseIntValue(time->value, definition.maxTime));

@@ -69,7 +69,8 @@ std::vector<std::string> collectCurrentFighterCommands(const AppState& state, co
 
 float p2AxisDistXValue(const FighterState& fighter, const FighterState* opponent);
 float p2AxisDistYValue(const FighterState& fighter, const FighterState* opponent);
-float p2BodyDistXExpressionValue(const FighterState& fighter, const FighterState* opponent);
+float p2BodyDistXValue(const AppState& state, const FighterState& attacker, const FighterState& defender);
+float p2BodyDistXExpressionValue(const AppState& state, const FighterState& fighter, const FighterState* opponent);
 float p2BodyDistYExpressionValue(const FighterState& fighter, const FighterState* opponent);
 float edgeDistExpressionValue(const AppState& state, const FighterState& fighter, const StageSlot* stage, bool front);
 
@@ -95,7 +96,7 @@ float stateTriggerSubjectValue(
     case StateTriggerSubject::PosY:
         return fighter.triggerY;
     case StateTriggerSubject::P2BodyDistX:
-        return p2BodyDistXExpressionValue(fighter, opponent);
+        return p2BodyDistXExpressionValue(state, fighter, opponent);
     case StateTriggerSubject::P2BodyDistY:
         return p2BodyDistYExpressionValue(fighter, opponent);
     case StateTriggerSubject::P2DistX:
@@ -190,14 +191,11 @@ float p2AxisDistYValue(const FighterState& fighter, const FighterState* opponent
     return opponent ? opponent->y - fighter.y : 0.0f;
 }
 
-float p2BodyDistXExpressionValue(const FighterState& fighter, const FighterState* opponent) {
+float p2BodyDistXExpressionValue(const AppState& state, const FighterState& fighter, const FighterState* opponent) {
     if (!opponent) {
         return 0.0f;
     }
-    const float axisDistance = p2AxisDistXValue(fighter, opponent);
-    const float fighterFront = fighter.playerWidthFront >= 0.0f ? fighter.playerWidthFront : 0.0f;
-    const float opponentBack = opponent->playerWidthBack >= 0.0f ? opponent->playerWidthBack : 0.0f;
-    return axisDistance >= 0.0f ? axisDistance - fighterFront - opponentBack : axisDistance;
+    return p2BodyDistXValue(state, fighter, *opponent);
 }
 
 float p2BodyDistYExpressionValue(const FighterState& fighter, const FighterState* opponent) {
@@ -691,7 +689,7 @@ std::optional<float> evalMugenExpression(
         return fighter.vy;
     }
     if (lowered == "p2bodydist x") {
-        return p2BodyDistXExpressionValue(fighter, opponent);
+        return p2BodyDistXExpressionValue(state, fighter, opponent);
     }
     if (lowered == "p2bodydist y") {
         return p2BodyDistYExpressionValue(fighter, opponent);

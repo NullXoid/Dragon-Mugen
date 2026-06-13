@@ -171,8 +171,8 @@
             projectile.missTime = findProperty(section, "projmisstime") ? std::max(0, parseIntValue(findProperty(section, "projmisstime")->value, 0)) : 0;
             projectile.removeTime = findProperty(section, "projremovetime") ? parseIntValue(findProperty(section, "projremovetime")->value, -1) : -1;
             projectile.removeWhenHit = findProperty(section, "projremove") ? parseIntValue(findProperty(section, "projremove")->value, projectile.removeWhenHit) : projectile.removeWhenHit;
-            projectile.pauseMoveTime = findProperty(section, "pausemovetime") ? std::max(0, parseIntValue(findProperty(section, "pausemovetime")->value, 0)) : 0;
-            projectile.superMoveTime = findProperty(section, "supermovetime") ? std::max(0, parseIntValue(findProperty(section, "supermovetime")->value, projectile.pauseMoveTime)) : projectile.pauseMoveTime;
+            projectile.pauseMoveTime = findProperty(section, "pausemovetime") ? parseIntValue(findProperty(section, "pausemovetime")->value, 0) : 0;
+            projectile.superMoveTime = findProperty(section, "supermovetime") ? parseIntValue(findProperty(section, "supermovetime")->value, projectile.pauseMoveTime) : projectile.pauseMoveTime;
             if (const auto* priority = findProperty(section, "projpriority")) {
                 const auto values = parseIntPairValue(priority->value, projectile.priority, projectile.cancelPriority);
                 projectile.priority = values.first;

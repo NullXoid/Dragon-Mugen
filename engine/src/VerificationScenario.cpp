@@ -8,6 +8,13 @@
 #include <ostream>
 namespace dragon::verification {
 int runEvilKenTripGrounding(RuntimeProbe& runtime, std::ostream& out);
+int runEvilKenOverheadTripChain(RuntimeProbe& runtime, std::ostream& out);
+int runEvilKenOverheadTripChainStress(RuntimeProbe& runtime, std::ostream& out);
+int runEvilKenThrow(RuntimeProbe& runtime, std::ostream& out);
+int runEvilKenKuuchuuShakunetsu(RuntimeProbe& runtime, std::ostream& out);
+int runEvilKenTrainingDemoAll(RuntimeProbe& runtime, std::ostream& out);
+int runEvilKenShinryukenRecovery(RuntimeProbe& runtime, std::ostream& out);
+int runEvilKenShunGokuSatsu(RuntimeProbe& runtime, std::ostream& out);
 int runKfmDownHitProfile(RuntimeProbe& runtime, std::ostream& out);
 int runKfmGuardRecovery(RuntimeProbe& runtime, std::ostream& out);
 int runKfmSpecialsSupers(RuntimeProbe& runtime, std::ostream& out);
@@ -15,7 +22,7 @@ int runEvilKenSpecialsSupers(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenHelperLifecycle(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenPowerChargeHelper(RuntimeProbe& runtime, std::ostream& out), runEvilKenAirSpecialContactLanding(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenTrainingCommandDemo(RuntimeProbe& runtime, std::ostream& out);
-int runEvilRyuSpecialsSupers(RuntimeProbe& runtime, std::ostream& out), runEvilRyuAirSpecialContactLanding(RuntimeProbe& runtime, std::ostream& out);
+int runEvilRyuSpecialsSupers(RuntimeProbe& runtime, std::ostream& out), runEvilRyuSuperStress(RuntimeProbe& runtime, std::ostream& out), runEvilRyuAirSpecialContactLanding(RuntimeProbe& runtime, std::ostream& out);
 int runKfmMovementDirectionAudit(RuntimeProbe& runtime, std::ostream& out);
 int runEvilRyuHighJumpMovementAudit(RuntimeProbe& runtime, std::ostream& out);
 int runEvilRyuDash(RuntimeProbe& runtime, std::ostream& out);
@@ -541,6 +548,102 @@ int runKfmBaseline(RuntimeProbe& runtime, std::ostream& out) {
     return exitCode(counts);
 }
 
+int runKfmThrow(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("kfm", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "KFM/Mountainside training setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "kfm-throw");
+
+    const bool settled = waitForControllableIdle(runtime, 360);
+    record(out, counts, settled ? Status::Pass : Status::Fail, "controllable_idle_ready",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo));
+    if (!settled) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    runtime.positionFighters(-10.0f, 10.0f);
+    runtime.forceFighterState(0, 0);
+    runtime.forceFighterState(1, 0);
+    runtime.setFighterPosition(0, -10.0f, 0.0f);
+    runtime.setFighterPosition(1, 10.0f, 0.0f);
+    runtime.setFighterControl(0, false);
+    runtime.setFighterControl(1, false);
+    runtime.step({}, 2);
+    const int p2LifeBefore = runtime.snapshot().p2.life;
+    runtime.forceFighterState(0, 800);
+    runtime.setFighterPosition(0, -10.0f, 0.0f);
+    runtime.setFighterPosition(1, 10.0f, 0.0f);
+    runtime.setFighterControl(0, false);
+    runtime.setFighterControl(1, false);
+
+    bool sawThrowHit = false;
+    bool sawP1ThrowState = false;
+    bool sawP2CustomGrabState = false;
+    bool sawBoundTarget = false;
+    bool sawTargetLifeAdd = false;
+    bool sawTargetReleaseState = false;
+    bool sawP2SelfStateFall = false;
+    bool p1Recovered = false;
+    bool p2Recovered = false;
+    float closestBoundDistance = 100000.0f;
+    std::string lastHitText;
+    FighterSnapshot finalP1;
+    FighterSnapshot finalP2;
+    for (int frame = 0; frame < 420; ++frame) {
+        const auto snap = runtime.snapshot();
+        finalP1 = snap.p1;
+        finalP2 = snap.p2;
+        if (!snap.lastHitText.empty()) {
+            lastHitText = snap.lastHitText;
+        }
+        sawThrowHit = sawThrowHit || snap.lastHitText.find("P1 hit 800#") != std::string::npos;
+        sawP1ThrowState = sawP1ThrowState || snap.p1.stateNo == 810;
+        sawP2CustomGrabState = sawP2CustomGrabState || snap.p2.stateNo == 820;
+        sawTargetReleaseState = sawTargetReleaseState || snap.p2.stateNo == 821;
+        sawTargetLifeAdd = sawTargetLifeAdd || snap.p2.life < p2LifeBefore;
+        if (snap.p1.stateNo == 810 && (snap.p2.stateNo == 820 || snap.p2.stateNo == 821)) {
+            const float distance = std::fabs(snap.p2.x - snap.p1.x);
+            closestBoundDistance = std::min(closestBoundDistance, distance);
+            sawBoundTarget = sawBoundTarget || distance <= 80.0f;
+        }
+        sawP2SelfStateFall = sawP2SelfStateFall || snap.p2.stateNo == 5100 || snap.p2.stateNo == 5110 || snap.p2.stateNo == 5120;
+        p1Recovered = p1Recovered || (snap.p1.stateNo == 0 && snap.p1.onGround && snap.p1.moveType == 'I');
+        p2Recovered = p2Recovered || (snap.p2.stateNo == 0 && snap.p2.onGround && snap.p2.moveType == 'I');
+        runtime.step({}, 1);
+    }
+
+    record(out, counts, sawThrowHit ? Status::Pass : Status::Fail, "throw_hitdef_connected",
+        "last_hit=\"" + lastHitText + "\"");
+    record(out, counts, sawP1ThrowState ? Status::Pass : Status::Fail, "p1_entered_p1stateno",
+        "final_p1_state=" + std::to_string(finalP1.stateNo)
+        + " final_p1_action=" + std::to_string(finalP1.action));
+    record(out, counts, sawP2CustomGrabState ? Status::Pass : Status::Fail, "p2_entered_custom_throw_state",
+        "final_p2_state=" + std::to_string(finalP2.stateNo)
+        + " final_p2_action=" + std::to_string(finalP2.action));
+    record(out, counts, sawBoundTarget ? Status::Pass : Status::Fail, "targetbind_kept_victim_near_p1",
+        "closest_bound_distance=" + std::to_string(closestBoundDistance));
+    record(out, counts, sawTargetLifeAdd ? Status::Pass : Status::Fail, "targetlifeadd_applied_throw_damage",
+        "life_before=" + std::to_string(p2LifeBefore)
+        + " life_after=" + std::to_string(finalP2.life));
+    record(out, counts, sawTargetReleaseState ? Status::Pass : Status::Fail, "targetstate_released_victim",
+        "saw_821=" + std::to_string(sawTargetReleaseState ? 1 : 0));
+    record(out, counts, sawP2SelfStateFall ? Status::Pass : Status::Fail, "selfstate_returned_to_common_fall",
+        "final_p2_state=" + std::to_string(finalP2.stateNo)
+        + " final_p2_action=" + std::to_string(finalP2.action));
+    record(out, counts, p1Recovered && p2Recovered ? Status::Pass : Status::Fail, "fighters_recovered_after_throw",
+        "p1_recovered=" + std::to_string(p1Recovered ? 1 : 0)
+        + " p2_recovered=" + std::to_string(p2Recovered ? 1 : 0)
+        + " final_p1_state=" + std::to_string(finalP1.stateNo)
+        + " final_p2_state=" + std::to_string(finalP2.stateNo));
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
 int runKfmAirState(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
     if (!runtime.setup("kfm", "Mountainside", ScenarioMode::Training, out)) {
@@ -952,10 +1055,60 @@ int runArenaSmoke(RuntimeProbe& runtime, std::ostream& out, int cpuCount) {
     return exitCode(counts);
 }
 
+int runVsP2Runtime(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("kfm", "Mountainside", ScenarioMode::Versus, out)) {
+        record(out, counts, Status::Blocked, "setup", "KFM/Mountainside VS setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "vs-p2-runtime");
+
+    const bool active = waitForActiveFight(runtime, 420);
+    record(out, counts, active ? Status::Pass : Status::Fail, "fight_phase_ready",
+        "match_phase=" + std::to_string(runtime.snapshot().matchPhase));
+    if (!active) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    const auto loaded = runtime.snapshot();
+    const bool p2HasSeparateRuntime =
+        loaded.p2RuntimeStates > loaded.p1RuntimeStates
+        && loaded.p2RuntimeHitDefs > loaded.p1RuntimeHitDefs
+        && loaded.p2RuntimeCommandEntries > loaded.p1RuntimeCommandEntries;
+    record(out, counts, p2HasSeparateRuntime ? Status::Pass : Status::Fail, "p2_runtime_counts",
+        "p1_states=" + std::to_string(loaded.p1RuntimeStates)
+        + " p2_states=" + std::to_string(loaded.p2RuntimeStates)
+        + " p1_hitdefs=" + std::to_string(loaded.p1RuntimeHitDefs)
+        + " p2_hitdefs=" + std::to_string(loaded.p2RuntimeHitDefs)
+        + " p1_command_entries=" + std::to_string(loaded.p1RuntimeCommandEntries)
+        + " p2_command_entries=" + std::to_string(loaded.p2RuntimeCommandEntries));
+
+    constexpr int kP2OnlyState = 3885;
+    runtime.forceFighterState(0, kP2OnlyState);
+    const auto p1Forced = runtime.snapshot();
+    record(out, counts, p1Forced.p1.stateNo != kP2OnlyState ? Status::Pass : Status::Fail, "p1_rejects_p2_only_state",
+        "p1_state=" + std::to_string(p1Forced.p1.stateNo)
+        + " requested_state=" + std::to_string(kP2OnlyState));
+
+    runtime.forceFighterState(1, kP2OnlyState);
+    const auto p2Forced = runtime.snapshot();
+    record(out, counts, p2Forced.p2.stateNo == kP2OnlyState ? Status::Pass : Status::Fail, "p2_enters_selected_runtime_state",
+        "p2_state=" + std::to_string(p2Forced.p2.stateNo)
+        + " p2_action=" + std::to_string(p2Forced.p2.action)
+        + " requested_state=" + std::to_string(kP2OnlyState));
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
 } // namespace
 
 int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::ostream& out) {
     if (scenarioName == "kfm-baseline") return runKfmBaseline(runtime, out);
+    if (scenarioName == "kfm-throw") return runKfmThrow(runtime, out);
     if (scenarioName == "kfm-air-state") return runKfmAirState(runtime, out);
     if (scenarioName == "kfm-movement-direction-audit") return runKfmMovementDirectionAudit(runtime, out);
     if (scenarioName == "evilryu-high-jump") return runEvilRyuHighJumpMovementAudit(runtime, out);
@@ -968,10 +1121,19 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
     if (scenarioName == "evilken-air-special-contact-landing") return runEvilKenAirSpecialContactLanding(runtime, out);
     if (scenarioName == "evilken-training-demo-hit") return runEvilKenTrainingCommandDemo(runtime, out);
     if (scenarioName == "evilryu-specials-supers") return runEvilRyuSpecialsSupers(runtime, out);
+    if (scenarioName == "evilryu-super-stress") return runEvilRyuSuperStress(runtime, out);
     if (scenarioName == "evilryu-air-special-contact-landing") return runEvilRyuAirSpecialContactLanding(runtime, out);
     if (scenarioName == "evilken-smoke") return runEvilKenSmoke(runtime, out);
     if (scenarioName == "evilken-trip-grounding") return runEvilKenTripGrounding(runtime, out);
+    if (scenarioName == "evilken-overhead-trip-chain") return runEvilKenOverheadTripChain(runtime, out);
+    if (scenarioName == "evilken-overhead-trip-chain-stress") return runEvilKenOverheadTripChainStress(runtime, out);
+    if (scenarioName == "evilken-throw") return runEvilKenThrow(runtime, out);
+    if (scenarioName == "evilken-kuuchuu-shakunetsu") return runEvilKenKuuchuuShakunetsu(runtime, out);
+    if (scenarioName == "evilken-training-demo-all") return runEvilKenTrainingDemoAll(runtime, out);
+    if (scenarioName == "evilken-shinryuken-recovery") return runEvilKenShinryukenRecovery(runtime, out);
+    if (scenarioName == "evilken-shun-goku-satsu") return runEvilKenShunGokuSatsu(runtime, out);
     if (scenarioName == "cpu-baseline") return runCpuBaseline(runtime, out);
+    if (scenarioName == "vs-p2-runtime") return runVsP2Runtime(runtime, out);
     if (scenarioName == "arena-cpu-1") return runArenaSmoke(runtime, out, 1);
     if (scenarioName == "arena-cpu-2") return runArenaSmoke(runtime, out, 2);
     if (scenarioName == "arena-cpu-3") return runArenaSmoke(runtime, out, 3);
@@ -992,7 +1154,7 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
 
     out << "VERIFY " << scenarioName << "\n"
         << "BLOCKED unknown_scenario\n"
-        << "  supported: kfm-baseline, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-guard-recovery, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-power-charge-helper, evilken-air-special-contact-landing, evilken-training-demo-hit, evilryu-specials-supers, evilryu-air-special-contact-landing, evilken-smoke, evilken-trip-grounding, cpu-baseline, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-camera-rotation-toggle, arena-camera-rotation-projection, arena-camera-rotation-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-per-fighter-runtime, arena-openbor-scroll-stage, arena-evilryu-air-special-contact-landing, evilryu-dash\n"
+        << "  supported: kfm-baseline, kfm-throw, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-guard-recovery, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-power-charge-helper, evilken-air-special-contact-landing, evilken-training-demo-hit, evilryu-specials-supers, evilryu-super-stress, evilryu-air-special-contact-landing, evilken-smoke, evilken-trip-grounding, evilken-overhead-trip-chain, evilken-overhead-trip-chain-stress, evilken-throw, evilken-kuuchuu-shakunetsu, evilken-training-demo-all, evilken-shinryuken-recovery, evilken-shun-goku-satsu, cpu-baseline, vs-p2-runtime, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-camera-rotation-toggle, arena-camera-rotation-projection, arena-camera-rotation-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-per-fighter-runtime, arena-openbor-scroll-stage, arena-evilryu-air-special-contact-landing, evilryu-dash\n"
         << "SUMMARY pass=0 partial=0 fail=0 blocked=1\n";
     return 2;
 }

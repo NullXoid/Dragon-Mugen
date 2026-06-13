@@ -232,6 +232,58 @@ int runKfmMovementDirectionAudit(RuntimeProbe& runtime, std::ostream& out) {
     }
 
     if (!resetToIdle(runtime)) {
+        recordBlockedReset(out, counts, "buffered_jump_reset", runtime);
+    } else {
+        const auto before = runtime.snapshot().p1;
+        const auto up = direction(false, false, true, false);
+        runtime.step(up, 1);
+
+        bool leftGround = false;
+        bool tappedBeforeLanding = false;
+        bool landedAfterTap = false;
+        bool sawBufferedJump = false;
+        FighterSnapshot tapFrame;
+        FighterSnapshot bufferedJumpFrame;
+        FighterSnapshot after;
+        for (int i = 0; i < 180; ++i) {
+            const auto snap = runtime.snapshot().p1;
+            leftGround = leftGround || !snap.onGround;
+            if (leftGround
+                && !tappedBeforeLanding
+                && !snap.onGround
+                && snap.vy > 0.0f
+                && snap.y > -18.0f) {
+                runtime.step(up, 1);
+                tapFrame = runtime.snapshot().p1;
+                runtime.step({}, 1);
+                tappedBeforeLanding = true;
+                continue;
+            }
+            if (tappedBeforeLanding && snap.onGround && snap.y >= -0.05f) {
+                landedAfterTap = true;
+            }
+            if (landedAfterTap && !snap.onGround && snap.vy < -1.0f) {
+                sawBufferedJump = true;
+                bufferedJumpFrame = snap;
+                break;
+            }
+            runtime.step({}, 1);
+            after = runtime.snapshot().p1;
+        }
+        record(out, counts, sawBufferedJump ? Status::Pass : Status::Fail, "early_up_buffers_next_jump",
+            "before_state=" + std::to_string(before.stateNo)
+            + " tapped=" + std::to_string(tappedBeforeLanding ? 1 : 0)
+            + " tap_y=" + std::to_string(tapFrame.y)
+            + " tap_vy=" + std::to_string(tapFrame.vy)
+            + " landed_after_tap=" + std::to_string(landedAfterTap ? 1 : 0)
+            + " buffered_state=" + std::to_string(bufferedJumpFrame.stateNo)
+            + " buffered_action=" + std::to_string(bufferedJumpFrame.action)
+            + " buffered_vy=" + std::to_string(bufferedJumpFrame.vy)
+            + " final_state=" + std::to_string(after.stateNo)
+            + " final_ground=" + std::to_string(after.onGround ? 1 : 0));
+    }
+
+    if (!resetToIdle(runtime)) {
         recordBlockedReset(out, counts, "ff_reset", runtime);
     } else {
         const auto before = runtime.snapshot().p1;

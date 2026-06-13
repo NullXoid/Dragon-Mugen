@@ -173,6 +173,14 @@
             if (const auto* removeTime = findProperty(section, "removetime")) {
                 explod.removeTime = parseIntValue(removeTime->value, explod.removeTime);
             }
+            if (const auto* pauseMoveTime = findProperty(section, "pausemovetime")) {
+                explod.pauseMoveTime = parseIntValue(pauseMoveTime->value, explod.pauseMoveTime);
+            }
+            if (const auto* superMoveTime = findProperty(section, "supermovetime")) {
+                explod.superMoveTime = parseIntValue(superMoveTime->value, explod.pauseMoveTime);
+            } else {
+                explod.superMoveTime = explod.pauseMoveTime;
+            }
             if (const auto* scale = findProperty(section, "scale")) {
                 const auto values = parseFloatPairValue(scale->value, 1.0f, 1.0f);
                 explod.scaleX = values.first;

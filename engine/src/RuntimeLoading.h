@@ -180,6 +180,7 @@ std::vector<StageBackgroundElement> loadStageBackground(SDL_Renderer* renderer, 
 
 void destroyTextureSprite(TextureSprite& sprite);
 void destroyAnimationClips(std::vector<AnimationClip>& clips);
+void destroyCharacterRuntime(ArenaCharacterRuntime& runtime);
 void destroyArenaFighterClips(AppState& state);
 void destroyArenaFighterRuntimes(AppState& state);
 
@@ -237,6 +238,7 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
 
     std::vector<AnimationClip> clips;
     std::vector<AnimationClip> opponentClips;
+    ArenaCharacterRuntime opponentRuntime;
     std::vector<std::vector<AnimationClip>> arenaClips;
     std::vector<ArenaCharacterRuntime> arenaRuntimes;
     TextureSprite largePortrait;
@@ -263,12 +265,18 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
         largePortrait = loadCharacterSprite(renderer, files, 9000, 1);
         if (state.frontend.pendingMode == PendingMode::SingleFight) {
             if (const CharacterSlot* opponent = characterSlotAt(state.selection, state.selection.sessionSlots.opponentCharacter)) {
-                try {
-                    const CharacterFiles opponentFiles = resolveCharacterFiles(state.gameRoot, *opponent);
-                    opponentClips = loadCharacterClips(renderer, opponentFiles);
-                } catch (const std::exception& ex) {
-                    SDL_Log("Opponent visual load failed %s: %s", opponent->displayName.c_str(), ex.what());
+                const CharacterFiles opponentFiles = resolveCharacterFiles(state.gameRoot, *opponent);
+                opponentRuntime.name = opponent->displayName;
+                opponentRuntime.constants = loadCharacterConstants(opponentFiles);
+                opponentRuntime.stateDefs = loadStateDefinitions(opponentFiles, opponentRuntime.constants);
+                opponentRuntime.hitDefs = loadHitDefinitions(opponentFiles);
+                opponentRuntime.commandDefinitions = loadCommandDefinitions(opponentFiles);
+                opponentRuntime.commandEntries = loadCommandStateEntries(opponentFiles);
+                opponentRuntime.victoryQuotes = loadVictoryQuotes(opponentFiles);
+                if (state.audio.stream) {
+                    opponentRuntime.samples = loadDecodedSoundSamples(opponentFiles.sound, state.audio.playbackSpec);
                 }
+                opponentRuntime.clips = loadCharacterClips(renderer, opponentFiles);
             }
         } else if (state.frontend.pendingMode == PendingMode::Arena) {
             const int fighterCount = arenaFighterCount(state);
@@ -299,12 +307,14 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
 
         destroyAnimationClips(state.characterClips);
         destroyAnimationClips(state.opponentCharacterClips);
+        destroyCharacterRuntime(state.opponentRuntime);
         destroyArenaFighterClips(state);
         destroyArenaFighterRuntimes(state);
         destroyTextureSprite(state.characterLargePortrait);
         state.runtimeEffects.clear();
         state.characterClips = std::move(clips);
         state.opponentCharacterClips = std::move(opponentClips);
+        state.opponentRuntime = std::move(opponentRuntime);
         state.arenaFighterClips = std::move(arenaClips);
         state.arenaRuntimes = std::move(arenaRuntimes);
         state.characterLargePortrait = largePortrait;
@@ -333,7 +343,15 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
             state.commandEntries.size(),
             state.audio.characterSamples.size());
         if (const CharacterSlot* opponent = characterSlotAt(state.selection, state.selection.sessionSlots.opponentCharacter)) {
-            SDL_Log("Opponent visuals loaded: %s actions=%zu", opponent->displayName.c_str(), state.opponentCharacterClips.size());
+            SDL_Log(
+                "Opponent runtime loaded: %s actions=%zu states=%zu hitdefs=%zu command-defs=%zu command-states=%zu sounds=%zu",
+                opponent->displayName.c_str(),
+                state.opponentRuntime.clips.size(),
+                state.opponentRuntime.stateDefs.size(),
+                state.opponentRuntime.hitDefs.size(),
+                state.opponentRuntime.commandDefinitions.size(),
+                state.opponentRuntime.commandEntries.size(),
+                state.opponentRuntime.samples.size());
         }
         if (state.frontend.pendingMode == PendingMode::Arena) {
             for (size_t i = 0; i < state.arenaRuntimes.size(); ++i) {
@@ -353,6 +371,7 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
     } catch (const std::exception& ex) {
         destroyAnimationClips(clips);
         destroyAnimationClips(opponentClips);
+        destroyCharacterRuntime(opponentRuntime);
         for (auto& clipSet : arenaClips) {
             destroyAnimationClips(clipSet);
         }
@@ -368,6 +387,7 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
 void unloadCharacterRuntime(AppState& state) {
     destroyAnimationClips(state.characterClips);
     destroyAnimationClips(state.opponentCharacterClips);
+    destroyCharacterRuntime(state.opponentRuntime);
     destroyArenaFighterClips(state);
     destroyArenaFighterRuntimes(state);
     destroyTextureSprite(state.characterLargePortrait);
@@ -456,6 +476,11 @@ void destroyAnimationClips(std::vector<AnimationClip>& clips) {
     clips.clear();
 }
 
+void destroyCharacterRuntime(ArenaCharacterRuntime& runtime) {
+    destroyAnimationClips(runtime.clips);
+    runtime = ArenaCharacterRuntime{};
+}
+
 void destroyArenaFighterClips(AppState& state) {
     for (auto& clipSet : state.arenaFighterClips) {
         destroyAnimationClips(clipSet);
@@ -465,8 +490,7 @@ void destroyArenaFighterClips(AppState& state) {
 
 void destroyArenaFighterRuntimes(AppState& state) {
     for (auto& runtime : state.arenaRuntimes) {
-        destroyAnimationClips(runtime.clips);
-        runtime.samples.clear();
+        destroyCharacterRuntime(runtime);
     }
     state.arenaRuntimes.clear();
 }
@@ -474,6 +498,7 @@ void destroyArenaFighterRuntimes(AppState& state) {
 void destroyVisualAssets(AppState& state) {
     destroyAnimationClips(state.characterClips);
     destroyAnimationClips(state.opponentCharacterClips);
+    destroyCharacterRuntime(state.opponentRuntime);
     destroyArenaFighterClips(state);
     destroyArenaFighterRuntimes(state);
     destroyAnimationClips(state.fightFxClips);

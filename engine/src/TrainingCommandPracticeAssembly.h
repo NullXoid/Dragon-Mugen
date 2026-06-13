@@ -19,7 +19,13 @@ bool holdTrainingCommandToken(std::string_view command) {
     return command == "holddown"
         || command == "holdup"
         || command == "holdfwd"
-        || command == "holdback";
+        || command == "holdback"
+        || command == "hold_x"
+        || command == "hold_y"
+        || command == "hold_z"
+        || command == "hold_a"
+        || command == "hold_b"
+        || command == "hold_c";
 }
 
 std::string commandAtomDisplayLabel(const CommandAtom& atom) {
@@ -270,6 +276,9 @@ void applyTrainingDemoDirection(FighterInputState& input, std::string_view symbo
 
 void applyTrainingDemoAtom(FighterInputState& input, const CommandAtom& atom, int facing) {
     if (atom.release) {
+        CommandAtom held = atom;
+        held.release = false;
+        applyTrainingDemoAtom(input, held, facing);
         return;
     }
     if (atom.symbol == "x") {
@@ -288,6 +297,17 @@ void applyTrainingDemoAtom(FighterInputState& input, const CommandAtom& atom, in
         input.s = true;
     } else {
         applyTrainingDemoDirection(input, atom.symbol, facing);
+    }
+}
+
+void applyTrainingDemoDirectionAtoms(FighterInputState& input, const CommandStep& step, int facing) {
+    for (const auto& atom : step.atoms) {
+        if (buttonAtomSymbol(atom.symbol)) {
+            continue;
+        }
+        CommandAtom directionAtom = atom;
+        directionAtom.release = false;
+        applyTrainingDemoAtom(input, directionAtom, facing);
     }
 }
 
@@ -316,6 +336,18 @@ FighterInputState trainingDemoInputForEntry(const CommandStateEntry& entry, int 
                 atom.symbol = "F";
             } else if (command == "holdback") {
                 atom.symbol = "B";
+            } else if (command == "hold_x") {
+                atom.symbol = "x";
+            } else if (command == "hold_y") {
+                atom.symbol = "y";
+            } else if (command == "hold_z") {
+                atom.symbol = "z";
+            } else if (command == "hold_a") {
+                atom.symbol = "a";
+            } else if (command == "hold_b") {
+                atom.symbol = "b";
+            } else if (command == "hold_c") {
+                atom.symbol = "c";
             }
         }
         applyTrainingDemoAtom(input, atom, facing);
@@ -325,18 +357,67 @@ FighterInputState trainingDemoInputForEntry(const CommandStateEntry& entry, int 
     applyRequired("holdfwd");
     applyRequired("holdback");
     applyRequired("holdup");
+    applyRequired("hold_x");
+    applyRequired("hold_y");
+    applyRequired("hold_z");
+    applyRequired("hold_a");
+    applyRequired("hold_b");
+    applyRequired("hold_c");
     applyRequired("x");
     applyRequired("y");
     applyRequired("z");
     applyRequired("a");
     applyRequired("b");
     applyRequired("c");
-    if (!entry.commandOptionGroups.empty() && !entry.commandOptionGroups.front().empty()) {
-        CommandAtom atom;
-        atom.symbol = entry.commandOptionGroups.front().front();
-        applyTrainingDemoAtom(input, atom, facing);
+    for (const auto& optionGroup : entry.commandOptionGroups) {
+        for (const auto& option : optionGroup) {
+            if (!holdTrainingCommandToken(option) && !simpleTrainingCommandToken(option)) {
+                continue;
+            }
+            CommandAtom atom;
+            atom.symbol = option;
+            if (holdTrainingCommandToken(option)) {
+                if (option == "holddown") {
+                    atom.symbol = "D";
+                } else if (option == "holdup") {
+                    atom.symbol = "U";
+                } else if (option == "holdfwd") {
+                    atom.symbol = "F";
+                } else if (option == "holdback") {
+                    atom.symbol = "B";
+                } else if (option == "hold_x") {
+                    atom.symbol = "x";
+                } else if (option == "hold_y") {
+                    atom.symbol = "y";
+                } else if (option == "hold_z") {
+                    atom.symbol = "z";
+                } else if (option == "hold_a") {
+                    atom.symbol = "a";
+                } else if (option == "hold_b") {
+                    atom.symbol = "b";
+                } else if (option == "hold_c") {
+                    atom.symbol = "c";
+                }
+            }
+            applyTrainingDemoAtom(input, atom, facing);
+            break;
+        }
     }
     return input;
+}
+
+void mergeTrainingDemoInput(FighterInputState& target, const FighterInputState& source) {
+    target.left = target.left || source.left;
+    target.right = target.right || source.right;
+    target.up = target.up || source.up;
+    target.down = target.down || source.down;
+    target.x = target.x || source.x;
+    target.y = target.y || source.y;
+    target.z = target.z || source.z;
+    target.a = target.a || source.a;
+    target.b = target.b || source.b;
+    target.c = target.c || source.c;
+    target.s = target.s || source.s;
 }
 
 const CommandStateEntry* selectedTrainingCommandEntry(const AppState& state, int* selectedIndex = nullptr) {
@@ -401,6 +482,251 @@ float trainingDemoFighterDistance(AppState& state, const CommandStateEntry& entr
         + fighterPlayerWidthToward(state, p2, -1.0f);
     const float extraRange = commandEntryCategory(entry) == TrainingMoveCategory::Normals ? 6.0f : 36.0f;
     return std::max(34.0f, pushWidth + extraRange);
+}
+
+bool trainingCommandEntryUsesCommand(const CommandStateEntry& entry, std::string_view command) {
+    if (commandListContains(entry.requiredCommands, command)) {
+        return true;
+    }
+    for (const auto& group : entry.commandOptionGroups) {
+        if (commandListContains(group, command)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool textContainsIntLiteral(std::string_view text, int value) {
+    const std::string needle = std::to_string(value);
+    size_t pos = text.find(needle);
+    while (pos != std::string_view::npos) {
+        const bool leftOk = pos == 0 || !std::isdigit(static_cast<unsigned char>(text[pos - 1]));
+        const size_t right = pos + needle.size();
+        const bool rightOk = right >= text.size() || !std::isdigit(static_cast<unsigned char>(text[right]));
+        if (leftOk && rightOk) {
+            return true;
+        }
+        pos = text.find(needle, pos + 1);
+    }
+    return false;
+}
+
+bool commandEntryTargetsState(const CommandStateEntry& entry, int stateNo) {
+    return entry.targetState == stateNo || textContainsIntLiteral(entry.targetStateExpression, stateNo);
+}
+
+bool commandEntryTextContains(const CommandStateEntry& entry, std::string_view needle) {
+    const std::string loweredNeedle = lowercaseCopy(needle);
+    const auto containsNeedle = [&loweredNeedle](std::string_view text) {
+        return lowercaseCopy(text).find(loweredNeedle) != std::string::npos;
+    };
+    for (const auto& expression : entry.booleanExpressions) {
+        if (containsNeedle(expression)) {
+            return true;
+        }
+    }
+    for (const auto& condition : entry.expressionConditions) {
+        if (containsNeedle(condition.lhs) || containsNeedle(condition.rhs)) {
+            return true;
+        }
+    }
+    return containsNeedle(entry.targetStateExpression);
+}
+
+bool trainingCommandEntryNeedsFallRecoverySetup(const CommandStateEntry& entry) {
+    const bool usesRecoveryRollCommand =
+        trainingCommandEntryUsesCommand(entry, "BQCD_x")
+        || trainingCommandEntryUsesCommand(entry, "BQCD_y")
+        || trainingCommandEntryUsesCommand(entry, "BQCD_z");
+    const bool targetsRecoveryRollState =
+        commandEntryTargetsState(entry, 2004)
+        || commandEntryTargetsState(entry, 2005)
+        || commandEntryTargetsState(entry, 2006);
+    const bool requiresFallState =
+        commandEntryTextContains(entry, "5050")
+        && commandEntryTextContains(entry, "5071");
+    const bool requiresFallRecovery = commandEntryTextContains(entry, "gethitvar(fall.recover)");
+    return usesRecoveryRollCommand && targetsRecoveryRollState && requiresFallState && requiresFallRecovery;
+}
+
+bool trainingCommandEntryNeedsAirSetup(const CommandStateEntry& entry) {
+    return entry.requiredStateType == 'A';
+}
+
+bool trainingCommandEntryNeedsHorizontalAirVelocity(const CommandStateEntry& entry) {
+    for (const auto& condition : entry.expressionConditions) {
+        if (equalsNoCase(trim(condition.lhs), "vel x")
+            && condition.op == CompareOp::NotEqual
+            && trim(condition.rhs) == "0") {
+            return true;
+        }
+    }
+    for (const auto& expression : entry.booleanExpressions) {
+        const std::string lowered = lowercaseCopy(expression);
+        if (lowered.find("vel x") != std::string::npos && lowered.find("!= 0") != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
+
+int trainingCommandEntryGuardCancelState(const CommandStateEntry& entry) {
+    int minState = -1000000;
+    int maxState = 1000000;
+    bool hasStateNoGate = false;
+    for (const auto& condition : entry.intConditions) {
+        if (condition.subject != CommandConditionSubject::StateNo) {
+            continue;
+        }
+        hasStateNoGate = true;
+        if (condition.op == CompareOp::Equal) {
+            minState = std::max(minState, condition.value);
+            maxState = std::min(maxState, condition.value);
+        } else if (condition.op == CompareOp::GreaterEqual) {
+            minState = std::max(minState, condition.value);
+        } else if (condition.op == CompareOp::Greater) {
+            minState = std::max(minState, condition.value + 1);
+        } else if (condition.op == CompareOp::LessEqual) {
+            maxState = std::min(maxState, condition.value);
+        } else if (condition.op == CompareOp::Less) {
+            maxState = std::min(maxState, condition.value - 1);
+        }
+    }
+    if (!hasStateNoGate || minState > maxState) {
+        return -1;
+    }
+    if (minState <= 151 && maxState >= 151) {
+        return 151;
+    }
+    if (minState <= 155 && maxState >= 155) {
+        return 155;
+    }
+    return -1;
+}
+
+void prepareTrainingCommandDemoGuardCancelSetup(AppState& state, FighterState& fighter, int stateNo) {
+    clearFighterHitRuntime(fighter);
+    if (!enterState(state, fighter, stateNo)) {
+        fighter.prevStateNo = fighter.stateNo;
+        fighter.stateNo = stateNo;
+        fighter.stateTime = 0;
+    }
+    fighter.moveType = 'H';
+    fighter.ctrl = false;
+    fighter.hitPauseTicks = 0;
+    fighter.hitStunTicks = 90;
+    fighter.getHitHitTime = 90;
+    fighter.getHitCtrlTime = 90;
+    fighter.getHitSlideTime = 20;
+    if (stateNo == 155) {
+        fighter.stateType = 'A';
+        fighter.physics = 'N';
+        fighter.onGround = false;
+        fighter.y = -64.0f;
+        fighter.vy = 0.0f;
+        fighter.vx = 0.0f;
+    } else {
+        fighter.stateType = 'S';
+        fighter.physics = 'S';
+        fighter.onGround = true;
+        fighter.y = 0.0f;
+        fighter.vx = 0.0f;
+        fighter.vy = 0.0f;
+    }
+}
+
+std::optional<float> trainingCommandVariableConditionValue(
+    const FighterState& fighter,
+    const MugenVariableRef& ref,
+    CompareOp op,
+    float rhs) {
+    const float current = fighterVariableValue(fighter, ref);
+    if (op == CompareOp::Equal) {
+        return rhs;
+    }
+    if (op == CompareOp::GreaterEqual) {
+        return std::max(current, rhs);
+    }
+    if (op == CompareOp::Greater) {
+        return std::max(current, rhs + 1.0f);
+    }
+    if (op == CompareOp::LessEqual) {
+        return std::min(current, rhs);
+    }
+    if (op == CompareOp::Less) {
+        return std::min(current, rhs - 1.0f);
+    }
+    if (op == CompareOp::NotEqual && current == rhs) {
+        return rhs + 1.0f;
+    }
+    return std::nullopt;
+}
+
+void applyTrainingCommandDemoVariablePrereqs(FighterState& fighter, const CommandStateEntry& entry) {
+    for (const auto& condition : entry.expressionConditions) {
+        const auto ref = parseMugenVariableRef(condition.lhs);
+        const auto rhs = parsePlainFloatValue(condition.rhs);
+        if (!ref || !rhs) {
+            continue;
+        }
+        if (const auto value = trainingCommandVariableConditionValue(fighter, *ref, condition.op, *rhs)) {
+            setFighterVariableValue(fighter, *ref, *value);
+        }
+    }
+}
+
+void prepareTrainingCommandDemoAirSetup(const AppState& state, const CommandStateEntry& entry, FighterState& fighter) {
+    clearFighterHitRuntime(fighter);
+    if (!enterState(state, fighter, 50)) {
+        fighter.prevStateNo = fighter.stateNo;
+        fighter.stateNo = 50;
+        fighter.stateTime = 0;
+    }
+    fighter.ctrl = true;
+    fighter.stateType = 'A';
+    fighter.moveType = 'I';
+    fighter.physics = 'A';
+    fighter.onGround = false;
+    fighter.y = -120.0f;
+    fighter.vy = -2.5f;
+    fighter.vx = trainingCommandEntryNeedsHorizontalAirVelocity(entry) ? 2.0f * static_cast<float>(fighter.facing) : 0.0f;
+    fighter.jumpBaseAction = fighter.vx == 0.0f ? 41 : (fighter.vx * static_cast<float>(fighter.facing) > 0.0f ? 42 : 43);
+    fighter.jumpPeakActionApplied = true;
+    setFighterAction(fighter, firstExistingActionForActor(state, fighter, { fighter.jumpBaseAction + 3, fighter.jumpBaseAction, 44, 41, 50, 0 }));
+}
+
+void prepareTrainingCommandDemoFallRecovery(AppState& state, FighterState& fighter) {
+    clearFighterHitRuntime(fighter);
+    const int fallState = canEnterStateForActor(state, fighter, 5050)
+        ? 5050
+        : (canEnterStateForActor(state, fighter, 5071) ? 5071 : 5050);
+    if (!enterState(state, fighter, fallState)) {
+        fighter.prevStateNo = fighter.stateNo;
+        fighter.stateNo = fallState;
+        fighter.stateTime = 0;
+        fighter.stateType = 'A';
+        fighter.moveType = 'H';
+        fighter.physics = 'N';
+        fighter.ctrl = false;
+        fighter.onGround = false;
+        setFighterAction(fighter, firstExistingActionForActor(state, fighter, { 5050, 5035, 0 }));
+    }
+
+    fighter.ctrl = false;
+    fighter.stateType = 'A';
+    fighter.moveType = 'H';
+    fighter.physics = 'N';
+    fighter.onGround = false;
+    fighter.hitFall = true;
+    fighter.hitFallRecover = true;
+    fighter.hitFallRecoverTime = 60;
+    fighter.hitFallYAccel = std::clamp(characterConstantsForActor(state, fighter).movementYAccel, 0.08f, 0.18f);
+    const int fallAction = firstExistingActionForActor(state, fighter, { 5050, 5035, 0 });
+    fighter.hitFallAirAction = fallAction;
+    setFighterAction(fighter, fallAction);
+    fighter.y = -46.0f;
+    fighter.vy = 0.05f;
+    fighter.vx = 0.0f;
 }
 
 void resetTrainingDemoFighter(AppState& state, FighterState& fighter) {
@@ -498,6 +824,14 @@ void beginTrainingCommandDemo(AppState& state) {
     p2.vy = 0.0f;
     p2.y = 0.0f;
     p2.onGround = true;
+    applyTrainingCommandDemoVariablePrereqs(p2, *entry);
+    if (trainingCommandEntryNeedsFallRecoverySetup(*entry)) {
+        prepareTrainingCommandDemoFallRecovery(state, p2);
+    } else if (const int guardCancelState = trainingCommandEntryGuardCancelState(*entry); guardCancelState >= 0) {
+        prepareTrainingCommandDemoGuardCancelSetup(state, p2, guardCancelState);
+    } else if (trainingCommandEntryNeedsAirSetup(*entry)) {
+        prepareTrainingCommandDemoAirSetup(state, *entry, p2);
+    }
     p2.power = std::max(p2.power, commandEntryRequiredPower(*entry));
     state.messages.lastHitText = "Demo: " + moveListEntryName(*entry);
     state.messages.lastHitTextTicks = 90;
@@ -517,10 +851,12 @@ FighterInputState nextTrainingCommandDemoInput(AppState& state, FighterState& de
         stopTrainingCommandDemo(state);
         return input;
     }
+    applyTrainingCommandDemoVariablePrereqs(demoFighter, *entry);
 
     const CommandDefinition* definition = practiceCommandDefinitionForEntry(state, *entry, {});
     const int stepCount = definition ? static_cast<int>(definition->steps.size()) : 1;
-    if (stepCount <= 0 || demo.elapsedTicks > 210) {
+    constexpr int kTrainingCommandDemoMaxTicks = 900;
+    if (stepCount <= 0 || demo.elapsedTicks > kTrainingCommandDemoMaxTicks) {
         stopTrainingCommandDemo(state);
         return input;
     }
@@ -543,14 +879,24 @@ FighterInputState nextTrainingCommandDemoInput(AppState& state, FighterState& de
     }
 
     if (definition) {
-        input = trainingDemoInputForStep(definition->steps[static_cast<size_t>(demo.stepIndex)], demoFighter.facing);
+        const auto& step = definition->steps[static_cast<size_t>(demo.stepIndex)];
+        input = trainingDemoInputForStep(step, demoFighter.facing);
+        if (commandStepHasButtonAtom(step)
+            && !commandStepHasDirectionAtom(step)
+            && demo.stepIndex > 0) {
+            applyTrainingDemoDirectionAtoms(
+                input,
+                definition->steps[static_cast<size_t>(demo.stepIndex - 1)],
+                demoFighter.facing);
+        }
+        mergeTrainingDemoInput(input, trainingDemoInputForEntry(*entry, demoFighter.facing));
     } else {
         input = trainingDemoInputForEntry(*entry, demoFighter.facing);
     }
 
     ++demo.stepTicks;
     const bool finalStep = demo.stepIndex == stepCount - 1;
-    const int activeTicks = finalStep ? 3 : 1;
+    const int activeTicks = finalStep ? 3 : 2;
     if (demo.stepTicks >= activeTicks) {
         ++demo.stepIndex;
         demo.stepTicks = 0;

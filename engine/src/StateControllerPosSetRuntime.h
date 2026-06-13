@@ -20,7 +20,7 @@ void updateStatePosSetControllersForDefinition(
         }
         if (posSet.hasY) {
             fighter.y = posSet.y;
-            fighter.onGround = fighter.y >= 0.0f;
+            fighter.onGround = fighter.stateType != 'A' && fighter.y >= 0.0f;
         }
     }
 }

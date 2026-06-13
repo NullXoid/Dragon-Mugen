@@ -35,11 +35,13 @@ build\dragon_mugen.exe --verify arena-z-modifier-sidestep
 build\dragon_mugen.exe --verify arena-per-fighter-runtime
 build\dragon_mugen.exe --verify arena-openbor-scroll-stage
 build\dragon_mugen.exe --verify arena-evilryu-air-special-contact-landing
+build\dragon_mugen.exe --verify vs-p2-runtime
 build\dragon_mugen.exe --verify kfm-guard-recovery
 build\dragon_mugen.exe --verify kfm-specials-supers
 build\dragon_mugen.exe --verify evilken-specials-supers
 build\dragon_mugen.exe --verify evilken-air-special-contact-landing
 build\dragon_mugen.exe --verify evilken-power-charge-helper
+build\dragon_mugen.exe --verify evilken-training-demo-hit
 build\dragon_mugen.exe --verify evilryu-specials-supers
 build\dragon_mugen.exe --verify evilryu-air-special-contact-landing
 build\dragon_mugen.exe --verify evilryu-dash

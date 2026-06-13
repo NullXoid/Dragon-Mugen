@@ -26,6 +26,27 @@ bool previousFighterInputHeldUp(const FighterState& fighter) {
     return fighter.inputHistory[fighter.inputHistory.size() - 2].input.up;
 }
 
+bool fighterPressedUpWithin(const FighterState& fighter, int currentTick, int maxAgeTicks) {
+    if (maxAgeTicks < 0) {
+        return false;
+    }
+    for (size_t historyIndex = fighter.inputHistory.size(); historyIndex > 0; --historyIndex) {
+        const size_t index = historyIndex - 1;
+        const CommandInputFrame& frame = fighter.inputHistory[index];
+        if (currentTick - frame.tick > maxAgeTicks) {
+            break;
+        }
+        if (!frame.input.up) {
+            continue;
+        }
+        const bool previousHeldUp = index > 0 && fighter.inputHistory[index - 1].input.up;
+        if (!previousHeldUp) {
+            return true;
+        }
+    }
+    return false;
+}
+
 bool buttonAtomActive(const FighterInputState& input, std::string_view symbol) {
     if (symbol == "x") {
         return input.x;

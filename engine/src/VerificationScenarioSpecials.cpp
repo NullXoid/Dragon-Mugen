@@ -78,6 +78,24 @@ bool waitForControllableIdle(RuntimeProbe& runtime, int maxFrames) {
     return p1.stateNo == 0 && p1.ctrl && p1.onGround && p1.moveType == 'I';
 }
 
+bool commandCsvContains(std::string_view commands, std::string_view command) {
+    size_t start = 0;
+    while (start <= commands.size()) {
+        size_t end = commands.find(',', start);
+        if (end == std::string_view::npos) {
+            end = commands.size();
+        }
+        if (commands.substr(start, end - start) == command) {
+            return true;
+        }
+        if (end == commands.size()) {
+            break;
+        }
+        start = end + 1;
+    }
+    return false;
+}
+
 SymbolicInput directionInput(std::string_view direction) {
     SymbolicInput input;
     if (direction == "F") {
@@ -112,13 +130,33 @@ void setInputButton(SymbolicInput& input, char button) {
     }
 }
 
+SymbolicInput buttonsInput(std::initializer_list<char> buttons) {
+    SymbolicInput input;
+    for (const char button : buttons) {
+        setInputButton(input, button);
+    }
+    return input;
+}
+
 SymbolicInput directionButtonInput(std::string_view direction, char button) {
     SymbolicInput input = directionInput(direction);
     setInputButton(input, button);
     return input;
 }
 
+SymbolicInput directionButtonsInput(std::string_view direction, std::initializer_list<char> buttons) {
+    SymbolicInput input = directionInput(direction);
+    for (const char button : buttons) {
+        setInputButton(input, button);
+    }
+    return input;
+}
+
 bool snapshotInStateSet(const FighterSnapshot& fighter, std::initializer_list<int> states) {
+    return std::find(states.begin(), states.end(), fighter.stateNo) != states.end();
+}
+
+bool snapshotInStateSet(const FighterSnapshot& fighter, const std::vector<int>& states) {
     return std::find(states.begin(), states.end(), fighter.stateNo) != states.end();
 }
 
@@ -127,7 +165,7 @@ using InputSequence = std::vector<std::pair<SymbolicInput, int>>;
 bool stepSequenceAndObserve(
     RuntimeProbe& runtime,
     const InputSequence& sequence,
-    std::initializer_list<int> states,
+    const std::vector<int>& states,
     FighterSnapshot& observed,
     std::string* observedCommands = nullptr,
     int neutralFrames = 30) {
@@ -171,31 +209,81 @@ bool stepSequenceAndObserve(
     return false;
 }
 
-InputSequence qcfSequence(char button) {
+bool stepSequenceAndObserve(
+    RuntimeProbe& runtime,
+    const InputSequence& sequence,
+    std::initializer_list<int> states,
+    FighterSnapshot& observed,
+    std::string* observedCommands = nullptr,
+    int neutralFrames = 30) {
+    return stepSequenceAndObserve(runtime, sequence, std::vector<int>(states), observed, observedCommands, neutralFrames);
+}
+
+InputSequence qcfSequence(std::initializer_list<char> buttons) {
     return {
         { {}, 3 },
         { directionInput("D"), 2 },
         { directionInput("DF"), 2 },
-        { directionButtonInput("F", button), 3 },
+        { directionButtonsInput("F", buttons), 3 },
     };
 }
 
-InputSequence dpSequence(char button) {
+InputSequence qcfSequence(char button) {
+    return qcfSequence({ button });
+}
+
+InputSequence qcbSequence(std::initializer_list<char> buttons) {
+    return {
+        { {}, 3 },
+        { directionInput("D"), 2 },
+        { directionInput("DB"), 2 },
+        { directionButtonsInput("B", buttons), 3 },
+    };
+}
+
+InputSequence qcbSequence(char button) {
+    return qcbSequence({ button });
+}
+
+InputSequence hcfSequence(std::initializer_list<char> buttons) {
+    return {
+        { {}, 3 },
+        { directionInput("B"), 2 },
+        { directionInput("DB"), 2 },
+        { directionInput("D"), 2 },
+        { directionInput("DF"), 2 },
+        { directionButtonsInput("F", buttons), 3 },
+    };
+}
+
+InputSequence hcfSequence(char button) {
+    return hcfSequence({ button });
+}
+
+InputSequence dpSequence(std::initializer_list<char> buttons) {
     return {
         { {}, 3 },
         { directionInput("F"), 2 },
         { directionInput("D"), 2 },
-        { directionButtonInput("DF", button), 3 },
+        { directionButtonsInput("DF", buttons), 3 },
     };
 }
 
-InputSequence ffButtonSequence(char button) {
+InputSequence dpSequence(char button) {
+    return dpSequence({ button });
+}
+
+InputSequence ffButtonSequence(std::initializer_list<char> buttons) {
     return {
         { {}, 3 },
         { directionInput("F"), 2 },
         { {}, 1 },
-        { directionButtonInput("F", button), 3 },
+        { directionButtonsInput("F", buttons), 3 },
     };
+}
+
+InputSequence ffButtonSequence(char button) {
+    return ffButtonSequence({ button });
 }
 
 InputSequence doubleQcfSequence(char button) {
@@ -236,6 +324,13 @@ bool resetSpecialProbe(RuntimeProbe& runtime, int power = 0) {
     return waitForControllableIdle(runtime, 120);
 }
 
+struct SpecialProbeCase {
+    std::string_view name;
+    InputSequence sequence;
+    std::vector<int> states;
+    int power = 0;
+};
+
 void recordObservedState(
     std::ostream& out,
     Counts& counts,
@@ -251,6 +346,16 @@ void recordObservedState(
         + " move_type=" + std::string(1, observed.moveType)
         + " power=" + std::to_string(observed.power)
         + " commands=" + std::string(commands));
+}
+
+bool runSpecialProbeCase(RuntimeProbe& runtime, std::ostream& out, Counts& counts, const SpecialProbeCase& probe) {
+    FighterSnapshot observed;
+    std::string commands;
+    const bool ready = resetSpecialProbe(runtime, probe.power);
+    const bool entered = ready
+        && stepSequenceAndObserve(runtime, probe.sequence, probe.states, observed, &commands, 45);
+    recordObservedState(out, counts, entered, probe.name, ready, observed, commands);
+    return entered;
 }
 
 bool observePowerConsumed(RuntimeProbe& runtime, int powerBefore, int& powerAfter) {
@@ -376,18 +481,53 @@ int runShotoSpecialsSupers(
             + " after_anim_tick=" + std::to_string(afterInfiniteFrame.p1.animTick));
     }
 
+    const std::vector<SpecialProbeCase> groundSpecials = characterId == "EvilRyu"
+        ? std::vector<SpecialProbeCase>{
+            { "hadouken_lp", qcfSequence('x'), { 1000 }, 0 },
+            { "hadouken_mp", qcfSequence('y'), { 1001 }, 0 },
+            { "hadouken_hp", qcfSequence('z'), { 1002 }, 0 },
+            { "charged_hadouken_lp", hcfSequence('x'), { 10000 }, 0 },
+            { "charged_hadouken_mp", hcfSequence('y'), { 10001 }, 0 },
+            { "charged_hadouken_hp", hcfSequence('z'), { 10002 }, 0 },
+            { "shoryuken_lp", dpSequence('x'), { 1500 }, 0 },
+            { "shoryuken_mp", dpSequence('y'), { 1600 }, 0 },
+            { "shoryuken_hp", dpSequence('z'), { 1700 }, 0 },
+            { "tatsumaki_lk", qcbSequence('a'), { 1800 }, 0 },
+            { "tatsumaki_mk", qcbSequence('b'), { 1810 }, 0 },
+            { "tatsumaki_hk", qcbSequence('c'), { 1820 }, 0 },
+            { "joudan_lk", qcfSequence('a'), { 2800 }, 0 },
+            { "joudan_mk", qcfSequence('b'), { 2810 }, 0 },
+            { "joudan_hk", qcfSequence('c'), { 2820 }, 0 },
+            { "zenpu_lp", qcbSequence('x'), { 1200 }, 0 },
+            { "zenpu_mp", qcbSequence('y'), { 1210 }, 0 },
+            { "zenpu_hp", qcbSequence('z'), { 1220 }, 0 },
+        }
+        : std::vector<SpecialProbeCase>{
+            { "hadouken_lp", qcfSequence('x'), { 1000 }, 0 },
+            { "hadouken_mp", qcfSequence('y'), { 1001 }, 0 },
+            { "hadouken_hp", qcfSequence('z'), { 1002 }, 0 },
+            { "shoryuken_lp", dpSequence('x'), { 1500 }, 0 },
+            { "shoryuken_mp", dpSequence('y'), { 1600 }, 0 },
+            { "shoryuken_hp", dpSequence('z'), { 1700 }, 0 },
+            { "fujin_lk", dpSequence('a'), { 270 }, 0 },
+            { "fujin_mk", dpSequence('b'), { 275 }, 0 },
+            { "fujin_hk", dpSequence('c'), { 280 }, 0 },
+            { "tatsumaki_lk", qcbSequence('a'), { 1800 }, 0 },
+            { "tatsumaki_mk", qcbSequence('b'), { 1810 }, 0 },
+            { "tatsumaki_hk", qcbSequence('c'), { 1820 }, 0 },
+            { "tenshou_tatsumaki_lk", qcfSequence('a'), { 1830 }, 0 },
+            { "tenshou_tatsumaki_mk", qcfSequence('b'), { 1835 }, 0 },
+            { "tenshou_tatsumaki_hk", qcfSequence('c'), { 1840 }, 0 },
+            { "zenpu_lp", qcbSequence('x'), { 1200 }, 0 },
+            { "zenpu_mp", qcbSequence('y'), { 1210 }, 0 },
+            { "zenpu_hp", qcbSequence('z'), { 1220 }, 0 },
+        };
+    for (const auto& probe : groundSpecials) {
+        runSpecialProbeCase(runtime, out, counts, probe);
+    }
+
     FighterSnapshot observed;
     std::string commands;
-
-    const bool fireballReady = resetSpecialProbe(runtime);
-    const bool fireball = fireballReady
-        && stepSequenceAndObserve(runtime, qcfSequence('x'), { 1000, 1001, 1002 }, observed, &commands, 45);
-    recordObservedState(out, counts, fireball, "qcf_fireball_enters_special", fireballReady, observed, commands);
-
-    const bool upperReady = resetSpecialProbe(runtime);
-    const bool upper = upperReady
-        && stepSequenceAndObserve(runtime, dpSequence('x'), { 1500, 1550, 1600, 1650, 1700, 1750 }, observed, &commands, 45);
-    recordObservedState(out, counts, upper, "dp_upper_enters_special", upperReady, observed, commands);
 
     FighterSnapshot blockedObserved;
     std::string blockedCommands;
@@ -441,21 +581,23 @@ int runKfmSpecialsSupers(RuntimeProbe& runtime, std::ostream& out) {
         return exitCode(counts);
     }
 
+    const std::vector<SpecialProbeCase> groundSpecials{
+        { "light_kung_fu_palm", qcfSequence('x'), { 1000 }, 0 },
+        { "strong_kung_fu_palm", qcfSequence('y'), { 1010 }, 0 },
+        { "fast_kung_fu_palm", qcfSequence({ 'x', 'y' }), { 1020 }, 330 },
+        { "light_kung_fu_upper", dpSequence('x'), { 1100 }, 0 },
+        { "strong_kung_fu_upper", dpSequence('y'), { 1110 }, 0 },
+        { "fast_kung_fu_upper", dpSequence({ 'x', 'y' }), { 1120 }, 330 },
+        { "light_kung_fu_knee", ffButtonSequence('a'), { 1050 }, 0 },
+        { "strong_kung_fu_knee", ffButtonSequence('b'), { 1060 }, 0 },
+        { "fast_kung_fu_knee", ffButtonSequence({ 'a', 'b' }), { 1070 }, 330 },
+    };
+    for (const auto& probe : groundSpecials) {
+        runSpecialProbeCase(runtime, out, counts, probe);
+    }
+
     FighterSnapshot observed;
     std::string commands;
-
-    const bool palmReady = resetSpecialProbe(runtime);
-    const bool palm = palmReady && stepSequenceAndObserve(runtime, qcfSequence('x'), { 1000, 1001, 1002 }, observed, &commands, 45);
-    recordObservedState(out, counts, palm, "qcf_palm_enters_special", palmReady, observed, commands);
-
-    const bool upperReady = resetSpecialProbe(runtime);
-    const bool upper = upperReady && stepSequenceAndObserve(runtime, dpSequence('x'), { 1100 }, observed, &commands, 45);
-    recordObservedState(out, counts, upper, "dp_upper_enters_special", upperReady, observed, commands);
-
-    const bool kneeReady = resetSpecialProbe(runtime);
-    const bool knee = kneeReady
-        && stepSequenceAndObserve(runtime, ffButtonSequence('a'), { 1050, 1051, 1052, 1055, 1056 }, observed, &commands, 45);
-    recordObservedState(out, counts, knee, "ff_knee_enters_special", kneeReady, observed, commands);
 
     FighterSnapshot blockedObserved;
     std::string blockedCommands;
@@ -728,6 +870,75 @@ int runEvilKenTrainingCommandDemo(RuntimeProbe& runtime, std::ostream& out) {
     }
 
     runtime.positionFighters(-260.0f, 260.0f);
+    const bool selectedRoll = runtime.selectTrainingMove("Ground Recovery Roll");
+    record(out, counts, selectedRoll ? Status::Pass : Status::Blocked, "select_recovery_roll_demo_move", "move=Ground Recovery Roll");
+    if (!selectedRoll) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    runtime.startTrainingCommandDemo();
+    const auto rollStart = runtime.snapshot();
+    const bool rollPrereq =
+        (rollStart.p2.stateNo == 5050 || rollStart.p2.stateNo == 5071)
+        && rollStart.p2.moveType == 'H'
+        && !rollStart.p2.onGround
+        && rollStart.p2.vy > 0.0f
+        && rollStart.p2.y >= -48.0f;
+    record(out, counts, rollPrereq ? Status::Pass : Status::Fail, "demo_sets_recovery_roll_prereq",
+        "p2_state=" + std::to_string(rollStart.p2.stateNo)
+        + " p2_action=" + std::to_string(rollStart.p2.action)
+        + " p2_move_type=" + std::string(1, rollStart.p2.moveType)
+        + " p2_y=" + std::to_string(rollStart.p2.y)
+        + " p2_vy=" + std::to_string(rollStart.p2.vy));
+
+    bool sawRollCommand = commandCsvContains(rollStart.p2Commands, "BQCD_x");
+    bool p2EnteredRoll = rollStart.p2.stateNo >= 2004 && rollStart.p2.stateNo <= 2006;
+    bool p2UsedRollSprite = false;
+    FighterSnapshot rollP2 = rollStart.p2;
+    std::string observedRollCommands = rollStart.p2Commands;
+    for (int i = 0; i < 120; ++i) {
+        runtime.step({}, 1);
+        const auto snapshot = runtime.snapshot();
+        if (!snapshot.p2Commands.empty()) {
+            observedRollCommands = snapshot.p2Commands;
+        }
+        const bool commandActive = commandCsvContains(snapshot.p2Commands, "BQCD_x");
+        if (commandActive) {
+            observedRollCommands = snapshot.p2Commands;
+            rollP2 = snapshot.p2;
+        }
+        sawRollCommand = sawRollCommand || commandActive;
+        const bool inAirRoll = snapshot.p2.stateNo >= 2004 && snapshot.p2.stateNo <= 2006;
+        const bool inGroundRoll = snapshot.p2.stateNo >= 2001 && snapshot.p2.stateNo <= 2003;
+        p2EnteredRoll = p2EnteredRoll || inAirRoll || inGroundRoll;
+        const bool rollAction =
+            (inAirRoll && snapshot.p2.action >= 5050 && snapshot.p2.action <= 5069)
+            || (inGroundRoll && snapshot.p2.action == 2001);
+        if (inAirRoll || inGroundRoll || rollAction) {
+            rollP2 = snapshot.p2;
+        }
+        if (rollAction) {
+            p2UsedRollSprite = true;
+            break;
+        }
+    }
+
+    record(out, counts, sawRollCommand ? Status::Pass : Status::Fail, "demo_p2_buffers_recovery_roll_command",
+        "commands=" + observedRollCommands
+        + " p2_state=" + std::to_string(rollP2.stateNo)
+        + " p2_action=" + std::to_string(rollP2.action));
+    record(out, counts, p2EnteredRoll ? Status::Pass : Status::Fail, "demo_p2_enters_recovery_roll_state",
+        "commands=" + observedRollCommands
+        + " p2_state=" + std::to_string(rollP2.stateNo)
+        + " p2_action=" + std::to_string(rollP2.action)
+        + " p2_time=" + std::to_string(rollP2.stateTime));
+    record(out, counts, p2UsedRollSprite ? Status::Pass : Status::Fail, "demo_p2_uses_recovery_roll_sprite",
+        "commands=" + observedRollCommands
+        + " p2_state=" + std::to_string(rollP2.stateNo)
+        + " p2_action=" + std::to_string(rollP2.action)
+        + " p2_move_type=" + std::string(1, rollP2.moveType));
+
     const bool selected = runtime.selectTrainingMove("S.Jab");
     record(out, counts, selected ? Status::Pass : Status::Blocked, "select_demo_move", "move=S.Jab");
     if (!selected) {
@@ -774,6 +985,35 @@ int runEvilKenTrainingCommandDemo(RuntimeProbe& runtime, std::ostream& out) {
         + " p2_time=" + std::to_string(lastP2.stateTime)
         + " text=\"" + hitText + "\"");
 
+    const bool selectedHadouken = runtime.selectTrainingMove("Hadouken");
+    record(out, counts, selectedHadouken ? Status::Pass : Status::Blocked, "select_directional_demo_move", "move=Hadouken");
+    if (!selectedHadouken) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    runtime.startTrainingCommandDemo();
+    const auto directionalStart = runtime.snapshot();
+    bool p2EnteredHadouken = false;
+    bool p2FacedP1 = directionalStart.p2.x > directionalStart.p1.x;
+    FighterSnapshot hadoukenP2 = directionalStart.p2;
+    for (int i = 0; i < 150; ++i) {
+        runtime.step({}, 1);
+        const auto snapshot = runtime.snapshot();
+        p2FacedP1 = p2FacedP1 && snapshot.p2.x > snapshot.p1.x;
+        if (snapshot.p2.stateNo == 1000 || snapshot.p2.stateNo == 1001 || snapshot.p2.stateNo == 1002) {
+            p2EnteredHadouken = true;
+            hadoukenP2 = snapshot.p2;
+            break;
+        }
+    }
+
+    record(out, counts, p2EnteredHadouken ? Status::Pass : Status::Fail, "demo_p2_enters_directional_special",
+        "p2_right_of_p1=" + std::to_string(p2FacedP1 ? 1 : 0)
+        + " p2_state=" + std::to_string(hadoukenP2.stateNo)
+        + " p2_action=" + std::to_string(hadoukenP2.action)
+        + " p2_time=" + std::to_string(hadoukenP2.stateTime));
+
     record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
     summary(out, counts);
     return exitCode(counts);
@@ -781,6 +1021,120 @@ int runEvilKenTrainingCommandDemo(RuntimeProbe& runtime, std::ostream& out) {
 
 int runEvilRyuSpecialsSupers(RuntimeProbe& runtime, std::ostream& out) {
     return runShotoSpecialsSupers(runtime, out, "EvilRyu", "evilryu-specials-supers", { 3885 }, 0, 11164);
+}
+
+int runEvilRyuSuperStress(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("EvilRyu", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Evil Ryu/Mountainside Training setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "evilryu-super-stress");
+
+    const bool idle = waitForControllableIdle(runtime, 420);
+    record(out, counts, idle ? Status::Pass : Status::Fail, "controllable_idle_ready",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo));
+    if (!idle) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    bool allCyclesRecovered = true;
+    bool sawAnySuperPause = false;
+    bool sawAnyPauseClear = false;
+    bool sawAnyHelper = false;
+    bool sawAnyHit = false;
+    bool sawAnyAirPop = false;
+    int maxPause = 0;
+    int maxHelpers = 0;
+    std::string lastHitText;
+    FighterSnapshot finalP1;
+    FighterSnapshot finalP2;
+
+    for (int cycle = 0; cycle < 4; ++cycle) {
+        runtime.positionFighters(-32.0f, -16.0f);
+        runtime.setFighterPosition(0, -32.0f, 0.0f);
+        runtime.setFighterPosition(1, -16.0f, 0.0f);
+        runtime.setFighterControl(0, false);
+        runtime.setFighterControl(1, false);
+        runtime.setFighterPower(0, 3000);
+        runtime.setFighterVar(0, 28, 0);
+        runtime.forceFighterLiedown(1, 180);
+        runtime.forceFighterState(0, 4800);
+
+        bool cycleSawSuperPause = false;
+        bool cycleSawPauseClear = false;
+        bool cycleSawHelper = false;
+        bool cycleSawHit = false;
+        bool cycleSawAirPop = false;
+        bool cycleRecovered = false;
+        for (int frame = 0; frame < 320; ++frame) {
+            runtime.step({}, 1);
+            const auto snapshot = runtime.snapshot();
+            finalP1 = snapshot.p1;
+            finalP2 = snapshot.p2;
+            maxPause = std::max(maxPause, snapshot.globalPauseTicks);
+            maxHelpers = std::max(maxHelpers, snapshot.activeHelpers);
+            cycleSawSuperPause = cycleSawSuperPause || (snapshot.globalPauseIsSuper && snapshot.globalPauseTicks > 0);
+            cycleSawPauseClear = cycleSawPauseClear || (cycleSawSuperPause && snapshot.globalPauseTicks == 0);
+            cycleSawHelper = cycleSawHelper || snapshot.activeHelpers > 0;
+            cycleSawHit = cycleSawHit
+                || snapshot.p1.moveHit
+                || snapshot.comboHits > 0
+                || snapshot.lastHitText.find("P1 hit") != std::string::npos;
+            cycleSawAirPop = cycleSawAirPop
+                || snapshot.p2.stateNo == 5030
+                || snapshot.p2.stateNo == 5050
+                || snapshot.p2.stateNo == 5100
+                || (!snapshot.p2.onGround && snapshot.p2.moveType == 'H');
+            if (!snapshot.lastHitText.empty()) {
+                lastHitText = snapshot.lastHitText;
+            }
+            cycleRecovered = snapshot.globalPauseTicks == 0
+                && snapshot.p1.stateNo == 0
+                && snapshot.p1.moveType == 'I'
+                && snapshot.p2.stateNo == 0
+                && snapshot.p2.moveType == 'I'
+                && snapshot.p2.onGround
+                && snapshot.activeHelpers <= 1;
+            if (cycleRecovered) {
+                break;
+            }
+        }
+
+        sawAnySuperPause = sawAnySuperPause || cycleSawSuperPause;
+        sawAnyPauseClear = sawAnyPauseClear || cycleSawPauseClear;
+        sawAnyHelper = sawAnyHelper || cycleSawHelper;
+        sawAnyHit = sawAnyHit || cycleSawHit;
+        sawAnyAirPop = sawAnyAirPop || cycleSawAirPop;
+        allCyclesRecovered = allCyclesRecovered && cycleRecovered;
+    }
+
+    record(out, counts, sawAnySuperPause ? Status::Pass : Status::Fail, "kongou_superpause_observed",
+        "max_pause=" + std::to_string(maxPause));
+    record(out, counts, sawAnyPauseClear ? Status::Pass : Status::Fail, "repeated_superpause_clears",
+        "final_pause=" + std::to_string(runtime.snapshot().globalPauseTicks)
+        + " max_pause=" + std::to_string(maxPause));
+    record(out, counts, sawAnyHelper ? Status::Pass : Status::Fail, "kongou_helpers_spawn",
+        "max_helpers=" + std::to_string(maxHelpers));
+    record(out, counts, sawAnyHit ? Status::Pass : Status::Fail, "downed_dummy_gets_hit",
+        "last_hit=\"" + lastHitText + "\"");
+    record(out, counts, sawAnyAirPop ? Status::Pass : Status::Fail, "downed_fall_velocity_enters_air_path",
+        "final_p2_state=" + std::to_string(finalP2.stateNo)
+        + " final_p2_y=" + std::to_string(finalP2.y)
+        + " final_p2_hitstun=" + std::to_string(finalP2.hitStunTicks));
+    record(out, counts, allCyclesRecovered ? Status::Pass : Status::Fail, "repeated_kongou_recovers_gameplay",
+        "final_p1_state=" + std::to_string(finalP1.stateNo)
+        + " final_p1_time=" + std::to_string(finalP1.stateTime)
+        + " final_p2_state=" + std::to_string(finalP2.stateNo)
+        + " final_p2_time=" + std::to_string(finalP2.stateTime)
+        + " final_pause=" + std::to_string(runtime.snapshot().globalPauseTicks)
+        + " helpers=" + std::to_string(runtime.snapshot().activeHelpers));
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
 }
 
 int runEvilRyuAirSpecialContactLanding(RuntimeProbe& runtime, std::ostream& out) {

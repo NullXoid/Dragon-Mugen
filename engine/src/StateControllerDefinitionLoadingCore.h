@@ -6,6 +6,7 @@
 // Do not include from other translation units.
 
             if (startsWithNoCase(controllerType, "ChangeState") || startsWithNoCase(controllerType, "SelfState")) {
+                const bool selfState = startsWithNoCase(controllerType, "SelfState");
                 const auto* value = findProperty(section, "value");
                 if (!value) {
                     continue;
@@ -38,6 +39,7 @@
                     state.hasAnimEndChangeState = true;
                     state.animEndChangeState = parsedTargetState;
                     state.animEndChangeStateExpression = targetStateExpression;
+                    state.animEndSelfState = selfState;
                     if (const auto* ctrl = findProperty(section, "ctrl")) {
                         state.hasAnimEndCtrl = true;
                         state.animEndCtrl = parseIntValue(ctrl->value, 0) != 0;
@@ -54,6 +56,7 @@
                 changeState.trigger = *controllerTrigger;
                 changeState.targetState = parsedTargetState;
                 changeState.targetStateExpression = targetStateExpression;
+                changeState.selfState = selfState;
                 if (const auto* ctrl = findProperty(section, "ctrl")) {
                     changeState.hasCtrl = true;
                     changeState.ctrl = parseIntValue(ctrl->value, 0) != 0;

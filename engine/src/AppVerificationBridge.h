@@ -66,6 +66,10 @@ public:
             setArenaCpuCount(state_, arenaCpuCount);
             state_.selection.sessionSlots.opponentType = OpponentType::Cpu;
             selectArenaDefaultStage(state_);
+        } else if (mode == verification::ScenarioMode::Versus) {
+            state_.frontend.pendingMode = PendingMode::SingleFight;
+            state_.selection.selectedP2Character =
+                defaultP2CharacterIndex(state_.selection, state_.selection.selectedCharacter);
         } else {
             state_.frontend.pendingMode = mode == verification::ScenarioMode::SinglePlayer
                 ? PendingMode::SinglePlayer
@@ -93,11 +97,13 @@ public:
 
     void step(const verification::SymbolicInput& p1Input, int frames) override {
         const FighterInputState p1 = toFighterInput(p1Input);
+        const FighterInputState p2;
         for (int i = 0; i < frames; ++i) {
             ++state_.frame;
             ++state_.frontend.screenFrame;
             FightInputOverride inputOverride;
             inputOverride.p1 = &p1;
+            inputOverride.p2 = &p2;
             const FightInputOverride* previous = gFightInputOverride;
             gFightInputOverride = &inputOverride;
             updateFight(state_);
@@ -290,6 +296,60 @@ public:
         state_.helpers.push_back(std::move(helper));
     }
 
+    std::vector<verification::TrainingMoveInfo> trainingMoves() const override {
+        std::vector<verification::TrainingMoveInfo> moves;
+        const auto entries = displayableMoveListEntries(state_);
+        moves.reserve(entries.size());
+        for (const auto* entry : entries) {
+            if (!entry) {
+                continue;
+            }
+            int targetState = -1;
+            std::vector<std::string> commandNames = entry->requiredCommands;
+            for (const auto& optionGroup : entry->commandOptionGroups) {
+                for (const auto& command : optionGroup) {
+                    if (!commandListContains(commandNames, command)) {
+                        commandNames.push_back(command);
+                    }
+                }
+            }
+            if (const auto literalTarget = parsePlainIntValue(entry->targetStateExpression)) {
+                targetState = *literalTarget;
+            } else if (!state_.fighters.empty()) {
+                std::vector<std::string> commands = entry->requiredCommands;
+                for (const auto& optionGroup : entry->commandOptionGroups) {
+                    if (!optionGroup.empty()) {
+                        commands.push_back(optionGroup.front());
+                    }
+                }
+                const FighterState& demoFighter = state_.fighters.size() > 1 ? state_.fighters[1] : state_.fighters[0];
+                const FighterState* opponent = state_.fighters.size() > 1 ? &state_.fighters[0] : nullptr;
+                if (const auto resolvedTarget = resolveCommandTargetState(state_, demoFighter, opponent, *entry, commands)) {
+                    targetState = *resolvedTarget;
+                }
+            }
+            moves.push_back(verification::TrainingMoveInfo{
+                moveListEntryName(*entry),
+                moveListInputText(*entry),
+                targetState,
+                entry->requiredStateType,
+                commandEntryRequiredPower(*entry),
+                std::move(commandNames),
+            });
+        }
+        return moves;
+    }
+
+    bool selectTrainingMoveIndex(int index) override {
+        const auto entries = displayableMoveListEntries(state_);
+        if (index < 0 || index >= static_cast<int>(entries.size())) {
+            return false;
+        }
+        state_.training.options.selectedMoveListEntry = index;
+        state_.training.options.moveListScroll = std::max(0, index - 2);
+        return true;
+    }
+
     bool selectTrainingMove(std::string_view label) override {
         const std::string wanted = lowercaseCopy(label);
         const auto entries = displayableMoveListEntries(state_);
@@ -325,6 +385,12 @@ public:
         out.globalPauseTicks = state_.globalPauseTicks;
         out.globalPauseOwnerMoveTicks = state_.globalPauseOwnerMoveTicks;
         out.globalPauseIsSuper = state_.globalPauseIsSuper;
+        out.p1RuntimeStates = static_cast<int>(stateDefinitionsForActor(state_, state_.fighters[0]).size());
+        out.p2RuntimeStates = static_cast<int>(stateDefinitionsForActor(state_, state_.fighters[1]).size());
+        out.p1RuntimeHitDefs = static_cast<int>(hitDefinitionsForActor(state_, state_.fighters[0]).size());
+        out.p2RuntimeHitDefs = static_cast<int>(hitDefinitionsForActor(state_, state_.fighters[1]).size());
+        out.p1RuntimeCommandEntries = static_cast<int>(commandEntriesForActor(state_, state_.fighters[0]).size());
+        out.p2RuntimeCommandEntries = static_cast<int>(commandEntriesForActor(state_, state_.fighters[1]).size());
         for (const auto& fighter : state_.fighters) {
             if (fighter.life > 0) {
                 ++out.livingFighters;
@@ -349,15 +415,35 @@ public:
         out.arenaCameraRotationSelected = arenaCameraRotationSelected(state_);
         out.arenaCameraRotationActive = arenaCameraRotationActive(state_);
         out.lastHitText = state_.messages.lastHitText;
-        const auto p1Commands = collectCurrentFighterCommands(state_, state_.fighters[0]);
-        for (size_t i = 0; i < p1Commands.size(); ++i) {
-            if (i > 0) {
-                out.p1Commands += ",";
+        const auto appendCommands = [](std::string& text, const std::vector<std::string>& commands) {
+            for (size_t i = 0; i < commands.size(); ++i) {
+                if (i > 0) {
+                    text += ",";
+                }
+                text += commands[i];
             }
-            out.p1Commands += p1Commands[i];
-        }
+        };
+        appendCommands(out.p1Commands, collectCurrentFighterCommands(state_, state_.fighters[0]));
+        appendCommands(out.p2Commands, collectCurrentFighterCommands(state_, state_.fighters[1]));
         out.p1 = fighterSnapshot(state_.fighters[0]);
         out.p2 = fighterSnapshot(state_.fighters[1]);
+        out.p1AnimElem = currentAnimElemForFighter(state_, state_.fighters[0]);
+        out.p2AnimElem = currentAnimElemForFighter(state_, state_.fighters[1]);
+        out.p1P2BodyDistX = p2BodyDistXValue(state_, state_.fighters[0], state_.fighters[1]);
+        if (const AnimationFrame* p1Frame = currentFrameForFighter(state_, state_.fighters[0])) {
+            out.p1Clsn1Count = static_cast<int>(p1Frame->clsn1.size());
+            if (const AnimationFrame* p2Frame = currentFrameForFighter(state_, state_.fighters[1])) {
+                out.p2Clsn2Count = static_cast<int>(p2Frame->clsn2.size());
+                out.p1P2BoxesOverlap = !p1Frame->clsn1.empty()
+                    && !p2Frame->clsn2.empty()
+                    && fighterBoxesOverlap(state_.fighters[0], *p1Frame, state_.fighters[1], *p2Frame);
+            }
+        }
+        if (const HitDefinition* activeHitDef = findActiveHitDefinition(state_, state_.fighters[0], state_.fighters[1], 1)) {
+            out.p1ActiveHitDef = true;
+            out.p1HitFlagAllowsP2 = hitFlagAllowsDefender(*activeHitDef, state_.fighters[1]);
+            out.p2HittableByP1 = defenderCanBeHitBy(state_.fighters[1], *activeHitDef);
+        }
         const StageSlot fallbackStage;
         const StageSlot& stage = selectedStageSlot(state_.selection) ? *selectedStageSlot(state_.selection) : fallbackStage;
         applyProjectedSnapshot(stage, state_.fighters[0], out.p1);
@@ -437,6 +523,9 @@ private:
             fighter.animTick,
             fighter.life,
             fighter.power,
+            fighter.targetIndex,
+            fighter.targetTicks,
+            fighter.targetHitId,
             fighter.hitCount,
             fighter.hitPauseTicks,
             fighter.hitStunTicks,
@@ -449,6 +538,7 @@ private:
             0.0f,
             fighter.stateType,
             fighter.moveType,
+            fighter.physics,
             fighter.ctrl,
             fighter.onGround,
             fighter.moveContact,

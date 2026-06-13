@@ -35,6 +35,7 @@ void enterArenaFallbackDefeatPose(const AppState& state, FighterState& fighter, 
     fighter.targetTicks = 0;
     fighter.guarding = false;
     fighter.customHitState = false;
+    fighter.customStateOwnerIndex = -1;
     fighter.hitPauseTicks = 0;
     fighter.hitSlideTicks = 0;
     fighter.hitStunTicks = std::max(fighter.hitStunTicks, 2);

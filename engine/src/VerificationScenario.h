@@ -3,12 +3,14 @@
 #include <iosfwd>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace dragon::verification {
 
 enum class ScenarioMode {
     Training,
     SinglePlayer,
+    Versus,
     Arena,
 };
 
@@ -42,6 +44,9 @@ struct FighterSnapshot {
     int animTick = 0;
     int life = 0;
     int power = 0;
+    int targetIndex = -1;
+    int targetTicks = 0;
+    int targetHitId = -1;
     int hitCount = 0;
     int hitPauseTicks = 0;
     int hitStunTicks = 0;
@@ -54,6 +59,7 @@ struct FighterSnapshot {
     float viewDepth = 0.0f;
     char stateType = 'S';
     char moveType = 'I';
+    char physics = 'S';
     bool ctrl = false;
     bool onGround = true;
     bool moveContact = false;
@@ -82,16 +88,41 @@ struct RuntimeSnapshot {
     int firstHelperState = 0;
     int firstHelperAction = 0;
     int firstHelperAnimTick = 0;
+    int p1RuntimeStates = 0;
+    int p2RuntimeStates = 0;
+    int p1RuntimeHitDefs = 0;
+    int p2RuntimeHitDefs = 0;
+    int p1RuntimeCommandEntries = 0;
+    int p2RuntimeCommandEntries = 0;
     int roundWinner = 0;
     int arenaRuntimeCount = 0;
     bool arenaZAxisEnabled = false;
     bool arenaCameraRotationSelected = false;
     bool arenaCameraRotationActive = false;
+    bool p1P2BoxesOverlap = false;
+    bool p1ActiveHitDef = false;
+    bool p1HitFlagAllowsP2 = false;
+    bool p2HittableByP1 = false;
+    int p1AnimElem = 0;
+    int p2AnimElem = 0;
+    int p1Clsn1Count = 0;
+    int p2Clsn2Count = 0;
+    float p1P2BodyDistX = 0.0f;
     std::string arenaDrawOrder;
     std::string lastHitText;
     std::string p1Commands;
+    std::string p2Commands;
     FighterSnapshot p1;
     FighterSnapshot p2;
+};
+
+struct TrainingMoveInfo {
+    std::string label;
+    std::string input;
+    int targetState = -1;
+    char requiredStateType = 0;
+    int requiredPower = 0;
+    std::vector<std::string> commandNames;
 };
 
 class RuntimeProbe {
@@ -120,6 +151,8 @@ public:
     virtual void forceFighterState(int fighterIndex, int stateNo) = 0;
     virtual void forceFighterLiedown(int fighterIndex, int hitStunTicks) = 0;
     virtual void spawnHelper(int ownerIndex, int helperId, int stateNo, int pauseMoveTime = 0, int superMoveTime = 0) = 0;
+    virtual std::vector<TrainingMoveInfo> trainingMoves() const = 0;
+    virtual bool selectTrainingMoveIndex(int index) = 0;
     virtual bool selectTrainingMove(std::string_view label) = 0;
     virtual void startTrainingCommandDemo() = 0;
     virtual RuntimeSnapshot snapshot() const = 0;
