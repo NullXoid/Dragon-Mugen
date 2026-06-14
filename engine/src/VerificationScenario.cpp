@@ -1891,6 +1891,14 @@ int runTrainingShowSelectHold(RuntimeProbe& runtime, std::ostream& out) {
         "movelist_dat_input_notation_used",
         shippu == moves.end() ? "Shippu Jinrai Kyaku missing" : "input=\"" + shippu->input + "\"");
 
+    const auto sJab = std::find_if(moves.begin(), moves.end(), [](const TrainingMoveInfo& move) {
+        return move.label == "S.Jab";
+    });
+    const bool sJabUsesStrengthNotation = sJab != moves.end() && sJab->input == "LP";
+    record(out, counts, sJabUsesStrengthNotation ? Status::Pass : Status::Fail,
+        "fallback_buttons_use_strength_notation",
+        sJab == moves.end() ? "S.Jab missing" : "input=\"" + sJab->input + "\"");
+
     runtime.selectTrainingMoveIndex(0);
     const std::string firstLabel = moves[0].label;
     const std::string secondLabel = moves[1].label;

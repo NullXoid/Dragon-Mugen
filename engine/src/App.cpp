@@ -9932,24 +9932,55 @@ bool hasSelectedStageBackground(const AppState& state) {
 
 #include "TrainingDebugViewAssembly.h"
 
-std::string moveListTokenForCommand(std::string_view command) {
+std::string commandButtonDisplayToken(std::string_view command) {
     if (command == "x") {
-        return "A";
+        return "LP";
     }
     if (command == "y") {
-        return "S";
+        return "MP";
     }
     if (command == "z") {
-        return "D";
+        return "SP";
     }
     if (command == "a") {
-        return "Z";
+        return "LK";
     }
     if (command == "b") {
-        return "X";
+        return "MK";
     }
     if (command == "c") {
-        return "C";
+        return "SK";
+    }
+    if (command == "s") {
+        return "START";
+    }
+    return {};
+}
+
+bool isCommandButtonSymbol(char ch) {
+    switch (static_cast<char>(std::tolower(static_cast<unsigned char>(ch)))) {
+    case 'x':
+    case 'y':
+    case 'z':
+    case 'a':
+    case 'b':
+    case 'c':
+    case 's':
+        return true;
+    default:
+        return false;
+    }
+}
+
+std::string moveListTokenForCommand(std::string_view command) {
+    if (const std::string button = commandButtonDisplayToken(command); !button.empty()) {
+        return button;
+    }
+    if (command.size() == 2
+        && isCommandButtonSymbol(command[0])
+        && isCommandButtonSymbol(command[1])) {
+        return commandButtonDisplayToken(std::string_view(command).substr(0, 1))
+            + "+" + commandButtonDisplayToken(std::string_view(command).substr(1, 1));
     }
     if (command == "holddown") {
         return "DOWN";
@@ -9963,23 +9994,20 @@ std::string moveListTokenForCommand(std::string_view command) {
     if (command == "holdback") {
         return "BACK";
     }
+    if (startsWithNoCase(command, "hold_") && command.size() == 6) {
+        if (const std::string button = commandButtonDisplayToken(std::string_view(command).substr(5, 1)); !button.empty()) {
+            return "HOLD " + button;
+        }
+    }
 
     std::string label(command);
     std::replace(label.begin(), label.end(), '_', '+');
     if (label.size() >= 2 && label[label.size() - 2] == '+') {
-        const char button = label.back();
-        if (button == 'x') {
-            label.replace(label.size() - 1, 1, "A");
-        } else if (button == 'y') {
-            label.replace(label.size() - 1, 1, "S");
-        } else if (button == 'z') {
-            label.replace(label.size() - 1, 1, "D");
-        } else if (button == 'a') {
-            label.replace(label.size() - 1, 1, "Z");
-        } else if (button == 'b') {
-            label.replace(label.size() - 1, 1, "X");
-        } else if (button == 'c') {
-            label.replace(label.size() - 1, 1, "C");
+        const std::string button(1, static_cast<char>(std::tolower(static_cast<unsigned char>(label.back()))));
+        if (const std::string display = commandButtonDisplayToken(button); !display.empty()) {
+            label.replace(label.size() - 1, 1, display);
+        } else if (button == "p" || button == "k") {
+            label.replace(label.size() - 1, 1, uppercaseCopy(button));
         }
     }
     return label;
@@ -10207,22 +10235,22 @@ std::string inputDisplayToken(const FighterInputState& input, int facing) {
         tokens.push_back(direction);
     }
     if (input.x) {
-        tokens.push_back("A");
+        tokens.push_back("LP");
     }
     if (input.y) {
-        tokens.push_back("S");
+        tokens.push_back("MP");
     }
     if (input.z) {
-        tokens.push_back("D");
+        tokens.push_back("SP");
     }
     if (input.a) {
-        tokens.push_back("Z");
+        tokens.push_back("LK");
     }
     if (input.b) {
-        tokens.push_back("X");
+        tokens.push_back("MK");
     }
     if (input.c) {
-        tokens.push_back("C");
+        tokens.push_back("SK");
     }
     return joinTokens(tokens, "+");
 }

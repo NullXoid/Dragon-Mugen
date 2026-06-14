@@ -311,31 +311,83 @@ std::string normalizeMoveListPresentationName(std::string_view value) {
 
 std::string formatIkemenMoveListInput(std::string_view value) {
     std::string out;
+    std::string token;
     bool pendingSpace = false;
-    const auto flushSpace = [&]() {
+    bool buttonToken = false;
+    const auto appendSpaceIfNeeded = [&]() {
         if (pendingSpace && !out.empty() && out.back() != '+' && out.back() != '/') {
             out.push_back(' ');
+        }
+        pendingSpace = false;
+    };
+    const auto formatToken = [](std::string_view raw, bool button) {
+        const std::string token = trim(raw);
+        if (token.empty()) {
+            return std::string{};
+        }
+
+        const std::string lower = lowercaseCopy(token);
+        if (button) {
+            if (lower == "x") return std::string("LP");
+            if (lower == "y") return std::string("MP");
+            if (lower == "z") return std::string("SP");
+            if (lower == "a") return std::string("LK");
+            if (lower == "b") return std::string("MK");
+            if (lower == "c") return std::string("SK");
+            if (lower == "s") return std::string("START");
+        }
+        return uppercaseCopy(token);
+    };
+    const auto flushToken = [&]() {
+        if (token.empty()) {
+            return;
+        }
+        appendSpaceIfNeeded();
+        out += formatToken(token, buttonToken);
+        token.clear();
+        buttonToken = false;
+    };
+    const auto appendJoin = [&](char separator) {
+        flushToken();
+        if (!out.empty() && out.back() != '+' && out.back() != '/' && out.back() != ' ') {
+            out.push_back(separator);
         }
         pendingSpace = false;
     };
 
     for (char ch : trim(value)) {
         if (ch == '_' || ch == ',' || std::isspace(static_cast<unsigned char>(ch))) {
+            flushToken();
             pendingSpace = true;
             continue;
         }
         if (ch == '[' || ch == ']' || ch == '(' || ch == ')') {
+            flushToken();
             continue;
         }
         if (ch == '^') {
-            if (!out.empty() && out.back() != ' ' && out.back() != '+' && out.back() != '/') {
+            const bool attachToPrevious = !token.empty()
+                || (!pendingSpace && !out.empty() && out.back() != '+' && out.back() != '/');
+            flushToken();
+            if (attachToPrevious && !out.empty() && out.back() != '+' && out.back() != '/') {
                 out.push_back('+');
             }
+            pendingSpace = false;
+            buttonToken = true;
             continue;
         }
-        flushSpace();
-        out.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(ch))));
+        if (ch == '+') {
+            appendJoin('+');
+            buttonToken = true;
+            continue;
+        }
+        if (ch == '/') {
+            appendJoin('/');
+            continue;
+        }
+        token.push_back(ch);
     }
+    flushToken();
 
     return trim(out);
 }
