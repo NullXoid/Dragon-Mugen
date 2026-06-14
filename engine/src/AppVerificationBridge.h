@@ -394,6 +394,10 @@ public:
         beginTrainingCommandDemo(state_);
     }
 
+    void pressTrainingShowShortcut() override {
+        triggerTrainingShowShortcut(state_);
+    }
+
     bool captureScreenshot(const std::filesystem::path& path) override {
         if (!renderer_) {
             return false;

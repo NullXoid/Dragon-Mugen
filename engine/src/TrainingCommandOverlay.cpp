@@ -113,7 +113,7 @@ void drawTrainingCommandOverlay(const UiRenderContext& ui, const TrainingCommand
             setColor(renderer, view.demoActive ? 116 : 230, view.demoActive ? 190 : 220, view.demoActive ? 154 : 172);
             scaledDebugText(renderer, scale, promptX, promptY + 47.0f, view.demoActive ? "CPU DEMO" : view.showMeLabel);
             setColor(renderer, 130, 142, 156);
-            scaledDebugText(renderer, scale, promptX + 86.0f, promptY + 47.0f, "SEL/PgDn NEXT");
+            scaledDebugText(renderer, scale, promptX + 96.0f, promptY + 47.0f, view.nextMoveLabel);
         }
         return;
     }

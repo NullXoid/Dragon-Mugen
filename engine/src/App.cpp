@@ -10319,7 +10319,8 @@ TrainingCommandHudView trainingCommandHudView(
         view.pageLabel = entries.empty()
             ? "0/0"
             : std::to_string(selected + 1) + "/" + std::to_string(entries.size());
-        view.showMeLabel = "H SHOW ME";
+        view.showMeLabel = "SHOW:H/L3/R3/TP";
+        view.nextMoveLabel = "SEL NEXT/2S";
         view.demoActive = trainingCommandDemoActive(state);
         view.completionVisible = state.training.commandPractice.flashTicks > 0
             && !state.training.commandPractice.notification.empty();
@@ -10832,11 +10833,7 @@ void pumpEvents(SDL_Renderer* renderer, AppState& state) {
 }
 
 bool trainingShowSelectHoldContext(const AppState& state) {
-    return state.frontend.screen == Screen::FightView
-        && state.frontend.pendingMode == PendingMode::Training
-        && !state.training.options.menuOpen
-        && state.training.options.showCommandHud
-        && !trainingCommandDemoActive(state);
+    return trainingShowShortcutContext(state);
 }
 
 bool p1GamepadSelectHeld(const AppState& state) {

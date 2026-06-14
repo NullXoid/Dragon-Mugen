@@ -42,6 +42,8 @@ build\dragon_mugen.exe --verify evilken-specials-supers
 build\dragon_mugen.exe --verify evilken-air-special-contact-landing
 build\dragon_mugen.exe --verify evilken-power-charge-helper
 build\dragon_mugen.exe --verify evilken-training-demo-hit
+build\dragon_mugen.exe --verify training-show-select-hold
+build\dragon_mugen.exe --verify training-show-controller-shortcut
 build\dragon_mugen.exe --verify character-auto-fit-scale
 build\dragon_mugen.exe --verify evilryu-specials-supers
 build\dragon_mugen.exe --verify evilryu-air-special-contact-landing
@@ -85,6 +87,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Evil Ken crouch roundhouse trip follows the first low arc, hits the floor, then performs two small vertical-only floor bounces before knockdown without rising into air recovery.
 - KFM, Evil Ken, and Evil Ryu supers are blocked below their authored CMD power gate and still consume power through CNS `poweradd` after valid entry.
 - Training dummy behavior still works.
+- Training command HUD Show Me still starts from keyboard `H`, P1 controller L3/R3/touchpad, or a 2-second Select/Back hold; short Select/Back tap still advances to the next move.
 - Training P2 control still switches the opponent to local P2 behavior.
 - Single Fight round timer, KO/time-over, pips, match result, and rematch/menu inputs still work.
 - Arena defeated fighters are ignored for targeting/win checks, and last-fighter-standing reaches the winner and end screens.

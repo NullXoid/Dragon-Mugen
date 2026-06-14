@@ -76,6 +76,30 @@ int gamepadPlayerIndexForId(const AppState& state, SDL_JoystickID id) {
     return -1;
 }
 
+bool isTrainingShowShortcutButton(SDL_GamepadButton button) {
+    return button == SDL_GAMEPAD_BUTTON_LEFT_STICK
+        || button == SDL_GAMEPAD_BUTTON_RIGHT_STICK
+        || button == SDL_GAMEPAD_BUTTON_TOUCHPAD;
+}
+
+bool trainingShowShortcutContext(const AppState& state) {
+    return state.frontend.screen == Screen::FightView
+        && state.frontend.pendingMode == PendingMode::Training
+        && !state.training.options.menuOpen
+        && state.training.options.showCommandHud
+        && !trainingCommandDemoActive(state);
+}
+
+bool triggerTrainingShowShortcut(AppState& state) {
+    if (!trainingShowShortcutContext(state)) {
+        return false;
+    }
+    beginTrainingCommandDemo(state);
+    state.trainingShowSelectHoldTicks = 0;
+    state.trainingShowSelectHoldFired = true;
+    return true;
+}
+
 int settingCycleDirection(FrontendKey key) {
     if (key == FrontendKey::Left) {
         return -1;
@@ -684,9 +708,13 @@ void handleGamepadButton(
     AppState& state,
     SDL_JoystickID gamepadId,
     SDL_GamepadButton button) {
+    const int playerIndex = gamepadPlayerIndexForId(state, gamepadId);
+    if (playerIndex == 0 && isTrainingShowShortcutButton(button) && triggerTrainingShowShortcut(state)) {
+        return;
+    }
+
     if (state.frontend.screen == Screen::CharacterSelect
         && state.frontend.pendingMode == PendingMode::SingleFight) {
-        const int playerIndex = gamepadPlayerIndexForId(state, gamepadId);
         if (playerIndex >= 0) {
             handleSingleFightCharacterSelectKey(state, playerIndex, frontendKeyFromGamepadButton(button));
         }

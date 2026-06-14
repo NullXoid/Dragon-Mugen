@@ -181,6 +181,7 @@ public:
     virtual bool selectTrainingMoveIndex(int index) = 0;
     virtual bool selectTrainingMove(std::string_view label) = 0;
     virtual void startTrainingCommandDemo() = 0;
+    virtual void pressTrainingShowShortcut() = 0;
     virtual void holdTrainingShowSelect(bool held, int frames) = 0;
     virtual bool captureScreenshot(const std::filesystem::path& path) = 0;
     virtual RuntimeSnapshot snapshot() const = 0;
