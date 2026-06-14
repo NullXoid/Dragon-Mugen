@@ -1,0 +1,14 @@
+; Dragon-only presentation metadata.
+; Runtime commands and states still come from CFJ_Lili.def, Lili.cmd, and CNS files.
+
+[Dragon.MoveList]
+state.1000 = "Rising Uppercut"
+state.1010 = "Rising Uppercut"
+state.1100 = "Rising Sun"
+state.1200 = "Hell Lancer"
+state.1300 = "Power Fist"
+command.RisingUppercut1 = "Rising Uppercut"
+command.RisingUppercut2 = "Rising Uppercut"
+command.RisingSun = "Rising Sun"
+command.HellLancer = "Hell Lancer"
+command.Fist = "Power Fist"

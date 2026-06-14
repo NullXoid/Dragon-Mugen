@@ -1,0 +1,19 @@
+; Dragon-only presentation metadata.
+; Runtime commands and states still come from lili.def, lili.cmd, and CNS files.
+
+[Dragon.MoveList]
+state.3200 = "Denjin Haou Syoukouken"
+state.3000 = "Hien Houou Kyaku"
+state.1400 = "Kuuga"
+state.3399 = "Forward Strike"
+state.1410 = "Kuuga Follow-up"
+state.1420 = "Kuuga Finish"
+state.1100 = "Raiouken"
+state.1150 = "Raiouken"
+state.1200 = "Air Raiouken"
+state.1250 = "Air Raiouken"
+state.1500 = "Haou Syoukouken"
+state.1700 = "Koouken"
+state.1750 = "Koouken"
+state.1800 = "Kick Combo"
+state.1820 = "Air Kick Follow-up"

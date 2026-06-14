@@ -1,0 +1,31 @@
+[Info]
+name ="Lili"
+displayname ="Lili"
+versiondate =06,25,2012
+mugenversion =04,14,2001
+author ="QiYue China"
+pal.defaults =1
+
+[Files]
+cmd     =lili.cmd
+cns     =lili.cns
+st      =lili.cns
+stcommon =common1.cns
+sprite  =lili.sff
+anim    =lili.air
+sound   =lili.snd
+pal1=lili1.act
+pal2=lili4.act
+;pal3=lili3.act
+pal3=lili2.act
+;pal5=lili5.act
+st1=lili_S.cns
+st2=lili_H.cns
+;pal4=lili.act
+
+;st2=lili_H.cns
+
+
+[Arcade]
+intro.storyboard =
+;ending.storyboard =kyokugen.def

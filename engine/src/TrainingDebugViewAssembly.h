@@ -42,24 +42,19 @@ SDL_FRect collisionBoxToScreen(
     const StageSlot& stage) {
     const bool facingLeft = fighter.facing < 0;
     const bool mirrorX = frame.flipX != facingLeft;
-    float x1 = box.x1;
-    float x2 = box.x2;
-    float y1 = box.y1;
-    float y2 = box.y2;
+    float x1 = box.x1 * fighter.scaleX;
+    float x2 = box.x2 * fighter.scaleX;
+    float y1 = box.y1 * fighter.scaleY;
+    float y2 = box.y2 * fighter.scaleY;
 
     if (mirrorX) {
-        x1 = -box.x2;
-        x2 = -box.x1;
+        x1 = -box.x2 * fighter.scaleX;
+        x2 = -box.x1 * fighter.scaleX;
     }
     if (frame.flipY) {
-        y1 = -box.y2;
-        y2 = -box.y1;
+        y1 = -box.y2 * fighter.scaleY;
+        y2 = -box.y1 * fighter.scaleY;
     }
-
-    x1 *= fighter.scaleX;
-    x2 *= fighter.scaleX;
-    y1 *= fighter.scaleY;
-    y2 *= fighter.scaleY;
 
     const float left = std::min(x1, x2);
     const float right = std::max(x1, x2);

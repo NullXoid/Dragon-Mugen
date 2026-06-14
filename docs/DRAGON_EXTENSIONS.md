@@ -258,7 +258,7 @@ These features are currently in the prototype and are not plain M.U.G.E.N behavi
 | Training power mode | Implemented in app code | Runtime only, uses selected character `[Data] power` | `game/data/dragon.def`, `game/save/settings.def` | Training-only testing aid; `MAX` keeps both meters full without editing character CNS |
 | Training move category filter | Implemented in app code | Derived from selected character CMD `State -1` entries | `game/data/dragon.def`, `game/save/settings.def` | Filters command-training page by all, normal, special, or super; move existence stays in CMD/CNS |
 | Position reset from options | Implemented in app code | Runtime only | `game/save/settings.def` input binding later | Must reset from M.U.G.E.N `[PlayerInfo]` starts |
-| Command-training move list | Implemented in app code | Derived from selected character CMD | Optional `game/chars/<character>/<character>.dragon.def` presentation overrides later | Base move list must remain derived from CMD `State -1` entries |
+| Command-training move list | Implemented in app code | Derived from selected character CMD, with optional `.dragon.def` presentation labels | `game/chars/<character>/<character>.dragon.def` | Base move list must remain derived from CMD `State -1` entries |
 | Flying-Dragon-inspired mode rail behavior | Partly implemented as layout only | Runtime UI | `game/data/system.def` plus Dragon sidecar if needed | Up/Down selection must not switch rail side |
 | Single Player mode | Implemented as first pass in app code | Runtime UI/rules | `game/data/dragon.def` or future campaign files | Uses P1 roster selection plus a mode-owned `CPU` opponent slot; CPU AI and separate opponent runtime are not implemented yet |
 | Single Fight pause menu | Implemented in app code | Runtime only | `game/data/dragon.def`, `game/save/settings.def` | Distinct from Training options; must not replace future M.U.G.E.N `system.def`/`fight.def` parsing |
@@ -311,24 +311,15 @@ Current input display mapping:
 - `holdback` -> `BACK`
 - `holdup` -> `UP`
 
-Future character sidecar example:
+Optional character sidecar format:
 
 ```ini
-[Dragon.CommandTraining]
-showOnlyLoadedStates = 1
-
-[Dragon.Move.200]
-category = Standing
-display = Light Punch
-notes = Fast jab.
-
-[Dragon.Move.400]
-category = Crouching
-display = Crouch Light Punch
-notes = Low-profile jab.
+[Dragon.MoveList]
+state.1000 = "Rising Uppercut"
+command.RisingUppercut1 = "Rising Uppercut"
 ```
 
-This sidecar can add presentation data, but it must not become the authority for whether a move exists. The move exists because the character CMD/CNS/AIR/SFF/SND define it.
+This sidecar can add presentation labels by target state or command name, but it must not become the authority for whether a move exists. The move exists because the character CMD/CNS/AIR/SFF/SND define it. If a `State -1` entry has no sidecar label, the UI still falls back to the original CMD block label.
 
 ## Match Mode Menus And Controls
 

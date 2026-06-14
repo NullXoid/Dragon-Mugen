@@ -238,12 +238,134 @@ void applyCommandTriggerExpression(CommandStateEntry& entry, const std::string& 
     }
 }
 
+struct MoveListPresentationOverrides {
+    std::vector<std::pair<int, std::string>> stateLabels;
+    std::vector<std::pair<std::string, std::string>> commandLabels;
+};
+
+std::filesystem::path characterDragonSidecarPath(const CharacterFiles& files) {
+    if (!files.def.empty()) {
+        const auto path = files.def.parent_path() / (files.def.stem().string() + ".dragon.def");
+        if (std::filesystem::exists(path)) {
+            return path;
+        }
+    }
+
+    if (!files.root.empty()) {
+        const auto path = files.root / (files.root.filename().string() + ".dragon.def");
+        if (std::filesystem::exists(path)) {
+            return path;
+        }
+    }
+
+    return {};
+}
+
+std::optional<int> moveListStateKey(const std::string& key) {
+    const std::string lowered = lowercaseCopy(trim(key));
+    constexpr std::string_view statePrefix = "state.";
+    if (startsWithNoCase(lowered, statePrefix)) {
+        return parsePlainIntValue(std::string(std::string_view(lowered).substr(statePrefix.size())));
+    }
+    if (startsWithNoCase(lowered, "state") && lowered.size() > 5) {
+        return parsePlainIntValue(std::string(std::string_view(lowered).substr(5)));
+    }
+    return std::nullopt;
+}
+
+std::optional<std::string> moveListCommandKey(const std::string& key) {
+    const std::string trimmed = trim(key);
+    constexpr std::string_view commandPrefix = "command.";
+    if (!startsWithNoCase(trimmed, commandPrefix)) {
+        return std::nullopt;
+    }
+    std::string command = trim(std::string_view(trimmed).substr(commandPrefix.size()));
+    if (command.empty()) {
+        return std::nullopt;
+    }
+    return lowercaseCopy(command);
+}
+
+MoveListPresentationOverrides loadMoveListPresentationOverrides(const CharacterFiles& files) {
+    MoveListPresentationOverrides overrides;
+    const std::filesystem::path sidecar = characterDragonSidecarPath(files);
+    if (sidecar.empty()) {
+        return overrides;
+    }
+
+    const auto doc = parseMugenTextFile(sidecar);
+    for (const auto& section : doc.sections) {
+        if (!equalsNoCase(section.name, "Dragon.MoveList")) {
+            continue;
+        }
+        for (const auto& property : section.properties) {
+            std::string label = unquote(trim(property.value));
+            if (label.empty()) {
+                continue;
+            }
+            if (const auto state = moveListStateKey(property.key)) {
+                overrides.stateLabels.push_back({ *state, std::move(label) });
+                continue;
+            }
+            if (const auto command = moveListCommandKey(property.key)) {
+                overrides.commandLabels.push_back({ *command, std::move(label) });
+            }
+        }
+    }
+
+    return overrides;
+}
+
+const std::string* findStateMoveListLabel(const MoveListPresentationOverrides& overrides, int targetState) {
+    for (const auto& [state, label] : overrides.stateLabels) {
+        if (state == targetState) {
+            return &label;
+        }
+    }
+    return nullptr;
+}
+
+const std::string* findCommandMoveListLabel(const MoveListPresentationOverrides& overrides, std::string_view command) {
+    const std::string lowered = lowercaseCopy(command);
+    for (const auto& [name, label] : overrides.commandLabels) {
+        if (name == lowered) {
+            return &label;
+        }
+    }
+    return nullptr;
+}
+
+void applyMoveListPresentationOverride(CommandStateEntry& entry, const MoveListPresentationOverrides& overrides) {
+    if (const auto targetState = parsePlainIntValue(entry.targetStateExpression)) {
+        if (const std::string* label = findStateMoveListLabel(overrides, *targetState)) {
+            entry.displayLabel = *label;
+            return;
+        }
+    }
+
+    for (const auto& command : entry.requiredCommands) {
+        if (const std::string* label = findCommandMoveListLabel(overrides, command)) {
+            entry.displayLabel = *label;
+            return;
+        }
+    }
+    for (const auto& optionGroup : entry.commandOptionGroups) {
+        for (const auto& command : optionGroup) {
+            if (const std::string* label = findCommandMoveListLabel(overrides, command)) {
+                entry.displayLabel = *label;
+                return;
+            }
+        }
+    }
+}
+
 std::vector<CommandStateEntry> loadCommandStateEntries(const CharacterFiles& files) {
     if (files.cmd.empty() || !std::filesystem::exists(files.cmd)) {
         return {};
     }
 
     const auto cmd = parseMugenTextFile(files.cmd);
+    const MoveListPresentationOverrides presentation = loadMoveListPresentationOverrides(files);
     std::vector<CommandStateEntry> entries;
     bool inStateMinusOne = false;
 
@@ -283,6 +405,7 @@ std::vector<CommandStateEntry> loadCommandStateEntries(const CharacterFiles& fil
         }
 
         if (!entry.requiredCommands.empty() || !entry.commandOptionGroups.empty()) {
+            applyMoveListPresentationOverride(entry, presentation);
             entries.push_back(std::move(entry));
         }
     }

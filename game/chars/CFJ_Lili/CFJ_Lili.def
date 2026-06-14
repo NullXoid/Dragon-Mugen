@@ -1,0 +1,35 @@
+[Info]
+name="CFJ_Lili"
+displayname="Lili"
+versiondate=03/08/2014
+mugenversion=1.0
+author="chuchoryu"
+pal.defaults=1,2,3,4
+[Files]
+sprite=Lili.sff
+sound=Lili.snd
+anim=Lili.air
+cmd=Lili.cmd
+cns=Coding/System.cns
+st=Coding/System.cns
+stcommon=common1.cns
+pal1=001.act
+pal2=002.act
+pal3=003.act
+pal4=004.act
+pal5=005.act
+pal6=006.act
+pal7=007.act
+pal8=008.act
+pal9=
+pal10=
+pal11=
+pal12=
+st1=Coding/Normal.cns
+st2=Coding/Specials.cns
+st3=Coding/Helpers.cns
+st4=Coding/Supers.cns
+
+[Arcade]
+;intro.storyboard= asukaprologue.def
+;ending.storyboard= ENDING_LILI_T5.def

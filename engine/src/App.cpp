@@ -1122,6 +1122,7 @@ struct StateDefinition {
 
 struct CommandStateEntry {
     std::string label;
+    std::string displayLabel;
     std::vector<std::string> requiredCommands;
     std::vector<std::string> forbiddenCommands;
     std::vector<std::vector<std::string>> commandOptionGroups;
@@ -2228,6 +2229,12 @@ std::optional<float> lookupCharacterConstant(const CharacterConstants& constants
     }
     if (key == "size.height") {
         return constants.size.height;
+    }
+    if (key == "size.xscale") {
+        return constants.sizeScaleX;
+    }
+    if (key == "size.yscale") {
+        return constants.sizeScaleY;
     }
     return std::nullopt;
 }
@@ -4698,6 +4705,86 @@ void applyTrainingPowerMode(AppState& state) {
     }
 }
 
+const CharacterConstants& characterConstantsForFighterIndex(const AppState& state, size_t fighterIndex) {
+    if (const auto* runtime = characterRuntimeForFighterIndex(state, fighterIndex)) {
+        return runtime->constants;
+    }
+    return state.characterConstants;
+}
+
+const std::vector<AnimationClip>* characterClipsForFighterIndex(const AppState& state, size_t fighterIndex) {
+    if (const auto* runtime = characterRuntimeForFighterIndex(state, fighterIndex)) {
+        return &runtime->clips;
+    }
+    if (state.frontend.pendingMode == PendingMode::Arena
+        && fighterIndex < state.arenaFighterClips.size()
+        && !state.arenaFighterClips[fighterIndex].empty()) {
+        return &state.arenaFighterClips[fighterIndex];
+    }
+    if (fighterIndex == 1 && !state.opponentCharacterClips.empty()) {
+        return &state.opponentCharacterClips;
+    }
+    return &state.characterClips;
+}
+
+float saneCharacterScale(float value) {
+    return std::isfinite(value) && value > 0.0f ? std::clamp(value, 0.05f, 4.0f) : 1.0f;
+}
+
+float maxSpriteHeightForClip(const AnimationClip& clip) {
+    float height = 0.0f;
+    for (const auto& frame : clip.frames) {
+        height = std::max(height, static_cast<float>(frame.sprite.height));
+    }
+    return height;
+}
+
+float sampledCharacterVisualHeight(const std::vector<AnimationClip>& clips) {
+    constexpr std::array<int, 8> preferredActions{ 0, 20, 21, 40, 41, 42, 43, 50 };
+    float height = 0.0f;
+    for (const int action : preferredActions) {
+        if (const AnimationClip* clip = findExactClipInSet(clips, action)) {
+            height = std::max(height, maxSpriteHeightForClip(*clip));
+        }
+    }
+    if (height > 0.0f) {
+        return height;
+    }
+    for (size_t i = 0; i < std::min<size_t>(clips.size(), 24); ++i) {
+        height = std::max(height, maxSpriteHeightForClip(clips[i]));
+    }
+    return height;
+}
+
+float characterAutoFitFactor(const std::vector<AnimationClip>& clips, float baseScaleY) {
+    constexpr float kMaxComfortableCharacterHeight = 132.0f;
+    constexpr float kMinAutoFitFactor = 0.20f;
+    const float visualHeight = sampledCharacterVisualHeight(clips);
+    if (visualHeight <= 0.0f || baseScaleY <= 0.0f) {
+        return 1.0f;
+    }
+    const float scaledHeight = visualHeight * baseScaleY;
+    if (scaledHeight <= kMaxComfortableCharacterHeight) {
+        return 1.0f;
+    }
+    return std::clamp(kMaxComfortableCharacterHeight / scaledHeight, kMinAutoFitFactor, 1.0f);
+}
+
+std::pair<float, float> initialFighterScaleForIndex(const AppState& state, size_t fighterIndex) {
+    const CharacterConstants& constants = characterConstantsForFighterIndex(state, fighterIndex);
+    const float baseScaleX = saneCharacterScale(constants.sizeScaleX);
+    const float baseScaleY = saneCharacterScale(constants.sizeScaleY);
+    const std::vector<AnimationClip>* clips = characterClipsForFighterIndex(state, fighterIndex);
+    const float autoFit = clips ? characterAutoFitFactor(*clips, baseScaleY) : 1.0f;
+    return { baseScaleX * autoFit, baseScaleY * autoFit };
+}
+
+void applyInitialFighterScale(AppState& state, FighterState& fighter, size_t fighterIndex) {
+    const auto [scaleX, scaleY] = initialFighterScaleForIndex(state, fighterIndex);
+    fighter.scaleX = scaleX;
+    fighter.scaleY = scaleY;
+}
+
 float clampFighterOriginToStage(float x, const StageSlot& stage);
 
 #include "FightSessionRuntime.h"
@@ -5442,8 +5529,8 @@ void spawnStateHelper(
     helper.sprPriority = controller.sprPriority;
     helper.pauseMoveTime = controller.pauseMoveTime;
     helper.superMoveTime = controller.superMoveTime;
-    helper.scaleX = scaleX;
-    helper.scaleY = scaleY;
+    helper.scaleX = owner.scaleX * scaleX;
+    helper.scaleY = owner.scaleY * scaleY;
     if (!enterState(state, helper, stateNo)) {
         return;
     }
@@ -5538,8 +5625,8 @@ void spawnStateProjectile(
     projectile.velMulY = evalFloat(controller.velMulYExpression, controller.velMulY);
     projectile.removeVx = evalFloat(controller.removeVxExpression, controller.removeVx);
     projectile.removeVy = evalFloat(controller.removeVyExpression, controller.removeVy);
-    projectile.scaleX = evalFloat(controller.scaleXExpression, controller.scaleX);
-    projectile.scaleY = evalFloat(controller.scaleYExpression, controller.scaleY);
+    projectile.scaleX = owner.scaleX * evalFloat(controller.scaleXExpression, controller.scaleX);
+    projectile.scaleY = owner.scaleY * evalFloat(controller.scaleYExpression, controller.scaleY);
     projectile.shadowEnabled = controller.shadowEnabled;
     projectile.shadowR = controller.shadowR;
     projectile.shadowG = controller.shadowG;
@@ -5690,8 +5777,8 @@ void spawnStateExplod(
     effect.sprPriority = explod.sprPriority;
     effect.pauseMoveTime = explod.pauseMoveTime;
     effect.superMoveTime = explod.superMoveTime;
-    effect.scaleX = explod.scaleX;
-    effect.scaleY = explod.scaleY;
+    effect.scaleX = explod.fromFightFx ? explod.scaleX : fighter.scaleX * explod.scaleX;
+    effect.scaleY = explod.fromFightFx ? explod.scaleY : fighter.scaleY * explod.scaleY;
     state.runtimeEffects.push_back(effect);
 }
 
@@ -5793,8 +5880,8 @@ void modifyRuntimeExplods(AppState& state, const FighterState& fighter, const St
             effect.sprPriority = modifyExplod.sprPriority;
         }
         if (modifyExplod.hasScale) {
-            effect.scaleX = modifyExplod.scaleX;
-            effect.scaleY = modifyExplod.scaleY;
+            effect.scaleX = effect.fromFightFx ? modifyExplod.scaleX : fighter.scaleX * modifyExplod.scaleX;
+            effect.scaleY = effect.fromFightFx ? modifyExplod.scaleY : fighter.scaleY * modifyExplod.scaleY;
         }
     }
 }
@@ -10157,6 +10244,9 @@ std::string commandEntryTargetLabel(const CommandStateEntry& entry) {
 }
 
 std::string moveListEntryName(const CommandStateEntry& entry) {
+    if (!entry.displayLabel.empty()) {
+        return entry.displayLabel;
+    }
     return entry.label.empty() ? "State " + commandEntryTargetLabel(entry) : entry.label;
 }
 
