@@ -970,6 +970,50 @@ int runLiliSmoke(RuntimeProbe& runtime, std::ostream& out) {
     return exitCode(counts);
 }
 
+int runCharacterAutoFitScale(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("Lili_QYC_Normal", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "oversized character fixture setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "character-auto-fit-scale");
+
+    const bool oversizedSettled = waitForControllableIdle(runtime, 420);
+    const auto oversized = runtime.snapshot();
+    record(out, counts, oversizedSettled ? Status::Pass : Status::Fail, "oversized_fixture_idle_ready",
+        "state=" + std::to_string(oversized.p1.stateNo)
+        + " ctrl=" + std::to_string(oversized.p1.ctrl ? 1 : 0));
+    record(out, counts,
+        oversized.p1.scaleX > 0.0f && oversized.p1.scaleY > 0.0f
+            && oversized.p1.scaleX < 1.0f && oversized.p1.scaleY < 1.0f
+            ? Status::Pass : Status::Fail,
+        "oversized_character_scaled_to_fit",
+        "scale_x=" + std::to_string(oversized.p1.scaleX)
+            + " scale_y=" + std::to_string(oversized.p1.scaleY));
+
+    if (!runtime.setup("kfm", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "normal_fixture_setup", "KFM/Mountainside Training setup failed");
+        summary(out, counts);
+        return exitCode(counts);
+    }
+    const bool normalSettled = waitForControllableIdle(runtime, 240);
+    const auto normal = runtime.snapshot();
+    record(out, counts, normalSettled ? Status::Pass : Status::Fail, "normal_fixture_idle_ready",
+        "state=" + std::to_string(normal.p1.stateNo)
+        + " ctrl=" + std::to_string(normal.p1.ctrl ? 1 : 0));
+    record(out, counts,
+        std::abs(normal.p1.scaleX - 1.0f) < 0.001f && std::abs(normal.p1.scaleY - 1.0f) < 0.001f
+            ? Status::Pass : Status::Fail,
+        "normal_character_keeps_authored_scale",
+        "scale_x=" + std::to_string(normal.p1.scaleX)
+            + " scale_y=" + std::to_string(normal.p1.scaleY));
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
 int runLiliChangeAnim2Fallback(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
     if (!runtime.setup("lili", "Mountainside", ScenarioMode::Training, out)) {
@@ -1897,6 +1941,7 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
     if (scenarioName == "training-options-menu-geometry") return runTrainingOptionsMenuGeometry(runtime, out);
     if (scenarioName == "training-move-list-geometry") return runTrainingMoveListGeometry(runtime, out);
     if (scenarioName == "training-show-select-hold") return runTrainingShowSelectHold(runtime, out);
+    if (scenarioName == "character-auto-fit-scale") return runCharacterAutoFitScale(runtime, out);
     if (scenarioName == "lili-smoke") return runLiliSmoke(runtime, out);
     if (scenarioName == "lili-changeanim2-fallback") return runLiliChangeAnim2Fallback(runtime, out);
     if (scenarioName == "lili-kuuch-state-fallback") return runLiliKuuchStateFallback(runtime, out);
@@ -1959,7 +2004,7 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
 
     out << "VERIFY " << scenarioName << "\n"
         << "BLOCKED unknown_scenario\n"
-        << "  supported: compatibility-profile-resolver, training-options-menu-geometry, training-move-list-geometry, training-show-select-hold, lili-smoke, lili-changeanim2-fallback, lili-kuuch-state-fallback, lili-hien-houou-kyaku-demo, lili-training-demo-all, kfm-baseline, kfm-throw, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-guard-recovery, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-power-charge-helper, evilken-air-special-contact-landing, evilken-training-demo-hit, evilken-training-command-practice-advance, evilryu-specials-supers, evilryu-shin-shoryuken-stun, evilryu-super-stress, evilryu-air-special-contact-landing, evilryu-power-charge-helper, evilryu-throw-bind, evilryu-training-throw-demo, evilken-smoke, evilken-trip-grounding, evilken-overhead-trip-chain, evilken-overhead-trip-chain-stress, evilken-trip-jump-buffer, evilken-attack-jump-buffer-release, evilken-throw, evilken-corner-visual-bounds, evilken-kuuchuu-shakunetsu, evilken-training-demo-all, evilken-shinryuken-recovery, evilken-shun-goku-satsu, evilken-shouki-hatsudou-spacing, cpu-baseline, vs-p2-runtime, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-camera-rotation-toggle, arena-camera-rotation-projection, arena-camera-rotation-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-evilken-forward-dash-bounds, arena-per-fighter-runtime, arena-openbor-scroll-stage, arena-evilryu-air-special-contact-landing, evilryu-dash\n"
+        << "  supported: compatibility-profile-resolver, training-options-menu-geometry, training-move-list-geometry, training-show-select-hold, character-auto-fit-scale, lili-smoke, lili-changeanim2-fallback, lili-kuuch-state-fallback, lili-hien-houou-kyaku-demo, lili-training-demo-all, kfm-baseline, kfm-throw, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-guard-recovery, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-power-charge-helper, evilken-air-special-contact-landing, evilken-training-demo-hit, evilken-training-command-practice-advance, evilryu-specials-supers, evilryu-shin-shoryuken-stun, evilryu-super-stress, evilryu-air-special-contact-landing, evilryu-power-charge-helper, evilryu-throw-bind, evilryu-training-throw-demo, evilken-smoke, evilken-trip-grounding, evilken-overhead-trip-chain, evilken-overhead-trip-chain-stress, evilken-trip-jump-buffer, evilken-attack-jump-buffer-release, evilken-throw, evilken-corner-visual-bounds, evilken-kuuchuu-shakunetsu, evilken-training-demo-all, evilken-shinryuken-recovery, evilken-shun-goku-satsu, evilken-shouki-hatsudou-spacing, cpu-baseline, vs-p2-runtime, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-camera-rotation-toggle, arena-camera-rotation-projection, arena-camera-rotation-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-evilken-forward-dash-bounds, arena-per-fighter-runtime, arena-openbor-scroll-stage, arena-evilryu-air-special-contact-landing, evilryu-dash\n"
         << "SUMMARY pass=0 partial=0 fail=0 blocked=1\n";
     return 2;
 }

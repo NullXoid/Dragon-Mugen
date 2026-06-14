@@ -42,6 +42,7 @@ build\dragon_mugen.exe --verify evilken-specials-supers
 build\dragon_mugen.exe --verify evilken-air-special-contact-landing
 build\dragon_mugen.exe --verify evilken-power-charge-helper
 build\dragon_mugen.exe --verify evilken-training-demo-hit
+build\dragon_mugen.exe --verify character-auto-fit-scale
 build\dragon_mugen.exe --verify evilryu-specials-supers
 build\dragon_mugen.exe --verify evilryu-air-special-contact-landing
 build\dragon_mugen.exe --verify evilryu-dash
