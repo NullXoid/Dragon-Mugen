@@ -34,6 +34,7 @@ struct CharacterFiles {
     std::filesystem::path anim;
     std::filesystem::path sound;
     std::filesystem::path palette;
+    std::filesystem::path movelist;
 };
 
 struct CharacterSize {

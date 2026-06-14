@@ -241,6 +241,7 @@ void applyCommandTriggerExpression(CommandStateEntry& entry, const std::string& 
 struct MoveListPresentationOverrides {
     std::vector<std::pair<int, std::string>> stateLabels;
     std::vector<std::pair<std::string, std::string>> commandLabels;
+    std::vector<std::pair<std::string, std::string>> labelInputs;
 };
 
 std::filesystem::path characterDragonSidecarPath(const CharacterFiles& files) {
@@ -286,8 +287,118 @@ std::optional<std::string> moveListCommandKey(const std::string& key) {
     return lowercaseCopy(command);
 }
 
+std::string normalizeMoveListPresentationName(std::string_view value) {
+    std::string text = trim(value);
+    while (!text.empty() && (text.front() == '_' || text.front() == '!')) {
+        text.erase(text.begin());
+    }
+
+    std::string normalized;
+    bool pendingSpace = false;
+    for (const char ch : text) {
+        if (std::isspace(static_cast<unsigned char>(ch))) {
+            pendingSpace = !normalized.empty();
+            continue;
+        }
+        if (pendingSpace && !normalized.empty()) {
+            normalized.push_back(' ');
+        }
+        pendingSpace = false;
+        normalized.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(ch))));
+    }
+    return normalized;
+}
+
+std::string formatIkemenMoveListInput(std::string_view value) {
+    std::string out;
+    bool pendingSpace = false;
+    const auto flushSpace = [&]() {
+        if (pendingSpace && !out.empty() && out.back() != '+' && out.back() != '/') {
+            out.push_back(' ');
+        }
+        pendingSpace = false;
+    };
+
+    for (char ch : trim(value)) {
+        if (ch == '_' || ch == ',' || std::isspace(static_cast<unsigned char>(ch))) {
+            pendingSpace = true;
+            continue;
+        }
+        if (ch == '[' || ch == ']' || ch == '(' || ch == ')') {
+            continue;
+        }
+        if (ch == '^') {
+            if (!out.empty() && out.back() != ' ' && out.back() != '+' && out.back() != '/') {
+                out.push_back('+');
+            }
+            continue;
+        }
+        flushSpace();
+        out.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(ch))));
+    }
+
+    return trim(out);
+}
+
+std::optional<size_t> findIkemenMoveListSeparator(const std::string& line) {
+    const auto tab = line.find('\t');
+    if (tab != std::string::npos) {
+        return tab;
+    }
+
+    int whitespaceRun = 0;
+    for (size_t i = 0; i < line.size(); ++i) {
+        if (std::isspace(static_cast<unsigned char>(line[i]))) {
+            ++whitespaceRun;
+            if (whitespaceRun >= 2) {
+                return i - 1;
+            }
+        } else {
+            whitespaceRun = 0;
+        }
+    }
+    return std::nullopt;
+}
+
+void loadIkemenMoveListPresentationOverrides(const CharacterFiles& files, MoveListPresentationOverrides& overrides) {
+    if (files.movelist.empty() || !std::filesystem::exists(files.movelist)) {
+        return;
+    }
+
+    std::ifstream input(files.movelist);
+    if (!input) {
+        return;
+    }
+
+    std::string line;
+    while (std::getline(input, line)) {
+        const std::string trimmedLine = trim(line);
+        if (trimmedLine.empty() || startsWithNoCase(trimmedLine, "<")) {
+            continue;
+        }
+        const auto separator = findIkemenMoveListSeparator(line);
+        if (!separator) {
+            continue;
+        }
+
+        const std::string label = trim(std::string_view(line).substr(0, *separator));
+        const std::string notation = trim(std::string_view(line).substr(*separator));
+        if (label.empty() || notation.empty()) {
+            continue;
+        }
+
+        const std::string key = normalizeMoveListPresentationName(label);
+        const std::string inputText = formatIkemenMoveListInput(notation);
+        if (!key.empty() && !inputText.empty()) {
+            overrides.labelInputs.push_back({ key, inputText });
+        }
+    }
+}
+
 MoveListPresentationOverrides loadMoveListPresentationOverrides(const CharacterFiles& files) {
     MoveListPresentationOverrides overrides;
+    loadIkemenMoveListPresentationOverrides(files, overrides);
+
     const std::filesystem::path sidecar = characterDragonSidecarPath(files);
     if (sidecar.empty()) {
         return overrides;
@@ -335,10 +446,23 @@ const std::string* findCommandMoveListLabel(const MoveListPresentationOverrides&
     return nullptr;
 }
 
+const std::string* findMoveListInputByLabel(const MoveListPresentationOverrides& overrides, std::string_view label) {
+    const std::string key = normalizeMoveListPresentationName(label);
+    for (const auto& [name, input] : overrides.labelInputs) {
+        if (name == key) {
+            return &input;
+        }
+    }
+    return nullptr;
+}
+
 void applyMoveListPresentationOverride(CommandStateEntry& entry, const MoveListPresentationOverrides& overrides) {
     if (const auto targetState = parsePlainIntValue(entry.targetStateExpression)) {
         if (const std::string* label = findStateMoveListLabel(overrides, *targetState)) {
             entry.displayLabel = *label;
+            if (const std::string* input = findMoveListInputByLabel(overrides, *label)) {
+                entry.displayInput = *input;
+            }
             return;
         }
     }
@@ -346,6 +470,9 @@ void applyMoveListPresentationOverride(CommandStateEntry& entry, const MoveListP
     for (const auto& command : entry.requiredCommands) {
         if (const std::string* label = findCommandMoveListLabel(overrides, command)) {
             entry.displayLabel = *label;
+            if (const std::string* input = findMoveListInputByLabel(overrides, *label)) {
+                entry.displayInput = *input;
+            }
             return;
         }
     }
@@ -353,9 +480,17 @@ void applyMoveListPresentationOverride(CommandStateEntry& entry, const MoveListP
         for (const auto& command : optionGroup) {
             if (const std::string* label = findCommandMoveListLabel(overrides, command)) {
                 entry.displayLabel = *label;
+                if (const std::string* input = findMoveListInputByLabel(overrides, *label)) {
+                    entry.displayInput = *input;
+                }
                 return;
             }
         }
+    }
+
+    const std::string label = entry.displayLabel.empty() ? entry.label : entry.displayLabel;
+    if (const std::string* input = findMoveListInputByLabel(overrides, label)) {
+        entry.displayInput = *input;
     }
 }
 

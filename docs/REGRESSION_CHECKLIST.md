@@ -88,6 +88,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - KFM, Evil Ken, and Evil Ryu supers are blocked below their authored CMD power gate and still consume power through CNS `poweradd` after valid entry.
 - Training dummy behavior still works.
 - Training command HUD Show Me still starts from keyboard `H`, P1 controller L3/R3/touchpad, or a 2-second Select/Back hold; short Select/Back tap still advances to the next move.
+- Training command HUD prefers optional Ikemen `movelist.dat` presentation text for move inputs, so human command cards can show diagonals such as `DB` even when CMD recognition uses a lenient shorthand.
 - Training P2 control still switches the opponent to local P2 behavior.
 - Single Fight round timer, KO/time-over, pips, match result, and rematch/menu inputs still work.
 - Arena defeated fighters are ignored for targeting/win checks, and last-fighter-standing reaches the winner and end screens.

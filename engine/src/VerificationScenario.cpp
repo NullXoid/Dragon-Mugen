@@ -1880,6 +1880,17 @@ int runTrainingShowSelectHold(RuntimeProbe& runtime, std::ostream& out) {
         return exitCode(counts);
     }
 
+    const auto shippu = std::find_if(moves.begin(), moves.end(), [](const TrainingMoveInfo& move) {
+        return move.label == "Shippu Jinrai Kyaku";
+    });
+    const bool shippuUsesHumanNotation =
+        shippu != moves.end()
+        && shippu->input.find("DB") != std::string::npos
+        && shippu->input.find("MASH") != std::string::npos;
+    record(out, counts, shippuUsesHumanNotation ? Status::Pass : Status::Fail,
+        "movelist_dat_input_notation_used",
+        shippu == moves.end() ? "Shippu Jinrai Kyaku missing" : "input=\"" + shippu->input + "\"");
+
     runtime.selectTrainingMoveIndex(0);
     const std::string firstLabel = moves[0].label;
     const std::string secondLabel = moves[1].label;

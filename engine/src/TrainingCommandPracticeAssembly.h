@@ -168,6 +168,42 @@ void appendDefinitionPracticeSteps(
     }
 }
 
+std::vector<std::string> presentationInputTokens(std::string_view displayInput) {
+    std::vector<std::string> tokens;
+    std::string current;
+    for (const char ch : displayInput) {
+        if (std::isspace(static_cast<unsigned char>(ch))) {
+            if (!current.empty()) {
+                tokens.push_back(std::move(current));
+                current.clear();
+            }
+            continue;
+        }
+        current.push_back(ch);
+    }
+    if (!current.empty()) {
+        tokens.push_back(std::move(current));
+    }
+    return tokens;
+}
+
+void appendPresentationPracticeSteps(
+    std::vector<TrainingCommandStepView>& steps,
+    std::string_view displayInput,
+    int matched,
+    bool complete) {
+    const auto tokens = presentationInputTokens(displayInput);
+    for (int i = 0; i < static_cast<int>(tokens.size()); ++i) {
+        TrainingCommandStepStatus status = TrainingCommandStepStatus::Pending;
+        if (complete || i < matched) {
+            status = TrainingCommandStepStatus::Matched;
+        } else if (i == matched) {
+            status = TrainingCommandStepStatus::Current;
+        }
+        steps.push_back(TrainingCommandStepView{ fitDebugText(tokens[static_cast<size_t>(i)], 12), status });
+    }
+}
+
 void appendEntryPracticeSteps(
     std::vector<TrainingCommandStepView>& steps,
     const CommandStateEntry& entry,

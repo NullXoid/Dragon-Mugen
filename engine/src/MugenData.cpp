@@ -507,6 +507,11 @@ CharacterFiles resolveCharacterFiles(const std::filesystem::path& gameRoot, cons
     resolved.anim = resolveCharacterFile(character, files, "anim", character.id + ".air");
     resolved.sound = resolveCharacterFile(character, files, "sound", character.id + ".snd");
     resolved.palette = resolveCharacterFile(character, files, "pal1", character.id + ".act");
+    if (files) {
+        if (const auto* movelist = findProperty(*files, "movelist")) {
+            resolved.movelist = resolveContentPath(character.folder, movelist->value);
+        }
+    }
 
     addUniqueExistingPath(resolved.stateFiles, resolveCharacterFile(character, files, "cns", character.id + ".cns"));
     if (files) {

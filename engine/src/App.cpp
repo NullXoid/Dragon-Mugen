@@ -44,6 +44,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cmath>
+#include <fstream>
 #include <filesystem>
 #include <iomanip>
 #include <numbers>
@@ -1123,6 +1124,7 @@ struct StateDefinition {
 struct CommandStateEntry {
     std::string label;
     std::string displayLabel;
+    std::string displayInput;
     std::vector<std::string> requiredCommands;
     std::vector<std::string> forbiddenCommands;
     std::vector<std::vector<std::string>> commandOptionGroups;
@@ -9990,6 +9992,10 @@ bool commandListContains(const std::vector<std::string>& commands, std::string_v
 }
 
 std::string moveListInputText(const CommandStateEntry& entry) {
+    if (!entry.displayInput.empty()) {
+        return entry.displayInput;
+    }
+
     std::vector<std::string> parts;
     const auto appendIfRequired = [&parts, &entry](std::string_view command) {
         if (commandListContains(entry.requiredCommands, command)) {
@@ -10307,9 +10313,10 @@ TrainingCommandHudView trainingCommandHudView(
                 continue;
             }
             const CommandDefinition* definition = practiceCommandDefinitionForEntry(state, *entry, commands);
+            const std::string inputText = moveListInputText(*entry);
             rows.push_back(TrainingCommandRowView{
                 fitDebugText(moveListEntryName(*entry), 16),
-                fitDebugText(definition ? commandDefinitionInputLabel(*definition) : moveListInputText(*entry), 10),
+                fitDebugText(inputText.empty() && definition ? commandDefinitionInputLabel(*definition) : inputText, 10),
                 activeEntry == entry,
                 index == selected,
             });
@@ -10332,12 +10339,16 @@ TrainingCommandHudView trainingCommandHudView(
             const auto& entry = *entries[static_cast<size_t>(selected)];
             const bool complete = activeEntry == &entry;
             const CommandDefinition* definition = practiceCommandDefinitionForEntry(state, entry, commands);
+            const int matched = definition ? matchedPracticeStepCount(fighter, *definition) : 0;
             view.currentMoveName = fitDebugText(moveListEntryName(entry), 20);
-            view.currentMoveInput = fitDebugText(definition ? commandDefinitionInputLabel(*definition) : moveListInputText(entry), 25);
+            view.currentMoveInput = fitDebugText(moveListInputText(entry), 25);
             view.completeFlash = complete || view.completionVisible;
 
-            if (definition) {
-                appendDefinitionPracticeSteps(steps, fighter, *definition, complete || commandDefinitionActive(*definition, fighter));
+            const bool definitionActive = definition && commandDefinitionActive(*definition, fighter);
+            if (!entry.displayInput.empty()) {
+                appendPresentationPracticeSteps(steps, entry.displayInput, matched, complete || definitionActive);
+            } else if (definition) {
+                appendDefinitionPracticeSteps(steps, fighter, *definition, complete || definitionActive);
             } else {
                 appendEntryPracticeSteps(steps, entry, commands, complete);
             }
