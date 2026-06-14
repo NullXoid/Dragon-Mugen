@@ -3,17 +3,15 @@
 #include <SDL3/SDL.h>
 
 #include <algorithm>
+#include <array>
+#include <cctype>
 #include <cmath>
+#include <string_view>
 
 namespace dragon {
 namespace {
 
-void renderDebugTextRaw(SDL_Renderer* renderer, float x, float y, const char* text) {
-    if (!text || text[0] == '\0') {
-        return;
-    }
-    SDL_RenderDebugText(renderer, x, y, text);
-}
+using GlyphRows = std::array<Uint8, 7>;
 
 bool textColorNeedsShadow(Uint8 r, Uint8 g, Uint8 b, Uint8 a) {
     if (a == 0) {
@@ -21,6 +19,115 @@ bool textColorNeedsShadow(Uint8 r, Uint8 g, Uint8 b, Uint8 a) {
     }
     const int luminance = (static_cast<int>(r) * 299 + static_cast<int>(g) * 587 + static_cast<int>(b) * 114) / 1000;
     return luminance >= 96;
+}
+
+GlyphRows glyphRows(char raw) {
+    unsigned char c = static_cast<unsigned char>(raw);
+    if (std::islower(c)) {
+        c = static_cast<unsigned char>(std::toupper(c));
+    }
+
+    switch (static_cast<char>(c)) {
+    case ' ': return { 0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000 };
+    case '!': return { 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00000, 0b00100 };
+    case '"': return { 0b01010, 0b01010, 0b01010, 0b00000, 0b00000, 0b00000, 0b00000 };
+    case '#': return { 0b01010, 0b01010, 0b11111, 0b01010, 0b11111, 0b01010, 0b01010 };
+    case '$': return { 0b00100, 0b01111, 0b10100, 0b01110, 0b00101, 0b11110, 0b00100 };
+    case '%': return { 0b11001, 0b11010, 0b00010, 0b00100, 0b01000, 0b01011, 0b10011 };
+    case '&': return { 0b01100, 0b10010, 0b10100, 0b01000, 0b10101, 0b10010, 0b01101 };
+    case '\'': return { 0b00100, 0b00100, 0b01000, 0b00000, 0b00000, 0b00000, 0b00000 };
+    case '(': return { 0b00010, 0b00100, 0b01000, 0b01000, 0b01000, 0b00100, 0b00010 };
+    case ')': return { 0b01000, 0b00100, 0b00010, 0b00010, 0b00010, 0b00100, 0b01000 };
+    case '*': return { 0b00000, 0b10101, 0b01110, 0b11111, 0b01110, 0b10101, 0b00000 };
+    case '+': return { 0b00000, 0b00100, 0b00100, 0b11111, 0b00100, 0b00100, 0b00000 };
+    case ',': return { 0b00000, 0b00000, 0b00000, 0b00000, 0b00100, 0b00100, 0b01000 };
+    case '-': return { 0b00000, 0b00000, 0b00000, 0b11111, 0b00000, 0b00000, 0b00000 };
+    case '.': return { 0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b01100, 0b01100 };
+    case '/': return { 0b00001, 0b00010, 0b00010, 0b00100, 0b01000, 0b01000, 0b10000 };
+    case '0': return { 0b01110, 0b10001, 0b10011, 0b10101, 0b11001, 0b10001, 0b01110 };
+    case '1': return { 0b00100, 0b01100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110 };
+    case '2': return { 0b01110, 0b10001, 0b00001, 0b00010, 0b00100, 0b01000, 0b11111 };
+    case '3': return { 0b11110, 0b00001, 0b00001, 0b01110, 0b00001, 0b00001, 0b11110 };
+    case '4': return { 0b00010, 0b00110, 0b01010, 0b10010, 0b11111, 0b00010, 0b00010 };
+    case '5': return { 0b11111, 0b10000, 0b10000, 0b11110, 0b00001, 0b00001, 0b11110 };
+    case '6': return { 0b00110, 0b01000, 0b10000, 0b11110, 0b10001, 0b10001, 0b01110 };
+    case '7': return { 0b11111, 0b00001, 0b00010, 0b00100, 0b01000, 0b01000, 0b01000 };
+    case '8': return { 0b01110, 0b10001, 0b10001, 0b01110, 0b10001, 0b10001, 0b01110 };
+    case '9': return { 0b01110, 0b10001, 0b10001, 0b01111, 0b00001, 0b00010, 0b01100 };
+    case ':': return { 0b00000, 0b01100, 0b01100, 0b00000, 0b01100, 0b01100, 0b00000 };
+    case ';': return { 0b00000, 0b01100, 0b01100, 0b00000, 0b00100, 0b00100, 0b01000 };
+    case '<': return { 0b00010, 0b00100, 0b01000, 0b10000, 0b01000, 0b00100, 0b00010 };
+    case '=': return { 0b00000, 0b00000, 0b11111, 0b00000, 0b11111, 0b00000, 0b00000 };
+    case '>': return { 0b01000, 0b00100, 0b00010, 0b00001, 0b00010, 0b00100, 0b01000 };
+    case '?': return { 0b01110, 0b10001, 0b00001, 0b00010, 0b00100, 0b00000, 0b00100 };
+    case '@': return { 0b01110, 0b10001, 0b10111, 0b10101, 0b10111, 0b10000, 0b01110 };
+    case 'A': return { 0b01110, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001 };
+    case 'B': return { 0b11110, 0b10001, 0b10001, 0b11110, 0b10001, 0b10001, 0b11110 };
+    case 'C': return { 0b01111, 0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b01111 };
+    case 'D': return { 0b11110, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b11110 };
+    case 'E': return { 0b11111, 0b10000, 0b10000, 0b11110, 0b10000, 0b10000, 0b11111 };
+    case 'F': return { 0b11111, 0b10000, 0b10000, 0b11110, 0b10000, 0b10000, 0b10000 };
+    case 'G': return { 0b01111, 0b10000, 0b10000, 0b10111, 0b10001, 0b10001, 0b01111 };
+    case 'H': return { 0b10001, 0b10001, 0b10001, 0b11111, 0b10001, 0b10001, 0b10001 };
+    case 'I': return { 0b01110, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b01110 };
+    case 'J': return { 0b00111, 0b00010, 0b00010, 0b00010, 0b10010, 0b10010, 0b01100 };
+    case 'K': return { 0b10001, 0b10010, 0b10100, 0b11000, 0b10100, 0b10010, 0b10001 };
+    case 'L': return { 0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b10000, 0b11111 };
+    case 'M': return { 0b10001, 0b11011, 0b10101, 0b10101, 0b10001, 0b10001, 0b10001 };
+    case 'N': return { 0b10001, 0b10001, 0b11001, 0b10101, 0b10011, 0b10001, 0b10001 };
+    case 'O': return { 0b01110, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110 };
+    case 'P': return { 0b11110, 0b10001, 0b10001, 0b11110, 0b10000, 0b10000, 0b10000 };
+    case 'Q': return { 0b01110, 0b10001, 0b10001, 0b10001, 0b10101, 0b10010, 0b01101 };
+    case 'R': return { 0b11110, 0b10001, 0b10001, 0b11110, 0b10100, 0b10010, 0b10001 };
+    case 'S': return { 0b01111, 0b10000, 0b10000, 0b01110, 0b00001, 0b00001, 0b11110 };
+    case 'T': return { 0b11111, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100 };
+    case 'U': return { 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01110 };
+    case 'V': return { 0b10001, 0b10001, 0b10001, 0b10001, 0b10001, 0b01010, 0b00100 };
+    case 'W': return { 0b10001, 0b10001, 0b10001, 0b10101, 0b10101, 0b10101, 0b01010 };
+    case 'X': return { 0b10001, 0b10001, 0b01010, 0b00100, 0b01010, 0b10001, 0b10001 };
+    case 'Y': return { 0b10001, 0b10001, 0b01010, 0b00100, 0b00100, 0b00100, 0b00100 };
+    case 'Z': return { 0b11111, 0b00001, 0b00010, 0b00100, 0b01000, 0b10000, 0b11111 };
+    case '[': return { 0b01110, 0b01000, 0b01000, 0b01000, 0b01000, 0b01000, 0b01110 };
+    case '\\': return { 0b10000, 0b01000, 0b01000, 0b00100, 0b00010, 0b00010, 0b00001 };
+    case ']': return { 0b01110, 0b00010, 0b00010, 0b00010, 0b00010, 0b00010, 0b01110 };
+    case '^': return { 0b00100, 0b01010, 0b10001, 0b00000, 0b00000, 0b00000, 0b00000 };
+    case '_': return { 0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b00000, 0b11111 };
+    case '`': return { 0b01000, 0b00100, 0b00010, 0b00000, 0b00000, 0b00000, 0b00000 };
+    case '{': return { 0b00010, 0b00100, 0b00100, 0b01000, 0b00100, 0b00100, 0b00010 };
+    case '|': return { 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100, 0b00100 };
+    case '}': return { 0b01000, 0b00100, 0b00100, 0b00010, 0b00100, 0b00100, 0b01000 };
+    case '~': return { 0b00000, 0b00000, 0b01000, 0b10101, 0b00010, 0b00000, 0b00000 };
+    default: return glyphRows('?');
+    }
+}
+
+void renderGlyph(SDL_Renderer* renderer, float x, float y, char c) {
+    const GlyphRows rows = glyphRows(c);
+    for (int row = 0; row < 7; ++row) {
+        for (int col = 0; col < 5; ++col) {
+            if ((rows[static_cast<size_t>(row)] & (1u << (4 - col))) == 0) {
+                continue;
+            }
+            fillRect(renderer, x + 1.0f + static_cast<float>(col), y + static_cast<float>(row), 1.0f, 1.0f);
+        }
+    }
+}
+
+void renderDebugTextRaw(SDL_Renderer* renderer, float x, float y, const char* text) {
+    if (!text || text[0] == '\0') {
+        return;
+    }
+    float penX = x;
+    float penY = y;
+    for (char c : std::string_view(text)) {
+        if (c == '\n') {
+            penX = x;
+            penY += 9.0f;
+            continue;
+        }
+        renderGlyph(renderer, penX, penY, c);
+        penX += 8.0f;
+    }
 }
 
 } // namespace

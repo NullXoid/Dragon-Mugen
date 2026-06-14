@@ -691,6 +691,7 @@ void updateAfterImageEffect(FighterState& fighter) {
     if (afterImage.captureCountdown <= 0) {
         afterImage.trail.push_back(AfterImageSnapshot{
             fighter.action,
+            fighter.actionClipOwnerIndex,
             fighter.animTick,
             fighter.x,
             fighter.y,

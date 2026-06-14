@@ -449,7 +449,7 @@ bool cycleSelectedTrainingCommandEntry(AppState& state, int direction, bool anno
     const int selected = (current + direction + count) % count;
     state.training.options.selectedMoveListEntry = selected;
 
-    constexpr int visibleRows = 7;
+    constexpr int visibleRows = kTrainingMoveListRows;
     const int maxScroll = std::max(0, count - visibleRows);
     if (selected < state.training.options.moveListScroll) {
         state.training.options.moveListScroll = selected;
@@ -546,7 +546,73 @@ void updateTrainingCommandPracticeProgress(
 bool trainingCommandEntryNeedsThrowRangeSetup(const CommandStateEntry& entry) {
     const std::string loweredName = lowercaseCopy(moveListEntryName(entry));
     return loweredName.find("throw") != std::string::npos
-        || loweredName.find("grab") != std::string::npos;
+        || loweredName.find("grab") != std::string::npos
+        || loweredName.find("nage") != std::string::npos;
+}
+
+std::optional<float> trainingCommandEntryPreferredP2BodyDistX(const CommandStateEntry& entry) {
+    float minDistance = 0.0f;
+    float maxDistance = 100000.0f;
+    bool hasCondition = false;
+
+    for (const auto& condition : entry.expressionConditions) {
+        if (!equalsNoCase(trim(condition.lhs), "p2bodydist x")) {
+            continue;
+        }
+        const auto rhs = parsePlainFloatValue(condition.rhs);
+        if (!rhs) {
+            continue;
+        }
+        hasCondition = true;
+        switch (condition.op) {
+        case CompareOp::Equal:
+            minDistance = std::max(minDistance, *rhs);
+            maxDistance = std::min(maxDistance, *rhs);
+            break;
+        case CompareOp::Greater:
+            minDistance = std::max(minDistance, *rhs + 1.0f);
+            break;
+        case CompareOp::GreaterEqual:
+            minDistance = std::max(minDistance, *rhs);
+            break;
+        case CompareOp::Less:
+            maxDistance = std::min(maxDistance, *rhs - 1.0f);
+            break;
+        case CompareOp::LessEqual:
+            maxDistance = std::min(maxDistance, *rhs);
+            break;
+        case CompareOp::NotEqual:
+            break;
+        }
+    }
+
+    if (!hasCondition) {
+        return std::nullopt;
+    }
+    minDistance = std::max(0.0f, minDistance);
+    maxDistance = std::max(0.0f, maxDistance);
+    if (minDistance > maxDistance) {
+        return minDistance;
+    }
+    if (maxDistance < 100000.0f) {
+        return (minDistance + maxDistance) * 0.5f;
+    }
+    return minDistance + 12.0f;
+}
+
+float trainingDemoDistanceFromP2BodyDist(AppState& state, float bodyDistance) {
+    if (state.fighters.size() < 2) {
+        return std::max(34.0f, bodyDistance);
+    }
+
+    auto& p1 = state.fighters[0];
+    auto& p2 = state.fighters[1];
+    p1.facing = 1;
+    p2.facing = -1;
+    const float pushWidth =
+        fighterPlayerWidthToward(state, p1, 1.0f)
+        + fighterPlayerWidthToward(state, p2, -1.0f);
+    return std::max(4.0f, pushWidth + bodyDistance);
 }
 
 float trainingDemoFighterDistance(AppState& state, const CommandStateEntry& entry) {
@@ -564,6 +630,9 @@ float trainingDemoFighterDistance(AppState& state, const CommandStateEntry& entr
         + fighterPlayerWidthToward(state, p2, -1.0f);
     if (trainingCommandEntryNeedsThrowRangeSetup(entry)) {
         return 8.0f;
+    }
+    if (const auto preferredBodyDist = trainingCommandEntryPreferredP2BodyDistX(entry)) {
+        return trainingDemoDistanceFromP2BodyDist(state, *preferredBodyDist);
     }
     const float extraRange = commandEntryCategory(entry) == TrainingMoveCategory::Normals ? 6.0f : 36.0f;
     return std::max(34.0f, pushWidth + extraRange);
@@ -656,6 +725,10 @@ bool trainingCommandEntryNeedsHorizontalAirVelocity(const CommandStateEntry& ent
 }
 
 int trainingCommandEntryGuardCancelState(const CommandStateEntry& entry) {
+    if (trainingCommandEntryUsesCommand(entry, "GC") && commandEntryRequiredPower(entry) >= 500) {
+        return 151;
+    }
+
     int minState = -1000000;
     int maxState = 1000000;
     bool hasStateNoGate = false;
@@ -663,17 +736,21 @@ int trainingCommandEntryGuardCancelState(const CommandStateEntry& entry) {
         if (condition.subject != CommandConditionSubject::StateNo) {
             continue;
         }
-        hasStateNoGate = true;
         if (condition.op == CompareOp::Equal) {
+            hasStateNoGate = true;
             minState = std::max(minState, condition.value);
             maxState = std::min(maxState, condition.value);
         } else if (condition.op == CompareOp::GreaterEqual) {
+            hasStateNoGate = true;
             minState = std::max(minState, condition.value);
         } else if (condition.op == CompareOp::Greater) {
+            hasStateNoGate = true;
             minState = std::max(minState, condition.value + 1);
         } else if (condition.op == CompareOp::LessEqual) {
+            hasStateNoGate = true;
             maxState = std::min(maxState, condition.value);
         } else if (condition.op == CompareOp::Less) {
+            hasStateNoGate = true;
             maxState = std::min(maxState, condition.value - 1);
         }
     }
@@ -685,6 +762,20 @@ int trainingCommandEntryGuardCancelState(const CommandStateEntry& entry) {
     }
     if (minState <= 155 && maxState >= 155) {
         return 155;
+    }
+    const auto expressionMentions = [](std::string_view expression, std::string_view needle) {
+        return lowercaseCopy(expression).find(needle) != std::string::npos;
+    };
+    const auto expressionMentionsGuardState = [&](std::string_view expression, std::string_view stateText) {
+        return expressionMentions(expression, "stateno") && expressionMentions(expression, stateText);
+    };
+    for (const auto& expression : entry.booleanExpressions) {
+        if (expressionMentionsGuardState(expression, "155")) {
+            return 155;
+        }
+        if (expressionMentionsGuardState(expression, "150") || expressionMentionsGuardState(expression, "151")) {
+            return 151;
+        }
     }
     return -1;
 }
@@ -778,6 +869,104 @@ void prepareTrainingCommandDemoAirSetup(const AppState& state, const CommandStat
     fighter.jumpBaseAction = fighter.vx == 0.0f ? 41 : (fighter.vx * static_cast<float>(fighter.facing) > 0.0f ? 42 : 43);
     fighter.jumpPeakActionApplied = true;
     setFighterAction(fighter, firstExistingActionForActor(state, fighter, { fighter.jumpBaseAction + 3, fighter.jumpBaseAction, 44, 41, 50, 0 }));
+}
+
+void prepareTrainingCommandDemoCrouchSetup(const AppState& state, FighterState& fighter) {
+    clearFighterHitRuntime(fighter);
+    enterCrouchState(state, fighter, 11);
+    fighter.ctrl = true;
+    fighter.onGround = true;
+    fighter.y = 0.0f;
+    fighter.vx = 0.0f;
+    fighter.vy = 0.0f;
+}
+
+bool commandEntryAllowsDemoStateType(const CommandStateEntry& entry, char stateType) {
+    if (entry.requiredStateType != 0 && stateType != entry.requiredStateType) {
+        return false;
+    }
+    return std::find(entry.forbiddenStateTypes.begin(), entry.forbiddenStateTypes.end(), stateType)
+        == entry.forbiddenStateTypes.end();
+}
+
+std::optional<int> commandEntryDemoStateNoPrereq(const AppState& state, const FighterState& fighter, const CommandStateEntry& entry) {
+    int minState = -1000000;
+    int maxState = 1000000;
+    bool hasStateGate = false;
+    for (const auto& condition : entry.intConditions) {
+        if (condition.subject != CommandConditionSubject::StateNo) {
+            continue;
+        }
+        if (condition.op == CompareOp::Equal) {
+            hasStateGate = true;
+            minState = std::max(minState, condition.value);
+            maxState = std::min(maxState, condition.value);
+        } else if (condition.op == CompareOp::GreaterEqual) {
+            hasStateGate = true;
+            minState = std::max(minState, condition.value);
+        } else if (condition.op == CompareOp::Greater) {
+            hasStateGate = true;
+            minState = std::max(minState, condition.value + 1);
+        } else if (condition.op == CompareOp::LessEqual) {
+            hasStateGate = true;
+            maxState = std::min(maxState, condition.value);
+        } else if (condition.op == CompareOp::Less) {
+            hasStateGate = true;
+            maxState = std::min(maxState, condition.value - 1);
+        }
+    }
+    for (const auto& condition : entry.intRangeConditions) {
+        if (condition.subject != CommandConditionSubject::StateNo || condition.op != CompareOp::Equal) {
+            continue;
+        }
+        hasStateGate = true;
+        minState = std::max(minState, condition.minValue);
+        maxState = std::min(maxState, condition.maxValue);
+    }
+    if (!hasStateGate || minState > maxState) {
+        return std::nullopt;
+    }
+
+    const auto& states = stateDefinitionsForActor(state, fighter);
+    const auto stateFits = [&entry, minState, maxState](const StateDefinition& stateDef) {
+        return stateDef.stateNo >= minState
+            && stateDef.stateNo <= maxState
+            && commandEntryAllowsDemoStateType(entry, stateDef.stateType);
+    };
+    for (const auto& stateDef : states) {
+        if (stateFits(stateDef)) {
+            return stateDef.stateNo;
+        }
+    }
+    for (const auto& stateDef : states) {
+        if (stateDef.stateNo >= minState && stateDef.stateNo <= maxState) {
+            return stateDef.stateNo;
+        }
+    }
+    return std::nullopt;
+}
+
+void prepareTrainingCommandDemoStateNoSetup(AppState& state, FighterState& fighter, int stateNo) {
+    clearFighterHitRuntime(fighter);
+    if (!enterState(state, fighter, stateNo)) {
+        return;
+    }
+    fighter.ctrl = true;
+    fighter.hitPauseTicks = 0;
+    fighter.hitStunTicks = 0;
+    fighter.hitSlideTicks = 0;
+    fighter.moveContact = true;
+    fighter.moveHit = true;
+    fighter.moveGuarded = false;
+    if (fighter.stateType == 'A') {
+        fighter.onGround = false;
+        fighter.y = -72.0f;
+        fighter.vy = 0.0f;
+    } else {
+        fighter.onGround = true;
+        fighter.y = 0.0f;
+        fighter.vy = 0.0f;
+    }
 }
 
 void prepareTrainingCommandDemoFallRecovery(AppState& state, FighterState& fighter) {
@@ -914,8 +1103,12 @@ void beginTrainingCommandDemo(AppState& state) {
         prepareTrainingCommandDemoFallRecovery(state, p2);
     } else if (const int guardCancelState = trainingCommandEntryGuardCancelState(*entry); guardCancelState >= 0) {
         prepareTrainingCommandDemoGuardCancelSetup(state, p2, guardCancelState);
+    } else if (const auto stateNo = commandEntryDemoStateNoPrereq(state, p2, *entry)) {
+        prepareTrainingCommandDemoStateNoSetup(state, p2, *stateNo);
     } else if (trainingCommandEntryNeedsAirSetup(*entry)) {
         prepareTrainingCommandDemoAirSetup(state, *entry, p2);
+    } else if (entry->requiredStateType == 'C') {
+        prepareTrainingCommandDemoCrouchSetup(state, p2);
     }
     p2.power = std::max(p2.power, commandEntryRequiredPower(*entry));
     state.messages.lastHitText = "Demo: " + moveListEntryName(*entry);
@@ -977,6 +1170,9 @@ FighterInputState nextTrainingCommandDemoInput(AppState& state, FighterState& de
         mergeTrainingDemoInput(input, trainingDemoInputForEntry(*entry, demoFighter.facing));
     } else {
         input = trainingDemoInputForEntry(*entry, demoFighter.facing);
+    }
+    if (entry->requiredStateType == 'C') {
+        input.down = true;
     }
 
     ++demo.stepTicks;

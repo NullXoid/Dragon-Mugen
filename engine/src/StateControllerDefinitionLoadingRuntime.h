@@ -53,6 +53,7 @@
             changeAnim.triggerAnimElem = triggerAnimElem;
             changeAnim.value = parseIntValue(value->value, state.anim);
             changeAnim.valueExpression = trim(value->value);
+            changeAnim.useCustomStateOwnerAnimation = startsWithNoCase(controllerType, "ChangeAnim2");
             if (const auto* elem = findProperty(section, "elem")) {
                 changeAnim.elem = parseIntValue(elem->value, 1);
                 changeAnim.elemExpression = trim(elem->value);

@@ -1,4 +1,5 @@
 #include "dragon/App.h"
+#include "dragon/Compatibility.h"
 #include "dragon/FightData.h"
 #include "dragon/MugenData.h"
 #include "dragon/MugenText.h"
@@ -164,6 +165,7 @@ struct ActiveTransEffect {
 
 struct AfterImageSnapshot {
     int action = 0;
+    int actionClipOwnerIndex = -1;
     int animTick = 0;
     float x = 0.0f;
     float y = 0.0f;
@@ -504,6 +506,7 @@ struct StateChangeAnimController {
     int elem = 1;
     std::string valueExpression;
     std::string elemExpression;
+    bool useCustomStateOwnerAnimation = false;
     bool requiresMoveContact = false;
     std::vector<AnimElemTimeCondition> animElemTimeConditions;
 };
@@ -1285,6 +1288,7 @@ struct ParsedSoundValue {
 };
 
 struct ArenaCharacterRuntime {
+    CompatibilityContext compatibility;
     CharacterConstants constants;
     std::vector<HitDefinition> hitDefs;
     std::vector<StateDefinition> stateDefs;
@@ -1413,6 +1417,7 @@ struct FighterState {
     bool posFreezeY = false;
     bool customHitState = false;
     int customStateOwnerIndex = -1;
+    int actionClipOwnerIndex = -1;
     int prevStateNo = 0;
     int sprPriority = 0;
     int rootBindTicks = 0;
@@ -1536,6 +1541,8 @@ struct AppState {
     std::vector<FighterState> helpers;
     std::vector<RuntimeProjectile> projectiles;
     ArenaConfig arenaConfig;
+    DragonRuntimeMode runtimeMode = DragonRuntimeMode::Dragon;
+    CompatibilityContext characterCompatibility;
     CharacterConstants characterConstants;
     std::vector<HitDefinition> hitDefs;
     std::vector<StateDefinition> stateDefs;
@@ -1557,6 +1564,8 @@ struct AppState {
     int stageBackgroundStageIndex = -1;
     AudioState audio;
     std::vector<GamepadDevice> gamepads;
+    int trainingShowSelectHoldTicks = 0;
+    bool trainingShowSelectHoldFired = false;
 };
 
 int logicalWidth(const AppState& state) {
@@ -3506,8 +3515,16 @@ int actorClipOwnerIndex(const AppState& state, const FighterState& fighter) {
     return 0;
 }
 
+int actorAnimationClipOwnerIndex(const AppState& state, const FighterState& fighter) {
+    if (fighter.actionClipOwnerIndex >= 0
+        && fighter.actionClipOwnerIndex < static_cast<int>(state.fighters.size())) {
+        return fighter.actionClipOwnerIndex;
+    }
+    return actorClipOwnerIndex(state, fighter);
+}
+
 const AnimationClip* findClipForActor(const AppState& state, const FighterState& fighter, int action) {
-    const int ownerIndex = actorClipOwnerIndex(state, fighter);
+    const int ownerIndex = actorAnimationClipOwnerIndex(state, fighter);
     if (ownerIndex >= 0) {
         return findClipForFighter(state, static_cast<size_t>(ownerIndex), action);
     }
@@ -3515,7 +3532,7 @@ const AnimationClip* findClipForActor(const AppState& state, const FighterState&
 }
 
 const AnimationClip* findExactClipForActor(const AppState& state, const FighterState& fighter, int action) {
-    const int ownerIndex = actorClipOwnerIndex(state, fighter);
+    const int ownerIndex = actorAnimationClipOwnerIndex(state, fighter);
     if (ownerIndex >= 0) {
         return findExactClipForFighter(state, static_cast<size_t>(ownerIndex), action);
     }
@@ -3538,6 +3555,45 @@ int firstExistingAction(const AppState& state, std::initializer_list<int> action
         }
     }
     return 0;
+}
+
+const CompatibilityContext& compatibilityContextForActor(const AppState& state, const FighterState& fighter) {
+    const int ownerIndex = actorClipOwnerIndex(state, fighter);
+    if (ownerIndex == 0) {
+        return state.characterCompatibility;
+    }
+    if (state.frontend.pendingMode == PendingMode::Arena && ownerIndex > 0) {
+        const int arenaIndex = ownerIndex - 1;
+        if (arenaIndex >= 0 && arenaIndex < static_cast<int>(state.arenaRuntimes.size())) {
+            return state.arenaRuntimes[static_cast<size_t>(arenaIndex)].compatibility;
+        }
+    }
+    if (ownerIndex == 1) {
+        return state.opponentRuntime.compatibility;
+    }
+    return state.characterCompatibility;
+}
+
+int resolveStateDefinitionAnimAction(const AppState& state, const FighterState& fighter, int requestedAction) {
+    if (findExactClipForActor(state, fighter, requestedAction)) {
+        return requestedAction;
+    }
+    if (!usesMugenSemantics(compatibilityContextForActor(state, fighter))) {
+        return -1;
+    }
+
+    const int decadeBase = (requestedAction / 10) * 10;
+    for (int action = requestedAction - 1; action >= decadeBase; --action) {
+        if (findExactClipForActor(state, fighter, action)) {
+            return action;
+        }
+    }
+    for (int action = requestedAction + 1; action < decadeBase + 10; ++action) {
+        if (findExactClipForActor(state, fighter, action)) {
+            return action;
+        }
+    }
+    return -1;
 }
 
 const AnimationClip* findFightFxClip(const AppState& state, int action) {
@@ -3754,15 +3810,29 @@ void setFighterAction(FighterState& fighter, int action) {
         fighter.animTick = 0;
         fighter.appliedHitDefIds.clear();
     }
+    fighter.actionClipOwnerIndex = -1;
+}
+
+const AnimationClip* findExactClipForActorWithOwner(const AppState& state, const FighterState& fighter, int action, int ownerIndex) {
+    if (ownerIndex >= 0 && ownerIndex < static_cast<int>(state.fighters.size())) {
+        return findExactClipForFighter(state, static_cast<size_t>(ownerIndex), action);
+    }
+    return findExactClipForActor(state, fighter, action);
+}
+
+bool setFighterActionElementWithOwner(const AppState& state, FighterState& fighter, int action, int elem, int ownerIndex) {
+    const AnimationClip* clip = findExactClipForActorWithOwner(state, fighter, action, ownerIndex);
+    if (!clip) {
+        return false;
+    }
+    fighter.action = action;
+    fighter.actionClipOwnerIndex = ownerIndex >= 0 ? ownerIndex : -1;
+    fighter.animTick = animElemStartTickForClip(*clip, elem);
+    return true;
 }
 
 void setFighterActionElement(const AppState& state, FighterState& fighter, int action, int elem) {
-    const AnimationClip* clip = findExactClipForActor(state, fighter, action);
-    if (!clip) {
-        return;
-    }
-    fighter.action = action;
-    fighter.animTick = animElemStartTickForClip(*clip, elem);
+    setFighterActionElementWithOwner(state, fighter, action, elem, -1);
 }
 
 void clearStateRuntimeControllerTracking(FighterState& fighter) {
@@ -3796,6 +3866,7 @@ void tickStateRuntimeControllerTracking(FighterState& fighter) {
 }
 
 int chooseMovementAction(const AppState& state, const FighterState& fighter);
+const AnimationFrame* currentFrameForFighter(const AppState& state, const FighterState& fighter);
 int currentAnimElemForFighter(const AppState& state, const FighterState& fighter);
 int animElemTimeForFighter(const AppState& state, const FighterState& fighter, int elem);
 bool shouldPlayFightSounds(const AppState& state);
@@ -3816,6 +3887,7 @@ bool enterState(const AppState& state, FighterState& fighter, int stateNo) {
         fighter.angleDrawActive = false;
         fighter.displayOffsetX = 0.0f;
         fighter.displayOffsetY = 0.0f;
+        fighter.actionClipOwnerIndex = -1;
         fighter.moveContact = false;
         fighter.moveHit = false;
         fighter.moveGuarded = false;
@@ -3831,7 +3903,10 @@ bool enterState(const AppState& state, FighterState& fighter, int stateNo) {
     }
 
     const StateDefinition* stateDef = findStateDefinitionForActor(state, fighter, stateNo);
-    if (!stateDef || (stateDef->hasAnim && !findExactClipForActor(state, fighter, stateDef->anim))) {
+    const int resolvedStateAnim = stateDef && stateDef->hasAnim
+        ? resolveStateDefinitionAnimAction(state, fighter, stateDef->anim)
+        : -1;
+    if (!stateDef || (stateDef->hasAnim && resolvedStateAnim < 0)) {
         return false;
     }
 
@@ -3845,6 +3920,7 @@ bool enterState(const AppState& state, FighterState& fighter, int stateNo) {
     fighter.angleDrawActive = false;
     fighter.displayOffsetX = 0.0f;
     fighter.displayOffsetY = 0.0f;
+    fighter.actionClipOwnerIndex = -1;
     fighter.moveContact = false;
     fighter.moveHit = false;
     fighter.moveGuarded = false;
@@ -3861,7 +3937,7 @@ bool enterState(const AppState& state, FighterState& fighter, int stateNo) {
         fighter.vy = stateDef->velsetY;
     }
     if (stateDef->hasAnim) {
-        setFighterAction(fighter, stateDef->anim);
+        setFighterAction(fighter, resolvedStateAnim);
     }
     applyStateDefinitionPowerAdd(state, fighter, *stateDef);
     return true;
@@ -4591,6 +4667,7 @@ void clearFighterHitRuntime(FighterState& fighter) {
     fighter.hitByValue.clear();
     fighter.customHitState = false;
     fighter.customStateOwnerIndex = -1;
+    fighter.actionClipOwnerIndex = -1;
     fighter.targetIndex = -1;
     fighter.targetHitId = -1;
     fighter.targetTicks = 0;
@@ -5033,7 +5110,55 @@ void updateStateChangeAnimControllers(
                 elem = static_cast<int>(std::lround(*value));
             }
         }
-        setFighterActionElement(state, fighter, action, elem);
+        const int selfOwnerIndex = fighter.helper ? fighter.ownerIndex : fighterIndexInState(state, fighter);
+        const int customOwnerIndex = fighter.customStateOwnerIndex >= 0
+            && fighter.customStateOwnerIndex < static_cast<int>(state.fighters.size())
+            ? fighter.customStateOwnerIndex
+            : selfOwnerIndex;
+        const int actionOwnerIndex = changeAnim.useCustomStateOwnerAnimation ? customOwnerIndex : selfOwnerIndex;
+        if (setFighterActionElementWithOwner(state, fighter, action, elem, actionOwnerIndex)) {
+            continue;
+        }
+
+        if (!changeAnim.useCustomStateOwnerAnimation || selfOwnerIndex < 0) {
+            continue;
+        }
+
+        std::array<int, 4> customThrowFallbacks{ 0, 0, 0, 0 };
+        if (action == 950) {
+            customThrowFallbacks = { 850, 840, 0, 0 };
+        } else if (action == 960) {
+            customThrowFallbacks = { 840, 850, 0, 0 };
+        } else if (action >= 900 && action < 1000) {
+            customThrowFallbacks = { action - 100, action - 110, 850, 840 };
+        }
+        if (customOwnerIndex >= 0) {
+            bool usedCustomThrowFallback = false;
+            for (const int fallbackAction : customThrowFallbacks) {
+                if (fallbackAction <= 0) {
+                    continue;
+                }
+                if (setFighterActionElementWithOwner(state, fighter, fallbackAction, 1, customOwnerIndex)) {
+                    usedCustomThrowFallback = true;
+                    break;
+                }
+            }
+            if (usedCustomThrowFallback) {
+                continue;
+            }
+        }
+
+        const std::array<int, 6> airFallbacks{ 5030, 5050, 5060, 5070, 5100, 5000 };
+        const std::array<int, 6> groundFallbacks{ 5000, 5010, 5020, 5030, 5050, 0 };
+        const auto& fallbacks = (fighter.stateType == 'A' || !fighter.onGround) ? airFallbacks : groundFallbacks;
+        for (const int fallbackAction : fallbacks) {
+            if (fallbackAction == 0) {
+                break;
+            }
+            if (setFighterActionElementWithOwner(state, fighter, fallbackAction, 1, selfOwnerIndex)) {
+                break;
+            }
+        }
     }
         return true;
     });
@@ -5893,6 +6018,59 @@ float clampFighterOriginToStage(float x, const StageSlot& stage) {
     return std::clamp(x, stage.leftbound, stage.rightbound);
 }
 
+struct FighterVisualScreenBounds {
+    float left = 0.0f;
+    float right = 0.0f;
+    bool valid = false;
+};
+
+FighterVisualScreenBounds fighterVisualScreenBounds(const AppState& state, const StageSlot& stage, const FighterState& fighter) {
+    const AnimationFrame* frame = currentFrameForFighter(state, fighter);
+    if (!frame || !frame->sprite.texture || frame->sprite.width <= 0) {
+        return {};
+    }
+
+    const ArenaProjectedPoint projected = projectArenaWorldPoint(state, stage, fighter.x, fighter.y, fighter.depthZ);
+    const float displayOriginX = projected.screenX + fighter.displayOffsetX * static_cast<float>(fighter.facing);
+    const bool facingLeft = fighter.facing < 0;
+    const float drawLeft = facingLeft
+        ? displayOriginX
+            - static_cast<float>(frame->offsetX) * fighter.scaleX
+            - static_cast<float>(frame->sprite.width - frame->sprite.axisX) * fighter.scaleX
+        : displayOriginX
+            + static_cast<float>(frame->offsetX) * fighter.scaleX
+            - static_cast<float>(frame->sprite.axisX) * fighter.scaleX;
+    const float drawRight = drawLeft + static_cast<float>(frame->sprite.width) * fighter.scaleX;
+    return FighterVisualScreenBounds{
+        std::min(drawLeft, drawRight),
+        std::max(drawLeft, drawRight),
+        true,
+    };
+}
+
+FighterVisualScreenBounds fighterVisualOriginExtents(const AppState& state, const FighterState& fighter) {
+    const AnimationFrame* frame = currentFrameForFighter(state, fighter);
+    if (!frame || !frame->sprite.texture || frame->sprite.width <= 0) {
+        return {};
+    }
+
+    const float displayOffsetX = fighter.displayOffsetX * static_cast<float>(fighter.facing);
+    const bool facingLeft = fighter.facing < 0;
+    const float left = facingLeft
+        ? displayOffsetX
+            - static_cast<float>(frame->offsetX) * fighter.scaleX
+            - static_cast<float>(frame->sprite.width - frame->sprite.axisX) * fighter.scaleX
+        : displayOffsetX
+            + static_cast<float>(frame->offsetX) * fighter.scaleX
+            - static_cast<float>(frame->sprite.axisX) * fighter.scaleX;
+    const float right = left + static_cast<float>(frame->sprite.width) * fighter.scaleX;
+    return FighterVisualScreenBounds{
+        std::min(left, right),
+        std::max(left, right),
+        true,
+    };
+}
+
 void applyScreenBounds(AppState& state, const StageSlot& stage) {
     const float halfWidth = logicalWidthF(state) * 0.5f;
     const float visibleLeft = state.cameraX - halfWidth;
@@ -5905,8 +6083,18 @@ void applyScreenBounds(AppState& state, const StageSlot& stage) {
 
         const float widthLeft = fighterEdgeWidthToward(state, fighter, -1.0f);
         const float widthRight = fighterEdgeWidthToward(state, fighter, 1.0f);
-        const float minX = std::max(stage.leftbound, visibleLeft + widthLeft - stage.screenleft);
-        const float maxX = std::min(stage.rightbound, visibleRight - widthRight + stage.screenright);
+        float minX = std::max(stage.leftbound, visibleLeft + widthLeft - stage.screenleft);
+        float maxX = std::min(stage.rightbound, visibleRight - widthRight + stage.screenright);
+
+        const FighterVisualScreenBounds visual = fighterVisualOriginExtents(state, fighter);
+        if (visual.valid) {
+            const float visualMinX = visibleLeft - visual.left;
+            const float visualMaxX = visibleRight - visual.right;
+            if (visualMinX <= visualMaxX) {
+                minX = std::max(minX, visualMinX);
+                maxX = std::min(maxX, visualMaxX);
+            }
+        }
         if (minX > maxX) {
             continue;
         }
@@ -5988,7 +6176,11 @@ void updateFighterPhysics(const AppState& state, FighterState& fighter, const St
         fighter.depthZ = 0.0f;
         fighter.depthVz = 0.0f;
     }
-    if (fighter.physics != 'N' && fighter.y >= 0.0f) {
+    const bool authoredAirStateHandlesFloor =
+        fighter.stateType == 'A'
+        && fighter.physics != 'A'
+        && fighter.moveType != 'H';
+    if (fighter.physics != 'N' && fighter.y >= 0.0f && !authoredAirStateHandlesFloor) {
         const bool shouldUseCommonLanding =
             !fighter.helper
             && fighter.stateType == 'A'
@@ -8201,8 +8393,15 @@ bool isCommonDizzyAction(int action) {
     return action == 5300 || action == 5301;
 }
 
+bool isCommonDizzyStateNo(int stateNo) {
+    return stateNo == 2500 || stateNo == 5300 || stateNo == 5301;
+}
+
 void updateCommonDizzyState(const AppState& state, FighterState& fighter) {
-    if (!isCommonDizzyAction(fighter.action)) {
+    if (!isCommonDizzyStateNo(fighter.stateNo)
+        || !isCommonDizzyAction(fighter.action)
+        || fighter.customHitState
+        || fighter.moveType == 'H') {
         return;
     }
 
@@ -9820,6 +10019,25 @@ bool commandEntryMatchesMoveCategory(const CommandStateEntry& entry, TrainingMov
 
 std::vector<const CommandStateEntry*> displayableMoveListEntries(const AppState& state) {
     std::vector<const CommandStateEntry*> entries;
+    const auto sameDisplayMove = [](const CommandStateEntry& lhs, const CommandStateEntry& rhs) {
+        return lhs.label == rhs.label
+            && lhs.targetStateExpression == rhs.targetStateExpression
+            && lhs.requiredCommands == rhs.requiredCommands
+            && lhs.commandOptionGroups == rhs.commandOptionGroups;
+    };
+    const auto displayPriority = [](const CommandStateEntry& entry) {
+        int priority = 0;
+        if (entry.requiresMoveContact) {
+            priority += 8;
+        }
+        if (commandEntryHasSelfStateNoGate(entry)) {
+            priority += 4;
+        }
+        if (!entry.requiresCtrl) {
+            priority += 1;
+        }
+        return priority;
+    };
     for (const auto& entry : state.commandEntries) {
         if (entry.requiredCommands.empty() && entry.commandOptionGroups.empty()) {
             continue;
@@ -9832,6 +10050,15 @@ std::vector<const CommandStateEntry*> displayableMoveListEntries(const AppState&
             if (!stateDef || (stateDef->hasAnim && !findExactClip(state, stateDef->anim))) {
                 continue;
             }
+        }
+        const auto duplicate = std::find_if(entries.begin(), entries.end(), [&entry, &sameDisplayMove](const CommandStateEntry* existing) {
+            return existing && sameDisplayMove(*existing, entry);
+        });
+        if (duplicate != entries.end()) {
+            if (displayPriority(entry) < displayPriority(**duplicate)) {
+                *duplicate = &entry;
+            }
+            continue;
         }
         entries.push_back(&entry);
     }
@@ -10067,7 +10294,7 @@ TrainingOptionsMenuView trainingOptionsMenuView(const AppState& state, std::vect
 
 TrainingMoveListView trainingMoveListView(const AppState& state, std::vector<TrainingMoveRowView>& rows) {
     rows.clear();
-    constexpr int visibleRows = 7;
+    constexpr int visibleRows = kTrainingMoveListRows;
 
     const auto entries = displayableMoveListEntries(state);
     const int maxScroll = std::max(0, static_cast<int>(entries.size()) - visibleRows);
@@ -10085,7 +10312,8 @@ TrainingMoveListView trainingMoveListView(const AppState& state, std::vector<Tra
         const auto& entry = *entries[static_cast<size_t>(index)];
         rows.push_back(TrainingMoveRowView{
             (index + 1 < 10 ? "0" : "") + std::to_string(index + 1),
-            fitDebugText(moveListEntryName(entry), 19),
+            moveListEntryName(entry),
+            moveListInputText(entry),
             index == selected,
         });
     }
@@ -10367,7 +10595,7 @@ void drawMatchResultScreen(SDL_Renderer* renderer, const AppState& state) {
     drawMatchResultScreen(uiRenderContext(renderer, state), matchResultScreenView(state));
 }
 
-void drawFightView(SDL_Renderer* renderer, const AppState& state) {
+void drawFightViewFrame(SDL_Renderer* renderer, const AppState& state, bool present) {
     setColor(renderer, 10, 12, 16);
     SDL_RenderClear(renderer);
 
@@ -10468,7 +10696,13 @@ void drawFightView(SDL_Renderer* renderer, const AppState& state) {
     }
 
     drawFightFreezeWatchOverlay(renderer, state);
-    SDL_RenderPresent(renderer);
+    if (present) {
+        SDL_RenderPresent(renderer);
+    }
+}
+
+void drawFightView(SDL_Renderer* renderer, const AppState& state) {
+    drawFightViewFrame(renderer, state, true);
 }
 
 #include "FrontendFlow.h"
@@ -10507,9 +10741,55 @@ void pumpEvents(SDL_Renderer* renderer, AppState& state) {
     }
 }
 
+bool trainingShowSelectHoldContext(const AppState& state) {
+    return state.frontend.screen == Screen::FightView
+        && state.frontend.pendingMode == PendingMode::Training
+        && !state.training.options.menuOpen
+        && state.training.options.showCommandHud
+        && !trainingCommandDemoActive(state);
+}
+
+bool p1GamepadSelectHeld(const AppState& state) {
+    const GamepadDevice* gamepad = assignedGamepad(state, 0);
+    return gamepad
+        && gamepad->handle
+        && SDL_GetGamepadButton(gamepad->handle, SDL_GAMEPAD_BUTTON_BACK);
+}
+
+void updateTrainingShowSelectHold(AppState& state, bool selectHeld) {
+    constexpr int kShowCommandSelectHoldFrames = 120;
+    if (!trainingShowSelectHoldContext(state)) {
+        state.trainingShowSelectHoldTicks = 0;
+        state.trainingShowSelectHoldFired = false;
+        return;
+    }
+
+    if (selectHeld) {
+        if (!state.trainingShowSelectHoldFired) {
+            ++state.trainingShowSelectHoldTicks;
+            if (state.trainingShowSelectHoldTicks >= kShowCommandSelectHoldFrames) {
+                beginTrainingCommandDemo(state);
+                state.trainingShowSelectHoldFired = true;
+            }
+        }
+        return;
+    }
+
+    if (state.trainingShowSelectHoldTicks > 0 && !state.trainingShowSelectHoldFired) {
+        cycleSelectedTrainingCommandEntry(state, 1);
+    }
+    state.trainingShowSelectHoldTicks = 0;
+    state.trainingShowSelectHoldFired = false;
+}
+
+void updateTrainingShowSelectHold(AppState& state) {
+    updateTrainingShowSelectHold(state, p1GamepadSelectHeld(state));
+}
+
 void fixedUpdate(AppState& state) {
     ++state.frame;
     ++state.frontend.screenFrame;
+    updateTrainingShowSelectHold(state);
     if (state.frontend.screen == Screen::VersusScreen && state.fightSessionPrepared && state.frontend.screenFrame > 120) {
         beginFight(state);
     }

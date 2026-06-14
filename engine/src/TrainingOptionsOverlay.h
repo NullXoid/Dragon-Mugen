@@ -16,6 +16,7 @@ struct TrainingOptionRowView {
 struct TrainingMoveRowView {
     std::string number;
     std::string label;
+    std::string input;
     bool selected = false;
 };
 
@@ -51,5 +52,6 @@ struct TrainingOptionsMenuGeometryReport {
 void drawTrainingOptionsMenu(const UiRenderContext& ui, const TrainingOptionsMenuView& view);
 void drawTrainingMoveListPage(const UiRenderContext& ui, const TrainingMoveListView& view);
 TrainingOptionsMenuGeometryReport verifyTrainingOptionsMenuGeometry(const TrainingOptionsMenuView& view);
+TrainingOptionsMenuGeometryReport verifyTrainingMoveListGeometry(const TrainingMoveListView& view);
 
 } // namespace dragon

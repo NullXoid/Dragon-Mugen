@@ -14,6 +14,7 @@ inline constexpr int kLogicalHeight = 240;
 inline constexpr int kLogicalWidth = kDefaultLogicalWidth;
 inline constexpr int kTrainingOptionCount = 20;
 inline constexpr int kTrainingOptionRows = 10;
+inline constexpr int kTrainingMoveListRows = 10;
 inline constexpr int kTrainingP2ControlOption = 13;
 inline constexpr int kTrainingCommandHudOption = 14;
 inline constexpr int kTrainingInputHudOption = 15;

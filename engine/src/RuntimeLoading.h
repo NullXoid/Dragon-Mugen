@@ -229,6 +229,18 @@ void selectPreferredStage(AppState& state) {
     }
 }
 
+CompatibilityContext makeLoadedCompatibilityContext(const AppState& state, const CharacterSlot& character) {
+    const StageSlot* stage = selectedStageSlot(state.selection);
+    return makeCompatibilityContext(
+        state.runtimeMode,
+        character.compatibilityProfile,
+        character.localCoord,
+        hasGameDragonSidecar(state.gameRoot),
+        character.dragonSidecarAvailable,
+        stage ? stage->dragonSidecarAvailable : false,
+        stage ? stage->legacyOpenBorSection : false);
+}
+
 bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
     const int p1Index = sessionP1CharacterIndex(state.selection);
     const CharacterSlot* character = characterSlotAt(state.selection, p1Index);
@@ -248,10 +260,12 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
     std::vector<CommandDefinition> commandDefinitions;
     std::vector<DecodedSoundSample> characterSamples;
     std::vector<std::string> victoryQuotes;
+    CompatibilityContext compatibility;
     CharacterConstants constants;
 
     try {
         const CharacterFiles files = resolveCharacterFiles(state.gameRoot, *character);
+        compatibility = makeLoadedCompatibilityContext(state, *character);
         constants = loadCharacterConstants(files);
         stateDefs = loadStateDefinitions(files, constants);
         hitDefs = loadHitDefinitions(files);
@@ -267,6 +281,7 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
             if (const CharacterSlot* opponent = characterSlotAt(state.selection, state.selection.sessionSlots.opponentCharacter)) {
                 const CharacterFiles opponentFiles = resolveCharacterFiles(state.gameRoot, *opponent);
                 opponentRuntime.name = opponent->displayName;
+                opponentRuntime.compatibility = makeLoadedCompatibilityContext(state, *opponent);
                 opponentRuntime.constants = loadCharacterConstants(opponentFiles);
                 opponentRuntime.stateDefs = loadStateDefinitions(opponentFiles, opponentRuntime.constants);
                 opponentRuntime.hitDefs = loadHitDefinitions(opponentFiles);
@@ -292,6 +307,7 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
                 const CharacterFiles arenaFiles = resolveCharacterFiles(state.gameRoot, *arenaCharacter);
                 auto& runtime = arenaRuntimes[static_cast<size_t>(i)];
                 runtime.name = arenaCharacter->displayName;
+                runtime.compatibility = makeLoadedCompatibilityContext(state, *arenaCharacter);
                 runtime.constants = loadCharacterConstants(arenaFiles);
                 runtime.stateDefs = loadStateDefinitions(arenaFiles, runtime.constants);
                 runtime.hitDefs = loadHitDefinitions(arenaFiles);
@@ -325,6 +341,7 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
         state.commandDefinitions = std::move(commandDefinitions);
         state.victoryQuotes = std::move(victoryQuotes);
         state.characterConstants = constants;
+        state.characterCompatibility = compatibility;
         state.audio.activeVoices.clear();
         if (state.audio.stream) {
             SDL_ClearAudioStream(state.audio.stream);
@@ -401,6 +418,7 @@ void unloadCharacterRuntime(AppState& state) {
     state.commandEntries.clear();
     state.commandDefinitions.clear();
     state.victoryQuotes.clear();
+    state.characterCompatibility = CompatibilityContext{};
     state.characterConstants = CharacterConstants{};
     state.audio.activeVoices.clear();
     if (state.audio.stream) {

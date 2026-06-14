@@ -1,5 +1,6 @@
 # Build output
 /build/
+/build-*/
 /out/
 /dist/
 /CMakeFiles/
@@ -41,6 +42,7 @@ CMakeUserPresets.json
 !/game/save/README.md
 
 # Logs and temporary files
+/work/
 *.log
 *.tmp
 *.bak

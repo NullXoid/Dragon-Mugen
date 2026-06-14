@@ -74,6 +74,24 @@ Rules:
 - Prefix extension sections with `Dragon` when practical, for example `[Dragon.Training]` or `[Dragon.StagePreview]`.
 - Every new extension must document: file, section, keys, default behavior, whether it is current or planned, and whether it affects M.U.G.E.N compatibility.
 
+## Compatibility Facade Contract
+
+Dragon is the default runtime shell, but loaded character and stage behavior must pass through the compatibility facade before new engine-only behavior is applied.
+
+Current facade metadata:
+
+- `CompatibilityProfile`: `Mugen2001`, `Mugen10`, `Mugen11`, or `Dragon`.
+- `DragonRuntimeMode`: `Dragon` or `ClassicMugen`; the app currently defaults to `Dragon`.
+- `localcoord`: parsed from character DEF `[Info] localcoord`, defaulting to `320,240`.
+- Sidecar availability: `game/data/dragon.def`, character `.dragon.def`, and stage `.dragon.def`.
+- Legacy Arena stage extension bridge: existing `[OpenBOR]` and `[DragonOpenBOR]` stage sections remain accepted, but are treated as Dragon extension metadata.
+
+Migration rule:
+
+- New behavior fixes for throws, helpers, hit/fall, stun, screen bounds, jump leniency, power charge helpers, Arena depth, and command training must route compatibility-sensitive decisions through the facade.
+- Do not hardcode new mode checks when a facade helper can represent the policy.
+- Do not edit character or stage M.U.G.E.N files to make Dragon-specific behavior work.
+
 ## Editing Stage Backgrounds
 
 Stage background images are not a Dragon extension. They are normal M.U.G.E.N stage content.

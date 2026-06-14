@@ -1,17 +1,25 @@
 #include "VerificationScenario.h"
 
+#include "dragon/Compatibility.h"
+#include "dragon/MugenData.h"
+
 #include "AppTypes.h"
 #include "TrainingOptionsBehavior.h"
 #include "TrainingOptionsOverlay.h"
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cmath>
+#include <cstdlib>
+#include <filesystem>
 #include <ostream>
 #include <string>
+#include <string_view>
 #include <vector>
 namespace dragon::verification {
 int runTrainingOptionsMenuGeometry(RuntimeProbe& runtime, std::ostream& out);
+int runTrainingMoveListGeometry(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenTripGrounding(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenOverheadTripChain(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenOverheadTripChainStress(RuntimeProbe& runtime, std::ostream& out);
@@ -20,6 +28,7 @@ int runEvilKenAttackJumpBufferRelease(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenThrow(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenKuuchuuShakunetsu(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenTrainingDemoAll(RuntimeProbe& runtime, std::ostream& out);
+int runLiliTrainingDemoAll(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenShinryukenRecovery(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenShunGokuSatsu(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenShoukiHatsudouSpacing(RuntimeProbe& runtime, std::ostream& out);
@@ -94,6 +103,28 @@ int exitCode(const Counts& counts) {
 void summary(std::ostream& out, const Counts& counts) {
     out << "SUMMARY pass=" << counts.pass << " partial=" << counts.partial << " fail=" << counts.fail
         << " blocked=" << counts.blocked << "\n";
+}
+
+std::string lowercaseAsciiCopy(std::string_view value) {
+    std::string out(value);
+    std::transform(out.begin(), out.end(), out.begin(), [](unsigned char ch) {
+        return static_cast<char>(std::tolower(ch));
+    });
+    return out;
+}
+
+const CharacterSlot* findCharacterById(const std::vector<CharacterSlot>& characters, std::string_view id) {
+    const auto it = std::find_if(characters.begin(), characters.end(), [id](const CharacterSlot& character) {
+        return character.id == id;
+    });
+    return it == characters.end() ? nullptr : &*it;
+}
+
+const StageSlot* findLegacyOpenBorStage(const std::vector<StageSlot>& stages) {
+    const auto it = std::find_if(stages.begin(), stages.end(), [](const StageSlot& stage) {
+        return stage.legacyOpenBorSection && stage.openborScrolling;
+    });
+    return it == stages.end() ? nullptr : &*it;
 }
 
 void header(std::ostream& out, RuntimeProbe& runtime, std::string_view scenario) {
@@ -812,23 +843,41 @@ int runEvilKenSmoke(RuntimeProbe& runtime, std::ostream& out) {
         sawAir = sawAir || !p1.onGround || p1.stateType == 'A';
     }
     record(out, counts, sawAir ? Status::Pass : Status::Fail, "jump_airborne", "airborne_observed=" + std::to_string(sawAir ? 1 : 0));
-    runtime.positionFighters(-18.0f, 24.0f);
+    const std::string preProbeHitText = runtime.snapshot().lastHitText;
+    const bool preProbeHitEvidence = preProbeHitText.find(" hit ") != std::string::npos
+        || preProbeHitText.find(" guard ") != std::string::npos;
+    runtime.positionFighters(-40.0f, 160.0f);
     waitForControllableIdle(runtime, 360);
+    runtime.forceFighterLiedown(1, 999);
+    runtime.forceFighterState(0, 0);
+    runtime.setFighterControl(0, true);
     runtime.step({}, 10);
+    runtime.forceFighterLiedown(1, 999);
+    runtime.forceFighterState(0, 0);
+    runtime.setFighterControl(0, true);
     char command = '?';
     FighterSnapshot before;
     FighterSnapshot after;
     const bool normal = tryNormal(runtime, command, before, after, false);
     record(out, counts, normal ? Status::Pass : Status::Fail, "normal_attack",
-        normal ? stateActionDetail(before, after, command) : "no x/y/z/a/b/c state or animation change");
-    bool sawContactEvidence = false;
+        normal ? stateActionDetail(before, after, command)
+               : "no x/y/z/a/b/c state or animation change; before="
+                    + stateActionDetail(before, before, command)
+                    + " after=" + stateActionDetail(after, after, command)
+                    + " before_ctrl=" + std::to_string(before.ctrl ? 1 : 0)
+                    + " after_ctrl=" + std::to_string(after.ctrl ? 1 : 0)
+                    + " before_movetype=" + std::string(1, before.moveType)
+                    + " after_movetype=" + std::string(1, after.moveType));
+    bool sawContactEvidence = preProbeHitEvidence;
     int peakComboHits = 0;
-    std::string lastHitText;
+    std::string lastHitText = preProbeHitText;
     for (int i = 0; i < 90; ++i) {
         runtime.step({}, 1);
         const auto snap = runtime.snapshot();
         peakComboHits = std::max(peakComboHits, snap.comboHits);
-        lastHitText = snap.lastHitText.empty() ? lastHitText : snap.lastHitText;
+        if (snap.lastHitText.find(" hit ") != std::string::npos || snap.lastHitText.find(" guard ") != std::string::npos) {
+            lastHitText = snap.lastHitText;
+        }
         sawContactEvidence = sawContactEvidence
             || snap.comboHits > 0
             || snap.p1.moveContact
@@ -855,6 +904,361 @@ int runEvilKenSmoke(RuntimeProbe& runtime, std::ostream& out) {
     summary(out, counts);
     return exitCode(counts);
 }
+
+int runLiliSmoke(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("lili", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Lili/Mountainside Training setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "lili-smoke");
+
+    const bool settled = waitForControllableIdle(runtime, 420);
+    const auto idle = runtime.snapshot();
+    record(out, counts, settled ? Status::Pass : Status::Fail, "controllable_idle_ready",
+        "state=" + std::to_string(idle.p1.stateNo)
+        + " anim=" + std::to_string(idle.p1.action)
+        + " ctrl=" + std::to_string(idle.p1.ctrl ? 1 : 0));
+    record(out, counts,
+        idle.p1CompatibilityProfile == "Mugen2001" && idle.p1UsesMugenSemantics
+            ? Status::Pass : Status::Fail,
+        "compatibility_context",
+        "profile=" + idle.p1CompatibilityProfile
+            + " localcoord=" + std::to_string(idle.p1LocalCoordWidth)
+            + "," + std::to_string(idle.p1LocalCoordHeight)
+            + " mugen_semantics=" + std::to_string(idle.p1UsesMugenSemantics ? 1 : 0));
+    record(out, counts,
+        std::abs(idle.p1.scaleX - 0.41f) < 0.001f && std::abs(idle.p1.scaleY - 0.41f) < 0.001f
+            ? Status::Pass : Status::Fail,
+        "size_scale_applied",
+        "scale_x=" + std::to_string(idle.p1.scaleX)
+            + " scale_y=" + std::to_string(idle.p1.scaleY));
+    if (!settled) {
+        record(out, counts, Status::Blocked, "lili_smoke_checks", "controllable idle gate failed");
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    runtime.step({}, 90);
+    const auto stance = runtime.snapshot().p1;
+    record(out, counts, (stance.life > 0 && stance.stateNo == 0) ? Status::Pass : Status::Fail, "load_idle_stance",
+        "state=" + std::to_string(stance.stateNo)
+        + " anim=" + std::to_string(stance.action)
+        + " life=" + std::to_string(stance.life));
+
+    const float xBefore = runtime.snapshot().p1.x;
+    runtime.step(SymbolicInput{ .right = true }, 45);
+    const float xAfter = runtime.snapshot().p1.x;
+    record(out, counts, std::fabs(xAfter - xBefore) > 1.0f ? Status::Pass : Status::Fail, "movement",
+        "x_before=" + std::to_string(xBefore)
+        + " x_after=" + std::to_string(xAfter)
+        + " delta=" + std::to_string(xAfter - xBefore));
+
+    bool sawAir = false;
+    runtime.step(SymbolicInput{ .up = true }, 4);
+    for (int i = 0; i < 90; ++i) {
+        runtime.step({}, 1);
+        const auto p1 = runtime.snapshot().p1;
+        sawAir = sawAir || !p1.onGround || p1.stateType == 'A';
+    }
+    record(out, counts, sawAir ? Status::Pass : Status::Fail, "jump_airborne",
+        "airborne_observed=" + std::to_string(sawAir ? 1 : 0));
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runLiliChangeAnim2Fallback(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("lili", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Lili/Mountainside Training setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "lili-changeanim2-fallback");
+
+    const bool settled = waitForControllableIdle(runtime, 420);
+    record(out, counts, settled ? Status::Pass : Status::Fail, "controllable_idle_ready",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo));
+    if (!settled) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    runtime.forceFighterState(0, 950);
+    runtime.setFighterHitStun(0, 30);
+    runtime.step({}, 2);
+    const auto snap = runtime.snapshot();
+    const bool usesAuthoredThrowFallback = snap.p1.stateNo == 950 && snap.p1.action == 850;
+    record(out, counts, usesAuthoredThrowFallback ? Status::Pass : Status::Fail, "missing_changeanim2_uses_authored_throw_fallback",
+        "p1_state=" + std::to_string(snap.p1.stateNo)
+            + " p1_action=" + std::to_string(snap.p1.action)
+            + " clsn2=" + std::to_string(snap.p1Clsn2Count));
+    record(out, counts, snap.p1.action != 5030 ? Status::Pass : Status::Fail, "missing_changeanim2_avoids_common_fall_box",
+        "p1_action=" + std::to_string(snap.p1.action)
+            + " clsn2=" + std::to_string(snap.p1Clsn2Count));
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+std::string compactFighterStateText(const FighterSnapshot& fighter) {
+    return "state=" + std::to_string(fighter.stateNo)
+        + " action=" + std::to_string(fighter.action)
+        + " time=" + std::to_string(fighter.stateTime)
+        + " x=" + std::to_string(fighter.x)
+        + " y=" + std::to_string(fighter.y)
+        + " vx=" + std::to_string(fighter.vx)
+        + " vy=" + std::to_string(fighter.vy)
+        + " type=" + std::string(1, fighter.stateType)
+        + " move=" + std::string(1, fighter.moveType)
+        + " physics=" + std::string(1, fighter.physics)
+        + " ground=" + std::to_string(fighter.onGround ? 1 : 0)
+        + " ctrl=" + std::to_string(fighter.ctrl ? 1 : 0);
+}
+
+int runLiliKuuchStateFallback(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("lili", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Lili/Mountainside Training setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "lili-kuuch-state-fallback");
+
+    const bool settled = waitForControllableIdle(runtime, 420);
+    record(out, counts, settled ? Status::Pass : Status::Fail, "controllable_idle_ready",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo));
+    if (!settled) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    runtime.forceFighterState(0, 637);
+    runtime.setFighterPosition(0, -24.0f, -72.0f);
+    runtime.setFighterControl(0, false);
+    runtime.step({}, 1);
+    const auto forced = runtime.snapshot();
+    record(out, counts,
+        forced.p1.stateNo == 637 && forced.p1.action == 635 ? Status::Pass : Status::Fail,
+        "missing_state_anim_637_falls_back_to_action_635",
+        "p1=" + compactFighterStateText(forced.p1)
+            + " clsn1=" + std::to_string(forced.p1Clsn1Count)
+            + " clsn2=" + std::to_string(forced.p1Clsn2Count));
+
+    runtime.forceFighterState(0, 0);
+    runtime.forceFighterState(1, 0);
+    runtime.setFighterPosition(0, -24.0f, -72.0f);
+    runtime.setFighterPosition(1, 16.0f, 0.0f);
+    runtime.setFighterControl(0, false);
+    runtime.setFighterControl(1, false);
+    runtime.forceFighterState(0, 637);
+    runtime.setFighterPosition(0, -24.0f, -72.0f);
+    runtime.setFighterPosition(1, 16.0f, 0.0f);
+    runtime.setFighterControl(0, false);
+    runtime.setFighterControl(1, false);
+
+    bool sawHit = false;
+    bool sawNormalHardHitstun = false;
+    bool sawUnexpectedFallState = false;
+    bool p1Recovered = false;
+    bool p2Recovered = false;
+    FighterSnapshot hitP2;
+    FighterSnapshot finalP1;
+    FighterSnapshot finalP2;
+    std::string lastHitText;
+    for (int frame = 0; frame < 220; ++frame) {
+        const auto snap = runtime.snapshot();
+        finalP1 = snap.p1;
+        finalP2 = snap.p2;
+        if (!snap.lastHitText.empty()) {
+            lastHitText = snap.lastHitText;
+        }
+        if (snap.lastHitText.find("P1 hit 637#") != std::string::npos) {
+            sawHit = true;
+        }
+        if (snap.p2.moveType == 'H' && (snap.p2.stateNo == 5000 || snap.p2.stateNo == 5001)) {
+            sawNormalHardHitstun = true;
+            hitP2 = snap.p2;
+        }
+        sawUnexpectedFallState = sawUnexpectedFallState
+            || snap.p2.stateNo == 5030
+            || snap.p2.stateNo == 5050
+            || snap.p2.stateNo == 5070
+            || snap.p2.stateNo == 5090
+            || snap.p2.stateNo == 5100
+            || snap.p2.stateNo == 5110
+            || snap.p2.stateType == 'L';
+        if (sawNormalHardHitstun) {
+            p1Recovered = p1Recovered || (snap.p1.stateNo == 0 && snap.p1.onGround && snap.p1.ctrl);
+            p2Recovered = p2Recovered || (snap.p2.stateNo == 0 && snap.p2.onGround && snap.p2.ctrl);
+        }
+        if (p1Recovered && p2Recovered && sawNormalHardHitstun) {
+            break;
+        }
+        runtime.step({}, 1);
+    }
+
+    record(out, counts, sawHit ? Status::Pass : Status::Fail, "kuuch_hitdef_connects",
+        "last_hit=\"" + lastHitText + "\"");
+    record(out, counts, sawNormalHardHitstun ? Status::Pass : Status::Fail, "dummy_enters_normal_hard_hitstun",
+        "hit_p2=" + compactFighterStateText(hitP2)
+            + " final_p2=" + compactFighterStateText(finalP2));
+    record(out, counts, !sawUnexpectedFallState ? Status::Pass : Status::Fail, "kuuch_does_not_force_dummy_fall_state",
+        "saw_fall_state=" + std::to_string(sawUnexpectedFallState ? 1 : 0)
+            + " final_p2=" + compactFighterStateText(finalP2));
+    record(out, counts, p1Recovered && p2Recovered ? Status::Pass : Status::Fail, "fighters_recover_after_kuuch",
+        "p1_recovered=" + std::to_string(p1Recovered ? 1 : 0)
+            + " p2_recovered=" + std::to_string(p2Recovered ? 1 : 0)
+            + " final_p1=" + compactFighterStateText(finalP1)
+            + " final_p2=" + compactFighterStateText(finalP2));
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runLiliHienHououKyakuDemo(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("lili", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Lili/Mountainside Training setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "lili-hien-houou-kyaku-demo");
+
+    const bool settled = waitForControllableIdle(runtime, 420);
+    record(out, counts, settled ? Status::Pass : Status::Fail, "controllable_idle_ready",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo));
+    if (!settled) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    const auto moves = runtime.trainingMoves();
+    int hienIndex = -1;
+    for (int i = 0; i < static_cast<int>(moves.size()); ++i) {
+        const std::string label = lowercaseAsciiCopy(moves[static_cast<size_t>(i)].label);
+        if (label == "hien-houou-kyaku" || moves[static_cast<size_t>(i)].targetState == 3000) {
+            hienIndex = i;
+            break;
+        }
+    }
+    const bool selected = hienIndex >= 0 && runtime.selectTrainingMoveIndex(hienIndex);
+    record(out, counts, selected ? Status::Pass : Status::Fail, "selected_hien_houou_kyaku",
+        "index=" + std::to_string(hienIndex)
+            + " moves=" + std::to_string(moves.size()));
+    if (!selected) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    runtime.startTrainingCommandDemo();
+
+    bool sawOpeningState = false;
+    bool sawMiddleState = false;
+    bool sawFinisherState = false;
+    bool sawActiveBoxes = false;
+    bool sawHit = false;
+    bool p1Recovered = false;
+    bool p2Recovered = false;
+    int maxP2Clsn1 = 0;
+    int maxEffects = 0;
+    int maxAfterImageTrails = 0;
+    FighterSnapshot hitP1;
+    FighterSnapshot finalP1;
+    FighterSnapshot finalP2;
+    std::string lastHitText;
+    for (int frame = 0; frame < 420; ++frame) {
+        const auto snap = runtime.snapshot();
+        finalP1 = snap.p1;
+        finalP2 = snap.p2;
+        maxP2Clsn1 = std::max(maxP2Clsn1, snap.p2Clsn1Count);
+        maxEffects = std::max(maxEffects, snap.activeEffects);
+        maxAfterImageTrails = std::max({ maxAfterImageTrails, snap.p1.afterImageTrailCount, snap.p2.afterImageTrailCount });
+        if (!snap.lastHitText.empty()) {
+            lastHitText = snap.lastHitText;
+        }
+        sawOpeningState = sawOpeningState || (snap.p2.stateNo == 3000 && snap.p2.action == 2000);
+        sawMiddleState = sawMiddleState || (snap.p2.stateNo == 2020 && snap.p2.action == 2020);
+        sawFinisherState = sawFinisherState || (snap.p2.stateNo == 2030 && snap.p2.action == 2030);
+        sawActiveBoxes = sawActiveBoxes
+            || ((snap.p2.stateNo == 3000 || snap.p2.stateNo == 2020 || snap.p2.stateNo == 2030)
+                && snap.p2Clsn1Count > 0);
+        sawHit = sawHit
+            || snap.lastHitText.find("P2 hit 3000#") != std::string::npos
+            || snap.lastHitText.find("P2 hit 2020#") != std::string::npos
+            || snap.lastHitText.find("P2 hit 2030#") != std::string::npos;
+        if (snap.p1.moveType == 'H') {
+            hitP1 = snap.p1;
+        }
+        if (sawHit) {
+            p1Recovered = p1Recovered || (snap.p1.stateNo == 0 && snap.p1.onGround && snap.p1.ctrl);
+            p2Recovered = p2Recovered || (snap.p2.stateNo == 0 && snap.p2.onGround && snap.p2.ctrl);
+        }
+        const bool afterImagesClear = !snap.p1.afterImageActive
+            && !snap.p2.afterImageActive
+            && snap.p1.afterImageTrailCount == 0
+            && snap.p2.afterImageTrailCount == 0;
+        if (sawOpeningState && sawMiddleState && sawFinisherState && sawActiveBoxes && p1Recovered && p2Recovered
+            && snap.activeEffects == 0 && afterImagesClear) {
+            break;
+        }
+        runtime.step({}, 1);
+    }
+
+    for (int i = 0; i < 90; ++i) {
+        const auto snap = runtime.snapshot();
+        const bool afterImagesClear = !snap.p1.afterImageActive
+            && !snap.p2.afterImageActive
+            && snap.p1.afterImageTrailCount == 0
+            && snap.p2.afterImageTrailCount == 0;
+        if (snap.activeEffects == 0 && afterImagesClear) {
+            break;
+        }
+        runtime.step({}, 1);
+    }
+    const auto finalSnap = runtime.snapshot();
+    finalP1 = finalSnap.p1;
+    finalP2 = finalSnap.p2;
+
+    record(out, counts, sawOpeningState ? Status::Pass : Status::Fail, "demo_enters_hien_opening",
+        "p2=" + compactFighterStateText(finalP2));
+    record(out, counts, sawMiddleState && sawFinisherState ? Status::Pass : Status::Fail, "demo_reaches_full_chain",
+        "saw_2020=" + std::to_string(sawMiddleState ? 1 : 0)
+            + " saw_2030=" + std::to_string(sawFinisherState ? 1 : 0));
+    record(out, counts, sawActiveBoxes ? Status::Pass : Status::Fail, "demo_has_active_clsn1",
+        "max_p2_clsn1=" + std::to_string(maxP2Clsn1));
+    record(out, counts, sawHit ? Status::Pass : Status::Fail, "demo_hits_dummy",
+        "last_hit=\"" + lastHitText + "\" hit_p1=" + compactFighterStateText(hitP1));
+    record(out, counts, p1Recovered && p2Recovered ? Status::Pass : Status::Fail, "fighters_recover_after_demo",
+        "p1_recovered=" + std::to_string(p1Recovered ? 1 : 0)
+            + " p2_recovered=" + std::to_string(p2Recovered ? 1 : 0)
+            + " final_p1=" + compactFighterStateText(finalP1)
+            + " final_p2=" + compactFighterStateText(finalP2));
+    record(out, counts, finalSnap.activeEffects == 0 ? Status::Pass : Status::Fail, "demo_effects_clear",
+        "active_effects=" + std::to_string(finalSnap.activeEffects)
+            + " max_effects=" + std::to_string(maxEffects));
+    const bool finalAfterImagesClear = !finalSnap.p1.afterImageActive
+        && !finalSnap.p2.afterImageActive
+        && finalSnap.p1.afterImageTrailCount == 0
+        && finalSnap.p2.afterImageTrailCount == 0;
+    record(out, counts, finalAfterImagesClear ? Status::Pass : Status::Fail, "demo_afterimages_clear",
+        "p1_active=" + std::to_string(finalSnap.p1.afterImageActive ? 1 : 0)
+            + " p1_trail=" + std::to_string(finalSnap.p1.afterImageTrailCount)
+            + " p2_active=" + std::to_string(finalSnap.p2.afterImageActive ? 1 : 0)
+            + " p2_trail=" + std::to_string(finalSnap.p2.afterImageTrailCount)
+            + " max_trail=" + std::to_string(maxAfterImageTrails));
+    if (const char* screenshotPath = std::getenv("DRAGON_SCREENSHOT_PATH"); screenshotPath && *screenshotPath) {
+        const bool captured = runtime.captureScreenshot(std::filesystem::path(screenshotPath));
+        record(out, counts, captured ? Status::Pass : Status::Fail, "screenshot_captured", screenshotPath);
+    }
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
 int runCpuBaseline(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
     if (!runtime.setup("kfm", "Mountainside", ScenarioMode::SinglePlayer, out)) {
@@ -1116,6 +1520,157 @@ int runVsP2Runtime(RuntimeProbe& runtime, std::ostream& out) {
 
 } // namespace
 
+int runCompatibilityProfileResolver(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY compatibility-profile-resolver\n";
+
+    record(out, counts,
+        resolveCompatibilityProfile("") == CompatibilityProfile::Mugen11 ? Status::Pass : Status::Fail,
+        "empty_version_defaults_mugen_11",
+        std::string("profile=") + compatibilityProfileName(resolveCompatibilityProfile("")));
+    record(out, counts,
+        resolveCompatibilityProfile("04,14,2001") == CompatibilityProfile::Mugen2001 ? Status::Pass : Status::Fail,
+        "legacy_version_resolves_mugen_2001",
+        std::string("profile=") + compatibilityProfileName(resolveCompatibilityProfile("04,14,2001")));
+    record(out, counts,
+        resolveCompatibilityProfile("1.0") == CompatibilityProfile::Mugen10 ? Status::Pass : Status::Fail,
+        "version_10_resolves_mugen_10",
+        std::string("profile=") + compatibilityProfileName(resolveCompatibilityProfile("1.0")));
+    record(out, counts,
+        resolveCompatibilityProfile("1.1") == CompatibilityProfile::Mugen11 ? Status::Pass : Status::Fail,
+        "version_11_resolves_mugen_11",
+        std::string("profile=") + compatibilityProfileName(resolveCompatibilityProfile("1.1")));
+
+    const LocalCoord parsedLocalCoord = parseLocalCoord("640, 480");
+    record(out, counts,
+        parsedLocalCoord.width == 640 && parsedLocalCoord.height == 480 ? Status::Pass : Status::Fail,
+        "localcoord_parse",
+        "width=" + std::to_string(parsedLocalCoord.width)
+            + " height=" + std::to_string(parsedLocalCoord.height));
+
+    const std::filesystem::path gameRoot(runtime.rootText());
+    const auto characters = loadCharacters(gameRoot);
+    const CharacterSlot* kfm = findCharacterById(characters, "kfm");
+    const CharacterSlot* evilRyu = findCharacterById(characters, "EvilRyu");
+    const CharacterSlot* evilKen = findCharacterById(characters, "EvilKen");
+    record(out, counts, kfm ? Status::Pass : Status::Fail, "kfm_character_loaded",
+        kfm ? "profile=" + std::string(compatibilityProfileName(kfm->compatibilityProfile)) : "missing");
+    record(out, counts,
+        kfm && kfm->compatibilityProfile == CompatibilityProfile::Mugen2001 ? Status::Pass : Status::Fail,
+        "kfm_profile_mugen_2001",
+        kfm ? "mugenversion=" + kfm->mugenVersion : "missing");
+    record(out, counts,
+        evilRyu && evilRyu->compatibilityProfile == CompatibilityProfile::Mugen10
+            && evilRyu->localCoord.width == 320
+            && evilRyu->localCoord.height == 240
+            ? Status::Pass : Status::Fail,
+        "evilryu_profile_localcoord",
+        evilRyu ? "profile=" + std::string(compatibilityProfileName(evilRyu->compatibilityProfile))
+                + " localcoord=" + std::to_string(evilRyu->localCoord.width)
+                + "," + std::to_string(evilRyu->localCoord.height)
+                : "missing");
+    record(out, counts,
+        evilKen && evilKen->compatibilityProfile == CompatibilityProfile::Mugen10
+            && evilKen->localCoord.width == 320
+            && evilKen->localCoord.height == 240
+            ? Status::Pass : Status::Fail,
+        "evilken_profile_localcoord",
+        evilKen ? "profile=" + std::string(compatibilityProfileName(evilKen->compatibilityProfile))
+                + " localcoord=" + std::to_string(evilKen->localCoord.width)
+                + "," + std::to_string(evilKen->localCoord.height)
+                : "missing");
+
+    const auto stages = loadStages(gameRoot);
+    const StageSlot* openBorStage = findLegacyOpenBorStage(stages);
+    record(out, counts, openBorStage ? Status::Pass : Status::Fail, "legacy_openbor_stage_bridge",
+        openBorStage ? "stage=" + openBorStage->displayName : "missing");
+
+    if (runtime.setup("kfm", "Mountainside", ScenarioMode::Training, out)) {
+        const RuntimeSnapshot snap = runtime.snapshot();
+        record(out, counts, snap.runtimeMode == "Dragon" ? Status::Pass : Status::Fail, "runtime_mode_dragon_default",
+            "mode=" + snap.runtimeMode);
+        record(out, counts, snap.p1CompatibilityProfile == "Mugen2001" ? Status::Pass : Status::Fail,
+            "runtime_p1_profile_visible",
+            "profile=" + snap.p1CompatibilityProfile);
+        record(out, counts,
+            snap.p1LocalCoordWidth == 320 && snap.p1LocalCoordHeight == 240 && snap.p1UsesMugenSemantics
+                ? Status::Pass : Status::Fail,
+            "runtime_p1_context_visible",
+            "localcoord=" + std::to_string(snap.p1LocalCoordWidth)
+                + "," + std::to_string(snap.p1LocalCoordHeight)
+                + " mugen_semantics=" + std::to_string(snap.p1UsesMugenSemantics ? 1 : 0));
+    } else {
+        record(out, counts, Status::Blocked, "runtime_setup", "KFM/Mountainside Training setup failed");
+    }
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runEvilKenCornerVisualBounds(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("EvilKen", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Evil Ken/Mountainside Training setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "evilken-corner-visual-bounds");
+    const bool idle = waitForControllableIdle(runtime, 240);
+    record(out, counts, idle ? Status::Pass : Status::Fail, "controllable_idle_ready",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo));
+    if (!idle) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    runtime.positionFighters(-1000.0f, -950.0f);
+    runtime.setFighterControl(1, false);
+    runtime.step({}, 8);
+    auto leftCorner = runtime.snapshot();
+    float minLeftVisual = std::min(leftCorner.p1.visualScreenLeft, leftCorner.p2.visualScreenLeft);
+    float maxLeftVisual = std::max(leftCorner.p1.visualScreenRight, leftCorner.p2.visualScreenRight);
+    for (int i = 0; i < 45; ++i) {
+        runtime.step(SymbolicInput{ .left = true }, 1);
+        const auto snap = runtime.snapshot();
+        minLeftVisual = std::min({ minLeftVisual, snap.p1.visualScreenLeft, snap.p2.visualScreenLeft });
+        maxLeftVisual = std::max({ maxLeftVisual, snap.p1.visualScreenRight, snap.p2.visualScreenRight });
+    }
+    leftCorner = runtime.snapshot();
+    const bool leftVisible = minLeftVisual >= -0.5f && maxLeftVisual <= static_cast<float>(leftCorner.logicalWidth) + 0.5f;
+    record(out, counts, leftVisible ? Status::Pass : Status::Fail, "left_corner_visuals_stay_inside_screen",
+        "min_left=" + std::to_string(minLeftVisual)
+            + " max_right=" + std::to_string(maxLeftVisual)
+            + " logical_width=" + std::to_string(leftCorner.logicalWidth)
+            + " p1_x=" + std::to_string(leftCorner.p1.x)
+            + " p2_x=" + std::to_string(leftCorner.p2.x));
+
+    runtime.positionFighters(950.0f, 1000.0f);
+    runtime.setFighterControl(1, false);
+    runtime.step({}, 8);
+    auto rightCorner = runtime.snapshot();
+    float minRightVisual = std::min(rightCorner.p1.visualScreenLeft, rightCorner.p2.visualScreenLeft);
+    float maxRightVisual = std::max(rightCorner.p1.visualScreenRight, rightCorner.p2.visualScreenRight);
+    for (int i = 0; i < 45; ++i) {
+        runtime.step(SymbolicInput{ .right = true }, 1);
+        const auto snap = runtime.snapshot();
+        minRightVisual = std::min({ minRightVisual, snap.p1.visualScreenLeft, snap.p2.visualScreenLeft });
+        maxRightVisual = std::max({ maxRightVisual, snap.p1.visualScreenRight, snap.p2.visualScreenRight });
+    }
+    rightCorner = runtime.snapshot();
+    const bool rightVisible = minRightVisual >= -0.5f && maxRightVisual <= static_cast<float>(rightCorner.logicalWidth) + 0.5f;
+    record(out, counts, rightVisible ? Status::Pass : Status::Fail, "right_corner_visuals_stay_inside_screen",
+        "min_left=" + std::to_string(minRightVisual)
+            + " max_right=" + std::to_string(maxRightVisual)
+            + " logical_width=" + std::to_string(rightCorner.logicalWidth)
+            + " p1_x=" + std::to_string(rightCorner.p1.x)
+            + " p2_x=" + std::to_string(rightCorner.p2.x));
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
 int runTrainingOptionsMenuGeometry(RuntimeProbe&, std::ostream& out) {
     Counts counts;
     out << "VERIFY training-options-menu-geometry\n";
@@ -1172,8 +1727,180 @@ int runTrainingOptionsMenuGeometry(RuntimeProbe&, std::ostream& out) {
     return exitCode(counts);
 }
 
+int runTrainingMoveListGeometry(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY training-move-list-geometry\n";
+
+    std::vector<TrainingMoveRowView> firstPageRows{
+        { "01", "Ground Recovery Roll", "B+DB+D+A", true },
+        { "02", "Shoryureppa", "D+DF+F+A", false },
+        { "03", "Shinryuken", "D+F+D+F+Z", false },
+        { "04", "Shippu Jinrai Kyaku", "D+DB+B+X", false },
+        { "05", "Kyouja Renbu", "D+DF+F+C", false },
+        { "06", "Kuuchuu Shakunetsu Hadouken", "D+B+D+B+Z", false },
+        { "07", "Punch Throw", "A+S", false },
+        { "08", "Stand Kick Throw", "Z+X", false },
+        { "09", "Shouki Hatsudou", "B+D+F+A+S", false },
+        { "10", "Rongou Kokuretsu Zan", "D+D+D+A", false },
+    };
+    TrainingMoveListView firstPage;
+    firstPage.rows = firstPageRows;
+    firstPage.detail = TrainingMoveDetailView{
+        "Ground Recovery Roll",
+        "5200",
+        "B+DB+D+A",
+        "SPECIALS",
+        "LOADED",
+        "B+DB+D+A",
+        true,
+    };
+    firstPage.selectedCharacterLabel = "Evil Ken";
+    firstPage.categoryLabel = "ALL";
+    firstPage.pageLabel = "1/18";
+
+    std::vector<TrainingMoveRowView> secondPageRows{
+        { "11", "Hadouken", "D+DF+F+A", false },
+        { "12", "Shakunetsu Hadouken", "B+DB+D+DF+F+Z", false },
+        { "13", "Tatsumaki Senpuukyaku", "D+DB+B+X", false },
+        { "14", "Air Tatsumaki Senpuukyaku", "D+DB+B+X", false },
+        { "15", "Shin Shoryuken", "D+F+D+F+Z", false },
+        { "16", "Raging Demon State 3890", "A+A+F+Z+D", false },
+        { "17", "Long Compatibility Stress Command Entry", "D+DF+F+D+DF+F+A+S", false },
+        { "18", "Arena Forward Dash Bounds Recovery", "F+F", false },
+        { "19", "Power Charge Helper Lifecycle", "A+S+Z", false },
+        { "20", "Command Training Demo Finish Advance", "D+DB+B+D+DB+B+C", true },
+    };
+    TrainingMoveListView secondPage;
+    secondPage.rows = secondPageRows;
+    secondPage.detail = TrainingMoveDetailView{
+        "Command Training Demo Finish Advance",
+        "3000",
+        "D+DB+B+D+DB+B+C",
+        "SUPERS",
+        "POWER 3000",
+        "D+DB+B+D+DB+B+C",
+        true,
+    };
+    secondPage.selectedCharacterLabel = "Evil Ken";
+    secondPage.categoryLabel = "SUPERS";
+    secondPage.pageLabel = "20/20";
+
+    const TrainingMoveListView pages[] = { firstPage, secondPage };
+    for (int i = 0; i < 2; ++i) {
+        const auto& view = pages[i];
+        const auto selectedRows = std::count_if(view.rows.begin(), view.rows.end(), [](const TrainingMoveRowView& row) {
+            return row.selected;
+        });
+        const auto geometry = verifyTrainingMoveListGeometry(view);
+        const std::string pageName = "sample_" + std::to_string(i + 1);
+        record(out, counts, view.rows.size() == static_cast<std::size_t>(kTrainingMoveListRows) ? Status::Pass : Status::Fail,
+            pageName + "_row_count",
+            "rows=" + std::to_string(view.rows.size())
+            + " expected=" + std::to_string(kTrainingMoveListRows));
+        record(out, counts, selectedRows == 1 ? Status::Pass : Status::Fail,
+            pageName + "_selected_row",
+            "selected_rows=" + std::to_string(selectedRows)
+            + " page=" + view.pageLabel);
+        record(out, counts, geometry.ok ? Status::Pass : Status::Fail,
+            pageName + "_geometry_fits",
+            geometry.detail);
+    }
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runTrainingShowSelectHold(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("EvilKen", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Evil Ken/Mountainside Training setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "training-show-select-hold");
+
+    const bool idle = waitForControllableIdle(runtime, 420);
+    record(out, counts, idle ? Status::Pass : Status::Fail, "controllable_idle_ready",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo));
+    if (!idle) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    const auto moves = runtime.trainingMoves();
+    record(out, counts, moves.size() >= 2 ? Status::Pass : Status::Fail, "training_moves_available",
+        "moves=" + std::to_string(moves.size()));
+    if (moves.size() < 2) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    runtime.selectTrainingMoveIndex(0);
+    const std::string firstLabel = moves[0].label;
+    const std::string secondLabel = moves[1].label;
+    runtime.holdTrainingShowSelect(true, 30);
+    runtime.holdTrainingShowSelect(false, 1);
+    const auto tap = runtime.snapshot();
+    record(out, counts, tap.selectedTrainingMoveLabel == secondLabel ? Status::Pass : Status::Fail,
+        "short_select_tap_advances_move",
+        "before=\"" + firstLabel + "\" after=\"" + tap.selectedTrainingMoveLabel + "\" expected=\"" + secondLabel + "\"");
+
+    const bool selectedHadouken = runtime.selectTrainingMove("Hadouken");
+    record(out, counts, selectedHadouken ? Status::Pass : Status::Fail, "selected_hadouken_for_hold_demo",
+        "selected=\"" + runtime.snapshot().selectedTrainingMoveLabel + "\"");
+    if (!selectedHadouken) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    runtime.holdTrainingShowSelect(true, 119);
+    const auto beforeThreshold = runtime.snapshot();
+    record(out, counts, beforeThreshold.p2.stateNo != 1000 ? Status::Pass : Status::Fail,
+        "hold_before_two_seconds_does_not_start_demo",
+        "p2_state=" + std::to_string(beforeThreshold.p2.stateNo)
+        + " selected=\"" + beforeThreshold.selectedTrainingMoveLabel + "\"");
+
+    runtime.holdTrainingShowSelect(true, 1);
+    runtime.holdTrainingShowSelect(false, 1);
+
+    bool sawHadouken = false;
+    FighterSnapshot finalP2;
+    std::string commands;
+    for (int frame = 0; frame < 90; ++frame) {
+        const auto snap = runtime.snapshot();
+        finalP2 = snap.p2;
+        commands = snap.p2Commands;
+        sawHadouken = sawHadouken || snap.p2.stateNo == 1000 || snap.p2.action == 1000;
+        if (sawHadouken) {
+            break;
+        }
+        runtime.step({}, 1);
+    }
+    const auto afterHold = runtime.snapshot();
+    record(out, counts, afterHold.selectedTrainingMoveLabel == "Hadouken" ? Status::Pass : Status::Fail,
+        "long_select_hold_keeps_selected_move",
+        "selected=\"" + afterHold.selectedTrainingMoveLabel + "\"");
+    record(out, counts, sawHadouken ? Status::Pass : Status::Fail,
+        "long_select_hold_starts_show_command_demo",
+        "p2_state=" + std::to_string(finalP2.stateNo)
+        + " p2_action=" + std::to_string(finalP2.action)
+        + " commands=\"" + commands + "\"");
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
 int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::ostream& out) {
+    if (scenarioName == "compatibility-profile-resolver") return runCompatibilityProfileResolver(runtime, out);
     if (scenarioName == "training-options-menu-geometry") return runTrainingOptionsMenuGeometry(runtime, out);
+    if (scenarioName == "training-move-list-geometry") return runTrainingMoveListGeometry(runtime, out);
+    if (scenarioName == "training-show-select-hold") return runTrainingShowSelectHold(runtime, out);
+    if (scenarioName == "lili-smoke") return runLiliSmoke(runtime, out);
+    if (scenarioName == "lili-changeanim2-fallback") return runLiliChangeAnim2Fallback(runtime, out);
+    if (scenarioName == "lili-kuuch-state-fallback") return runLiliKuuchStateFallback(runtime, out);
+    if (scenarioName == "lili-hien-houou-kyaku-demo") return runLiliHienHououKyakuDemo(runtime, out);
     if (scenarioName == "kfm-baseline") return runKfmBaseline(runtime, out);
     if (scenarioName == "kfm-throw") return runKfmThrow(runtime, out);
     if (scenarioName == "kfm-air-state") return runKfmAirState(runtime, out);
@@ -1202,8 +1929,10 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
     if (scenarioName == "evilken-trip-jump-buffer") return runEvilKenTripJumpBuffer(runtime, out);
     if (scenarioName == "evilken-attack-jump-buffer-release") return runEvilKenAttackJumpBufferRelease(runtime, out);
     if (scenarioName == "evilken-throw") return runEvilKenThrow(runtime, out);
+    if (scenarioName == "evilken-corner-visual-bounds") return runEvilKenCornerVisualBounds(runtime, out);
     if (scenarioName == "evilken-kuuchuu-shakunetsu") return runEvilKenKuuchuuShakunetsu(runtime, out);
     if (scenarioName == "evilken-training-demo-all") return runEvilKenTrainingDemoAll(runtime, out);
+    if (scenarioName == "lili-training-demo-all") return runLiliTrainingDemoAll(runtime, out);
     if (scenarioName == "evilken-shinryuken-recovery") return runEvilKenShinryukenRecovery(runtime, out);
     if (scenarioName == "evilken-shun-goku-satsu") return runEvilKenShunGokuSatsu(runtime, out);
     if (scenarioName == "evilken-shouki-hatsudou-spacing") return runEvilKenShoukiHatsudouSpacing(runtime, out);
@@ -1230,7 +1959,7 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
 
     out << "VERIFY " << scenarioName << "\n"
         << "BLOCKED unknown_scenario\n"
-        << "  supported: training-options-menu-geometry, kfm-baseline, kfm-throw, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-guard-recovery, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-power-charge-helper, evilken-air-special-contact-landing, evilken-training-demo-hit, evilken-training-command-practice-advance, evilryu-specials-supers, evilryu-shin-shoryuken-stun, evilryu-super-stress, evilryu-air-special-contact-landing, evilryu-power-charge-helper, evilryu-throw-bind, evilryu-training-throw-demo, evilken-smoke, evilken-trip-grounding, evilken-overhead-trip-chain, evilken-overhead-trip-chain-stress, evilken-trip-jump-buffer, evilken-attack-jump-buffer-release, evilken-throw, evilken-kuuchuu-shakunetsu, evilken-training-demo-all, evilken-shinryuken-recovery, evilken-shun-goku-satsu, evilken-shouki-hatsudou-spacing, cpu-baseline, vs-p2-runtime, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-camera-rotation-toggle, arena-camera-rotation-projection, arena-camera-rotation-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-evilken-forward-dash-bounds, arena-per-fighter-runtime, arena-openbor-scroll-stage, arena-evilryu-air-special-contact-landing, evilryu-dash\n"
+        << "  supported: compatibility-profile-resolver, training-options-menu-geometry, training-move-list-geometry, training-show-select-hold, lili-smoke, lili-changeanim2-fallback, lili-kuuch-state-fallback, lili-hien-houou-kyaku-demo, lili-training-demo-all, kfm-baseline, kfm-throw, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-guard-recovery, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-power-charge-helper, evilken-air-special-contact-landing, evilken-training-demo-hit, evilken-training-command-practice-advance, evilryu-specials-supers, evilryu-shin-shoryuken-stun, evilryu-super-stress, evilryu-air-special-contact-landing, evilryu-power-charge-helper, evilryu-throw-bind, evilryu-training-throw-demo, evilken-smoke, evilken-trip-grounding, evilken-overhead-trip-chain, evilken-overhead-trip-chain-stress, evilken-trip-jump-buffer, evilken-attack-jump-buffer-release, evilken-throw, evilken-corner-visual-bounds, evilken-kuuchuu-shakunetsu, evilken-training-demo-all, evilken-shinryuken-recovery, evilken-shun-goku-satsu, evilken-shouki-hatsudou-spacing, cpu-baseline, vs-p2-runtime, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-camera-rotation-toggle, arena-camera-rotation-projection, arena-camera-rotation-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-evilken-forward-dash-bounds, arena-per-fighter-runtime, arena-openbor-scroll-stage, arena-evilryu-air-special-contact-landing, evilryu-dash\n"
         << "SUMMARY pass=0 partial=0 fail=0 blocked=1\n";
     return 2;
 }

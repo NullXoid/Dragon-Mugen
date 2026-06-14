@@ -56,6 +56,11 @@ SDL_FRect collisionBoxToScreen(
         y2 = -box.y1;
     }
 
+    x1 *= fighter.scaleX;
+    x2 *= fighter.scaleX;
+    y1 *= fighter.scaleY;
+    y2 *= fighter.scaleY;
+
     const float left = std::min(x1, x2);
     const float right = std::max(x1, x2);
     const float top = std::min(y1, y2);
@@ -101,8 +106,7 @@ void appendFighterCollisionBoxes(std::vector<TrainingDebugRectView>& boxes, cons
     }
 
     const FighterState& fighter = state.fighters[fighterIndex];
-    const AnimationClip* clip = findClip(state, fighter.action);
-    const AnimationFrame* frame = clip ? frameForClip(*clip, fighter.animTick) : nullptr;
+    const AnimationFrame* frame = currentFrameForFighter(state, fighter);
     if (!frame) {
         return;
     }
@@ -129,8 +133,8 @@ void appendTrainingDebugReadout(std::vector<std::string>& readoutLines, const Ap
 
     const auto& p1 = state.fighters[0];
     const auto& p2 = state.fighters[1];
-    const AnimationClip* p1Clip = findClip(state, p1.action);
-    const AnimationClip* p2Clip = findClip(state, p2.action);
+    const AnimationClip* p1Clip = findClipForActor(state, p1, p1.action);
+    const AnimationClip* p2Clip = findClipForActor(state, p2, p2.action);
     const AnimationFrame* p1AnimFrame = p1Clip ? frameForClip(*p1Clip, p1.animTick) : nullptr;
     const AnimationFrame* p2AnimFrame = p2Clip ? frameForClip(*p2Clip, p2.animTick) : nullptr;
     const int p1Frame = p1Clip ? frameIndexForClip(*p1Clip, p1.animTick) : -1;

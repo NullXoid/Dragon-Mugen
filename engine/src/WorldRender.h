@@ -172,8 +172,13 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
         return;
     }
 
-    auto drawActorSprite = [&](int action, int animTick, float x, float y, float depthZ, int facing, float scaleX, float scaleY, int alpha, bool additive, const ActivePaletteEffect* palette) -> bool {
-        const AnimationClip* clip = findClipForFighter(state, actorIndex, action);
+    auto drawActorSprite = [&](int action, int actionClipOwnerIndex, int animTick, float x, float y, float depthZ, int facing, float scaleX, float scaleY, int alpha, bool additive, const ActivePaletteEffect* palette) -> bool {
+        const AnimationClip* clip = nullptr;
+        if (actionClipOwnerIndex >= 0 && actionClipOwnerIndex < static_cast<int>(state.fighters.size())) {
+            clip = findClipForFighter(state, static_cast<size_t>(actionClipOwnerIndex), action);
+        } else {
+            clip = findClipForActor(state, fighter, action);
+        }
         const AnimationFrame* frame = clip ? frameForClip(*clip, animTick) : nullptr;
         if (!frame || !frame->sprite.texture) {
             return false;
@@ -257,6 +262,7 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
             }
             drawActorSprite(
                 snapshot.action,
+                snapshot.actionClipOwnerIndex,
                 snapshot.animTick,
                 snapshot.x,
                 snapshot.y,
@@ -271,7 +277,7 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
     }
 
     const ActorVisualFrame visual = visualFrameForFighter(fighter);
-    const AnimationClip* clip = findClipForFighter(state, actorIndex, visual.action);
+    const AnimationClip* clip = findClipForActor(state, fighter, visual.action);
     const AnimationFrame* frame = clip ? frameForClip(*clip, visual.animTick) : nullptr;
     const bool drawHitFeedback = state.frontend.pendingMode == PendingMode::Training
         && state.training.options.showHitFlash

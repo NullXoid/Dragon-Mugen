@@ -80,6 +80,9 @@
             }
             const auto* time = findProperty(section, "time");
             if (!time) {
+                time = findProperty(section, "value");
+            }
+            if (!time) {
                 continue;
             }
             auto& state = states[static_cast<size_t>(currentStateIndex)];

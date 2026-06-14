@@ -1,5 +1,7 @@
 #pragma once
 
+#include "dragon/Compatibility.h"
+
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -13,9 +15,14 @@ struct CharacterSlot {
     std::filesystem::path folder;
     std::filesystem::path defPath;
     std::filesystem::path preferredStagePath;
+    std::filesystem::path dragonSidecarPath;
     std::string music;
+    std::string mugenVersion;
+    CompatibilityProfile compatibilityProfile = CompatibilityProfile::Mugen11;
+    LocalCoord localCoord;
     int order = 1;
     bool includeStage = true;
+    bool dragonSidecarAvailable = false;
 };
 
 struct CharacterFiles {
@@ -39,6 +46,8 @@ struct CharacterSize {
 
 struct CharacterConstants {
     CharacterSize size;
+    float sizeScaleX = 1.0f;
+    float sizeScaleY = 1.0f;
     int maxPower = 3000;
     int liedownTime = 60;
     int attackDistance = 160;
@@ -102,6 +111,9 @@ struct StageSlot {
     float openborScrollEndx = 0.0f;
     float openborScrollSpeed = 2.4f;
     float openborScrollLead = 96.0f;
+    std::filesystem::path dragonSidecarPath;
+    bool dragonSidecarAvailable = false;
+    bool legacyOpenBorSection = false;
 };
 
 inline bool hasMugenRuntimeRootFiles(const std::filesystem::path& gameRoot) {
@@ -117,5 +129,6 @@ std::vector<CharacterSlot> loadCharacters(const std::filesystem::path& gameRoot)
 std::vector<StageSlot> loadStages(const std::filesystem::path& gameRoot);
 CharacterFiles resolveCharacterFiles(const std::filesystem::path& gameRoot, const CharacterSlot& character);
 CharacterConstants loadCharacterConstants(const CharacterFiles& files);
+bool hasGameDragonSidecar(const std::filesystem::path& gameRoot);
 
 } // namespace dragon

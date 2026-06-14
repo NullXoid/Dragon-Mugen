@@ -178,6 +178,8 @@ std::optional<CharacterSlot> loadCharacterSlotFromDef(const std::filesystem::pat
     slot.id = slot.folder.filename().string();
     slot.displayName = slot.id;
     slot.author = "Unknown";
+    slot.dragonSidecarPath = characterDragonSidecarPath(slot.defPath);
+    slot.dragonSidecarAvailable = std::filesystem::exists(slot.dragonSidecarPath);
 
     try {
         const auto doc = parseMugenTextFile(def);
@@ -190,7 +192,14 @@ std::optional<CharacterSlot> loadCharacterSlotFromDef(const std::filesystem::pat
             if (const auto* author = findProperty(*info, "author")) {
                 slot.author = unquote(author->value);
             }
+            if (const auto* mugenVersion = findProperty(*info, "mugenversion")) {
+                slot.mugenVersion = unquote(mugenVersion->value);
+            }
+            if (const auto* localcoord = findProperty(*info, "localcoord")) {
+                slot.localCoord = parseLocalCoord(localcoord->value, slot.localCoord);
+            }
         }
+        slot.compatibilityProfile = resolveCompatibilityProfile(slot.mugenVersion);
     } catch (const std::exception& ex) {
         SDL_Log("Character DEF parse failed %s: %s", def.string().c_str(), ex.what());
         return std::nullopt;
@@ -271,6 +280,8 @@ std::optional<StageSlot> loadStageSlotFromDef(const std::filesystem::path& def) 
     slot.displayName = slot.id;
     slot.author = "Unknown";
     slot.defPath = def.lexically_normal();
+    slot.dragonSidecarPath = stageDragonSidecarPath(slot.defPath);
+    slot.dragonSidecarAvailable = std::filesystem::exists(slot.dragonSidecarPath);
 
     try {
         const auto doc = parseMugenTextFile(def);
@@ -314,6 +325,7 @@ std::optional<StageSlot> loadStageSlotFromDef(const std::filesystem::path& def) 
         if (!openbor) {
             openbor = findSection(doc, "DragonOpenBOR");
         }
+        slot.legacyOpenBorSection = openbor != nullptr;
         slot.openborScrolling = parseBoolOr(openbor, "scrolling", slot.openborScrolling);
         slot.openborScrollStartx = parseFloatOr(openbor, "scrollstartx", slot.cameraBoundleft);
         slot.openborScrollEndx = parseFloatOr(openbor, "scrollendx", slot.cameraBoundright);
@@ -533,6 +545,8 @@ CharacterConstants loadCharacterConstants(const CharacterFiles& files) {
             }
         }
         if (const auto* size = findSection(doc, "Size")) {
+            constants.sizeScaleX = parseFloatOr(size, "xscale", constants.sizeScaleX);
+            constants.sizeScaleY = parseFloatOr(size, "yscale", constants.sizeScaleY);
             constants.size.groundBack = parseFloatOr(size, "ground.back", constants.size.groundBack);
             constants.size.groundFront = parseFloatOr(size, "ground.front", constants.size.groundFront);
             constants.size.airBack = parseFloatOr(size, "air.back", constants.size.airBack);
@@ -631,6 +645,11 @@ CharacterConstants loadCharacterConstants(const CharacterFiles& files) {
         }
     }
     return constants;
+}
+
+bool hasGameDragonSidecar(const std::filesystem::path& gameRoot) {
+    const auto path = gameDragonSidecarPath(gameRoot);
+    return !path.empty() && std::filesystem::exists(path);
 }
 
 } // namespace dragon

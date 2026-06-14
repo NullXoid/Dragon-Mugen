@@ -113,6 +113,25 @@ public:
         }
     }
 
+    void holdTrainingShowSelect(bool held, int frames) override {
+        const FighterInputState p1;
+        const FighterInputState p2;
+        for (int i = 0; i < frames; ++i) {
+            ++state_.frame;
+            ++state_.frontend.screenFrame;
+            updateTrainingShowSelectHold(state_, held);
+            FightInputOverride inputOverride;
+            inputOverride.p1 = &p1;
+            inputOverride.p2 = &p2;
+            const FightInputOverride* previous = gFightInputOverride;
+            gFightInputOverride = &inputOverride;
+            updateFight(state_);
+            gFightInputOverride = previous;
+            applyTrainingPowerMode(state_);
+            updateAudioMixer(state_);
+        }
+    }
+
     void positionFighters(float p1X, float p2X) override {
         resetTrainingPositions(state_);
         state_.fighters[0].x = p1X;
@@ -239,6 +258,13 @@ public:
         if (fighter.hitPauseTicks <= 0) {
             fighter.hitPauseChangeStateControllerId = 0;
         }
+    }
+
+    void setFighterHitStun(int fighterIndex, int ticks) override {
+        if (fighterIndex < 0 || fighterIndex >= static_cast<int>(state_.fighters.size())) {
+            return;
+        }
+        state_.fighters[static_cast<size_t>(fighterIndex)].hitStunTicks = std::max(0, ticks);
     }
 
     void forceFighterState(int fighterIndex, int stateNo) override {
@@ -368,9 +394,34 @@ public:
         beginTrainingCommandDemo(state_);
     }
 
+    bool captureScreenshot(const std::filesystem::path& path) override {
+        if (!renderer_) {
+            return false;
+        }
+        std::error_code error;
+        if (path.has_parent_path()) {
+            std::filesystem::create_directories(path.parent_path(), error);
+            if (error) {
+                return false;
+            }
+        }
+
+        clearPhysicalFrame(renderer_);
+        applyLogicalPresentation(renderer_, state_);
+        drawFightViewFrame(renderer_, state_, false);
+        SDL_Surface* surface = SDL_RenderReadPixels(renderer_, nullptr);
+        if (!surface) {
+            return false;
+        }
+        const bool saved = SDL_SaveBMP(surface, path.string().c_str());
+        SDL_DestroySurface(surface);
+        return saved;
+    }
+
     verification::RuntimeSnapshot snapshot() const override {
         verification::RuntimeSnapshot out;
         out.frame = state_.frame;
+        out.logicalWidth = logicalWidth(state_);
         out.cameraX = state_.cameraX;
         out.cameraY = state_.cameraY;
         out.arenaCameraYawDeg = state_.arenaCameraYawDeg;
@@ -391,6 +442,17 @@ public:
         out.p2RuntimeHitDefs = static_cast<int>(hitDefinitionsForActor(state_, state_.fighters[1]).size());
         out.p1RuntimeCommandEntries = static_cast<int>(commandEntriesForActor(state_, state_.fighters[0]).size());
         out.p2RuntimeCommandEntries = static_cast<int>(commandEntriesForActor(state_, state_.fighters[1]).size());
+        out.runtimeMode = dragonRuntimeModeName(state_.runtimeMode);
+        out.p1CompatibilityProfile = compatibilityProfileName(state_.characterCompatibility.contentProfile);
+        out.p1LocalCoordWidth = state_.characterCompatibility.localCoord.width;
+        out.p1LocalCoordHeight = state_.characterCompatibility.localCoord.height;
+        out.p1UsesMugenSemantics = usesMugenSemantics(state_.characterCompatibility);
+        out.p1AllowsDragonExtensions = allowsDragonExtensions(state_.characterCompatibility);
+        out.p1AllowsArenaExtensions = allowsArenaExtensions(state_.characterCompatibility);
+        out.p2CompatibilityProfile = compatibilityProfileName(state_.opponentRuntime.compatibility.contentProfile);
+        out.p2LocalCoordWidth = state_.opponentRuntime.compatibility.localCoord.width;
+        out.p2LocalCoordHeight = state_.opponentRuntime.compatibility.localCoord.height;
+        out.p2UsesMugenSemantics = usesMugenSemantics(state_.opponentRuntime.compatibility);
         for (const auto& fighter : state_.fighters) {
             if (fighter.life > 0) {
                 ++out.livingFighters;
@@ -440,7 +502,9 @@ public:
         out.p1P2BodyDistX = p2BodyDistXValue(state_, state_.fighters[0], state_.fighters[1]);
         if (const AnimationFrame* p1Frame = currentFrameForFighter(state_, state_.fighters[0])) {
             out.p1Clsn1Count = static_cast<int>(p1Frame->clsn1.size());
+            out.p1Clsn2Count = static_cast<int>(p1Frame->clsn2.size());
             if (const AnimationFrame* p2Frame = currentFrameForFighter(state_, state_.fighters[1])) {
+                out.p2Clsn1Count = static_cast<int>(p2Frame->clsn1.size());
                 out.p2Clsn2Count = static_cast<int>(p2Frame->clsn2.size());
                 out.p1P2BoxesOverlap = !p1Frame->clsn1.empty()
                     && !p2Frame->clsn2.empty()
@@ -454,6 +518,8 @@ public:
         }
         const StageSlot fallbackStage;
         const StageSlot& stage = selectedStageSlot(state_.selection) ? *selectedStageSlot(state_.selection) : fallbackStage;
+        out.selectedStageDragonSidecarAvailable = stage.dragonSidecarAvailable;
+        out.selectedStageLegacyOpenBorSection = stage.legacyOpenBorSection;
         applyProjectedSnapshot(stage, state_.fighters[0], out.p1);
         applyProjectedSnapshot(stage, state_.fighters[1], out.p2);
         std::vector<int> drawOrder;
@@ -498,6 +564,14 @@ private:
         snapshot.screenX = projected.screenX;
         snapshot.screenY = projected.screenY;
         snapshot.viewDepth = projected.viewZ;
+        const FighterVisualScreenBounds visual = fighterVisualScreenBounds(state_, stage, fighter);
+        if (visual.valid) {
+            snapshot.visualScreenLeft = visual.left;
+            snapshot.visualScreenRight = visual.right;
+        } else {
+            snapshot.visualScreenLeft = projected.screenX;
+            snapshot.visualScreenRight = projected.screenX;
+        }
     }
 
     static FighterInputState toFighterInput(const verification::SymbolicInput& input) {
@@ -541,6 +615,10 @@ private:
             fighter.hitDownVelocityY,
             fighter.displayOffsetX,
             fighter.displayOffsetY,
+            fighter.scaleX,
+            fighter.scaleY,
+            0.0f,
+            0.0f,
             0.0f,
             0.0f,
             0.0f,
@@ -553,6 +631,8 @@ private:
             fighter.moveContact,
             fighter.moveHit,
             fighter.moveGuarded,
+            fighter.afterImage.active,
+            static_cast<int>(fighter.afterImage.trail.size()),
         };
     }
 

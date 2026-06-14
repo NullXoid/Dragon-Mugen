@@ -176,6 +176,17 @@ bool snapshotMatchesTrainingMoveTarget(const TrainingMoveInfo& move, const Fight
         && fighter.moveType != 'I';
 }
 
+bool snapshotIndicatesTrainingMoveTarget(const TrainingMoveInfo& move, const RuntimeSnapshot& snap) {
+    if (snapshotMatchesTrainingMoveTarget(move, snap.p2)) {
+        return true;
+    }
+    if (move.targetState < 0) {
+        return false;
+    }
+    const std::string hitNeedle = "P2 hit " + std::to_string(move.targetState) + "#";
+    return snap.lastHitText.find(hitNeedle) != std::string::npos;
+}
+
 } // namespace
 
 int runEvilKenTripGrounding(RuntimeProbe& runtime, std::ostream& out) {
@@ -1578,14 +1589,19 @@ int runEvilKenShunGokuSatsu(RuntimeProbe& runtime, std::ostream& out) {
     return exitCode(counts);
 }
 
-int runEvilKenTrainingDemoAll(RuntimeProbe& runtime, std::ostream& out) {
+int runTrainingDemoAllForCharacter(
+    RuntimeProbe& runtime,
+    std::ostream& out,
+    std::string_view characterId,
+    std::string_view setupLabel,
+    std::string_view scenarioName) {
     Counts counts;
-    if (!runtime.setup("EvilKen", "Mountainside", ScenarioMode::Training, out)) {
-        record(out, counts, Status::Blocked, "setup", "Evil Ken/Mountainside Training setup failed");
+    if (!runtime.setup(characterId, "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", std::string(setupLabel) + "/Mountainside Training setup failed");
         summary(out, counts);
         return 2;
     }
-    header(out, runtime, "evilken-training-demo-all");
+    header(out, runtime, scenarioName);
 
     const bool idle = waitForControllableIdle(runtime, 420);
     record(out, counts, idle ? Status::Pass : Status::Fail, "controllable_idle_ready",
@@ -1635,7 +1651,7 @@ int runEvilKenTrainingDemoAll(RuntimeProbe& runtime, std::ostream& out) {
                 appendUniqueText(commandTrace, commands);
             }
             appendUniqueText(stateTrace, stateTraceText(snap.p2));
-            if (!sawTarget && snapshotMatchesTrainingMoveTarget(move, snap.p2)) {
+            if (!sawTarget && snapshotIndicatesTrainingMoveTarget(move, snap)) {
                 sawTarget = true;
                 targetP2 = snap.p2;
             }
@@ -1681,6 +1697,14 @@ int runEvilKenTrainingDemoAll(RuntimeProbe& runtime, std::ostream& out) {
     record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
     summary(out, counts);
     return exitCode(counts);
+}
+
+int runEvilKenTrainingDemoAll(RuntimeProbe& runtime, std::ostream& out) {
+    return runTrainingDemoAllForCharacter(runtime, out, "EvilKen", "Evil Ken", "evilken-training-demo-all");
+}
+
+int runLiliTrainingDemoAll(RuntimeProbe& runtime, std::ostream& out) {
+    return runTrainingDemoAllForCharacter(runtime, out, "Lili", "Lili", "lili-training-demo-all");
 }
 
 } // namespace dragon::verification

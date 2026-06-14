@@ -32,6 +32,12 @@ void enterRoundInitialState(const AppState& state, FighterState& fighter) {
     enterState(state, fighter, findStateDefinitionForActor(state, fighter, 5900) ? 5900 : 0);
 }
 
+void applyRootFighterSizeScale(const AppState& state, FighterState& fighter) {
+    const CharacterConstants& constants = characterConstantsForActor(state, fighter);
+    fighter.scaleX = constants.sizeScaleX;
+    fighter.scaleY = constants.sizeScaleY;
+}
+
 void clearFighterVariables(FighterState& fighter) {
     fighter.vars.fill(0);
     fighter.sysVars.fill(0);
@@ -61,6 +67,17 @@ void clearPaletteRuntime(AppState& state) {
     for (auto& fighter : state.fighters) {
         fighter.paletteEffect = {};
     }
+}
+
+void clearFighterVisualRuntime(FighterState& fighter) {
+    fighter.paletteEffect = {};
+    fighter.afterImage = {};
+    fighter.transEffect = {};
+    fighter.paletteRemaps.clear();
+    fighter.drawAngle = 0.0f;
+    fighter.angleDrawActive = false;
+    fighter.displayOffsetX = 0.0f;
+    fighter.displayOffsetY = 0.0f;
 }
 
 void resetTrainingPositions(AppState& state) {
@@ -101,22 +118,16 @@ void resetTrainingPositions(AppState& state) {
     state.fighters[1].defenceMultiplier = 1.0f;
     state.fighters[0].attackMultiplier = 1.0f;
     state.fighters[1].attackMultiplier = 1.0f;
-    state.fighters[0].drawAngle = 0.0f;
-    state.fighters[1].drawAngle = 0.0f;
-    state.fighters[0].angleDrawActive = false;
-    state.fighters[1].angleDrawActive = false;
-    state.fighters[0].displayOffsetX = 0.0f;
-    state.fighters[1].displayOffsetX = 0.0f;
-    state.fighters[0].displayOffsetY = 0.0f;
-    state.fighters[1].displayOffsetY = 0.0f;
+    clearFighterVisualRuntime(state.fighters[0]);
+    clearFighterVisualRuntime(state.fighters[1]);
     state.fighters[0].debugClipboard.clear();
     state.fighters[1].debugClipboard.clear();
     state.fighters[0].victoryQuote = -1;
     state.fighters[1].victoryQuote = -1;
-    state.fighters[0].paletteRemaps.clear();
-    state.fighters[1].paletteRemaps.clear();
     state.fighters[0].paletteNo = 1;
     state.fighters[1].paletteNo = 1;
+    applyRootFighterSizeScale(state, state.fighters[0]);
+    applyRootFighterSizeScale(state, state.fighters[1]);
     state.fighters[0].attackDistanceOverride = -1;
     state.fighters[1].attackDistanceOverride = -1;
     state.fighters[0].facing = state.fighters[0].x <= state.fighters[1].x ? 1 : -1;
@@ -183,6 +194,7 @@ void resetFightRound(AppState& state) {
             fighter.onGround = true;
             fighter.life = 1000;
             fighter.power = 0;
+            applyRootFighterSizeScale(state, fighter);
             enterRoundInitialState(state, fighter);
         }
 
@@ -246,6 +258,8 @@ void resetFightRound(AppState& state) {
     state.fighters[1].facing = -state.fighters[0].facing;
     state.fighters[0].onGround = true;
     state.fighters[1].onGround = true;
+    applyRootFighterSizeScale(state, state.fighters[0]);
+    applyRootFighterSizeScale(state, state.fighters[1]);
     state.fighters[0].life = 1000;
     state.fighters[1].life = 1000;
     state.fighters[0].hitPauseTicks = 0;

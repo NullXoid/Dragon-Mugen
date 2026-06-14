@@ -576,7 +576,7 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
         if (state.training.options.menuOpen) {
             if (state.training.options.moveListOpen) {
                 const auto entries = displayableMoveListEntries(state);
-                constexpr int visibleRows = 7;
+                constexpr int visibleRows = kTrainingMoveListRows;
                 const int maxScroll = std::max(0, static_cast<int>(entries.size()) - visibleRows);
                 const int maxSelected = std::max(0, static_cast<int>(entries.size()) - 1);
                 switch (key) {
@@ -723,7 +723,7 @@ std::optional<SDL_Keycode> gamepadMenuKeyForButton(const AppState& state, SDL_Ga
             return SDLK_F2;
         }
         if (button == SDL_GAMEPAD_BUTTON_BACK && state.frontend.pendingMode == PendingMode::Training) {
-            return SDLK_PAGEDOWN;
+            return std::nullopt;
         }
         if (button == SDL_GAMEPAD_BUTTON_BACK) {
             return SDLK_ESCAPE;

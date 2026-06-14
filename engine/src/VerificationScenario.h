@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iosfwd>
+#include <filesystem>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -54,9 +55,13 @@ struct FighterSnapshot {
     float hitDownVelocityY = 0.0f;
     float displayOffsetX = 0.0f;
     float displayOffsetY = 0.0f;
+    float scaleX = 1.0f;
+    float scaleY = 1.0f;
     float screenX = 0.0f;
     float screenY = 0.0f;
     float viewDepth = 0.0f;
+    float visualScreenLeft = 0.0f;
+    float visualScreenRight = 0.0f;
     int facing = 1;
     char stateType = 'S';
     char moveType = 'I';
@@ -66,10 +71,13 @@ struct FighterSnapshot {
     bool moveContact = false;
     bool moveHit = false;
     bool moveGuarded = false;
+    bool afterImageActive = false;
+    int afterImageTrailCount = 0;
 };
 
 struct RuntimeSnapshot {
     int frame = 0;
+    int logicalWidth = 426;
     float cameraX = 0.0f;
     float cameraY = 0.0f;
     float arenaCameraYawDeg = 0.0f;
@@ -104,12 +112,27 @@ struct RuntimeSnapshot {
     bool p1ActiveHitDef = false;
     bool p1HitFlagAllowsP2 = false;
     bool p2HittableByP1 = false;
+    int p1LocalCoordWidth = 320;
+    int p1LocalCoordHeight = 240;
+    int p2LocalCoordWidth = 320;
+    int p2LocalCoordHeight = 240;
+    bool p1UsesMugenSemantics = true;
+    bool p1AllowsDragonExtensions = false;
+    bool p1AllowsArenaExtensions = false;
+    bool p2UsesMugenSemantics = true;
+    bool selectedStageDragonSidecarAvailable = false;
+    bool selectedStageLegacyOpenBorSection = false;
     int p1AnimElem = 0;
     int p2AnimElem = 0;
     int p1Clsn1Count = 0;
+    int p1Clsn2Count = 0;
+    int p2Clsn1Count = 0;
     int p2Clsn2Count = 0;
     float p1P2BodyDistX = 0.0f;
     std::string arenaDrawOrder;
+    std::string runtimeMode;
+    std::string p1CompatibilityProfile;
+    std::string p2CompatibilityProfile;
     std::string lastHitText;
     std::string p1Commands;
     std::string p2Commands;
@@ -150,6 +173,7 @@ public:
     virtual void setArenaZAxisEnabled(bool enabled) = 0;
     virtual void setArenaCameraRotationEnabled(bool enabled) = 0;
     virtual void setFighterHitPause(int fighterIndex, int ticks) = 0;
+    virtual void setFighterHitStun(int fighterIndex, int ticks) = 0;
     virtual void forceFighterState(int fighterIndex, int stateNo) = 0;
     virtual void forceFighterLiedown(int fighterIndex, int hitStunTicks) = 0;
     virtual void spawnHelper(int ownerIndex, int helperId, int stateNo, int pauseMoveTime = 0, int superMoveTime = 0) = 0;
@@ -157,6 +181,8 @@ public:
     virtual bool selectTrainingMoveIndex(int index) = 0;
     virtual bool selectTrainingMove(std::string_view label) = 0;
     virtual void startTrainingCommandDemo() = 0;
+    virtual void holdTrainingShowSelect(bool held, int frames) = 0;
+    virtual bool captureScreenshot(const std::filesystem::path& path) = 0;
     virtual RuntimeSnapshot snapshot() const = 0;
     virtual std::string rootText() const = 0;
     virtual std::string stageName() const = 0;
