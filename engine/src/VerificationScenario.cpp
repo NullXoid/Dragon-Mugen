@@ -1899,6 +1899,27 @@ int runTrainingShowSelectHold(RuntimeProbe& runtime, std::ostream& out) {
         "fallback_buttons_use_strength_notation",
         sJab == moves.end() ? "S.Jab missing" : "input=\"" + sJab->input + "\"");
 
+    const auto xboxMoves = runtime.trainingMovesForPromptStyle("xbox");
+    const auto xboxShippu = std::find_if(xboxMoves.begin(), xboxMoves.end(), [](const TrainingMoveInfo& move) {
+        return move.label == "Shippu Jinrai Kyaku";
+    });
+    const bool xboxUsesPadNotation =
+        xboxShippu != xboxMoves.end()
+        && xboxShippu->input.find("A/B/RB") != std::string::npos
+        && xboxShippu->input.find("LK") == std::string::npos;
+    record(out, counts, xboxUsesPadNotation ? Status::Pass : Status::Fail,
+        "xbox_controller_prompt_notation_used",
+        xboxShippu == xboxMoves.end() ? "Shippu Jinrai Kyaku missing" : "input=\"" + xboxShippu->input + "\"");
+
+    const auto psMoves = runtime.trainingMovesForPromptStyle("playstation");
+    const auto psSJab = std::find_if(psMoves.begin(), psMoves.end(), [](const TrainingMoveInfo& move) {
+        return move.label == "S.Jab";
+    });
+    const bool psUsesPadNotation = psSJab != psMoves.end() && psSJab->input == "SQ";
+    record(out, counts, psUsesPadNotation ? Status::Pass : Status::Fail,
+        "playstation_controller_prompt_notation_used",
+        psSJab == psMoves.end() ? "S.Jab missing" : "input=\"" + psSJab->input + "\"");
+
     runtime.selectTrainingMoveIndex(0);
     const std::string firstLabel = moves[0].label;
     const std::string secondLabel = moves[1].label;

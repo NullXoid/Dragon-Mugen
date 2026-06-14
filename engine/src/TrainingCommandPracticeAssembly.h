@@ -28,26 +28,32 @@ bool holdTrainingCommandToken(std::string_view command) {
         || command == "hold_c";
 }
 
-std::string commandAtomDisplayLabel(const CommandAtom& atom) {
-    std::string label = moveListTokenForCommand(atom.symbol);
+std::string commandAtomDisplayLabel(
+    const CommandAtom& atom,
+    CommandButtonPromptMode mode = CommandButtonPromptMode::Strength) {
+    std::string label = moveListTokenForCommand(atom.symbol, mode);
     if (atom.hold) {
         label = "HOLD " + label;
     }
     return fitDebugText(label, 10);
 }
 
-std::string commandStepDisplayLabel(const CommandStep& step) {
+std::string commandStepDisplayLabel(
+    const CommandStep& step,
+    CommandButtonPromptMode mode = CommandButtonPromptMode::Strength) {
     std::string label;
     for (const auto& atom : step.atoms) {
         if (!label.empty()) {
             label += "+";
         }
-        label += commandAtomDisplayLabel(atom);
+        label += commandAtomDisplayLabel(atom, mode);
     }
     return fitDebugText(label.empty() ? "-" : label, 12);
 }
 
-std::string commandDefinitionInputLabel(const CommandDefinition& definition) {
+std::string commandDefinitionInputLabel(
+    const CommandDefinition& definition,
+    CommandButtonPromptMode mode = CommandButtonPromptMode::Strength) {
     if (definition.steps.empty()) {
         return "-";
     }
@@ -57,7 +63,7 @@ std::string commandDefinitionInputLabel(const CommandDefinition& definition) {
         if (!label.empty()) {
             label += " > ";
         }
-        label += commandStepDisplayLabel(step);
+        label += commandStepDisplayLabel(step, mode);
     }
     return label;
 }
@@ -150,7 +156,8 @@ void appendDefinitionPracticeSteps(
     std::vector<TrainingCommandStepView>& steps,
     const FighterState& fighter,
     const CommandDefinition& definition,
-    bool complete) {
+    bool complete,
+    CommandButtonPromptMode mode = CommandButtonPromptMode::Strength) {
     const int matched = complete
         ? static_cast<int>(definition.steps.size())
         : matchedPracticeStepCount(fighter, definition);
@@ -162,7 +169,7 @@ void appendDefinitionPracticeSteps(
             status = TrainingCommandStepStatus::Current;
         }
         steps.push_back(TrainingCommandStepView{
-            commandStepDisplayLabel(definition.steps[static_cast<size_t>(i)]),
+            commandStepDisplayLabel(definition.steps[static_cast<size_t>(i)], mode),
             status,
         });
     }
@@ -208,18 +215,19 @@ void appendEntryPracticeSteps(
     std::vector<TrainingCommandStepView>& steps,
     const CommandStateEntry& entry,
     const std::vector<std::string>& activeCommands,
-    bool complete) {
+    bool complete,
+    CommandButtonPromptMode mode = CommandButtonPromptMode::Strength) {
     struct PracticeCommandChip {
         std::string command;
         std::string label;
     };
 
     std::vector<PracticeCommandChip> chips;
-    const auto appendIfRequired = [&chips, &entry](std::string_view command) {
+    const auto appendIfRequired = [&chips, &entry, mode](std::string_view command) {
         if (commandListContains(entry.requiredCommands, command)) {
             chips.push_back(PracticeCommandChip{
                 std::string(command),
-                moveListTokenForCommand(command),
+                moveListTokenForCommand(command, mode),
             });
         }
     };
@@ -242,7 +250,7 @@ void appendEntryPracticeSteps(
             if (!label.empty()) {
                 label += "/";
             }
-            label += moveListTokenForCommand(option);
+            label += moveListTokenForCommand(option, mode);
             groupActive = groupActive || commandListContains(activeCommands, option);
         }
         if (!label.empty()) {

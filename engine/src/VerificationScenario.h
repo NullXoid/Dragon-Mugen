@@ -178,6 +178,7 @@ public:
     virtual void forceFighterLiedown(int fighterIndex, int hitStunTicks) = 0;
     virtual void spawnHelper(int ownerIndex, int helperId, int stateNo, int pauseMoveTime = 0, int superMoveTime = 0) = 0;
     virtual std::vector<TrainingMoveInfo> trainingMoves() const = 0;
+    virtual std::vector<TrainingMoveInfo> trainingMovesForPromptStyle(std::string_view style) const = 0;
     virtual bool selectTrainingMoveIndex(int index) = 0;
     virtual bool selectTrainingMove(std::string_view label) = 0;
     virtual void startTrainingCommandDemo() = 0;

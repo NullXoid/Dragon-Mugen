@@ -9932,28 +9932,50 @@ bool hasSelectedStageBackground(const AppState& state) {
 
 #include "TrainingDebugViewAssembly.h"
 
-std::string commandButtonDisplayToken(std::string_view command) {
-    if (command == "x") {
-        return "LP";
+enum class CommandButtonPromptMode {
+    Strength,
+    Xbox,
+    Playstation,
+};
+
+CommandButtonPromptMode commandButtonPromptModeForPlayer(const AppState& state, int playerIndex) {
+    if (!assignedGamepad(state, playerIndex)) {
+        return CommandButtonPromptMode::Strength;
     }
-    if (command == "y") {
-        return "MP";
+    return effectiveGamepadPromptStyle(state, playerIndex) == GamepadPromptStyle::Playstation
+        ? CommandButtonPromptMode::Playstation
+        : CommandButtonPromptMode::Xbox;
+}
+
+std::string commandButtonDisplayToken(
+    std::string_view command,
+    CommandButtonPromptMode mode = CommandButtonPromptMode::Strength) {
+    if (mode == CommandButtonPromptMode::Xbox) {
+        if (command == "x") return "X";
+        if (command == "y") return "Y";
+        if (command == "z") return "LB";
+        if (command == "a") return "A";
+        if (command == "b") return "B";
+        if (command == "c") return "RB";
+        if (command == "s") return "MENU";
     }
-    if (command == "z") {
-        return "SP";
+    if (mode == CommandButtonPromptMode::Playstation) {
+        if (command == "x") return "SQ";
+        if (command == "y") return "TRI";
+        if (command == "z") return "L1";
+        if (command == "a") return "X";
+        if (command == "b") return "O";
+        if (command == "c") return "R1";
+        if (command == "s") return "OPT";
     }
-    if (command == "a") {
-        return "LK";
-    }
-    if (command == "b") {
-        return "MK";
-    }
-    if (command == "c") {
-        return "SK";
-    }
-    if (command == "s") {
-        return "START";
-    }
+
+    if (command == "x") return "LP";
+    if (command == "y") return "MP";
+    if (command == "z") return "SP";
+    if (command == "a") return "LK";
+    if (command == "b") return "MK";
+    if (command == "c") return "SK";
+    if (command == "s") return "START";
     return {};
 }
 
@@ -9972,15 +9994,31 @@ bool isCommandButtonSymbol(char ch) {
     }
 }
 
-std::string moveListTokenForCommand(std::string_view command) {
-    if (const std::string button = commandButtonDisplayToken(command); !button.empty()) {
+std::string commandButtonGroupDisplayToken(std::string_view group, CommandButtonPromptMode mode) {
+    if (mode == CommandButtonPromptMode::Xbox) {
+        if (group == "p") return "X/Y/LB";
+        if (group == "k") return "A/B/RB";
+    }
+    if (mode == CommandButtonPromptMode::Playstation) {
+        if (group == "p") return "SQ/TRI/L1";
+        if (group == "k") return "X/O/R1";
+    }
+    if (group == "p") return "P";
+    if (group == "k") return "K";
+    return {};
+}
+
+std::string moveListTokenForCommand(
+    std::string_view command,
+    CommandButtonPromptMode mode = CommandButtonPromptMode::Strength) {
+    if (const std::string button = commandButtonDisplayToken(command, mode); !button.empty()) {
         return button;
     }
     if (command.size() == 2
         && isCommandButtonSymbol(command[0])
         && isCommandButtonSymbol(command[1])) {
-        return commandButtonDisplayToken(std::string_view(command).substr(0, 1))
-            + "+" + commandButtonDisplayToken(std::string_view(command).substr(1, 1));
+        return commandButtonDisplayToken(std::string_view(command).substr(0, 1), mode)
+            + "+" + commandButtonDisplayToken(std::string_view(command).substr(1, 1), mode);
     }
     if (command == "holddown") {
         return "DOWN";
@@ -9995,7 +10033,7 @@ std::string moveListTokenForCommand(std::string_view command) {
         return "BACK";
     }
     if (startsWithNoCase(command, "hold_") && command.size() == 6) {
-        if (const std::string button = commandButtonDisplayToken(std::string_view(command).substr(5, 1)); !button.empty()) {
+        if (const std::string button = commandButtonDisplayToken(std::string_view(command).substr(5, 1), mode); !button.empty()) {
             return "HOLD " + button;
         }
     }
@@ -10004,13 +10042,59 @@ std::string moveListTokenForCommand(std::string_view command) {
     std::replace(label.begin(), label.end(), '_', '+');
     if (label.size() >= 2 && label[label.size() - 2] == '+') {
         const std::string button(1, static_cast<char>(std::tolower(static_cast<unsigned char>(label.back()))));
-        if (const std::string display = commandButtonDisplayToken(button); !display.empty()) {
+        if (const std::string display = commandButtonDisplayToken(button, mode); !display.empty()) {
             label.replace(label.size() - 1, 1, display);
         } else if (button == "p" || button == "k") {
-            label.replace(label.size() - 1, 1, uppercaseCopy(button));
+            label.replace(label.size() - 1, 1, commandButtonGroupDisplayToken(button, mode));
         }
     }
     return label;
+}
+
+std::string remapStrengthTokenForPrompt(std::string_view rawToken, CommandButtonPromptMode mode) {
+    const std::string token = uppercaseCopy(trim(rawToken));
+    if (token.empty()) {
+        return {};
+    }
+    if (mode == CommandButtonPromptMode::Strength) {
+        return token;
+    }
+
+    if (token == "LP") return commandButtonDisplayToken("x", mode);
+    if (token == "MP") return commandButtonDisplayToken("y", mode);
+    if (token == "SP") return commandButtonDisplayToken("z", mode);
+    if (token == "LK") return commandButtonDisplayToken("a", mode);
+    if (token == "MK") return commandButtonDisplayToken("b", mode);
+    if (token == "SK") return commandButtonDisplayToken("c", mode);
+    if (token == "P") return commandButtonGroupDisplayToken("p", mode);
+    if (token == "K") return commandButtonGroupDisplayToken("k", mode);
+    return token;
+}
+
+std::string remapDisplayInputForPrompt(std::string_view input, CommandButtonPromptMode mode) {
+    if (mode == CommandButtonPromptMode::Strength) {
+        return std::string(input);
+    }
+
+    std::string out;
+    std::string token;
+    const auto flushToken = [&]() {
+        if (!token.empty()) {
+            out += remapStrengthTokenForPrompt(token, mode);
+            token.clear();
+        }
+    };
+
+    for (const char ch : input) {
+        if (std::isalnum(static_cast<unsigned char>(ch))) {
+            token.push_back(ch);
+            continue;
+        }
+        flushToken();
+        out.push_back(ch);
+    }
+    flushToken();
+    return out;
 }
 
 bool commandListContains(const std::vector<std::string>& commands, std::string_view command) {
@@ -10019,15 +10103,17 @@ bool commandListContains(const std::vector<std::string>& commands, std::string_v
     });
 }
 
-std::string moveListInputText(const CommandStateEntry& entry) {
+std::string moveListInputText(
+    const CommandStateEntry& entry,
+    CommandButtonPromptMode mode = CommandButtonPromptMode::Strength) {
     if (!entry.displayInput.empty()) {
-        return entry.displayInput;
+        return remapDisplayInputForPrompt(entry.displayInput, mode);
     }
 
     std::vector<std::string> parts;
-    const auto appendIfRequired = [&parts, &entry](std::string_view command) {
+    const auto appendIfRequired = [&parts, &entry, mode](std::string_view command) {
         if (commandListContains(entry.requiredCommands, command)) {
-            parts.push_back(moveListTokenForCommand(command));
+            parts.push_back(moveListTokenForCommand(command, mode));
         }
     };
 
@@ -10037,7 +10123,7 @@ std::string moveListInputText(const CommandStateEntry& entry) {
             if (!groupText.empty()) {
                 groupText += "/";
             }
-            groupText += moveListTokenForCommand(option);
+            groupText += moveListTokenForCommand(option, mode);
         }
         if (!groupText.empty()) {
             parts.push_back(groupText);
@@ -10068,7 +10154,7 @@ std::string moveListInputText(const CommandStateEntry& entry) {
             || command == "c") {
             continue;
         }
-        parts.push_back(moveListTokenForCommand(command));
+        parts.push_back(moveListTokenForCommand(command, mode));
     }
 
     if (parts.empty()) {
@@ -10228,38 +10314,44 @@ std::string inputDirectionToken(const FighterInputState& input, int facing) {
     return "";
 }
 
-std::string inputDisplayToken(const FighterInputState& input, int facing) {
+std::string inputDisplayToken(
+    const FighterInputState& input,
+    int facing,
+    CommandButtonPromptMode mode = CommandButtonPromptMode::Strength) {
     std::vector<std::string> tokens;
     const std::string direction = inputDirectionToken(input, facing);
     if (!direction.empty()) {
         tokens.push_back(direction);
     }
     if (input.x) {
-        tokens.push_back("LP");
+        tokens.push_back(commandButtonDisplayToken("x", mode));
     }
     if (input.y) {
-        tokens.push_back("MP");
+        tokens.push_back(commandButtonDisplayToken("y", mode));
     }
     if (input.z) {
-        tokens.push_back("SP");
+        tokens.push_back(commandButtonDisplayToken("z", mode));
     }
     if (input.a) {
-        tokens.push_back("LK");
+        tokens.push_back(commandButtonDisplayToken("a", mode));
     }
     if (input.b) {
-        tokens.push_back("MK");
+        tokens.push_back(commandButtonDisplayToken("b", mode));
     }
     if (input.c) {
-        tokens.push_back("SK");
+        tokens.push_back(commandButtonDisplayToken("c", mode));
     }
     return joinTokens(tokens, "+");
 }
 
-std::vector<std::string> recentInputDisplayTokens(const FighterState& fighter, int maxTokens) {
+std::vector<std::string> recentInputDisplayTokens(
+    const FighterState& fighter,
+    int maxTokens,
+    CommandButtonPromptMode mode = CommandButtonPromptMode::Strength) {
     std::vector<std::string> tokens;
     std::string lastToken;
     for (auto it = fighter.inputHistory.rbegin(); it != fighter.inputHistory.rend() && static_cast<int>(tokens.size()) < maxTokens; ++it) {
-        std::string token = inputDisplayToken(it->input, fighter.facing);
+        std::string token = inputDisplayToken(it->input, fighter.facing, mode);
         if (token == "-" || token == lastToken) {
             continue;
         }
@@ -10306,6 +10398,7 @@ TrainingCommandHudView trainingCommandHudView(
     }
 
     const auto& fighter = state.fighters[0];
+    const CommandButtonPromptMode promptMode = commandButtonPromptModeForPlayer(state, 0);
     const FighterState* opponent = state.fighters.size() > 1 ? &state.fighters[1] : nullptr;
     const std::vector<std::string> commands = fighter.inputHistory.empty()
         ? std::vector<std::string>{}
@@ -10315,9 +10408,9 @@ TrainingCommandHudView trainingCommandHudView(
     if (view.input.visible) {
         const std::string current = fighter.inputHistory.empty()
             ? "-"
-            : inputDisplayToken(fighter.inputHistory.back().input, fighter.facing);
+            : inputDisplayToken(fighter.inputHistory.back().input, fighter.facing, promptMode);
         view.input.currentInput = fitDebugText(current, 18);
-        view.input.recentInputs = fitDebugText(joinTokens(recentInputDisplayTokens(fighter, 8), " "), 27);
+        view.input.recentInputs = fitDebugText(joinTokens(recentInputDisplayTokens(fighter, 8, promptMode), " "), 27);
     }
 
     if (view.commandsVisible) {
@@ -10341,10 +10434,10 @@ TrainingCommandHudView trainingCommandHudView(
                 continue;
             }
             const CommandDefinition* definition = practiceCommandDefinitionForEntry(state, *entry, commands);
-            const std::string inputText = moveListInputText(*entry);
+            const std::string inputText = moveListInputText(*entry, promptMode);
             rows.push_back(TrainingCommandRowView{
                 fitDebugText(moveListEntryName(*entry), 16),
-                fitDebugText(inputText.empty() && definition ? commandDefinitionInputLabel(*definition) : inputText, 10),
+                fitDebugText(inputText.empty() && definition ? commandDefinitionInputLabel(*definition, promptMode) : inputText, 10),
                 activeEntry == entry,
                 index == selected,
             });
@@ -10369,16 +10462,17 @@ TrainingCommandHudView trainingCommandHudView(
             const CommandDefinition* definition = practiceCommandDefinitionForEntry(state, entry, commands);
             const int matched = definition ? matchedPracticeStepCount(fighter, *definition) : 0;
             view.currentMoveName = fitDebugText(moveListEntryName(entry), 20);
-            view.currentMoveInput = fitDebugText(moveListInputText(entry), 25);
+            const std::string inputText = moveListInputText(entry, promptMode);
+            view.currentMoveInput = fitDebugText(inputText, 25);
             view.completeFlash = complete || view.completionVisible;
 
             const bool definitionActive = definition && commandDefinitionActive(*definition, fighter);
             if (!entry.displayInput.empty()) {
-                appendPresentationPracticeSteps(steps, entry.displayInput, matched, complete || definitionActive);
+                appendPresentationPracticeSteps(steps, inputText, matched, complete || definitionActive);
             } else if (definition) {
-                appendDefinitionPracticeSteps(steps, fighter, *definition, complete || definitionActive);
+                appendDefinitionPracticeSteps(steps, fighter, *definition, complete || definitionActive, promptMode);
             } else {
-                appendEntryPracticeSteps(steps, entry, commands, complete);
+                appendEntryPracticeSteps(steps, entry, commands, complete, promptMode);
             }
         } else {
             view.currentMoveName = "No loaded moves";
@@ -10427,6 +10521,7 @@ TrainingMoveListView trainingMoveListView(const AppState& state, std::vector<Tra
     constexpr int visibleRows = kTrainingMoveListRows;
 
     const auto entries = displayableMoveListEntries(state);
+    const CommandButtonPromptMode promptMode = commandButtonPromptModeForPlayer(state, 0);
     const int maxScroll = std::max(0, static_cast<int>(entries.size()) - visibleRows);
     const int scroll = std::clamp(state.training.options.moveListScroll, 0, maxScroll);
     const int selected = entries.empty()
@@ -10443,7 +10538,7 @@ TrainingMoveListView trainingMoveListView(const AppState& state, std::vector<Tra
         rows.push_back(TrainingMoveRowView{
             (index + 1 < 10 ? "0" : "") + std::to_string(index + 1),
             moveListEntryName(entry),
-            moveListInputText(entry),
+            moveListInputText(entry, promptMode),
             index == selected,
         });
     }
@@ -10459,7 +10554,7 @@ TrainingMoveListView trainingMoveListView(const AppState& state, std::vector<Tra
 
     if (selected >= 0) {
         const auto& entry = *entries[static_cast<size_t>(selected)];
-        const std::string inputText = moveListInputText(entry);
+        const std::string inputText = moveListInputText(entry, promptMode);
         const int requiredPower = commandEntryRequiredPower(entry);
         view.detail = TrainingMoveDetailView{
             fitDebugText(moveListEntryName(entry), 17),

@@ -90,6 +90,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Training command HUD Show Me still starts from keyboard `H`, P1 controller L3/R3/touchpad, or a 2-second Select/Back hold; short Select/Back tap still advances to the next move.
 - Training command HUD prefers optional Ikemen `movelist.dat` presentation text for move inputs, so human command cards can show diagonals such as `DB` even when CMD recognition uses a lenient shorthand.
 - Training command HUD/input history shows action-strength labels (`LP/MP/SP` and `LK/MK/SK`) instead of keyboard letters.
+- Training command HUD/full command list switches to assigned P1 controller prompts when a controller is detected: Xbox-style `X/Y/LB` and `A/B/RB`, or PlayStation-style `SQ/TRI/L1` and `X/O/R1`.
 - Training P2 control still switches the opponent to local P2 behavior.
 - Single Fight round timer, KO/time-over, pips, match result, and rematch/menu inputs still work.
 - Arena defeated fighters are ignored for targeting/win checks, and last-fighter-standing reaches the winner and end screens.

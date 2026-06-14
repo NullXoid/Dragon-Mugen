@@ -322,7 +322,7 @@ public:
         state_.helpers.push_back(std::move(helper));
     }
 
-    std::vector<verification::TrainingMoveInfo> trainingMoves() const override {
+    std::vector<verification::TrainingMoveInfo> trainingMovesForMode(CommandButtonPromptMode mode) const {
         std::vector<verification::TrainingMoveInfo> moves;
         const auto entries = displayableMoveListEntries(state_);
         moves.reserve(entries.size());
@@ -356,7 +356,7 @@ public:
             }
             moves.push_back(verification::TrainingMoveInfo{
                 moveListEntryName(*entry),
-                moveListInputText(*entry),
+                moveListInputText(*entry, mode),
                 targetState,
                 entry->requiredStateType,
                 commandEntryRequiredPower(*entry),
@@ -364,6 +364,20 @@ public:
             });
         }
         return moves;
+    }
+
+    std::vector<verification::TrainingMoveInfo> trainingMoves() const override {
+        return trainingMovesForMode(CommandButtonPromptMode::Strength);
+    }
+
+    std::vector<verification::TrainingMoveInfo> trainingMovesForPromptStyle(std::string_view style) const override {
+        if (style == "playstation") {
+            return trainingMovesForMode(CommandButtonPromptMode::Playstation);
+        }
+        if (style == "xbox") {
+            return trainingMovesForMode(CommandButtonPromptMode::Xbox);
+        }
+        return trainingMovesForMode(CommandButtonPromptMode::Strength);
     }
 
     bool selectTrainingMoveIndex(int index) override {
