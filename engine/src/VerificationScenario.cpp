@@ -4,6 +4,7 @@
 #include "dragon/MugenData.h"
 
 #include "AppTypes.h"
+#include "TrainingCommandInputRenderer.h"
 #include "TrainingOptionsBehavior.h"
 #include "TrainingOptionsOverlay.h"
 
@@ -20,6 +21,13 @@
 namespace dragon::verification {
 int runTrainingOptionsMenuGeometry(RuntimeProbe& runtime, std::ostream& out);
 int runTrainingMoveListGeometry(RuntimeProbe& runtime, std::ostream& out);
+int runTrainingCommandListTabs(RuntimeProbe& runtime, std::ostream& out);
+int runTrainingCommandIconAtlas(RuntimeProbe& runtime, std::ostream& out);
+int runTrainingCommandSideSwitchHighlight(RuntimeProbe& runtime, std::ostream& out);
+int runTrainingCommandFacingAwareDisplay(RuntimeProbe& runtime, std::ostream& out);
+int runTrainingCommandPhysicalDirectionGuide(RuntimeProbe& runtime, std::ostream& out);
+int runTrainingCommandCompleteBlink(RuntimeProbe& runtime, std::ostream& out);
+int runTrainingPaletteSlotSeparation(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenTripGrounding(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenOverheadTripChain(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenOverheadTripChainStress(RuntimeProbe& runtime, std::ostream& out);
@@ -1776,6 +1784,7 @@ int runTrainingMoveListGeometry(RuntimeProbe&, std::ostream& out) {
     out << "VERIFY training-move-list-geometry\n";
 
     std::vector<TrainingMoveRowView> firstPageRows{
+        { "", "Special Move", "", false, "SPECIAL", true, true },
         { "01", "Ground Recovery Roll", "B+DB+D+A", true },
         { "02", "Shoryureppa", "D+DF+F+A", false },
         { "03", "Shinryuken", "D+F+D+F+Z", false },
@@ -1785,7 +1794,6 @@ int runTrainingMoveListGeometry(RuntimeProbe&, std::ostream& out) {
         { "07", "Punch Throw", "A+S", false },
         { "08", "Stand Kick Throw", "Z+X", false },
         { "09", "Shouki Hatsudou", "B+D+F+A+S", false },
-        { "10", "Rongou Kokuretsu Zan", "D+D+D+A", false },
     };
     TrainingMoveListView firstPage;
     firstPage.rows = firstPageRows;
@@ -1801,8 +1809,10 @@ int runTrainingMoveListGeometry(RuntimeProbe&, std::ostream& out) {
     firstPage.selectedCharacterLabel = "Evil Ken";
     firstPage.categoryLabel = "ALL";
     firstPage.pageLabel = "1/18";
+    firstPage.activeTab = TrainingMoveListTab::All;
 
     std::vector<TrainingMoveRowView> secondPageRows{
+        { "", "Super Move", "", false, "SUPER", true, true },
         { "11", "Hadouken", "D+DF+F+A", false },
         { "12", "Shakunetsu Hadouken", "B+DB+D+DF+F+Z", false },
         { "13", "Tatsumaki Senpuukyaku", "D+DB+B+X", false },
@@ -1811,7 +1821,6 @@ int runTrainingMoveListGeometry(RuntimeProbe&, std::ostream& out) {
         { "16", "Raging Demon State 3890", "A+A+F+Z+D", false },
         { "17", "Long Compatibility Stress Command Entry", "D+DF+F+D+DF+F+A+S", false },
         { "18", "Arena Forward Dash Bounds Recovery", "F+F", false },
-        { "19", "Power Charge Helper Lifecycle", "A+S+Z", false },
         { "20", "Command Training Demo Finish Advance", "D+DB+B+D+DB+B+C", true },
     };
     TrainingMoveListView secondPage;
@@ -1828,6 +1837,7 @@ int runTrainingMoveListGeometry(RuntimeProbe&, std::ostream& out) {
     secondPage.selectedCharacterLabel = "Evil Ken";
     secondPage.categoryLabel = "SUPERS";
     secondPage.pageLabel = "20/20";
+    secondPage.activeTab = TrainingMoveListTab::Main;
 
     const TrainingMoveListView pages[] = { firstPage, secondPage };
     for (int i = 0; i < 2; ++i) {
@@ -1849,6 +1859,283 @@ int runTrainingMoveListGeometry(RuntimeProbe&, std::ostream& out) {
             pageName + "_geometry_fits",
             geometry.detail);
     }
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runTrainingCommandListTabs(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("EvilKen", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Evil Ken/Mountainside Training setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "training-command-list-tabs");
+
+    record(out, counts, runtime.trainingMoveListTab() == "all" ? Status::Pass : Status::Fail,
+        "default_tab_all",
+        "tab=" + runtime.trainingMoveListTab());
+
+    const auto allMoves = runtime.trainingMoves();
+    record(out, counts, !allMoves.empty() ? Status::Pass : Status::Fail,
+        "all_tab_has_moves",
+        "moves=" + std::to_string(allMoves.size()));
+    if (allMoves.empty()) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    runtime.setTrainingMoveListTab("main");
+    const auto mainMoves = runtime.trainingMoves();
+    record(out, counts, runtime.trainingMoveListTab() == "main" ? Status::Pass : Status::Fail,
+        "switch_to_main",
+        "tab=" + runtime.trainingMoveListTab());
+    record(out, counts, !mainMoves.empty() && mainMoves.size() <= allMoves.size() ? Status::Pass : Status::Fail,
+        "main_subset_valid",
+        "main=" + std::to_string(mainMoves.size()) + " all=" + std::to_string(allMoves.size()));
+
+    if (!mainMoves.empty()) {
+        const std::string selectedLabel = mainMoves.front().label;
+        const bool selected = runtime.selectTrainingMove(selectedLabel);
+        runtime.setTrainingMoveListTab("all");
+        const auto afterAll = runtime.snapshot();
+        record(out, counts, selected && afterAll.selectedTrainingMoveLabel == selectedLabel ? Status::Pass : Status::Fail,
+            "selection_preserved_to_all",
+            "wanted=\"" + selectedLabel + "\" got=\"" + afterAll.selectedTrainingMoveLabel + "\"");
+
+        runtime.setTrainingMoveListTab("main");
+        const auto afterMain = runtime.snapshot();
+        record(out, counts, afterMain.selectedTrainingMoveLabel == selectedLabel ? Status::Pass : Status::Fail,
+            "selection_preserved_back_to_main",
+            "wanted=\"" + selectedLabel + "\" got=\"" + afterMain.selectedTrainingMoveLabel + "\"");
+    }
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runTrainingCommandIconAtlas(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY training-command-icon-atlas\n";
+
+    const CommandInputRenderOptions fallbackOptions;
+    const float fallbackWidth = commandInputWidth("DOWN+DF+F+SQ/TRI/L1", fallbackOptions);
+    CommandInputRenderOptions missingAtlasOptions;
+    missingAtlasOptions.preferBitmapIcons = true;
+    missingAtlasOptions.iconAtlas = CommandInputIconAtlasView{};
+    const float missingAtlasWidth = commandInputWidth("DOWN+DF+F+SQ/TRI/L1", missingAtlasOptions);
+    record(out, counts, fallbackWidth > 0.0f && missingAtlasWidth == fallbackWidth ? Status::Pass : Status::Fail,
+        "text_fallback_width",
+        "fallback=" + std::to_string(fallbackWidth)
+            + " missing_atlas=" + std::to_string(missingAtlasWidth));
+    record(out, counts, commandInputIconId("DOWN") == "D"
+            && commandInputIconId("FWD") == "F"
+            && commandInputIconId("SQUARE") == "SQ"
+            && commandInputIconId("BTN_B") == "B"
+            && commandInputIconId("TRIANGLE") == "TRI"
+            && commandInputIconId("...") == ".."
+            ? Status::Pass : Status::Fail,
+        "token_normalization",
+        "DOWN=" + commandInputIconId("DOWN")
+            + " FWD=" + commandInputIconId("FWD")
+            + " SQUARE=" + commandInputIconId("SQUARE"));
+
+    if (!runtime.setup("EvilKen", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Evil Ken/Mountainside Training setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    record(out, counts, runtime.commandIconAtlasLoaded() ? Status::Pass : Status::Fail,
+        "png_atlas_loaded",
+        runtime.commandIconAtlasLoaded() ? "loaded" : "not loaded");
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runTrainingCommandFacingAwareDisplay(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY training-command-facing-aware-display\n";
+
+    CommandInputRenderOptions facingRight;
+    facingRight.directionPresentation = CommandInputDirectionPresentation::Physical;
+    facingRight.facing = 1;
+    CommandInputRenderOptions facingLeft = facingRight;
+    facingLeft.facing = -1;
+
+    const std::string input = "D+DF+F+X/B";
+    const std::string right = commandInputPresentedInput(input, facingRight);
+    const std::string left = commandInputPresentedInput(input, facingLeft);
+    record(out, counts, right == "D+DF+F+X/B" ? Status::Pass : Status::Fail,
+        "facing_right_keeps_forward_right",
+        "presented=\"" + right + "\"");
+    record(out, counts, left == "D+DB+B+X/F" ? Status::Pass : Status::Fail,
+        "facing_left_flips_forward_to_left",
+        "presented=\"" + left + "\"");
+    record(out, counts, commandInputPresentedIconId("DF", facingLeft) == "DB"
+            && commandInputPresentedIconId("B", facingLeft) == "F"
+            ? Status::Pass : Status::Fail,
+        "direction_icon_ids_flip",
+        "DF->" + commandInputPresentedIconId("DF", facingLeft)
+            + " B->" + commandInputPresentedIconId("B", facingLeft));
+    record(out, counts, commandInputPresentedIconId("BTN_B", facingLeft) == "B"
+            && commandInputPresentedText("BTN_B", facingLeft) == "B"
+            ? Status::Pass : Status::Fail,
+        "explicit_xbox_b_does_not_flip",
+        "BTN_B->" + commandInputPresentedIconId("BTN_B", facingLeft));
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runTrainingCommandSideSwitchHighlight(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("EvilKen", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Evil Ken/Mountainside Training setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "training-command-side-switch-highlight");
+
+    waitForControllableIdle(runtime, 420);
+    runtime.positionFighters(120.0f, -120.0f);
+    const auto sideSwitched = runtime.snapshot();
+    record(out, counts, sideSwitched.p1.facing < 0 ? Status::Pass : Status::Fail,
+        "p1_faces_left_after_side_switch",
+        "facing=" + std::to_string(sideSwitched.p1.facing));
+
+    runtime.step(SymbolicInput{ .right = true }, 1);
+    const std::string rightDisplay = runtime.trainingCurrentInputDisplay();
+    runtime.step(SymbolicInput{ .left = true }, 1);
+    const std::string leftDisplay = runtime.trainingCurrentInputDisplay();
+    CommandInputRenderOptions liveInputOptions;
+    liveInputOptions.facing = sideSwitched.p1.facing;
+    record(out, counts, rightDisplay == "F" ? Status::Pass : Status::Fail,
+        "physical_right_still_displays_right",
+        "display=\"" + rightDisplay + "\"");
+    record(out, counts, leftDisplay == "B" ? Status::Pass : Status::Fail,
+        "physical_left_still_displays_left",
+        "display=\"" + leftDisplay + "\"");
+    record(out, counts, commandInputPresentedInput(rightDisplay, liveInputOptions) == "F"
+            && commandInputPresentedInput(leftDisplay, liveInputOptions) == "B"
+            ? Status::Pass : Status::Fail,
+        "live_input_render_does_not_flip",
+        "right=\"" + commandInputPresentedInput(rightDisplay, liveInputOptions)
+            + "\" left=\"" + commandInputPresentedInput(leftDisplay, liveInputOptions) + "\"");
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runTrainingCommandPhysicalDirectionGuide(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("EvilKen", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Evil Ken/Mountainside Training setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "training-command-physical-direction-guide");
+
+    waitForControllableIdle(runtime, 420);
+    runtime.positionFighters(120.0f, -120.0f);
+    runtime.step(SymbolicInput{ .right = true }, 1);
+    const std::string rightGuide = runtime.trainingDirectionGuideState();
+    runtime.step(SymbolicInput{ .left = true }, 1);
+    const std::string leftGuide = runtime.trainingDirectionGuideState();
+
+    record(out, counts, rightGuide.find(">:p") != std::string::npos ? Status::Pass : Status::Fail,
+        "guide_lights_physical_right",
+        rightGuide);
+    record(out, counts, leftGuide.find("<:p") != std::string::npos ? Status::Pass : Status::Fail,
+        "guide_lights_physical_left",
+        leftGuide);
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runTrainingCommandCompleteBlink(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("EvilKen", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Evil Ken/Mountainside Training setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "training-command-complete-blink");
+
+    const bool idle = waitForControllableIdle(runtime, 420);
+    record(out, counts, idle ? Status::Pass : Status::Fail, "controllable_idle_ready",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo));
+    if (!idle) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    runtime.positionFighters(-260.0f, 260.0f);
+    const bool selected = runtime.selectTrainingMove("S.Jab");
+    record(out, counts, selected ? Status::Pass : Status::Blocked, "select_simple_move",
+        "selected=\"" + runtime.snapshot().selectedTrainingMoveLabel + "\"");
+    if (!selected) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    constexpr std::array<char, 6> buttons{ 'x', 'y', 'z', 'a', 'b', 'c' };
+    bool sawFlash = false;
+    char workingButton = '?';
+    for (const char button : buttons) {
+        waitForControllableIdle(runtime, 180);
+        runtime.step({}, 6);
+        runtime.step(withButton(button), 2);
+        for (int i = 0; i < 24; ++i) {
+            sawFlash = runtime.trainingCommandCompleteFlash();
+            if (sawFlash) {
+                workingButton = button;
+                break;
+            }
+            runtime.step({}, 1);
+        }
+        if (sawFlash) {
+            break;
+        }
+    }
+
+    record(out, counts, sawFlash ? Status::Pass : Status::Fail,
+        "complete_flash_reaches_hud",
+        "button=" + std::string(1, workingButton)
+            + " last_hit=\"" + runtime.snapshot().lastHitText + "\"");
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runTrainingPaletteSlotSeparation(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("EvilKen", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Evil Ken/Mountainside Training setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "training-palette-slot-separation");
+
+    const auto snapshot = runtime.snapshot();
+    record(out, counts, snapshot.p1.paletteNo == 1 ? Status::Pass : Status::Fail,
+        "p1_uses_palette_1",
+        "p1_pal=" + std::to_string(snapshot.p1.paletteNo));
+    record(out, counts, snapshot.p2.paletteNo == 2 ? Status::Pass : Status::Fail,
+        "dummy_uses_palette_2",
+        "p2_pal=" + std::to_string(snapshot.p2.paletteNo));
+    record(out, counts, snapshot.p1.paletteNo != snapshot.p2.paletteNo ? Status::Pass : Status::Fail,
+        "slots_are_visually_separated",
+        "p1_pal=" + std::to_string(snapshot.p1.paletteNo)
+            + " p2_pal=" + std::to_string(snapshot.p2.paletteNo));
 
     record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
     summary(out, counts);
@@ -1905,7 +2192,7 @@ int runTrainingShowSelectHold(RuntimeProbe& runtime, std::ostream& out) {
     });
     const bool xboxUsesPadNotation =
         xboxShippu != xboxMoves.end()
-        && xboxShippu->input.find("A/B/RB") != std::string::npos
+        && xboxShippu->input.find("A/BTN_B/RB") != std::string::npos
         && xboxShippu->input.find("LK") == std::string::npos;
     record(out, counts, xboxUsesPadNotation ? Status::Pass : Status::Fail,
         "xbox_controller_prompt_notation_used",
@@ -2030,6 +2317,13 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
     if (scenarioName == "compatibility-profile-resolver") return runCompatibilityProfileResolver(runtime, out);
     if (scenarioName == "training-options-menu-geometry") return runTrainingOptionsMenuGeometry(runtime, out);
     if (scenarioName == "training-move-list-geometry") return runTrainingMoveListGeometry(runtime, out);
+    if (scenarioName == "training-command-list-tabs") return runTrainingCommandListTabs(runtime, out);
+    if (scenarioName == "training-command-icon-atlas") return runTrainingCommandIconAtlas(runtime, out);
+    if (scenarioName == "training-command-side-switch-highlight") return runTrainingCommandSideSwitchHighlight(runtime, out);
+    if (scenarioName == "training-command-facing-aware-display") return runTrainingCommandFacingAwareDisplay(runtime, out);
+    if (scenarioName == "training-command-physical-direction-guide") return runTrainingCommandPhysicalDirectionGuide(runtime, out);
+    if (scenarioName == "training-command-complete-blink") return runTrainingCommandCompleteBlink(runtime, out);
+    if (scenarioName == "training-palette-slot-separation") return runTrainingPaletteSlotSeparation(runtime, out);
     if (scenarioName == "training-show-select-hold") return runTrainingShowSelectHold(runtime, out);
     if (scenarioName == "training-show-controller-shortcut") return runTrainingShowControllerShortcut(runtime, out);
     if (scenarioName == "character-auto-fit-scale") return runCharacterAutoFitScale(runtime, out);
@@ -2095,7 +2389,7 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
 
     out << "VERIFY " << scenarioName << "\n"
         << "BLOCKED unknown_scenario\n"
-        << "  supported: compatibility-profile-resolver, training-options-menu-geometry, training-move-list-geometry, training-show-select-hold, training-show-controller-shortcut, character-auto-fit-scale, lili-smoke, lili-changeanim2-fallback, lili-kuuch-state-fallback, lili-hien-houou-kyaku-demo, lili-training-demo-all, kfm-baseline, kfm-throw, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-guard-recovery, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-power-charge-helper, evilken-air-special-contact-landing, evilken-training-demo-hit, evilken-training-command-practice-advance, evilryu-specials-supers, evilryu-shin-shoryuken-stun, evilryu-super-stress, evilryu-air-special-contact-landing, evilryu-power-charge-helper, evilryu-throw-bind, evilryu-training-throw-demo, evilken-smoke, evilken-trip-grounding, evilken-overhead-trip-chain, evilken-overhead-trip-chain-stress, evilken-trip-jump-buffer, evilken-attack-jump-buffer-release, evilken-throw, evilken-corner-visual-bounds, evilken-kuuchuu-shakunetsu, evilken-training-demo-all, evilken-shinryuken-recovery, evilken-shun-goku-satsu, evilken-shouki-hatsudou-spacing, cpu-baseline, vs-p2-runtime, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-camera-rotation-toggle, arena-camera-rotation-projection, arena-camera-rotation-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-evilken-forward-dash-bounds, arena-per-fighter-runtime, arena-openbor-scroll-stage, arena-evilryu-air-special-contact-landing, evilryu-dash\n"
+        << "  supported: compatibility-profile-resolver, training-options-menu-geometry, training-move-list-geometry, training-command-list-tabs, training-command-icon-atlas, training-command-side-switch-highlight, training-command-facing-aware-display, training-command-physical-direction-guide, training-command-complete-blink, training-palette-slot-separation, training-show-select-hold, training-show-controller-shortcut, character-auto-fit-scale, lili-smoke, lili-changeanim2-fallback, lili-kuuch-state-fallback, lili-hien-houou-kyaku-demo, lili-training-demo-all, kfm-baseline, kfm-throw, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-guard-recovery, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-power-charge-helper, evilken-air-special-contact-landing, evilken-training-demo-hit, evilken-training-command-practice-advance, evilryu-specials-supers, evilryu-shin-shoryuken-stun, evilryu-super-stress, evilryu-air-special-contact-landing, evilryu-power-charge-helper, evilryu-throw-bind, evilryu-training-throw-demo, evilken-smoke, evilken-trip-grounding, evilken-overhead-trip-chain, evilken-overhead-trip-chain-stress, evilken-trip-jump-buffer, evilken-attack-jump-buffer-release, evilken-throw, evilken-corner-visual-bounds, evilken-kuuchuu-shakunetsu, evilken-training-demo-all, evilken-shinryuken-recovery, evilken-shun-goku-satsu, evilken-shouki-hatsudou-spacing, cpu-baseline, vs-p2-runtime, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-camera-rotation-toggle, arena-camera-rotation-projection, arena-camera-rotation-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-evilken-forward-dash-bounds, arena-per-fighter-runtime, arena-openbor-scroll-stage, arena-evilryu-air-special-contact-landing, evilryu-dash\n"
         << "SUMMARY pass=0 partial=0 fail=0 blocked=1\n";
     return 2;
 }

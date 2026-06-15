@@ -23,6 +23,7 @@
 #include "SelectionState.h"
 #include "StageSelectOverlay.h"
 #include "TrainingState.h"
+#include "TrainingCommandInputRenderer.h"
 #include "TrainingCommandView.h"
 #include "TrainingCommandOverlay.h"
 #include "TrainingDebugView.h"
@@ -47,6 +48,7 @@
 #include <fstream>
 #include <filesystem>
 #include <iomanip>
+#include <initializer_list>
 #include <numbers>
 #include <optional>
 #include <ostream>
@@ -1125,6 +1127,7 @@ struct CommandStateEntry {
     std::string label;
     std::string displayLabel;
     std::string displayInput;
+    bool presentationOverride = false;
     std::vector<std::string> requiredCommands;
     std::vector<std::string> forbiddenCommands;
     std::vector<std::vector<std::string>> commandOptionGroups;
@@ -1301,6 +1304,8 @@ struct ArenaCharacterRuntime {
     std::vector<DecodedSoundSample> samples;
     std::vector<std::string> victoryQuotes;
     std::string name;
+    int paletteNo = 1;
+    std::filesystem::path palettePath;
 };
 
 struct StateControllerCooldown {
@@ -1547,6 +1552,10 @@ struct AppState {
     DragonRuntimeMode runtimeMode = DragonRuntimeMode::Dragon;
     CompatibilityContext characterCompatibility;
     CharacterConstants characterConstants;
+    int characterPaletteNo = 1;
+    std::filesystem::path characterPalettePath;
+    int opponentPaletteNo = 1;
+    std::filesystem::path opponentPalettePath;
     std::vector<HitDefinition> hitDefs;
     std::vector<StateDefinition> stateDefs;
     std::vector<CommandStateEntry> commandEntries;
@@ -1563,6 +1572,8 @@ struct AppState {
     std::vector<TextureSprite> characterIconSprites;
     std::vector<TextureSprite> characterFaceSprites;
     SystemScreenAssets systemScreens;
+    CommandInputIconAtlas commandInputIcons;
+    TextureSprite commandCompleteCheck;
     std::vector<StageBackgroundElement> stageBackground;
     int stageBackgroundStageIndex = -1;
     AudioState audio;
@@ -3176,7 +3187,7 @@ std::vector<OptionsMenuRowView> buildOptionsMenuRows(const AppState& state) {
         const bool adjustable = i < kMainSettingsCount - 1;
         rows.push_back(OptionsMenuRowView{
             std::string(mainSettingLabel(i)),
-            adjustable ? compactSettingText(mainSettingStatus(state, i), 16) : "",
+            adjustable ? mainSettingStatus(state, i) : "",
             i == state.mainSettings.selectedOption,
             adjustable,
         });
@@ -9955,7 +9966,7 @@ std::string commandButtonDisplayToken(
         if (command == "y") return "Y";
         if (command == "z") return "LB";
         if (command == "a") return "A";
-        if (command == "b") return "B";
+        if (command == "b") return "BTN_B";
         if (command == "c") return "RB";
         if (command == "s") return "MENU";
     }
@@ -9997,7 +10008,7 @@ bool isCommandButtonSymbol(char ch) {
 std::string commandButtonGroupDisplayToken(std::string_view group, CommandButtonPromptMode mode) {
     if (mode == CommandButtonPromptMode::Xbox) {
         if (group == "p") return "X/Y/LB";
-        if (group == "k") return "A/B/RB";
+        if (group == "k") return "A/BTN_B/RB";
     }
     if (mode == CommandButtonPromptMode::Playstation) {
         if (group == "p") return "SQ/TRI/L1";
@@ -10272,6 +10283,73 @@ std::vector<const CommandStateEntry*> displayableMoveListEntries(const AppState&
     return entries;
 }
 
+bool commandEntryNameContains(const CommandStateEntry& entry, std::string_view needle) {
+    const std::string label = lowercaseCopy(entry.displayLabel.empty() ? entry.label : entry.displayLabel);
+    return label.find(lowercaseCopy(needle)) != std::string::npos;
+}
+
+bool commandEntryLooksLikeDebugUtility(const CommandStateEntry& entry) {
+    const std::string label = lowercaseCopy(entry.displayLabel.empty() ? entry.label : entry.displayLabel);
+    static constexpr std::array<std::string_view, 10> kDebugNeedles{
+        "compatibility",
+        "stress",
+        "helper",
+        "lifecycle",
+        "bounds",
+        "fallback",
+        "demo",
+        "test",
+        "audit",
+        "debug",
+    };
+    return std::any_of(kDebugNeedles.begin(), kDebugNeedles.end(), [&label](std::string_view needle) {
+        return label.find(needle) != std::string::npos;
+    });
+}
+
+bool commandEntryIsMainFallback(const CommandStateEntry& entry) {
+    const TrainingMoveCategory category = commandEntryCategory(entry);
+    if (category == TrainingMoveCategory::Specials || category == TrainingMoveCategory::Supers) {
+        return true;
+    }
+    if (commandEntryRequiredPower(entry) > 0 || commandEntryNameContains(entry, "throw")) {
+        return true;
+    }
+    if (entry.label.empty() || commandEntryLooksLikeDebugUtility(entry)) {
+        return false;
+    }
+    return !entry.requiredCommands.empty() || !entry.commandOptionGroups.empty();
+}
+
+std::vector<const CommandStateEntry*> displayableMoveListEntriesForTab(const AppState& state, TrainingMoveListTab tab) {
+    const auto entries = displayableMoveListEntries(state);
+    if (tab == TrainingMoveListTab::All || entries.empty()) {
+        return entries;
+    }
+
+    std::vector<const CommandStateEntry*> mainEntries;
+    mainEntries.reserve(entries.size());
+    for (const auto* entry : entries) {
+        if (entry && entry->presentationOverride) {
+            mainEntries.push_back(entry);
+        }
+    }
+    if (!mainEntries.empty()) {
+        return mainEntries;
+    }
+
+    for (const auto* entry : entries) {
+        if (entry && commandEntryIsMainFallback(*entry)) {
+            mainEntries.push_back(entry);
+        }
+    }
+    return mainEntries.empty() ? entries : mainEntries;
+}
+
+std::vector<const CommandStateEntry*> activeDisplayableMoveListEntries(const AppState& state) {
+    return displayableMoveListEntriesForTab(state, state.training.options.moveListTab);
+}
+
 std::string joinTokens(const std::vector<std::string>& tokens, std::string_view separator) {
     if (tokens.empty()) {
         return "-";
@@ -10314,12 +10392,69 @@ std::string inputDirectionToken(const FighterInputState& input, int facing) {
     return "";
 }
 
+std::string physicalInputDirectionToken(const FighterInputState& input) {
+    if (input.down && input.right) {
+        return "DF";
+    }
+    if (input.down && input.left) {
+        return "DB";
+    }
+    if (input.up && input.right) {
+        return "UF";
+    }
+    if (input.up && input.left) {
+        return "UB";
+    }
+    if (input.right) {
+        return "F";
+    }
+    if (input.left) {
+        return "B";
+    }
+    if (input.down) {
+        return "D";
+    }
+    if (input.up) {
+        return "U";
+    }
+    return "";
+}
+
 std::string inputDisplayToken(
     const FighterInputState& input,
     int facing,
     CommandButtonPromptMode mode = CommandButtonPromptMode::Strength) {
     std::vector<std::string> tokens;
     const std::string direction = inputDirectionToken(input, facing);
+    if (!direction.empty()) {
+        tokens.push_back(direction);
+    }
+    if (input.x) {
+        tokens.push_back(commandButtonDisplayToken("x", mode));
+    }
+    if (input.y) {
+        tokens.push_back(commandButtonDisplayToken("y", mode));
+    }
+    if (input.z) {
+        tokens.push_back(commandButtonDisplayToken("z", mode));
+    }
+    if (input.a) {
+        tokens.push_back(commandButtonDisplayToken("a", mode));
+    }
+    if (input.b) {
+        tokens.push_back(commandButtonDisplayToken("b", mode));
+    }
+    if (input.c) {
+        tokens.push_back(commandButtonDisplayToken("c", mode));
+    }
+    return joinTokens(tokens, "+");
+}
+
+std::string physicalInputDisplayToken(
+    const FighterInputState& input,
+    CommandButtonPromptMode mode = CommandButtonPromptMode::Strength) {
+    std::vector<std::string> tokens;
+    const std::string direction = physicalInputDirectionToken(input);
     if (!direction.empty()) {
         tokens.push_back(direction);
     }
@@ -10362,6 +10497,175 @@ std::vector<std::string> recentInputDisplayTokens(
     return tokens;
 }
 
+std::vector<std::string> recentPhysicalInputDisplayTokens(
+    const FighterState& fighter,
+    int maxTokens,
+    CommandButtonPromptMode mode = CommandButtonPromptMode::Strength) {
+    std::vector<std::string> tokens;
+    std::string lastToken;
+    for (auto it = fighter.inputHistory.rbegin(); it != fighter.inputHistory.rend() && static_cast<int>(tokens.size()) < maxTokens; ++it) {
+        std::string token = physicalInputDisplayToken(it->input, mode);
+        if (token == "-" || token == lastToken) {
+            continue;
+        }
+        tokens.push_back(std::move(token));
+        lastToken = tokens.back();
+    }
+    std::reverse(tokens.begin(), tokens.end());
+    return tokens;
+}
+
+bool commandInputHasAnyToken(const std::string& input, std::initializer_list<std::string_view> aliases) {
+    for (const auto& token : commandInputTokens(input)) {
+        if (token.kind == CommandInputTokenKind::Space) {
+            continue;
+        }
+        const std::string id = commandInputIconId(token.text);
+        for (std::string_view alias : aliases) {
+            if (id == commandInputIconId(alias)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+std::string uppercaseTrimmed(std::string_view value) {
+    std::string out = uppercaseCopy(trim(value));
+    return out;
+}
+
+bool explicitCommandButtonDisplayToken(std::string_view token) {
+    return uppercaseTrimmed(token).rfind("BTN_", 0) == 0;
+}
+
+bool commandInputHasCommandButton(
+    const std::string& input,
+    std::string_view command,
+    CommandButtonPromptMode mode) {
+    const std::string displayed = commandButtonDisplayToken(command, mode);
+    const std::string strength = commandButtonDisplayToken(command, CommandButtonPromptMode::Strength);
+    const bool punchGroup = command == "x" || command == "y" || command == "z";
+    const bool kickGroup = command == "a" || command == "b" || command == "c";
+
+    for (const auto& token : commandInputTokens(input)) {
+        if (token.kind == CommandInputTokenKind::Space) {
+            continue;
+        }
+        const std::string id = commandInputIconId(token.text);
+        if (!displayed.empty()
+            && ((explicitCommandButtonDisplayToken(displayed) && uppercaseTrimmed(token.text) == uppercaseTrimmed(displayed))
+                || (!explicitCommandButtonDisplayToken(displayed) && id == commandInputIconId(displayed)))) {
+            return true;
+        }
+        if (!strength.empty() && id == commandInputIconId(strength)) {
+            return true;
+        }
+        if ((punchGroup && id == "P") || (kickGroup && id == "K")) {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::array<bool, 4> requiredPhysicalDirectionsForStep(const std::string& expected, int facing) {
+    std::array<bool, 4> required{ false, false, false, false };
+    if (expected.empty()) {
+        return required;
+    }
+
+    CommandInputRenderOptions options;
+    options.directionPresentation = CommandInputDirectionPresentation::Physical;
+    options.facing = facing;
+    for (const auto& token : commandInputTokens(expected)) {
+        if (token.kind == CommandInputTokenKind::Space) {
+            continue;
+        }
+        const std::string id = commandInputPresentedIconId(token.text, options);
+        if (id.find('B') != std::string::npos) {
+            required[0] = true;
+        }
+        if (id.find('U') != std::string::npos) {
+            required[1] = true;
+        }
+        if (id.find('D') != std::string::npos) {
+            required[2] = true;
+        }
+        if (id.find('F') != std::string::npos) {
+            required[3] = true;
+        }
+    }
+    return required;
+}
+
+std::string currentTrainingCommandStepLabel(std::span<const TrainingCommandStepView> steps) {
+    for (const auto& step : steps) {
+        if (step.status == TrainingCommandStepStatus::Current) {
+            return step.label;
+        }
+    }
+    for (auto it = steps.rbegin(); it != steps.rend(); ++it) {
+        if (it->status == TrainingCommandStepStatus::Matched) {
+            return it->label;
+        }
+    }
+    return {};
+}
+
+TrainingCommandButtonGuideView trainingCommandButtonGuideView(
+    const FighterInputState& input,
+    CommandButtonPromptMode mode,
+    std::span<const TrainingCommandStepView> steps) {
+    TrainingCommandButtonGuideView guide;
+    guide.visible = true;
+    const std::string expected = currentTrainingCommandStepLabel(steps);
+
+    const auto makeButton = [&expected, mode](std::string label, bool pressed, std::string_view command) {
+        const bool required = !expected.empty() && commandInputHasCommandButton(expected, command, mode);
+        return TrainingCommandButtonGuideButtonView{
+            std::move(label),
+            pressed,
+            required,
+            pressed && required,
+        };
+    };
+
+    const std::string west = commandButtonDisplayToken("x", mode);
+    const std::string north = commandButtonDisplayToken("y", mode);
+    const std::string south = commandButtonDisplayToken("a", mode);
+    const std::string east = commandButtonDisplayToken("b", mode);
+
+    guide.buttons = {
+        makeButton(west.empty() ? "LP" : west, input.x, "x"),
+        makeButton(north.empty() ? "MP" : north, input.y, "y"),
+        makeButton(south.empty() ? "LK" : south, input.a, "a"),
+        makeButton(east.empty() ? "MK" : east, input.b, "b"),
+    };
+    return guide;
+}
+
+TrainingCommandDirectionGuideView trainingCommandDirectionGuideView(
+    const FighterInputState& input,
+    int facing,
+    std::span<const TrainingCommandStepView> steps) {
+    TrainingCommandDirectionGuideView guide;
+    guide.visible = true;
+    const std::string expected = currentTrainingCommandStepLabel(steps);
+    const std::array<bool, 4> required = requiredPhysicalDirectionsForStep(expected, facing);
+    const std::array<bool, 4> pressed{ input.left, input.up, input.down, input.right };
+    const std::array<std::string, 4> labels{ "<", "^", "v", ">" };
+
+    for (size_t i = 0; i < guide.directions.size(); ++i) {
+        guide.directions[i] = TrainingCommandDirectionGuideButtonView{
+            labels[i],
+            pressed[i],
+            required[i],
+            pressed[i] && required[i],
+        };
+    }
+    return guide;
+}
+
 std::string commandEntryTargetLabel(const CommandStateEntry& entry) {
     if (const auto literalTarget = parsePlainIntValue(entry.targetStateExpression)) {
         return std::to_string(*literalTarget);
@@ -10376,6 +10680,94 @@ std::string moveListEntryName(const CommandStateEntry& entry) {
     return entry.label.empty() ? "State " + commandEntryTargetLabel(entry) : entry.label;
 }
 
+std::string commandEntrySelectionKey(const CommandStateEntry& entry) {
+    std::string key = moveListEntryName(entry);
+    key += '\n';
+    key += entry.targetStateExpression;
+    key += '\n';
+    for (const auto& command : entry.requiredCommands) {
+        key += command;
+        key += ',';
+    }
+    key += '\n';
+    for (const auto& optionGroup : entry.commandOptionGroups) {
+        key += '[';
+        for (const auto& command : optionGroup) {
+            key += command;
+            key += ',';
+        }
+        key += ']';
+    }
+    return key;
+}
+
+int findMoveListEntryByKey(const std::vector<const CommandStateEntry*>& entries, const std::string& key) {
+    for (int i = 0; i < static_cast<int>(entries.size()); ++i) {
+        const auto* entry = entries[static_cast<size_t>(i)];
+        if (entry && commandEntrySelectionKey(*entry) == key) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int trainingMoveListVisibleMoveCapacity() {
+    return std::max(1, kTrainingMoveListRows - 1);
+}
+
+void clampTrainingMoveListSelection(AppState& state) {
+    const auto entries = activeDisplayableMoveListEntries(state);
+    if (entries.empty()) {
+        state.training.options.selectedMoveListEntry = 0;
+        state.training.options.moveListScroll = 0;
+        return;
+    }
+
+    const int maxSelected = static_cast<int>(entries.size()) - 1;
+    state.training.options.selectedMoveListEntry =
+        std::clamp(state.training.options.selectedMoveListEntry, 0, maxSelected);
+    const int visibleRows = trainingMoveListVisibleMoveCapacity();
+    const int maxScroll = std::max(0, static_cast<int>(entries.size()) - visibleRows);
+    if (state.training.options.selectedMoveListEntry < state.training.options.moveListScroll) {
+        state.training.options.moveListScroll = state.training.options.selectedMoveListEntry;
+    } else if (state.training.options.selectedMoveListEntry >= state.training.options.moveListScroll + visibleRows) {
+        state.training.options.moveListScroll = state.training.options.selectedMoveListEntry - visibleRows + 1;
+    }
+    state.training.options.moveListScroll = std::clamp(state.training.options.moveListScroll, 0, maxScroll);
+}
+
+void setTrainingMoveListTabPreservingSelection(AppState& state, TrainingMoveListTab tab) {
+    if (state.training.options.moveListTab == tab) {
+        clampTrainingMoveListSelection(state);
+        return;
+    }
+
+    const auto oldEntries = activeDisplayableMoveListEntries(state);
+    std::string oldKey;
+    if (!oldEntries.empty()) {
+        const int oldSelected = std::clamp(
+            state.training.options.selectedMoveListEntry,
+            0,
+            static_cast<int>(oldEntries.size()) - 1);
+        oldKey = commandEntrySelectionKey(*oldEntries[static_cast<size_t>(oldSelected)]);
+    }
+
+    state.training.options.moveListTab = tab;
+    const auto newEntries = activeDisplayableMoveListEntries(state);
+    if (!oldKey.empty()) {
+        const int preserved = findMoveListEntryByKey(newEntries, oldKey);
+        if (preserved >= 0) {
+            state.training.options.selectedMoveListEntry = preserved;
+        } else {
+            state.training.options.selectedMoveListEntry = std::clamp(
+                state.training.options.selectedMoveListEntry,
+                0,
+                std::max(0, static_cast<int>(newEntries.size()) - 1));
+        }
+    }
+    clampTrainingMoveListSelection(state);
+}
+
 #include "TrainingCommandPracticeAssembly.h"
 
 TrainingCommandHudView trainingCommandHudView(
@@ -10387,6 +10779,9 @@ TrainingCommandHudView trainingCommandHudView(
     TrainingCommandHudView view;
     view.input.visible = state.training.options.showInputHud;
     view.commandsVisible = state.training.options.showCommandHud;
+    view.commandIcons = state.commandInputIcons.view();
+    view.completionCheck = uiSpriteView(&state.commandCompleteCheck);
+    view.physicalDirections = true;
 
     if (!view.input.visible && !view.commandsVisible) {
         return view;
@@ -10398,6 +10793,7 @@ TrainingCommandHudView trainingCommandHudView(
     }
 
     const auto& fighter = state.fighters[0];
+    view.facing = fighter.facing;
     const CommandButtonPromptMode promptMode = commandButtonPromptModeForPlayer(state, 0);
     const FighterState* opponent = state.fighters.size() > 1 ? &state.fighters[1] : nullptr;
     const std::vector<std::string> commands = fighter.inputHistory.empty()
@@ -10408,13 +10804,13 @@ TrainingCommandHudView trainingCommandHudView(
     if (view.input.visible) {
         const std::string current = fighter.inputHistory.empty()
             ? "-"
-            : inputDisplayToken(fighter.inputHistory.back().input, fighter.facing, promptMode);
+            : physicalInputDisplayToken(fighter.inputHistory.back().input, promptMode);
         view.input.currentInput = fitDebugText(current, 18);
-        view.input.recentInputs = fitDebugText(joinTokens(recentInputDisplayTokens(fighter, 8, promptMode), " "), 27);
+        view.input.recentInputs = fitDebugText(joinTokens(recentPhysicalInputDisplayTokens(fighter, 8, promptMode), " "), 27);
     }
 
     if (view.commandsVisible) {
-        const auto entries = displayableMoveListEntries(state);
+        const auto entries = activeDisplayableMoveListEntries(state);
         const int selected = entries.empty()
             ? -1
             : std::clamp(state.training.options.selectedMoveListEntry, 0, static_cast<int>(entries.size()) - 1);
@@ -10443,7 +10839,9 @@ TrainingCommandHudView trainingCommandHudView(
             });
         }
 
-        view.categoryLabel = std::string(trainingMoveCategoryStatus(state.training.options.moveCategory));
+        view.categoryLabel = state.training.options.moveListTab == TrainingMoveListTab::Main
+            ? "MAIN"
+            : std::string(trainingMoveCategoryStatus(state.training.options.moveCategory));
         view.pageLabel = entries.empty()
             ? "0/0"
             : std::to_string(selected + 1) + "/" + std::to_string(entries.size());
@@ -10452,6 +10850,7 @@ TrainingCommandHudView trainingCommandHudView(
         view.demoActive = trainingCommandDemoActive(state);
         view.completionVisible = state.training.commandPractice.flashTicks > 0
             && !state.training.commandPractice.notification.empty();
+        view.completionTicks = state.training.commandPractice.flashTicks;
         view.completionLabel = fitDebugText(state.training.commandPractice.notification, 21);
         if (activeEntry) {
             view.activeCommandLabel = fitDebugText(activeEntry->label, 19);
@@ -10478,6 +10877,14 @@ TrainingCommandHudView trainingCommandHudView(
             view.currentMoveName = "No loaded moves";
             view.currentMoveInput = "-";
         }
+    }
+
+    if (view.commandsVisible) {
+        const FighterInputState currentInput = fighter.inputHistory.empty()
+            ? FighterInputState{}
+            : fighter.inputHistory.back().input;
+        view.buttonGuide = trainingCommandButtonGuideView(currentInput, promptMode, steps);
+        view.directionGuide = trainingCommandDirectionGuideView(currentInput, fighter.facing, steps);
     }
 
     view.commandRows = rows;
@@ -10519,37 +10926,63 @@ TrainingOptionsMenuView trainingOptionsMenuView(const AppState& state, std::vect
 TrainingMoveListView trainingMoveListView(const AppState& state, std::vector<TrainingMoveRowView>& rows) {
     rows.clear();
     constexpr int visibleRows = kTrainingMoveListRows;
+    const int visibleMoves = trainingMoveListVisibleMoveCapacity();
 
-    const auto entries = displayableMoveListEntries(state);
+    const auto entries = activeDisplayableMoveListEntries(state);
     const CommandButtonPromptMode promptMode = commandButtonPromptModeForPlayer(state, 0);
-    const int maxScroll = std::max(0, static_cast<int>(entries.size()) - visibleRows);
+    const int maxScroll = std::max(0, static_cast<int>(entries.size()) - visibleMoves);
     const int scroll = std::clamp(state.training.options.moveListScroll, 0, maxScroll);
     const int selected = entries.empty()
         ? -1
         : std::clamp(state.training.options.selectedMoveListEntry, 0, static_cast<int>(entries.size()) - 1);
 
     rows.reserve(visibleRows);
-    for (int row = 0; row < visibleRows; ++row) {
-        const int index = scroll + row;
-        if (index >= static_cast<int>(entries.size())) {
+    std::string previousCategory;
+    for (int index = scroll; index < static_cast<int>(entries.size()) && static_cast<int>(rows.size()) < visibleRows; ++index) {
+        const auto& entry = *entries[static_cast<size_t>(index)];
+        const std::string category = std::string(trainingMoveCategoryStatus(commandEntryCategory(entry)));
+        if ((index == scroll || category != previousCategory) && static_cast<int>(rows.size()) < visibleRows) {
+            rows.push_back(TrainingMoveRowView{
+                "",
+                category,
+                "",
+                false,
+                category,
+                true,
+                true,
+            });
+        }
+        if (static_cast<int>(rows.size()) >= visibleRows) {
             break;
         }
-        const auto& entry = *entries[static_cast<size_t>(index)];
         rows.push_back(TrainingMoveRowView{
             (index + 1 < 10 ? "0" : "") + std::to_string(index + 1),
             moveListEntryName(entry),
             moveListInputText(entry, promptMode),
             index == selected,
+            category,
+            index == scroll || category != previousCategory,
         });
+        previousCategory = category;
     }
 
     TrainingMoveListView view;
     view.rows = rows;
+    view.commandIcons = state.commandInputIcons.view();
     view.selectedCharacterLabel = fitDebugText(selectedCharacterName(state.selection), 17);
     view.categoryLabel = std::string(trainingMoveCategoryStatus(state.training.options.moveCategory));
+    view.physicalDirections = true;
+    if (!state.fighters.empty()) {
+        view.facing = state.fighters[0].facing;
+    }
     view.pageLabel = entries.empty()
         ? "0/0"
         : std::to_string(selected + 1) + "/" + std::to_string(entries.size());
+    view.activeTab = state.training.options.moveListTab;
+    view.selectedIndex = selected;
+    view.firstVisibleIndex = scroll;
+    view.totalCount = static_cast<int>(entries.size());
+    view.visibleCapacity = visibleMoves;
     view.empty = entries.empty();
 
     if (selected >= 0) {
@@ -10820,6 +11253,47 @@ void drawMatchResultScreen(SDL_Renderer* renderer, const AppState& state) {
     drawMatchResultScreen(uiRenderContext(renderer, state), matchResultScreenView(state));
 }
 
+void drawLightFightPauseOverlay(SDL_Renderer* renderer, const AppState& state) {
+    if (!state.frontend.fightPauseOpen
+        || state.training.options.menuOpen
+        || state.frontend.singleFightPauseOpen
+        || state.matchPhase == MatchPhase::MatchResult) {
+        return;
+    }
+
+    const float panelW = 122.0f;
+    const float panelH = 39.0f;
+    const float x = screenCenterX(state) - panelW * 0.5f;
+    constexpr float y = 102.0f;
+    setColor(renderer, 4, 7, 12, 182);
+    fillRect(renderer, x, y, panelW, panelH);
+    setColor(renderer, 78, 96, 128, 210);
+    drawRect(renderer, x, y, panelW, panelH);
+    setColor(renderer, 230, 220, 172, 236);
+    debugText(renderer, x + 35.0f, y + 5.0f, "PAUSED");
+    setColor(renderer, 160, 178, 205, 224);
+    debugText(renderer, x + 10.0f, y + 18.0f, "START:RESUME");
+    debugText(renderer, x + 10.0f, y + 27.0f, "SEL:OPTIONS");
+}
+
+void drawScreenshotFreezeOverlay(SDL_Renderer* renderer, const AppState& state) {
+    if (!state.frontend.screenshotFreeze || state.frontend.screenshotFreezeNoticeTicks <= 0) {
+        return;
+    }
+
+    const float widthF = logicalWidthF(state);
+    const Uint8 alpha = static_cast<Uint8>(std::clamp(state.frontend.screenshotFreezeNoticeTicks * 4, 24, 188));
+    const float panelW = 70.0f;
+    const float x = widthF - panelW - 7.0f;
+    constexpr float y = 7.0f;
+    setColor(renderer, 4, 7, 12, alpha);
+    fillRect(renderer, x, y, panelW, 13.0f);
+    setColor(renderer, 128, 255, 190, static_cast<Uint8>(std::min<int>(alpha + 42, 240)));
+    drawRect(renderer, x, y, panelW, 13.0f);
+    setColor(renderer, 220, 255, 236, static_cast<Uint8>(std::min<int>(alpha + 58, 255)));
+    debugText(renderer, x + 8.0f, y + 4.0f, "FREEZE");
+}
+
 void drawFightViewFrame(SDL_Renderer* renderer, const AppState& state, bool present) {
     setColor(renderer, 10, 12, 16);
     SDL_RenderClear(renderer);
@@ -10921,6 +11395,8 @@ void drawFightViewFrame(SDL_Renderer* renderer, const AppState& state, bool pres
     }
 
     drawFightFreezeWatchOverlay(renderer, state);
+    drawLightFightPauseOverlay(renderer, state);
+    drawScreenshotFreezeOverlay(renderer, state);
     if (present) {
         SDL_RenderPresent(renderer);
     }
@@ -11011,11 +11487,16 @@ void fixedUpdate(AppState& state) {
     ++state.frame;
     ++state.frontend.screenFrame;
     updateTrainingShowSelectHold(state);
+    if (state.frontend.screenshotFreezeNoticeTicks > 0) {
+        --state.frontend.screenshotFreezeNoticeTicks;
+    }
     if (state.frontend.screen == Screen::VersusScreen && state.fightSessionPrepared && state.frontend.screenFrame > 120) {
         beginFight(state);
     }
     const bool fightPaused =
-        (state.frontend.pendingMode == PendingMode::Training && state.training.options.menuOpen)
+        state.frontend.fightPauseOpen
+        || state.frontend.screenshotFreeze
+        || (state.frontend.pendingMode == PendingMode::Training && state.training.options.menuOpen)
         || (isMatchMode(state) && state.frontend.singleFightPauseOpen);
     if (state.frontend.screen == Screen::FightView && !fightPaused) {
         updateFight(state);

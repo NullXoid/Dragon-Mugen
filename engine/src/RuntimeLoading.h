@@ -1,5 +1,7 @@
 #pragma once
 
+#include <SDL3_image/SDL_image.h>
+
 // Internal App.cpp implementation header.
 // This file depends on App.cpp-local AppState, TextureSprite, AnimationClip,
 // SystemScreenAssets, StageBackgroundElement, character/stage loading helpers,
@@ -95,6 +97,66 @@ TextureSprite loadCharacterFaceSprite(SDL_Renderer* renderer, const std::filesys
     }
 }
 
+TextureSprite loadUiPngSprite(SDL_Renderer* renderer, const std::filesystem::path& gameRoot, const std::filesystem::path& relativePath) {
+    TextureSprite sprite;
+    const auto path = gameRoot / relativePath;
+    if (!std::filesystem::exists(path)) {
+        SDL_Log("UI PNG missing: %s", path.string().c_str());
+        return sprite;
+    }
+
+    SDL_Surface* surface = IMG_Load(path.string().c_str());
+    if (!surface) {
+        SDL_Log("UI PNG load failed %s: %s", path.string().c_str(), SDL_GetError());
+        return sprite;
+    }
+
+    sprite.texture = SDL_CreateTextureFromSurface(renderer, surface);
+    sprite.width = surface->w;
+    sprite.height = surface->h;
+    SDL_DestroySurface(surface);
+    if (!sprite.texture) {
+        SDL_Log("UI PNG texture failed %s: %s", path.string().c_str(), SDL_GetError());
+        sprite.width = 0;
+        sprite.height = 0;
+        return sprite;
+    }
+    SDL_SetTextureBlendMode(sprite.texture, SDL_BLENDMODE_BLEND);
+    return sprite;
+}
+
+CommandInputIconAtlas loadCommandInputIconAtlas(SDL_Renderer* renderer, const std::filesystem::path& gameRoot) {
+    CommandInputIconAtlas atlas;
+    const auto path = gameRoot / "data" / "ui" / "command_input_icons.png";
+    if (!std::filesystem::exists(path)) {
+        SDL_Log("Command input icon atlas missing: %s", path.string().c_str());
+        return atlas;
+    }
+
+    SDL_Surface* surface = IMG_Load(path.string().c_str());
+    if (!surface) {
+        SDL_Log("Command input icon atlas load failed: %s", SDL_GetError());
+        return atlas;
+    }
+
+    atlas.texture = SDL_CreateTextureFromSurface(renderer, surface);
+    atlas.textureWidth = surface->w;
+    atlas.textureHeight = surface->h;
+    SDL_DestroySurface(surface);
+    if (!atlas.texture) {
+        SDL_Log("Command input icon atlas texture failed: %s", SDL_GetError());
+        atlas.textureWidth = 0;
+        atlas.textureHeight = 0;
+        return atlas;
+    }
+
+    SDL_SetTextureBlendMode(atlas.texture, SDL_BLENDMODE_BLEND);
+    atlas.cellWidth = 24;
+    atlas.cellHeight = 16;
+    atlas.columns = 8;
+    return atlas;
+}
+
 std::vector<StageBackgroundElement> loadStageBackground(SDL_Renderer* renderer, const StageSlot& stage) {
     auto sffPath = stage.defPath;
     sffPath.replace_extension(".sff");
@@ -179,10 +241,34 @@ std::vector<StageBackgroundElement> loadStageBackground(SDL_Renderer* renderer, 
 }
 
 void destroyTextureSprite(TextureSprite& sprite);
+void destroyCommandInputIconAtlas(CommandInputIconAtlas& atlas);
 void destroyAnimationClips(std::vector<AnimationClip>& clips);
 void destroyCharacterRuntime(ArenaCharacterRuntime& runtime);
 void destroyArenaFighterClips(AppState& state);
 void destroyArenaFighterRuntimes(AppState& state);
+
+CharacterFiles characterFilesWithPalette(CharacterFiles files, int requestedPaletteNo) {
+    const int requested = std::clamp(requestedPaletteNo, 1, 12);
+    if (!files.palettes.empty()) {
+        const size_t requestedIndex = static_cast<size_t>(requested - 1);
+        if (requestedIndex < files.palettes.size()
+            && !files.palettes[requestedIndex].empty()
+            && std::filesystem::exists(files.palettes[requestedIndex])) {
+            files.palette = files.palettes[requestedIndex];
+            files.paletteNo = requested;
+            return files;
+        }
+        for (size_t i = 0; i < files.palettes.size(); ++i) {
+            if (!files.palettes[i].empty() && std::filesystem::exists(files.palettes[i])) {
+                files.palette = files.palettes[i];
+                files.paletteNo = static_cast<int>(i + 1);
+                return files;
+            }
+        }
+    }
+    files.paletteNo = requested;
+    return files;
+}
 
 LoadedContentSummary buildContentSummary(
     const CharacterSlot& character,
@@ -262,9 +348,15 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
     std::vector<std::string> victoryQuotes;
     CompatibilityContext compatibility;
     CharacterConstants constants;
+    int characterPaletteNo = 1;
+    int opponentPaletteNo = 1;
+    std::filesystem::path characterPalettePath;
+    std::filesystem::path opponentPalettePath;
 
     try {
-        const CharacterFiles files = resolveCharacterFiles(state.gameRoot, *character);
+        const CharacterFiles files = characterFilesWithPalette(resolveCharacterFiles(state.gameRoot, *character), 1);
+        characterPaletteNo = files.paletteNo;
+        characterPalettePath = files.palette;
         compatibility = makeLoadedCompatibilityContext(state, *character);
         constants = loadCharacterConstants(files);
         stateDefs = loadStateDefinitions(files, constants);
@@ -277,10 +369,19 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
         }
         clips = loadCharacterClips(renderer, files);
         largePortrait = loadCharacterSprite(renderer, files, 9000, 1);
-        if (state.frontend.pendingMode == PendingMode::SingleFight) {
+        if (state.frontend.pendingMode == PendingMode::Training) {
+            const CharacterFiles dummyFiles = characterFilesWithPalette(resolveCharacterFiles(state.gameRoot, *character), 2);
+            opponentPaletteNo = dummyFiles.paletteNo;
+            opponentPalettePath = dummyFiles.palette;
+            opponentClips = loadCharacterClips(renderer, dummyFiles);
+        } else if (state.frontend.pendingMode == PendingMode::SingleFight) {
             if (const CharacterSlot* opponent = characterSlotAt(state.selection, state.selection.sessionSlots.opponentCharacter)) {
-                const CharacterFiles opponentFiles = resolveCharacterFiles(state.gameRoot, *opponent);
+                const CharacterFiles opponentFiles = characterFilesWithPalette(resolveCharacterFiles(state.gameRoot, *opponent), 2);
+                opponentPaletteNo = opponentFiles.paletteNo;
+                opponentPalettePath = opponentFiles.palette;
                 opponentRuntime.name = opponent->displayName;
+                opponentRuntime.paletteNo = opponentFiles.paletteNo;
+                opponentRuntime.palettePath = opponentFiles.palette;
                 opponentRuntime.compatibility = makeLoadedCompatibilityContext(state, *opponent);
                 opponentRuntime.constants = loadCharacterConstants(opponentFiles);
                 opponentRuntime.stateDefs = loadStateDefinitions(opponentFiles, opponentRuntime.constants);
@@ -304,9 +405,11 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
                     throw std::runtime_error("Arena fighter slot missing character");
                 }
 
-                const CharacterFiles arenaFiles = resolveCharacterFiles(state.gameRoot, *arenaCharacter);
+                const CharacterFiles arenaFiles = characterFilesWithPalette(resolveCharacterFiles(state.gameRoot, *arenaCharacter), i + 1);
                 auto& runtime = arenaRuntimes[static_cast<size_t>(i)];
                 runtime.name = arenaCharacter->displayName;
+                runtime.paletteNo = arenaFiles.paletteNo;
+                runtime.palettePath = arenaFiles.palette;
                 runtime.compatibility = makeLoadedCompatibilityContext(state, *arenaCharacter);
                 runtime.constants = loadCharacterConstants(arenaFiles);
                 runtime.stateDefs = loadStateDefinitions(arenaFiles, runtime.constants);
@@ -342,6 +445,10 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
         state.victoryQuotes = std::move(victoryQuotes);
         state.characterConstants = constants;
         state.characterCompatibility = compatibility;
+        state.characterPaletteNo = characterPaletteNo;
+        state.characterPalettePath = characterPalettePath;
+        state.opponentPaletteNo = opponentPaletteNo;
+        state.opponentPalettePath = opponentPalettePath;
         state.audio.activeVoices.clear();
         if (state.audio.stream) {
             SDL_ClearAudioStream(state.audio.stream);
@@ -351,8 +458,9 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
         state.selection.loadedP1Character = p1Index;
 
         SDL_Log(
-            "Character loaded: %s actions=%zu states=%zu hitdefs=%zu command-defs=%zu command-states=%zu sounds=%zu",
+            "Character loaded: %s pal=%d actions=%zu states=%zu hitdefs=%zu command-defs=%zu command-states=%zu sounds=%zu",
             character->displayName.c_str(),
+            state.characterPaletteNo,
             state.characterClips.size(),
             state.stateDefs.size(),
             state.hitDefs.size(),
@@ -361,8 +469,9 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
             state.audio.characterSamples.size());
         if (const CharacterSlot* opponent = characterSlotAt(state.selection, state.selection.sessionSlots.opponentCharacter)) {
             SDL_Log(
-                "Opponent runtime loaded: %s actions=%zu states=%zu hitdefs=%zu command-defs=%zu command-states=%zu sounds=%zu",
+                "Opponent runtime loaded: %s pal=%d actions=%zu states=%zu hitdefs=%zu command-defs=%zu command-states=%zu sounds=%zu",
                 opponent->displayName.c_str(),
+                state.opponentRuntime.paletteNo,
                 state.opponentRuntime.clips.size(),
                 state.opponentRuntime.stateDefs.size(),
                 state.opponentRuntime.hitDefs.size(),
@@ -374,8 +483,9 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
             for (size_t i = 0; i < state.arenaRuntimes.size(); ++i) {
                 const auto& runtime = state.arenaRuntimes[i];
                 SDL_Log(
-                    "Arena runtime loaded: %s actions=%zu states=%zu hitdefs=%zu command-defs=%zu command-states=%zu sounds=%zu",
+                    "Arena runtime loaded: %s pal=%d actions=%zu states=%zu hitdefs=%zu command-defs=%zu command-states=%zu sounds=%zu",
                     runtime.name.c_str(),
+                    runtime.paletteNo,
                     runtime.clips.size(),
                     runtime.stateDefs.size(),
                     runtime.hitDefs.size(),
@@ -420,6 +530,10 @@ void unloadCharacterRuntime(AppState& state) {
     state.victoryQuotes.clear();
     state.characterCompatibility = CompatibilityContext{};
     state.characterConstants = CharacterConstants{};
+    state.characterPaletteNo = 1;
+    state.characterPalettePath.clear();
+    state.opponentPaletteNo = 1;
+    state.opponentPalettePath.clear();
     state.audio.activeVoices.clear();
     if (state.audio.stream) {
         SDL_ClearAudioStream(state.audio.stream);
@@ -458,6 +572,10 @@ void loadVisualAssets(SDL_Renderer* renderer, AppState& state) {
     try {
         destroySystemScreenAssets(state.systemScreens);
         state.systemScreens = loadSystemScreenAssets(renderer, state.gameRoot);
+        destroyCommandInputIconAtlas(state.commandInputIcons);
+        state.commandInputIcons = loadCommandInputIconAtlas(renderer, state.gameRoot);
+        destroyTextureSprite(state.commandCompleteCheck);
+        state.commandCompleteCheck = loadUiPngSprite(renderer, state.gameRoot, "data/ui/command_complete_check.png");
         state.fightFxClips = loadFightFxClips(renderer, state.gameRoot);
         for (auto& sprite : state.characterIconSprites) {
             destroyTextureSprite(sprite);
@@ -483,6 +601,13 @@ void destroyTextureSprite(TextureSprite& sprite) {
         SDL_DestroyTexture(sprite.texture);
         sprite.texture = nullptr;
     }
+}
+
+void destroyCommandInputIconAtlas(CommandInputIconAtlas& atlas) {
+    if (atlas.texture) {
+        SDL_DestroyTexture(atlas.texture);
+    }
+    atlas = CommandInputIconAtlas{};
 }
 
 void destroyAnimationClips(std::vector<AnimationClip>& clips) {
@@ -522,6 +647,8 @@ void destroyVisualAssets(AppState& state) {
     destroyAnimationClips(state.fightFxClips);
     state.runtimeEffects.clear();
     destroySystemScreenAssets(state.systemScreens);
+    destroyCommandInputIconAtlas(state.commandInputIcons);
+    destroyTextureSprite(state.commandCompleteCheck);
     destroyTextureSprite(state.characterLargePortrait);
     for (auto& sprite : state.characterIconSprites) {
         destroyTextureSprite(sprite);

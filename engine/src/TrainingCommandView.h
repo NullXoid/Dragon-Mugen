@@ -1,5 +1,9 @@
 #pragma once
 
+#include "TrainingCommandInputRenderer.h"
+#include "UiSpriteView.h"
+
+#include <array>
 #include <span>
 #include <string>
 
@@ -29,10 +33,38 @@ struct TrainingInputHudView {
     std::string recentInputs;
 };
 
+struct TrainingCommandButtonGuideButtonView {
+    std::string label;
+    bool pressed = false;
+    bool required = false;
+    bool matched = false;
+};
+
+struct TrainingCommandButtonGuideView {
+    bool visible = false;
+    std::array<TrainingCommandButtonGuideButtonView, 4> buttons;
+};
+
+struct TrainingCommandDirectionGuideButtonView {
+    std::string label;
+    bool pressed = false;
+    bool required = false;
+    bool matched = false;
+};
+
+struct TrainingCommandDirectionGuideView {
+    bool visible = false;
+    std::array<TrainingCommandDirectionGuideButtonView, 4> directions;
+};
+
 struct TrainingCommandHudView {
     TrainingInputHudView input;
+    TrainingCommandButtonGuideView buttonGuide;
+    TrainingCommandDirectionGuideView directionGuide;
     std::span<const TrainingCommandRowView> commandRows;
     std::span<const TrainingCommandStepView> practiceSteps;
+    CommandInputIconAtlasView commandIcons;
+    UiSpriteView completionCheck;
     std::string currentMoveName;
     std::string currentMoveInput;
     std::string activeCommandLabel;
@@ -43,8 +75,11 @@ struct TrainingCommandHudView {
     std::string completionLabel;
     bool completeFlash = false;
     bool completionVisible = false;
+    int completionTicks = 0;
     bool demoActive = false;
     bool commandsVisible = false;
+    bool physicalDirections = false;
+    int facing = 1;
 };
 
 } // namespace dragon

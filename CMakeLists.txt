@@ -29,6 +29,26 @@ if(NOT SDL3_FOUND AND DRAGON_FETCH_SDL3)
     FetchContent_MakeAvailable(SDL3)
 endif()
 
+find_package(SDL3_image CONFIG QUIET)
+
+if(NOT SDL3_image_FOUND AND DRAGON_FETCH_SDL3)
+    set(SDLIMAGE_INSTALL OFF CACHE BOOL "" FORCE)
+    set(SDLIMAGE_SAMPLES OFF CACHE BOOL "" FORCE)
+    set(SDLIMAGE_TESTS OFF CACHE BOOL "" FORCE)
+    set(SDLIMAGE_VENDORED ON CACHE BOOL "" FORCE)
+    set(SDLIMAGE_AVIF OFF CACHE BOOL "" FORCE)
+    set(SDLIMAGE_JXL OFF CACHE BOOL "" FORCE)
+    set(SDLIMAGE_TIF OFF CACHE BOOL "" FORCE)
+    set(SDLIMAGE_WEBP OFF CACHE BOOL "" FORCE)
+
+    FetchContent_Declare(SDL3_image
+        GIT_REPOSITORY https://github.com/libsdl-org/SDL_image.git
+        GIT_TAG release-3.4.4
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(SDL3_image)
+endif()
+
 add_custom_target(dragon_architecture_guard
     COMMAND ${Python3_EXECUTABLE}
         ${CMAKE_CURRENT_SOURCE_DIR}/engine/tools/guard_architecture.py
@@ -63,9 +83,11 @@ add_library(dragon_core
     engine/src/OptionsMenuOverlay.cpp
     engine/src/PauseMenuOverlay.cpp
     engine/src/StageSelectOverlay.cpp
+    engine/src/UiMenuList.cpp
     engine/src/UiRenderPrimitives.cpp
     engine/src/UiSpriteView.cpp
     engine/src/FrontendMenu.cpp
+    engine/src/TrainingCommandInputRenderer.cpp
     engine/src/TrainingCommandOverlay.cpp
     engine/src/TrainingDebugOverlay.cpp
     engine/src/TrainingOptionsBehavior.cpp
@@ -88,7 +110,9 @@ target_include_directories(dragon_core
 )
 
 target_link_libraries(dragon_core
-    PUBLIC SDL3::SDL3
+    PUBLIC
+        SDL3::SDL3
+        SDL3_image::SDL3_image
 )
 
 add_dependencies(dragon_core dragon_architecture_guard)
@@ -105,6 +129,9 @@ if(WIN32)
     add_custom_command(TARGET dragon_mugen POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             $<TARGET_FILE:SDL3::SDL3>
+            $<TARGET_FILE_DIR:dragon_mugen>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:SDL3_image::SDL3_image>
             $<TARGET_FILE_DIR:dragon_mugen>
     )
 endif()

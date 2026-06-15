@@ -88,6 +88,11 @@ enum class TrainingMoveCategory {
     Supers,
 };
 
+enum class TrainingMoveListTab {
+    Main,
+    All,
+};
+
 enum class GamepadPromptStyle {
     Auto,
     Xbox,
@@ -118,6 +123,7 @@ struct TrainingOptions {
     bool showInputHud = true;
     TrainingPowerMode powerMode = TrainingPowerMode::Normal;
     TrainingMoveCategory moveCategory = TrainingMoveCategory::All;
+    TrainingMoveListTab moveListTab = TrainingMoveListTab::All;
 };
 
 struct MainSettings {

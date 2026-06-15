@@ -44,6 +44,13 @@ build\dragon_mugen.exe --verify evilken-power-charge-helper
 build\dragon_mugen.exe --verify evilken-training-demo-hit
 build\dragon_mugen.exe --verify training-show-select-hold
 build\dragon_mugen.exe --verify training-show-controller-shortcut
+build\dragon_mugen.exe --verify training-command-side-switch-highlight
+build\dragon_mugen.exe --verify training-command-facing-aware-display
+build\dragon_mugen.exe --verify training-command-physical-direction-guide
+build\dragon_mugen.exe --verify training-command-complete-blink
+build\dragon_mugen.exe --verify training-command-list-tabs
+build\dragon_mugen.exe --verify training-command-icon-atlas
+build\dragon_mugen.exe --verify training-palette-slot-separation
 build\dragon_mugen.exe --verify character-auto-fit-scale
 build\dragon_mugen.exe --verify evilryu-specials-supers
 build\dragon_mugen.exe --verify evilryu-air-special-contact-landing
@@ -72,6 +79,8 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Fight view loads selected character and selected stage after VS.
 - Fight view fully repaints the window during hitpause, camera shake, and result overlays; no stale desktop/debug text should appear around the game viewport.
 - Fight view `F3` toggles Freeze Watch. Normal play should show only a small status badge; expanded fighter/helper details should appear only for sustained runtime or pose stalls.
+- Fight view Start opens a lightweight pause/resume overlay. While this pause is open, Select/Back opens the full mode options menu.
+- Fight view `F4` toggles screenshot freeze with only a small temporary notice so screenshots can capture frozen gameplay without the full options menu covering the screen.
 - Arena and classic sweep/trip hits leave hitpause by entering the trip/fall/lying states instead of staying in grounded hitstun.
 - Arena shows one health bar per active fighter, not a shared CPU health average.
 - Arena knockdowns land on the floor and do not trigger viewport hitshake.
@@ -91,6 +100,8 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Training command HUD prefers optional Ikemen `movelist.dat` presentation text for move inputs, so human command cards can show diagonals such as `DB` even when CMD recognition uses a lenient shorthand.
 - Training command HUD/input history shows action-strength labels (`LP/MP/SP` and `LK/MK/SK`) instead of keyboard letters.
 - Training command HUD/full command list switches to assigned P1 controller prompts when a controller is detected: Xbox-style `X/Y/LB` and `A/B/RB`, or PlayStation-style `SQ/TRI/L1` and `X/O/R1`.
+- Training command HUD/full command list render facing-aware physical arrows when fighters switch sides, while live/recent input and D-pad guides show the actual physical direction pressed.
+- Training command HUD shows a full-command completion flash/checkmark when the selected input sequence is completed.
 - Training P2 control still switches the opponent to local P2 behavior.
 - Single Fight round timer, KO/time-over, pips, match result, and rematch/menu inputs still work.
 - Arena defeated fighters are ignored for targeting/win checks, and last-fighter-standing reaches the winner and end screens.

@@ -465,7 +465,7 @@ void mergeTrainingDemoInput(FighterInputState& target, const FighterInputState& 
 }
 
 const CommandStateEntry* selectedTrainingCommandEntry(const AppState& state, int* selectedIndex = nullptr) {
-    const auto entries = displayableMoveListEntries(state);
+    const auto entries = activeDisplayableMoveListEntries(state);
     if (entries.empty()) {
         if (selectedIndex) {
             *selectedIndex = -1;
@@ -483,7 +483,7 @@ const CommandStateEntry* selectedTrainingCommandEntry(const AppState& state, int
 }
 
 bool cycleSelectedTrainingCommandEntry(AppState& state, int direction, bool announce = true) {
-    const auto entries = displayableMoveListEntries(state);
+    const auto entries = activeDisplayableMoveListEntries(state);
     if (entries.empty() || direction == 0) {
         return false;
     }
@@ -493,7 +493,7 @@ bool cycleSelectedTrainingCommandEntry(AppState& state, int direction, bool anno
     const int selected = (current + direction + count) % count;
     state.training.options.selectedMoveListEntry = selected;
 
-    constexpr int visibleRows = kTrainingMoveListRows;
+    const int visibleRows = trainingMoveListVisibleMoveCapacity();
     const int maxScroll = std::max(0, count - visibleRows);
     if (selected < state.training.options.moveListScroll) {
         state.training.options.moveListScroll = selected;
@@ -539,6 +539,7 @@ void completeTrainingCommandPracticeMove(AppState& state, int selected, const Co
     practice.completedTargetState = targetState;
     practice.flashTicks = 72;
     practice.cooldownTicks = 24;
+    playMenuCursorDoneSound(state);
 
     cycleSelectedTrainingCommandEntry(state, 1, false);
 

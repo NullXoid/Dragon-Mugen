@@ -10,6 +10,9 @@ struct FrontendState {
     int selectedMode = 0;
     bool exitConfirmOpen = false;
     bool menuRailOnLeft = true;
+    bool fightPauseOpen = false;
+    bool screenshotFreeze = false;
+    int screenshotFreezeNoticeTicks = 0;
     bool singleFightPauseOpen = false;
     int selectedSingleFightPauseOption = 0;
     int selectedMatchResultOption = 0;

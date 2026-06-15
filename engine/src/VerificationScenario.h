@@ -49,6 +49,7 @@ struct FighterSnapshot {
     int targetTicks = 0;
     int targetHitId = -1;
     int hitCount = 0;
+    int paletteNo = 1;
     int hitPauseTicks = 0;
     int hitStunTicks = 0;
     float hitDownVelocityX = 0.0f;
@@ -179,6 +180,12 @@ public:
     virtual void spawnHelper(int ownerIndex, int helperId, int stateNo, int pauseMoveTime = 0, int superMoveTime = 0) = 0;
     virtual std::vector<TrainingMoveInfo> trainingMoves() const = 0;
     virtual std::vector<TrainingMoveInfo> trainingMovesForPromptStyle(std::string_view style) const = 0;
+    virtual std::string trainingMoveListTab() const = 0;
+    virtual void setTrainingMoveListTab(std::string_view tab) = 0;
+    virtual bool commandIconAtlasLoaded() const = 0;
+    virtual std::string trainingCurrentInputDisplay() const = 0;
+    virtual std::string trainingDirectionGuideState() const = 0;
+    virtual bool trainingCommandCompleteFlash() const = 0;
     virtual bool selectTrainingMoveIndex(int index) = 0;
     virtual bool selectTrainingMove(std::string_view label) = 0;
     virtual void startTrainingCommandDemo() = 0;

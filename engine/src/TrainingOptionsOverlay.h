@@ -1,5 +1,7 @@
 #pragma once
 
+#include "AppTypes.h"
+#include "TrainingCommandInputRenderer.h"
 #include "UiRenderContext.h"
 
 #include <span>
@@ -18,6 +20,9 @@ struct TrainingMoveRowView {
     std::string label;
     std::string input;
     bool selected = false;
+    std::string category;
+    bool sectionStart = false;
+    bool sectionHeader = false;
 };
 
 struct TrainingMoveDetailView {
@@ -33,10 +38,18 @@ struct TrainingMoveDetailView {
 struct TrainingMoveListView {
     std::span<const TrainingMoveRowView> rows;
     TrainingMoveDetailView detail;
+    CommandInputIconAtlasView commandIcons;
     std::string selectedCharacterLabel;
     std::string categoryLabel;
     std::string pageLabel;
+    TrainingMoveListTab activeTab = TrainingMoveListTab::All;
+    int selectedIndex = 0;
+    int firstVisibleIndex = 0;
+    int totalCount = 0;
+    int visibleCapacity = 0;
     bool empty = false;
+    bool physicalDirections = false;
+    int facing = 1;
 };
 
 struct TrainingOptionsMenuView {

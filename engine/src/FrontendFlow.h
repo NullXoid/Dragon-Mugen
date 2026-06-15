@@ -85,6 +85,8 @@ bool isTrainingShowShortcutButton(SDL_GamepadButton button) {
 bool trainingShowShortcutContext(const AppState& state) {
     return state.frontend.screen == Screen::FightView
         && state.frontend.pendingMode == PendingMode::Training
+        && !state.frontend.fightPauseOpen
+        && !state.frontend.screenshotFreeze
         && !state.training.options.menuOpen
         && state.training.options.showCommandHud
         && !trainingCommandDemoActive(state);
@@ -98,6 +100,48 @@ bool triggerTrainingShowShortcut(AppState& state) {
     state.trainingShowSelectHoldTicks = 0;
     state.trainingShowSelectHoldFired = true;
     return true;
+}
+
+bool startPauseKey(SDL_Keycode key) {
+    return key == SDLK_RETURN || key == SDLK_KP_ENTER || key == SDLK_SPACE || key == SDLK_PAUSE;
+}
+
+bool fightOptionsKey(SDL_Keycode key) {
+    return key == SDLK_F2;
+}
+
+void openLightFightPause(AppState& state) {
+    state.frontend.fightPauseOpen = true;
+    state.frontend.screenshotFreeze = false;
+    state.frontend.screenshotFreezeNoticeTicks = 0;
+    playMenuCursorDoneSound(state);
+}
+
+void resumeLightFightPause(AppState& state) {
+    state.frontend.fightPauseOpen = false;
+    playMenuCursorDoneSound(state);
+}
+
+void openFightOptionsFromPause(AppState& state) {
+    state.frontend.fightPauseOpen = false;
+    if (state.frontend.pendingMode == PendingMode::Training) {
+        state.training.options.menuOpen = true;
+        state.training.options.moveListOpen = false;
+        playMenuCursorDoneSound(state);
+        return;
+    }
+    if (isMatchMode(state)) {
+        state.frontend.singleFightPauseOpen = true;
+        state.frontend.selectedSingleFightPauseOption = 0;
+        playMenuCursorDoneSound(state);
+    }
+}
+
+void toggleScreenshotFreeze(AppState& state) {
+    state.frontend.screenshotFreeze = !state.frontend.screenshotFreeze;
+    state.frontend.fightPauseOpen = false;
+    state.frontend.screenshotFreezeNoticeTicks = state.frontend.screenshotFreeze ? 75 : 45;
+    playMenuCursorDoneSound(state);
 }
 
 int settingCycleDirection(FrontendKey key) {
@@ -418,6 +462,22 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
             state.freezeWatch.visible = !state.freezeWatch.visible;
             return;
         }
+        if (key == SDLK_F4) {
+            toggleScreenshotFreeze(state);
+            return;
+        }
+
+        if (state.frontend.fightPauseOpen) {
+            if (startPauseKey(key)) {
+                resumeLightFightPause(state);
+            } else if (fightOptionsKey(key)) {
+                openFightOptionsFromPause(state);
+            } else if (key == SDLK_ESCAPE) {
+                state.frontend.fightPauseOpen = false;
+                playMenuCancelSound(state);
+            }
+            return;
+        }
 
         if (isMatchMode(state)) {
             if (state.frontend.singleFightPauseOpen) {
@@ -588,7 +648,9 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
                 return;
             }
 
-            if (key == SDLK_ESCAPE || key == SDLK_F2) {
+            if (startPauseKey(key)) {
+                openLightFightPause(state);
+            } else if (key == SDLK_ESCAPE || key == SDLK_F2) {
                 state.frontend.singleFightPauseOpen = true;
                 state.frontend.selectedSingleFightPauseOption = 0;
             } else if (key == SDLK_R) {
@@ -599,8 +661,8 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
 
         if (state.training.options.menuOpen) {
             if (state.training.options.moveListOpen) {
-                const auto entries = displayableMoveListEntries(state);
-                constexpr int visibleRows = kTrainingMoveListRows;
+                const auto entries = activeDisplayableMoveListEntries(state);
+                const int visibleRows = trainingMoveListVisibleMoveCapacity();
                 const int maxScroll = std::max(0, static_cast<int>(entries.size()) - visibleRows);
                 const int maxSelected = std::max(0, static_cast<int>(entries.size()) - 1);
                 switch (key) {
@@ -625,6 +687,14 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
                         state.training.options.moveListScroll =
                             std::min(maxScroll, state.training.options.selectedMoveListEntry - visibleRows + 1);
                     }
+                    break;
+                case SDLK_LEFT:
+                case SDLK_Q:
+                    setTrainingMoveListTabPreservingSelection(state, TrainingMoveListTab::Main);
+                    break;
+                case SDLK_RIGHT:
+                case SDLK_E:
+                    setTrainingMoveListTabPreservingSelection(state, TrainingMoveListTab::All);
                     break;
                 case SDLK_H:
                     beginTrainingCommandDemo(state);
@@ -680,7 +750,9 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
             return;
         }
 
-        if (key == SDLK_ESCAPE) {
+        if (startPauseKey(key)) {
+            openLightFightPause(state);
+        } else if (key == SDLK_ESCAPE) {
             unloadCharacterRuntime(state);
             state.frontend.screen = Screen::StageSelect;
             state.frontend.screenFrame = 0;
@@ -729,8 +801,22 @@ void handleGamepadButton(
 std::optional<SDL_Keycode> gamepadMenuKeyForButton(const AppState& state, SDL_GamepadButton button) {
     const bool fightOverlayOpen =
         state.frontend.screen == Screen::FightView
-        && ((state.frontend.pendingMode == PendingMode::Training && state.training.options.menuOpen)
+        && (state.frontend.fightPauseOpen
+            || (state.frontend.pendingMode == PendingMode::Training && state.training.options.menuOpen)
             || (isMatchMode(state) && state.frontend.singleFightPauseOpen));
+
+    if (state.frontend.screen == Screen::FightView && state.frontend.fightPauseOpen) {
+        if (button == SDL_GAMEPAD_BUTTON_START || button == SDL_GAMEPAD_BUTTON_SOUTH) {
+            return SDLK_RETURN;
+        }
+        if (button == SDL_GAMEPAD_BUTTON_BACK) {
+            return SDLK_F2;
+        }
+        if (button == SDL_GAMEPAD_BUTTON_EAST) {
+            return SDLK_ESCAPE;
+        }
+        return std::nullopt;
+    }
 
     if (state.frontend.screen == Screen::FightView && !fightOverlayOpen) {
         if (isMatchMode(state) && state.matchPhase == MatchPhase::MatchResult) {
@@ -748,7 +834,7 @@ std::optional<SDL_Keycode> gamepadMenuKeyForButton(const AppState& state, SDL_Ga
             }
         }
         if (button == SDL_GAMEPAD_BUTTON_START) {
-            return SDLK_F2;
+            return SDLK_RETURN;
         }
         if (button == SDL_GAMEPAD_BUTTON_BACK && state.frontend.pendingMode == PendingMode::Training) {
             return std::nullopt;
@@ -762,9 +848,16 @@ std::optional<SDL_Keycode> gamepadMenuKeyForButton(const AppState& state, SDL_Ga
     if (state.frontend.screen == Screen::FightView
         && state.frontend.pendingMode == PendingMode::Training
         && state.training.options.menuOpen
-        && state.training.options.moveListOpen
-        && button == SDL_GAMEPAD_BUTTON_WEST) {
-        return SDLK_H;
+        && state.training.options.moveListOpen) {
+        if (button == SDL_GAMEPAD_BUTTON_WEST) {
+            return SDLK_H;
+        }
+        if (button == SDL_GAMEPAD_BUTTON_LEFT_SHOULDER) {
+            return SDLK_Q;
+        }
+        if (button == SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER) {
+            return SDLK_E;
+        }
     }
 
     switch (button) {

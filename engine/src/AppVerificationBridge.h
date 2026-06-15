@@ -324,7 +324,7 @@ public:
 
     std::vector<verification::TrainingMoveInfo> trainingMovesForMode(CommandButtonPromptMode mode) const {
         std::vector<verification::TrainingMoveInfo> moves;
-        const auto entries = displayableMoveListEntries(state_);
+        const auto entries = activeDisplayableMoveListEntries(state_);
         moves.reserve(entries.size());
         for (const auto* entry : entries) {
             if (!entry) {
@@ -380,8 +380,59 @@ public:
         return trainingMovesForMode(CommandButtonPromptMode::Strength);
     }
 
+    std::string trainingMoveListTab() const override {
+        return state_.training.options.moveListTab == TrainingMoveListTab::Main ? "main" : "all";
+    }
+
+    void setTrainingMoveListTab(std::string_view tab) override {
+        if (tab == "main") {
+            setTrainingMoveListTabPreservingSelection(state_, TrainingMoveListTab::Main);
+            return;
+        }
+        setTrainingMoveListTabPreservingSelection(state_, TrainingMoveListTab::All);
+    }
+
+    bool commandIconAtlasLoaded() const override {
+        return commandInputIconAtlasReady(state_.commandInputIcons.view());
+    }
+
+    std::string trainingCurrentInputDisplay() const override {
+        if (state_.fighters.empty() || state_.fighters[0].inputHistory.empty()) {
+            return "-";
+        }
+        return physicalInputDisplayToken(
+            state_.fighters[0].inputHistory.back().input,
+            commandButtonPromptModeForPlayer(state_, 0));
+    }
+
+    std::string trainingDirectionGuideState() const override {
+        std::vector<TrainingCommandRowView> rows;
+        std::vector<TrainingCommandStepView> steps;
+        const TrainingCommandHudView view = trainingCommandHudView(state_, rows, steps);
+        std::string out;
+        for (size_t i = 0; i < view.directionGuide.directions.size(); ++i) {
+            const auto& direction = view.directionGuide.directions[i];
+            if (i > 0) {
+                out += ";";
+            }
+            out += direction.label;
+            out += ":";
+            out += direction.pressed ? "p" : "-";
+            out += direction.required ? "r" : "-";
+            out += direction.matched ? "m" : "-";
+        }
+        return out;
+    }
+
+    bool trainingCommandCompleteFlash() const override {
+        std::vector<TrainingCommandRowView> rows;
+        std::vector<TrainingCommandStepView> steps;
+        const TrainingCommandHudView view = trainingCommandHudView(state_, rows, steps);
+        return view.completeFlash;
+    }
+
     bool selectTrainingMoveIndex(int index) override {
-        const auto entries = displayableMoveListEntries(state_);
+        const auto entries = activeDisplayableMoveListEntries(state_);
         if (index < 0 || index >= static_cast<int>(entries.size())) {
             return false;
         }
@@ -392,7 +443,7 @@ public:
 
     bool selectTrainingMove(std::string_view label) override {
         const std::string wanted = lowercaseCopy(label);
-        const auto entries = displayableMoveListEntries(state_);
+        const auto entries = activeDisplayableMoveListEntries(state_);
         for (int i = 0; i < static_cast<int>(entries.size()); ++i) {
             if (lowercaseCopy(moveListEntryName(*entries[static_cast<size_t>(i)])) != wanted) {
                 continue;
@@ -495,7 +546,7 @@ public:
         out.arenaCameraRotationSelected = arenaCameraRotationSelected(state_);
         out.arenaCameraRotationActive = arenaCameraRotationActive(state_);
         out.lastHitText = state_.messages.lastHitText;
-        const auto trainingEntries = displayableMoveListEntries(state_);
+        const auto trainingEntries = activeDisplayableMoveListEntries(state_);
         if (!trainingEntries.empty()) {
             const int selected = std::clamp(
                 state_.training.options.selectedMoveListEntry,
@@ -627,6 +678,7 @@ private:
             fighter.targetTicks,
             fighter.targetHitId,
             fighter.hitCount,
+            fighter.paletteNo,
             fighter.hitPauseTicks,
             fighter.hitStunTicks,
             fighter.hitDownVelocityX,

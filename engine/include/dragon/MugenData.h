@@ -34,6 +34,8 @@ struct CharacterFiles {
     std::filesystem::path anim;
     std::filesystem::path sound;
     std::filesystem::path palette;
+    std::vector<std::filesystem::path> palettes;
+    int paletteNo = 1;
     std::filesystem::path movelist;
 };
 

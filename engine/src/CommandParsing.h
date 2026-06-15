@@ -512,6 +512,7 @@ void applyMoveListPresentationOverride(CommandStateEntry& entry, const MoveListP
     if (const auto targetState = parsePlainIntValue(entry.targetStateExpression)) {
         if (const std::string* label = findStateMoveListLabel(overrides, *targetState)) {
             entry.displayLabel = *label;
+            entry.presentationOverride = true;
             if (const std::string* input = findMoveListInputByLabel(overrides, *label)) {
                 entry.displayInput = *input;
             }
@@ -522,6 +523,7 @@ void applyMoveListPresentationOverride(CommandStateEntry& entry, const MoveListP
     for (const auto& command : entry.requiredCommands) {
         if (const std::string* label = findCommandMoveListLabel(overrides, command)) {
             entry.displayLabel = *label;
+            entry.presentationOverride = true;
             if (const std::string* input = findMoveListInputByLabel(overrides, *label)) {
                 entry.displayInput = *input;
             }
@@ -532,6 +534,7 @@ void applyMoveListPresentationOverride(CommandStateEntry& entry, const MoveListP
         for (const auto& command : optionGroup) {
             if (const std::string* label = findCommandMoveListLabel(overrides, command)) {
                 entry.displayLabel = *label;
+                entry.presentationOverride = true;
                 if (const std::string* input = findMoveListInputByLabel(overrides, *label)) {
                     entry.displayInput = *input;
                 }
@@ -543,6 +546,7 @@ void applyMoveListPresentationOverride(CommandStateEntry& entry, const MoveListP
     const std::string label = entry.displayLabel.empty() ? entry.label : entry.displayLabel;
     if (const std::string* input = findMoveListInputByLabel(overrides, label)) {
         entry.displayInput = *input;
+        entry.presentationOverride = true;
     }
 }
 

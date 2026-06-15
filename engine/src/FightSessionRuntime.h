@@ -80,6 +80,18 @@ void clearFighterVisualRuntime(FighterState& fighter) {
     fighter.displayOffsetY = 0.0f;
 }
 
+int fighterPaletteNoForSlot(const AppState& state, size_t fighterIndex) {
+    if (state.frontend.pendingMode == PendingMode::Arena
+        && fighterIndex < state.arenaRuntimes.size()
+        && state.arenaRuntimes[fighterIndex].paletteNo > 0) {
+        return state.arenaRuntimes[fighterIndex].paletteNo;
+    }
+    if (fighterIndex == 1) {
+        return std::max(1, state.opponentPaletteNo);
+    }
+    return std::max(1, state.characterPaletteNo);
+}
+
 void resetTrainingPositions(AppState& state) {
     const StageSlot fallbackStage;
     const StageSlot& stage = selectedStageSlot(state.selection) ? *selectedStageSlot(state.selection) : fallbackStage;
@@ -126,8 +138,8 @@ void resetTrainingPositions(AppState& state) {
     applyInitialFighterScale(state, state.fighters[1], 1);
     state.fighters[0].victoryQuote = -1;
     state.fighters[1].victoryQuote = -1;
-    state.fighters[0].paletteNo = 1;
-    state.fighters[1].paletteNo = 1;
+    state.fighters[0].paletteNo = fighterPaletteNoForSlot(state, 0);
+    state.fighters[1].paletteNo = fighterPaletteNoForSlot(state, 1);
     state.fighters[0].attackDistanceOverride = -1;
     state.fighters[1].attackDistanceOverride = -1;
     state.fighters[0].facing = state.fighters[0].x <= state.fighters[1].x ? 1 : -1;
@@ -194,6 +206,7 @@ void resetFightRound(AppState& state) {
             fighter.onGround = true;
             fighter.life = 1000;
             fighter.power = 0;
+            fighter.paletteNo = fighterPaletteNoForSlot(state, i);
             applyInitialFighterScale(state, fighter, i);
             enterRoundInitialState(state, fighter);
         }
@@ -260,6 +273,8 @@ void resetFightRound(AppState& state) {
     state.fighters[1].onGround = true;
     state.fighters[0].life = 1000;
     state.fighters[1].life = 1000;
+    state.fighters[0].paletteNo = fighterPaletteNoForSlot(state, 0);
+    state.fighters[1].paletteNo = fighterPaletteNoForSlot(state, 1);
     applyInitialFighterScale(state, state.fighters[0], 0);
     applyInitialFighterScale(state, state.fighters[1], 1);
     state.fighters[0].hitPauseTicks = 0;

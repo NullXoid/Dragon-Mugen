@@ -413,6 +413,28 @@ void addUniqueExistingPath(std::vector<std::filesystem::path>& paths, const std:
     }
 }
 
+std::optional<int> palettePropertyIndex(std::string_view key) {
+    if (!startsWithNoCase(key, "pal")) {
+        return std::nullopt;
+    }
+    std::string digits;
+    for (const char ch : std::string(std::string_view(key).substr(3))) {
+        if (!std::isdigit(static_cast<unsigned char>(ch))) {
+            break;
+        }
+        digits.push_back(ch);
+    }
+    if (digits.empty()) {
+        return std::nullopt;
+    }
+    try {
+        const int index = std::stoi(digits);
+        return index >= 1 && index <= 12 ? std::optional<int>{ index } : std::nullopt;
+    } catch (...) {
+        return std::nullopt;
+    }
+}
+
 std::pair<float, float> parseCharacterFloatPairValue(const std::string& value, float fallbackX, float fallbackY) {
     const auto parts = splitCsv(value);
     if (parts.empty()) {
@@ -506,7 +528,14 @@ CharacterFiles resolveCharacterFiles(const std::filesystem::path& gameRoot, cons
     resolved.sprite = resolveCharacterFile(character, files, "sprite", character.id + ".sff");
     resolved.anim = resolveCharacterFile(character, files, "anim", character.id + ".air");
     resolved.sound = resolveCharacterFile(character, files, "sound", character.id + ".snd");
-    resolved.palette = resolveCharacterFile(character, files, "pal1", character.id + ".act");
+    resolved.palettes.resize(12);
+    const auto defaultPalette = resolveCharacterFile(character, files, "pal1", character.id + ".act");
+    if (std::filesystem::exists(defaultPalette)) {
+        resolved.palettes[0] = defaultPalette.lexically_normal();
+        resolved.palette = resolved.palettes[0];
+    } else {
+        resolved.palette = defaultPalette;
+    }
     if (files) {
         if (const auto* movelist = findProperty(*files, "movelist")) {
             resolved.movelist = resolveContentPath(character.folder, movelist->value);
@@ -524,12 +553,19 @@ CharacterFiles resolveCharacterFiles(const std::filesystem::path& gameRoot, cons
             addUniqueExistingPath(resolved.stateFiles, resolveContentPath(gameRoot / "data", common->value));
         }
         for (const auto& property : files->properties) {
-            if (startsWithNoCase(property.key, "pal")) {
+            if (const auto paletteIndex = palettePropertyIndex(property.key)) {
                 const auto palette = resolveContentPath(character.folder, property.value);
                 if (std::filesystem::exists(palette)) {
-                    resolved.palette = palette;
-                    break;
+                    resolved.palettes[static_cast<size_t>(*paletteIndex - 1)] = palette.lexically_normal();
                 }
+            }
+        }
+    }
+    if (resolved.palette.empty() || !std::filesystem::exists(resolved.palette)) {
+        for (const auto& palette : resolved.palettes) {
+            if (!palette.empty() && std::filesystem::exists(palette)) {
+                resolved.palette = palette;
+                break;
             }
         }
     }
