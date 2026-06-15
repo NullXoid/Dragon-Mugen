@@ -578,6 +578,18 @@ CharacterConstants loadCharacterConstants(const CharacterFiles& files) {
     for (const auto& path : files.stateFiles) {
         const auto doc = parseMugenTextFile(path);
         if (const auto* data = findSection(doc, "Data")) {
+            if (const auto* life = findProperty(*data, "life")) {
+                constants.life = parseIntValue(life->value, constants.life);
+            }
+            if (const auto* attack = findProperty(*data, "attack")) {
+                constants.attack = parseIntValue(attack->value, constants.attack);
+            }
+            if (const auto* defence = findProperty(*data, "defence")) {
+                constants.defence = parseIntValue(defence->value, constants.defence);
+            }
+            if (const auto* fallDefenceUp = findProperty(*data, "fall.defence_up")) {
+                constants.fallDefenceUp = parseIntValue(fallDefenceUp->value, constants.fallDefenceUp);
+            }
             if (const auto* power = findProperty(*data, "power")) {
                 constants.maxPower = parseIntValue(power->value, constants.maxPower);
             }

@@ -25,7 +25,7 @@ inline constexpr int kTrainingResetOption = 19;
 inline constexpr int kSingleFightPauseOptionCount = 5;
 inline constexpr int kMatchResultOptionCount = 4;
 inline constexpr int kArenaSetupOptionCount = 10;
-inline constexpr int kMainSettingsCount = 8;
+inline constexpr int kMainSettingsCount = 9;
 inline constexpr int kVersusPrepareStartFrames = 2;
 inline constexpr int kCharacterSelectColumns = 5;
 inline constexpr int kCharacterSelectRows = 2;
@@ -131,6 +131,7 @@ struct MainSettings {
     int matchTimerSeconds = 99;
     int canvasWidth = kDefaultLogicalWidth;
     int uiScalePercent = 80;
+    bool fpsCapEnabled = true;
     GamepadPromptStyle gamepadPromptStyle = GamepadPromptStyle::Auto;
     int p1GamepadAssignment = 0;
     int p2GamepadAssignment = 0;

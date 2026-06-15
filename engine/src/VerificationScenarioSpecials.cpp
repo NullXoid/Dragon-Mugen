@@ -368,6 +368,15 @@ bool observePowerConsumed(RuntimeProbe& runtime, int powerBefore, int& powerAfte
     return powerBefore >= 1000 && powerAfter < powerBefore;
 }
 
+void recordCharacterDataLifeLoaded(RuntimeProbe& runtime, std::ostream& out, Counts& counts, int expectedMaxLife) {
+    const auto snapshot = runtime.snapshot();
+    const bool loaded = snapshot.p1.maxLife == expectedMaxLife && snapshot.p1.life == expectedMaxLife;
+    record(out, counts, loaded ? Status::Pass : Status::Fail, "character_data_life_loaded",
+        "life=" + std::to_string(snapshot.p1.life)
+        + " max_life=" + std::to_string(snapshot.p1.maxLife)
+        + " expected=" + std::to_string(expectedMaxLife));
+}
+
 int runShotoSpecialsSupers(
     RuntimeProbe& runtime,
     std::ostream& out,
@@ -376,7 +385,8 @@ int runShotoSpecialsSupers(
     std::initializer_list<int> superStates,
     int forcedZeroMoveSuperPauseState = 0,
     int forcedIgnoreHitPauseState = 0,
-    int forcedInfiniteAnimExitState = 0) {
+    int forcedInfiniteAnimExitState = 0,
+    int expectedMaxLife = 1000) {
     Counts counts;
     if (!runtime.setup(characterId, "Mountainside", ScenarioMode::Training, out)) {
         record(out, counts, Status::Blocked, "setup", "Training setup failed");
@@ -392,6 +402,7 @@ int runShotoSpecialsSupers(
         summary(out, counts);
         return exitCode(counts);
     }
+    recordCharacterDataLifeLoaded(runtime, out, counts, expectedMaxLife);
 
     if (forcedZeroMoveSuperPauseState > 0) {
         runtime.positionFighters(-60.0f, 74.0f);
@@ -581,6 +592,7 @@ int runKfmSpecialsSupers(RuntimeProbe& runtime, std::ostream& out) {
         summary(out, counts);
         return exitCode(counts);
     }
+    recordCharacterDataLifeLoaded(runtime, out, counts, 1000);
 
     const std::vector<SpecialProbeCase> groundSpecials{
         { "light_kung_fu_palm", qcfSequence('x'), { 1000 }, 0 },
@@ -634,7 +646,7 @@ int runKfmSpecialsSupers(RuntimeProbe& runtime, std::ostream& out) {
 }
 
 int runEvilKenSpecialsSupers(RuntimeProbe& runtime, std::ostream& out) {
-    return runShotoSpecialsSupers(runtime, out, "EvilKen", "evilken-specials-supers", { 3450 }, 60050, 0, 2211);
+    return runShotoSpecialsSupers(runtime, out, "EvilKen", "evilken-specials-supers", { 3450 }, 60050, 0, 2211, 900);
 }
 
 int runEvilKenAirSpecialContactLanding(RuntimeProbe& runtime, std::ostream& out) {
@@ -1319,7 +1331,7 @@ int runEvilKenTrainingCommandPracticeAdvance(RuntimeProbe& runtime, std::ostream
 }
 
 int runEvilRyuSpecialsSupers(RuntimeProbe& runtime, std::ostream& out) {
-    return runShotoSpecialsSupers(runtime, out, "EvilRyu", "evilryu-specials-supers", { 3885 }, 0, 11164);
+    return runShotoSpecialsSupers(runtime, out, "EvilRyu", "evilryu-specials-supers", { 3885 }, 0, 11164, 0, 950);
 }
 
 int runEvilRyuShinShoryukenStun(RuntimeProbe& runtime, std::ostream& out) {

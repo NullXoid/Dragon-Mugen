@@ -392,6 +392,7 @@ Current options:
 - `MATCH TIMER`: cycles through `30`, `60`, `90`, `99`, `120`, and `180` seconds.
 - `CANVAS SIZE`: cycles through `320x240 CLASSIC`, `426x240 WIDE`, and `480x240 EXTRA`.
 - `UI SCALE`: cycles through `60%`, `70%`, `80%`, `90%`, and `100%` for Dragon floating panel and overlay density.
+- `FPS CAP`: cycles the 60 FPS render cap `ON` or `OFF`.
 - `PAD LABELS`: cycles through `AUTO`, `XBOX`, and `PLAYSTATION` display labels.
 - `P1 GAMEPAD`: cycles through automatic assignment, off, and connected gamepad slots.
 - `P2 GAMEPAD`: cycles through automatic assignment, off, and connected gamepad slots.

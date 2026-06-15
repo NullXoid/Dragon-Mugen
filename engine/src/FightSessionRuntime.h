@@ -204,7 +204,7 @@ void resetFightRound(AppState& state) {
             fighter.arenaDepthSidestepDirection = 1;
             fighter.facing = fighter.x <= stage.cameraStartx ? 1 : -1;
             fighter.onGround = true;
-            fighter.life = 1000;
+            fighter.life = characterMaxLifeForFighterIndex(state, i);
             fighter.power = 0;
             fighter.paletteNo = fighterPaletteNoForSlot(state, i);
             applyInitialFighterScale(state, fighter, i);
@@ -271,8 +271,8 @@ void resetFightRound(AppState& state) {
     state.fighters[1].facing = -state.fighters[0].facing;
     state.fighters[0].onGround = true;
     state.fighters[1].onGround = true;
-    state.fighters[0].life = 1000;
-    state.fighters[1].life = 1000;
+    state.fighters[0].life = characterMaxLifeForFighterIndex(state, 0);
+    state.fighters[1].life = characterMaxLifeForFighterIndex(state, 1);
     state.fighters[0].paletteNo = fighterPaletteNoForSlot(state, 0);
     state.fighters[1].paletteNo = fighterPaletteNoForSlot(state, 1);
     applyInitialFighterScale(state, state.fighters[0], 0);

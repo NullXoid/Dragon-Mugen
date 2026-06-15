@@ -465,7 +465,7 @@ void mergeTrainingDemoInput(FighterInputState& target, const FighterInputState& 
 }
 
 const CommandStateEntry* selectedTrainingCommandEntry(const AppState& state, int* selectedIndex = nullptr) {
-    const auto entries = activeDisplayableMoveListEntries(state);
+    const auto& entries = activeDisplayableMoveListEntries(state);
     if (entries.empty()) {
         if (selectedIndex) {
             *selectedIndex = -1;
@@ -483,7 +483,7 @@ const CommandStateEntry* selectedTrainingCommandEntry(const AppState& state, int
 }
 
 bool cycleSelectedTrainingCommandEntry(AppState& state, int direction, bool announce = true) {
-    const auto entries = activeDisplayableMoveListEntries(state);
+    const auto& entries = activeDisplayableMoveListEntries(state);
     if (entries.empty() || direction == 0) {
         return false;
     }
@@ -1056,7 +1056,7 @@ void resetTrainingDemoFighter(AppState& state, FighterState& fighter) {
     fighter.vy = 0.0f;
     fighter.y = 0.0f;
     fighter.onGround = true;
-    fighter.life = 1000;
+    fighter.life = characterMaxLifeForActor(state, fighter);
     fighter.hitCount = 0;
     fighter.defenceMultiplier = 1.0f;
     fighter.attackMultiplier = 1.0f;

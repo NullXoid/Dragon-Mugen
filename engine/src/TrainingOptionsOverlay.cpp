@@ -306,6 +306,21 @@ void drawMoveInputChips(
 }
 
 std::string normalizedMoveSectionLabel(const std::string& category) {
+    if (category == "STANDING NORMAL") {
+        return "Standing Normal";
+    }
+    if (category == "CROUCHING NORMAL") {
+        return "Crouching Normal";
+    }
+    if (category == "AIR NORMAL") {
+        return "Air Normal";
+    }
+    if (category == "THROW") {
+        return "Throw";
+    }
+    if (category == "COUNTER") {
+        return "Counter";
+    }
     if (category == "NORMAL" || category == "NORMALS") {
         return "Normal Move";
     }

@@ -179,17 +179,20 @@ MainSettings cycleMainSetting(MainSettings settings, int row, int direction, int
         break;
     }
     case 3:
-        settings.gamepadPromptStyle = cyclePromptStyle(settings.gamepadPromptStyle, direction);
+        settings.fpsCapEnabled = !settings.fpsCapEnabled;
         break;
     case 4:
+        settings.gamepadPromptStyle = cyclePromptStyle(settings.gamepadPromptStyle, direction);
+        break;
+    case 5:
         settings.p1GamepadAssignment =
             cycleGamepadAssignmentValue(settings.p1GamepadAssignment, gamepadDeviceCount, direction);
         break;
-    case 5:
+    case 6:
         settings.p2GamepadAssignment =
             cycleGamepadAssignmentValue(settings.p2GamepadAssignment, gamepadDeviceCount, direction);
         break;
-    case 6:
+    case 7:
         settings.fallFallbacksEnabled = !settings.fallFallbacksEnabled;
         break;
     default:
@@ -213,6 +216,7 @@ std::string_view mainSettingLabel(int option) {
         "MATCH TIMER",
         "CANVAS SIZE",
         "UI SCALE",
+        "FPS CAP",
         "PAD LABELS",
         "P1 GAMEPAD",
         "P2 GAMEPAD",

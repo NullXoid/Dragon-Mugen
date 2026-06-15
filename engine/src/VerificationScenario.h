@@ -44,6 +44,7 @@ struct FighterSnapshot {
     int stateTime = 0;
     int animTick = 0;
     int life = 0;
+    int maxLife = 1000;
     int power = 0;
     int targetIndex = -1;
     int targetTicks = 0;
@@ -149,6 +150,7 @@ struct TrainingMoveInfo {
     char requiredStateType = 0;
     int requiredPower = 0;
     std::vector<std::string> commandNames;
+    std::string section;
 };
 
 class RuntimeProbe {
@@ -182,6 +184,7 @@ public:
     virtual std::vector<TrainingMoveInfo> trainingMovesForPromptStyle(std::string_view style) const = 0;
     virtual std::string trainingMoveListTab() const = 0;
     virtual void setTrainingMoveListTab(std::string_view tab) = 0;
+    virtual bool trainingMoveListSelectedRowVisible() const = 0;
     virtual bool commandIconAtlasLoaded() const = 0;
     virtual std::string trainingCurrentInputDisplay() const = 0;
     virtual std::string trainingDirectionGuideState() const = 0;

@@ -1886,6 +1886,33 @@ int runTrainingCommandListTabs(RuntimeProbe& runtime, std::ostream& out) {
         summary(out, counts);
         return exitCode(counts);
     }
+    const auto sectionRank = [](const std::string& section) {
+        if (section == "STANDING NORMAL") return 0;
+        if (section == "CROUCHING NORMAL") return 1;
+        if (section == "AIR NORMAL") return 2;
+        if (section == "SPECIAL MOVE") return 3;
+        if (section == "SUPER MOVE") return 4;
+        if (section == "THROW") return 5;
+        if (section == "COUNTER") return 6;
+        return 7;
+    };
+    const auto sectionOrderValid = [&sectionRank](const std::vector<TrainingMoveInfo>& moves) {
+        int previous = -1;
+        for (const auto& move : moves) {
+            const int rank = sectionRank(move.section);
+            if (rank < previous) {
+                return false;
+            }
+            previous = rank;
+        }
+        return true;
+    };
+    record(out, counts, allMoves.front().section == "STANDING NORMAL" ? Status::Pass : Status::Fail,
+        "all_tab_starts_on_standard_normals",
+        "first=\"" + allMoves.front().label + "\" section=\"" + allMoves.front().section + "\"");
+    record(out, counts, sectionOrderValid(allMoves) ? Status::Pass : Status::Fail,
+        "all_tab_section_order",
+        "first=\"" + allMoves.front().section + "\" last=\"" + allMoves.back().section + "\"");
 
     runtime.setTrainingMoveListTab("main");
     const auto mainMoves = runtime.trainingMoves();
@@ -1895,8 +1922,21 @@ int runTrainingCommandListTabs(RuntimeProbe& runtime, std::ostream& out) {
     record(out, counts, !mainMoves.empty() && mainMoves.size() <= allMoves.size() ? Status::Pass : Status::Fail,
         "main_subset_valid",
         "main=" + std::to_string(mainMoves.size()) + " all=" + std::to_string(allMoves.size()));
+    if (!mainMoves.empty()) {
+        record(out, counts, mainMoves.front().section == "STANDING NORMAL" ? Status::Pass : Status::Fail,
+            "main_tab_starts_on_standard_normals",
+            "first=\"" + mainMoves.front().label + "\" section=\"" + mainMoves.front().section + "\"");
+        record(out, counts, sectionOrderValid(mainMoves) ? Status::Pass : Status::Fail,
+            "main_tab_section_order",
+            "first=\"" + mainMoves.front().section + "\" last=\"" + mainMoves.back().section + "\"");
+    }
 
     if (!mainMoves.empty()) {
+        const bool selectedLastMain = runtime.selectTrainingMoveIndex(static_cast<int>(mainMoves.size()) - 1);
+        record(out, counts, selectedLastMain && runtime.trainingMoveListSelectedRowVisible() ? Status::Pass : Status::Fail,
+            "last_main_command_visible_after_scroll",
+            "selected=\"" + runtime.snapshot().selectedTrainingMoveLabel + "\"");
+
         const std::string selectedLabel = mainMoves.front().label;
         const bool selected = runtime.selectTrainingMove(selectedLabel);
         runtime.setTrainingMoveListTab("all");
@@ -1911,6 +1951,12 @@ int runTrainingCommandListTabs(RuntimeProbe& runtime, std::ostream& out) {
             "selection_preserved_back_to_main",
             "wanted=\"" + selectedLabel + "\" got=\"" + afterMain.selectedTrainingMoveLabel + "\"");
     }
+
+    runtime.setTrainingMoveListTab("all");
+    const bool selectedLast = runtime.selectTrainingMoveIndex(static_cast<int>(allMoves.size()) - 1);
+    record(out, counts, selectedLast && runtime.trainingMoveListSelectedRowVisible() ? Status::Pass : Status::Fail,
+        "last_command_visible_after_scroll",
+        "selected=\"" + runtime.snapshot().selectedTrainingMoveLabel + "\"");
 
     record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
     summary(out, counts);

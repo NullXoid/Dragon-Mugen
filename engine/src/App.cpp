@@ -1539,6 +1539,9 @@ struct AppState {
     ActivePaletteEffect backgroundPaletteEffect;
     EnvColorEffect envColor;
     double accumulator = 0.0;
+    double fpsWindowSeconds = 0.0;
+    int fpsWindowFrames = 0;
+    float renderFps = 0.0f;
     int frame = 0;
     float cameraX = 0.0f;
     float cameraY = 0.0f;
@@ -1560,6 +1563,12 @@ struct AppState {
     std::vector<StateDefinition> stateDefs;
     std::vector<CommandStateEntry> commandEntries;
     std::vector<CommandDefinition> commandDefinitions;
+    mutable std::vector<const CommandStateEntry*> trainingMoveListEntriesCache;
+    mutable const CommandStateEntry* trainingMoveListCacheData = nullptr;
+    mutable size_t trainingMoveListCacheCount = 0;
+    mutable TrainingMoveCategory trainingMoveListCacheCategory = TrainingMoveCategory::All;
+    mutable TrainingMoveListTab trainingMoveListCacheTab = TrainingMoveListTab::All;
+    mutable bool trainingMoveListCacheValid = false;
     std::vector<AnimationClip> characterClips;
     std::vector<AnimationClip> opponentCharacterClips;
     ArenaCharacterRuntime opponentRuntime;
@@ -1609,6 +1618,33 @@ UiRenderContext uiRenderContext(SDL_Renderer* renderer, const AppState& state) {
         kLogicalHeight,
         uiScale(state),
     };
+}
+
+void updateFpsCounter(AppState& state, double elapsedSeconds) {
+    state.fpsWindowSeconds += std::max(0.0, elapsedSeconds);
+    ++state.fpsWindowFrames;
+    if (state.fpsWindowSeconds < 0.25) {
+        return;
+    }
+    state.renderFps = static_cast<float>(state.fpsWindowFrames / state.fpsWindowSeconds);
+    state.fpsWindowSeconds = 0.0;
+    state.fpsWindowFrames = 0;
+}
+
+void drawFpsCounter(SDL_Renderer* renderer, const AppState& state) {
+    const int fps = static_cast<int>(std::lround(std::max(0.0f, state.renderFps)));
+    const std::string text = "FPS " + std::to_string(fps);
+    const float w = static_cast<float>(text.size()) * 8.0f + 8.0f;
+    const float x = logicalWidthF(state) - w - 4.0f;
+    constexpr float y = 4.0f;
+    const Uint8 red = fps < 50 ? 222 : 118;
+    const Uint8 green = fps < 50 ? 80 : 226;
+    setColor(renderer, 4, 7, 12, 182);
+    fillRect(renderer, x, y, w, 12.0f);
+    setColor(renderer, red, green, 160, 220);
+    drawRect(renderer, x, y, w, 12.0f);
+    setColor(renderer, 224, 238, 242, 240);
+    debugText(renderer, x + 4.0f, y + 3.0f, text);
 }
 
 void clearComboCounters(AppState& state);
@@ -2224,6 +2260,18 @@ std::optional<float> lookupCharacterConstant(const CharacterConstants& constants
     }
     if (key == "data.power") {
         return static_cast<float>(constants.maxPower);
+    }
+    if (key == "data.life") {
+        return static_cast<float>(constants.life);
+    }
+    if (key == "data.attack") {
+        return static_cast<float>(constants.attack);
+    }
+    if (key == "data.defence") {
+        return static_cast<float>(constants.defence);
+    }
+    if (key == "data.fall.defence_up") {
+        return static_cast<float>(constants.fallDefenceUp);
     }
     if (key == "data.liedown.time") {
         return static_cast<float>(constants.liedownTime);
@@ -3161,12 +3209,14 @@ std::string mainSettingStatus(const AppState& state, int option) {
     case 2:
         return uiScaleSettingText(state.mainSettings);
     case 3:
-        return gamepadPromptStyleText(state.mainSettings.gamepadPromptStyle);
+        return state.mainSettings.fpsCapEnabled ? "60" : "OFF";
     case 4:
-        return gamepadAssignmentText(state, 0);
+        return gamepadPromptStyleText(state.mainSettings.gamepadPromptStyle);
     case 5:
-        return gamepadAssignmentText(state, 1);
+        return gamepadAssignmentText(state, 0);
     case 6:
+        return gamepadAssignmentText(state, 1);
+    case 7:
         return state.mainSettings.fallFallbacksEnabled ? "ON" : "OFF";
     default:
         return "";
@@ -3207,6 +3257,7 @@ void drawModeSelect(SDL_Renderer* renderer, const AppState& state) {
         state.frontend.screenFrame,
         state.frontend.exitConfirmOpen });
 
+    drawFpsCounter(renderer, state);
     SDL_RenderPresent(renderer);
 }
 
@@ -3221,6 +3272,7 @@ void drawMainSettings(SDL_Renderer* renderer, const AppState& state) {
             mainSettingsPadSummary(state),
         });
 
+    drawFpsCounter(renderer, state);
     SDL_RenderPresent(renderer);
 }
 
@@ -3308,6 +3360,7 @@ void drawCharacterSelect(SDL_Renderer* renderer, const AppState& state) {
             state.selection.p2CharacterConfirmed,
             activeOpponentType(state) == OpponentType::Dummy,
         });
+    drawFpsCounter(renderer, state);
     SDL_RenderPresent(renderer);
 }
 
@@ -4725,6 +4778,18 @@ const CharacterConstants& characterConstantsForFighterIndex(const AppState& stat
     return state.characterConstants;
 }
 
+int characterMaxLifeForConstants(const CharacterConstants& constants) {
+    return std::max(1, constants.life);
+}
+
+int characterMaxLifeForActor(const AppState& state, const FighterState& fighter) {
+    return characterMaxLifeForConstants(characterConstantsForActor(state, fighter));
+}
+
+int characterMaxLifeForFighterIndex(const AppState& state, size_t fighterIndex) {
+    return characterMaxLifeForConstants(characterConstantsForFighterIndex(state, fighterIndex));
+}
+
 const std::vector<AnimationClip>* characterClipsForFighterIndex(const AppState& state, size_t fighterIndex) {
     if (const auto* runtime = characterRuntimeForFighterIndex(state, fighterIndex)) {
         return &runtime->clips;
@@ -5109,7 +5174,7 @@ void updateStateMeterControllers(
             fighter.life = std::clamp(
                 fighter.life + static_cast<int>(std::lround(*value)),
                 minimumLife,
-                1000);
+                characterMaxLifeForActor(state, fighter));
         }
 
         for (const auto& hitAdd : stateDef.hitAdds) {
@@ -7249,7 +7314,7 @@ void updateStateTargetControllers(
         }
         const int delta = static_cast<int>(std::lround(*value));
         const int minimumLife = targetLifeAdd.kill ? 0 : 1;
-        target.life = std::clamp(target.life + delta, minimumLife, 1000);
+        target.life = std::clamp(target.life + delta, minimumLife, characterMaxLifeForActor(state, target));
         refreshStoredTargetLink(fighter);
     }
 
@@ -7454,23 +7519,25 @@ int effectiveGuardDistance(const AppState& state, const FighterState& attacker, 
     return std::max(0, characterConstantsForActor(state, attacker).attackDistance);
 }
 
-int scaleDamageForDefence(int damage, const FighterState& defender) {
+int scaleDamageForDefence(const AppState& state, int damage, const FighterState& defender) {
     if (damage <= 0) {
         return 0;
     }
-    const float multiplier = std::max(0.001f, defender.defenceMultiplier);
+    const float baseDefence = std::max(1, characterConstantsForActor(state, defender).defence) / 100.0f;
+    const float multiplier = std::max(0.001f, baseDefence * defender.defenceMultiplier);
     return std::max(0, static_cast<int>(std::lround(static_cast<float>(damage) / multiplier)));
 }
 
-int scaleDamageForAttack(int damage, const FighterState& attacker) {
+int scaleDamageForAttack(const AppState& state, int damage, const FighterState& attacker) {
     if (damage <= 0) {
         return 0;
     }
-    return std::max(0, static_cast<int>(std::lround(static_cast<float>(damage) * attacker.attackMultiplier)));
+    const float baseAttack = std::max(1, characterConstantsForActor(state, attacker).attack) / 100.0f;
+    return std::max(0, static_cast<int>(std::lround(static_cast<float>(damage) * baseAttack * attacker.attackMultiplier)));
 }
 
-int scaleAttackThenDefenceDamage(int damage, const FighterState& attacker, const FighterState& defender) {
-    return scaleDamageForDefence(scaleDamageForAttack(damage, attacker), defender);
+int scaleAttackThenDefenceDamage(const AppState& state, int damage, const FighterState& attacker, const FighterState& defender) {
+    return scaleDamageForDefence(state, scaleDamageForAttack(state, damage, attacker), defender);
 }
 
 void clearComboCounters(AppState& state) {
@@ -7607,7 +7674,7 @@ void applyHitBetween(AppState& state, size_t attackerIndex, size_t defenderIndex
         endActiveComboForDefender(state, defenderIndex);
         attacker.hitPauseTicks = fightHitPauseTicks(state, hitDef->pausetimeP1, 1);
         const int guardDamageDone = state.training.options.guardDamage
-            ? scaleAttackThenDefenceDamage(hitDef->guardDamage, attacker, defender)
+            ? scaleAttackThenDefenceDamage(state, hitDef->guardDamage, attacker, defender)
             : 0;
         if (!state.training.options.dummyInvincible && state.training.options.guardDamage) {
             defender.life = std::max(0, defender.life - guardDamageDone);
@@ -7633,7 +7700,7 @@ void applyHitBetween(AppState& state, size_t attackerIndex, size_t defenderIndex
         attacker.moveHit = true;
         attacker.hitPauseTicks = fightHitPauseTicks(state, hitDef->pausetimeP1, 1);
         const int damageDone = (!trainingDummy || !state.training.options.dummyInvincible)
-            ? scaleAttackThenDefenceDamage(hitDef->damage, attacker, defender)
+            ? scaleAttackThenDefenceDamage(state, hitDef->damage, attacker, defender)
             : 0;
         if (damageDone > 0) {
             defender.life = std::max(0, defender.life - damageDone);
@@ -7962,7 +8029,7 @@ void applyProjectileHit(AppState& state, RuntimeProjectile& projectile, size_t d
         owner.projectileGuardedTicks = std::max(owner.projectileGuardedTicks, 32);
         owner.hitPauseTicks = fightHitPauseTicks(state, hitDef.pausetimeP1, 0);
         const int guardDamageDone = state.training.options.guardDamage
-            ? scaleAttackThenDefenceDamage(hitDef.guardDamage, owner, defender)
+            ? scaleAttackThenDefenceDamage(state, hitDef.guardDamage, owner, defender)
             : 0;
         if (!state.training.options.dummyInvincible && state.training.options.guardDamage) {
             defender.life = std::max(0, defender.life - guardDamageDone);
@@ -7987,7 +8054,7 @@ void applyProjectileHit(AppState& state, RuntimeProjectile& projectile, size_t d
         owner.projectileHitTicks = std::max(owner.projectileHitTicks, 32);
         owner.hitPauseTicks = fightHitPauseTicks(state, hitDef.pausetimeP1, 0);
         const int damageDone = (!trainingDummy || !state.training.options.dummyInvincible)
-            ? scaleAttackThenDefenceDamage(hitDef.damage, owner, defender)
+            ? scaleAttackThenDefenceDamage(state, hitDef.damage, owner, defender)
             : 0;
         if (damageDone > 0) {
             defender.life = std::max(0, defender.life - damageDone);
@@ -9777,7 +9844,7 @@ void updateFight(AppState& state) {
     if (state.frontend.pendingMode == PendingMode::Training
         && activeOpponentType(state) == OpponentType::Dummy
         && (state.training.options.dummyAutoLife || state.training.options.dummyInvincible)) {
-        p2.life = 1000;
+        p2.life = characterMaxLifeForActor(state, p2);
     }
     updateSingleFightRules(state);
     updateCamera(state, stage);
@@ -9828,6 +9895,7 @@ void drawArenaSetup(SDL_Renderer* renderer, AppState& state) {
     view.selectedOption = state.frontend.selectedArenaSetupOption;
     view.frame = state.frame;
     drawArenaSetupOverlay(uiRenderContext(renderer, state), view);
+    drawFpsCounter(renderer, state);
     SDL_RenderPresent(renderer);
 }
 
@@ -9900,6 +9968,7 @@ void drawStageSelect(SDL_Renderer* renderer, AppState& state) {
     }
 
     drawStageSelectOverlay(uiRenderContext(renderer, state), view);
+    drawFpsCounter(renderer, state);
     SDL_RenderPresent(renderer);
 }
 
@@ -9932,6 +10001,7 @@ void drawVersusScreen(SDL_Renderer* renderer, const AppState& state) {
             uiSpriteView(p1Portrait),
             uiSpriteView(opponentPortrait),
         });
+    drawFpsCounter(renderer, state);
     SDL_RenderPresent(renderer);
 }
 
@@ -10228,6 +10298,196 @@ TrainingMoveCategory commandEntryCategory(const CommandStateEntry& entry) {
     return TrainingMoveCategory::Specials;
 }
 
+enum class TrainingMoveListSection {
+    StandingNormals,
+    CrouchingNormals,
+    AirNormals,
+    Specials,
+    Supers,
+    Throws,
+    Counters,
+};
+
+int commandEntryTargetStateNumber(const CommandStateEntry& entry) {
+    if (const auto targetState = parsePlainIntValue(entry.targetStateExpression)) {
+        return *targetState;
+    }
+    return entry.targetState;
+}
+
+std::string commandEntryMoveListNameLower(const CommandStateEntry& entry) {
+    return lowercaseCopy(entry.displayLabel.empty() ? entry.label : entry.displayLabel);
+}
+
+template <typename Fn>
+bool anyCommandEntryCommand(const CommandStateEntry& entry, Fn&& fn) {
+    for (const auto& command : entry.requiredCommands) {
+        if (fn(command)) {
+            return true;
+        }
+    }
+    for (const auto& group : entry.commandOptionGroups) {
+        for (const auto& command : group) {
+            if (fn(command)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool commandEntryUsesCommand(const CommandStateEntry& entry, std::string_view wanted) {
+    return anyCommandEntryCommand(entry, [wanted](const std::string& command) {
+        return equalsNoCase(command, wanted);
+    });
+}
+
+bool commandEntryLooksLikeCounter(const CommandStateEntry& entry) {
+    const std::string label = commandEntryMoveListNameLower(entry);
+    return label.find("counter") != std::string::npos
+        || label.find("alpha") != std::string::npos
+        || label.find("guard cancel") != std::string::npos;
+}
+
+bool commandEntryLooksLikeThrow(const CommandStateEntry& entry) {
+    const std::string label = commandEntryMoveListNameLower(entry);
+    if (label.find("throw") != std::string::npos) {
+        return true;
+    }
+    const int targetState = commandEntryTargetStateNumber(entry);
+    return targetState >= 800 && targetState < 1000;
+}
+
+bool commandEntryLooksAirNormal(const CommandStateEntry& entry) {
+    const int targetState = commandEntryTargetStateNumber(entry);
+    const std::string label = commandEntryMoveListNameLower(entry);
+    return entry.requiredStateType == 'A'
+        || (targetState >= 600 && targetState < 700)
+        || label.find("air ") != std::string::npos
+        || label.find("j.") != std::string::npos
+        || label.find("jump") != std::string::npos;
+}
+
+bool commandEntryLooksCrouchingNormal(const CommandStateEntry& entry) {
+    const int targetState = commandEntryTargetStateNumber(entry);
+    const std::string label = commandEntryMoveListNameLower(entry);
+    return entry.requiredStateType == 'C'
+        || (targetState >= 400 && targetState < 500)
+        || label.find("crouch") != std::string::npos
+        || label.find("c.") != std::string::npos
+        || commandEntryUsesCommand(entry, "holddown");
+}
+
+TrainingMoveListSection commandEntryMoveListSection(const CommandStateEntry& entry) {
+    if (commandEntryLooksLikeCounter(entry)) {
+        return TrainingMoveListSection::Counters;
+    }
+    if (commandEntryLooksLikeThrow(entry)) {
+        return TrainingMoveListSection::Throws;
+    }
+    const TrainingMoveCategory category = commandEntryCategory(entry);
+    if (category == TrainingMoveCategory::Supers) {
+        return TrainingMoveListSection::Supers;
+    }
+    if (category == TrainingMoveCategory::Normals) {
+        if (commandEntryLooksAirNormal(entry)) {
+            return TrainingMoveListSection::AirNormals;
+        }
+        if (commandEntryLooksCrouchingNormal(entry)) {
+            return TrainingMoveListSection::CrouchingNormals;
+        }
+        return TrainingMoveListSection::StandingNormals;
+    }
+    return TrainingMoveListSection::Specials;
+}
+
+int moveListSectionSortOrder(TrainingMoveListSection section) {
+    switch (section) {
+    case TrainingMoveListSection::StandingNormals:
+        return 0;
+    case TrainingMoveListSection::CrouchingNormals:
+        return 1;
+    case TrainingMoveListSection::AirNormals:
+        return 2;
+    case TrainingMoveListSection::Specials:
+        return 3;
+    case TrainingMoveListSection::Supers:
+        return 4;
+    case TrainingMoveListSection::Throws:
+        return 5;
+    case TrainingMoveListSection::Counters:
+        return 6;
+    default:
+        return 3;
+    }
+}
+
+std::string_view commandEntryMoveListSectionLabel(TrainingMoveListSection section) {
+    switch (section) {
+    case TrainingMoveListSection::StandingNormals:
+        return "STANDING NORMAL";
+    case TrainingMoveListSection::CrouchingNormals:
+        return "CROUCHING NORMAL";
+    case TrainingMoveListSection::AirNormals:
+        return "AIR NORMAL";
+    case TrainingMoveListSection::Specials:
+        return "SPECIAL MOVE";
+    case TrainingMoveListSection::Supers:
+        return "SUPER MOVE";
+    case TrainingMoveListSection::Throws:
+        return "THROW";
+    case TrainingMoveListSection::Counters:
+        return "COUNTER";
+    default:
+        return "SPECIAL MOVE";
+    }
+}
+
+std::string commandEntryMoveListSectionLabel(const CommandStateEntry& entry) {
+    return std::string(commandEntryMoveListSectionLabel(commandEntryMoveListSection(entry)));
+}
+
+int commandEntryPrimaryButtonSortOrder(const CommandStateEntry& entry) {
+    const auto buttonOrder = [](char button) {
+        switch (static_cast<char>(std::tolower(static_cast<unsigned char>(button)))) {
+        case 'x':
+            return 0;
+        case 'y':
+            return 1;
+        case 'z':
+            return 2;
+        case 'a':
+            return 3;
+        case 'b':
+            return 4;
+        case 'c':
+            return 5;
+        case 's':
+            return 6;
+        default:
+            return 20;
+        }
+    };
+
+    int best = 20;
+    anyCommandEntryCommand(entry, [&](const std::string& command) {
+        if (command.size() == 1) {
+            best = std::min(best, buttonOrder(command.front()));
+        }
+        if (!command.empty()) {
+            best = std::min(best, buttonOrder(command.back()));
+        }
+        return false;
+    });
+    return best;
+}
+
+int commandEntryMoveListSortKey(const CommandStateEntry& entry) {
+    return moveListSectionSortOrder(commandEntryMoveListSection(entry)) * 100000
+        + commandEntryPrimaryButtonSortOrder(entry) * 1000
+        + std::clamp(commandEntryTargetStateNumber(entry), 0, 999);
+}
+
 bool commandEntryMatchesMoveCategory(const CommandStateEntry& entry, TrainingMoveCategory category) {
     if (category == TrainingMoveCategory::All) {
         return true;
@@ -10280,6 +10540,17 @@ std::vector<const CommandStateEntry*> displayableMoveListEntries(const AppState&
         }
         entries.push_back(&entry);
     }
+    std::stable_sort(entries.begin(), entries.end(), [](const CommandStateEntry* lhs, const CommandStateEntry* rhs) {
+        if (!lhs || !rhs) {
+            return lhs != nullptr;
+        }
+        const int leftKey = commandEntryMoveListSortKey(*lhs);
+        const int rightKey = commandEntryMoveListSortKey(*rhs);
+        if (leftKey != rightKey) {
+            return leftKey < rightKey;
+        }
+        return commandEntryMoveListNameLower(*lhs) < commandEntryMoveListNameLower(*rhs);
+    });
     return entries;
 }
 
@@ -10329,12 +10600,26 @@ std::vector<const CommandStateEntry*> displayableMoveListEntriesForTab(const App
 
     std::vector<const CommandStateEntry*> mainEntries;
     mainEntries.reserve(entries.size());
+    bool hasPresentationEntries = false;
     for (const auto* entry : entries) {
         if (entry && entry->presentationOverride) {
-            mainEntries.push_back(entry);
+            hasPresentationEntries = true;
+            break;
         }
     }
-    if (!mainEntries.empty()) {
+    if (hasPresentationEntries) {
+        for (const auto* entry : entries) {
+            if (!entry) {
+                continue;
+            }
+            const TrainingMoveListSection section = commandEntryMoveListSection(*entry);
+            if (entry->presentationOverride
+                || commandEntryCategory(*entry) == TrainingMoveCategory::Normals
+                || section == TrainingMoveListSection::Throws
+                || section == TrainingMoveListSection::Counters) {
+                mainEntries.push_back(entry);
+            }
+        }
         return mainEntries;
     }
 
@@ -10346,8 +10631,24 @@ std::vector<const CommandStateEntry*> displayableMoveListEntriesForTab(const App
     return mainEntries.empty() ? entries : mainEntries;
 }
 
-std::vector<const CommandStateEntry*> activeDisplayableMoveListEntries(const AppState& state) {
-    return displayableMoveListEntriesForTab(state, state.training.options.moveListTab);
+const std::vector<const CommandStateEntry*>& activeDisplayableMoveListEntries(const AppState& state) {
+    const CommandStateEntry* data = state.commandEntries.empty() ? nullptr : state.commandEntries.data();
+    const size_t count = state.commandEntries.size();
+    const TrainingMoveCategory category = state.training.options.moveCategory;
+    const TrainingMoveListTab tab = state.training.options.moveListTab;
+    if (!state.trainingMoveListCacheValid
+        || state.trainingMoveListCacheData != data
+        || state.trainingMoveListCacheCount != count
+        || state.trainingMoveListCacheCategory != category
+        || state.trainingMoveListCacheTab != tab) {
+        state.trainingMoveListEntriesCache = displayableMoveListEntriesForTab(state, tab);
+        state.trainingMoveListCacheData = data;
+        state.trainingMoveListCacheCount = count;
+        state.trainingMoveListCacheCategory = category;
+        state.trainingMoveListCacheTab = tab;
+        state.trainingMoveListCacheValid = true;
+    }
+    return state.trainingMoveListEntriesCache;
 }
 
 std::string joinTokens(const std::vector<std::string>& tokens, std::string_view separator) {
@@ -10712,11 +11013,41 @@ int findMoveListEntryByKey(const std::vector<const CommandStateEntry*>& entries,
 }
 
 int trainingMoveListVisibleMoveCapacity() {
-    return std::max(1, kTrainingMoveListRows - 1);
+    return std::max(1, kTrainingMoveListRows);
+}
+
+struct TrainingMoveListScrollMetrics {
+    int totalRows = 0;
+    int selectedRow = 0;
+};
+
+TrainingMoveListScrollMetrics trainingMoveListScrollMetrics(
+    const std::vector<const CommandStateEntry*>& entries,
+    int selectedEntry) {
+    TrainingMoveListScrollMetrics metrics;
+    if (entries.empty()) {
+        return metrics;
+    }
+
+    selectedEntry = std::clamp(selectedEntry, 0, static_cast<int>(entries.size()) - 1);
+    std::string previousCategory;
+    for (int index = 0; index < static_cast<int>(entries.size()); ++index) {
+        const auto& entry = *entries[static_cast<std::size_t>(index)];
+        const std::string category = commandEntryMoveListSectionLabel(entry);
+        if (index == 0 || category != previousCategory) {
+            ++metrics.totalRows;
+        }
+        if (index == selectedEntry) {
+            metrics.selectedRow = metrics.totalRows;
+        }
+        ++metrics.totalRows;
+        previousCategory = category;
+    }
+    return metrics;
 }
 
 void clampTrainingMoveListSelection(AppState& state) {
-    const auto entries = activeDisplayableMoveListEntries(state);
+    const auto& entries = activeDisplayableMoveListEntries(state);
     if (entries.empty()) {
         state.training.options.selectedMoveListEntry = 0;
         state.training.options.moveListScroll = 0;
@@ -10727,11 +11058,13 @@ void clampTrainingMoveListSelection(AppState& state) {
     state.training.options.selectedMoveListEntry =
         std::clamp(state.training.options.selectedMoveListEntry, 0, maxSelected);
     const int visibleRows = trainingMoveListVisibleMoveCapacity();
-    const int maxScroll = std::max(0, static_cast<int>(entries.size()) - visibleRows);
-    if (state.training.options.selectedMoveListEntry < state.training.options.moveListScroll) {
-        state.training.options.moveListScroll = state.training.options.selectedMoveListEntry;
-    } else if (state.training.options.selectedMoveListEntry >= state.training.options.moveListScroll + visibleRows) {
-        state.training.options.moveListScroll = state.training.options.selectedMoveListEntry - visibleRows + 1;
+    const TrainingMoveListScrollMetrics metrics =
+        trainingMoveListScrollMetrics(entries, state.training.options.selectedMoveListEntry);
+    const int maxScroll = std::max(0, metrics.totalRows - visibleRows);
+    if (metrics.selectedRow < state.training.options.moveListScroll) {
+        state.training.options.moveListScroll = metrics.selectedRow;
+    } else if (metrics.selectedRow >= state.training.options.moveListScroll + visibleRows) {
+        state.training.options.moveListScroll = metrics.selectedRow - visibleRows + 1;
     }
     state.training.options.moveListScroll = std::clamp(state.training.options.moveListScroll, 0, maxScroll);
 }
@@ -10742,7 +11075,7 @@ void setTrainingMoveListTabPreservingSelection(AppState& state, TrainingMoveList
         return;
     }
 
-    const auto oldEntries = activeDisplayableMoveListEntries(state);
+    const auto& oldEntries = activeDisplayableMoveListEntries(state);
     std::string oldKey;
     if (!oldEntries.empty()) {
         const int oldSelected = std::clamp(
@@ -10753,7 +11086,7 @@ void setTrainingMoveListTabPreservingSelection(AppState& state, TrainingMoveList
     }
 
     state.training.options.moveListTab = tab;
-    const auto newEntries = activeDisplayableMoveListEntries(state);
+    const auto& newEntries = activeDisplayableMoveListEntries(state);
     if (!oldKey.empty()) {
         const int preserved = findMoveListEntryByKey(newEntries, oldKey);
         if (preserved >= 0) {
@@ -10810,7 +11143,7 @@ TrainingCommandHudView trainingCommandHudView(
     }
 
     if (view.commandsVisible) {
-        const auto entries = activeDisplayableMoveListEntries(state);
+        const auto& entries = activeDisplayableMoveListEntries(state);
         const int selected = entries.empty()
             ? -1
             : std::clamp(state.training.options.selectedMoveListEntry, 0, static_cast<int>(entries.size()) - 1);
@@ -10926,23 +11259,22 @@ TrainingOptionsMenuView trainingOptionsMenuView(const AppState& state, std::vect
 TrainingMoveListView trainingMoveListView(const AppState& state, std::vector<TrainingMoveRowView>& rows) {
     rows.clear();
     constexpr int visibleRows = kTrainingMoveListRows;
-    const int visibleMoves = trainingMoveListVisibleMoveCapacity();
+    const int visibleMoveRows = trainingMoveListVisibleMoveCapacity();
 
-    const auto entries = activeDisplayableMoveListEntries(state);
+    const auto& entries = activeDisplayableMoveListEntries(state);
     const CommandButtonPromptMode promptMode = commandButtonPromptModeForPlayer(state, 0);
-    const int maxScroll = std::max(0, static_cast<int>(entries.size()) - visibleMoves);
-    const int scroll = std::clamp(state.training.options.moveListScroll, 0, maxScroll);
     const int selected = entries.empty()
         ? -1
         : std::clamp(state.training.options.selectedMoveListEntry, 0, static_cast<int>(entries.size()) - 1);
 
-    rows.reserve(visibleRows);
+    std::vector<TrainingMoveRowView> allRows;
+    allRows.reserve(entries.size() + 6);
     std::string previousCategory;
-    for (int index = scroll; index < static_cast<int>(entries.size()) && static_cast<int>(rows.size()) < visibleRows; ++index) {
+    for (int index = 0; index < static_cast<int>(entries.size()); ++index) {
         const auto& entry = *entries[static_cast<size_t>(index)];
-        const std::string category = std::string(trainingMoveCategoryStatus(commandEntryCategory(entry)));
-        if ((index == scroll || category != previousCategory) && static_cast<int>(rows.size()) < visibleRows) {
-            rows.push_back(TrainingMoveRowView{
+        const std::string category = commandEntryMoveListSectionLabel(entry);
+        if (index == 0 || category != previousCategory) {
+            allRows.push_back(TrainingMoveRowView{
                 "",
                 category,
                 "",
@@ -10952,18 +11284,22 @@ TrainingMoveListView trainingMoveListView(const AppState& state, std::vector<Tra
                 true,
             });
         }
-        if (static_cast<int>(rows.size()) >= visibleRows) {
-            break;
-        }
-        rows.push_back(TrainingMoveRowView{
+        allRows.push_back(TrainingMoveRowView{
             (index + 1 < 10 ? "0" : "") + std::to_string(index + 1),
             moveListEntryName(entry),
             moveListInputText(entry, promptMode),
             index == selected,
             category,
-            index == scroll || category != previousCategory,
+            index == 0 || category != previousCategory,
         });
         previousCategory = category;
+    }
+
+    const int maxScroll = std::max(0, static_cast<int>(allRows.size()) - visibleMoveRows);
+    const int scroll = std::clamp(state.training.options.moveListScroll, 0, maxScroll);
+    rows.reserve(visibleRows);
+    for (int row = scroll; row < static_cast<int>(allRows.size()) && static_cast<int>(rows.size()) < visibleRows; ++row) {
+        rows.push_back(allRows[static_cast<std::size_t>(row)]);
     }
 
     TrainingMoveListView view;
@@ -10981,8 +11317,8 @@ TrainingMoveListView trainingMoveListView(const AppState& state, std::vector<Tra
     view.activeTab = state.training.options.moveListTab;
     view.selectedIndex = selected;
     view.firstVisibleIndex = scroll;
-    view.totalCount = static_cast<int>(entries.size());
-    view.visibleCapacity = visibleMoves;
+    view.totalCount = static_cast<int>(allRows.size());
+    view.visibleCapacity = visibleMoveRows;
     view.empty = entries.empty();
 
     if (selected >= 0) {
@@ -10993,7 +11329,7 @@ TrainingMoveListView trainingMoveListView(const AppState& state, std::vector<Tra
             fitDebugText(moveListEntryName(entry), 17),
             commandEntryTargetLabel(entry),
             fitDebugText(inputText, 16),
-            std::string(trainingMoveCategoryStatus(commandEntryCategory(entry))),
+            commandEntryMoveListSectionLabel(entry),
             requiredPower > 0 ? "POWER " + std::to_string(requiredPower) : "LOADED",
             fitDebugText(inputText, 26),
             true,
@@ -11067,12 +11403,12 @@ FightHudView fightHudView(const AppState& state) {
     FightHudView view;
     view.p1.name = selectedCharacterName(state.selection);
     view.p1.life = state.fighters[0].life;
-    view.p1.maxLife = 1000;
+    view.p1.maxLife = characterMaxLifeForFighterIndex(state, 0);
     view.p1.power = fightPowerGaugeView(state, 0);
 
     view.p2.name = compactSettingText(opponentDisplayName(state), 12);
     view.p2.life = state.fighters[1].life;
-    view.p2.maxLife = 1000;
+    view.p2.maxLife = characterMaxLifeForFighterIndex(state, 1);
     view.p2.power = fightPowerGaugeView(state, 1);
     if (state.frontend.pendingMode == PendingMode::Arena) {
         view.arenaMode = true;
@@ -11081,7 +11417,7 @@ FightHudView fightHudView(const AppState& state) {
             auto& fighterView = view.arenaFighters[static_cast<size_t>(i)];
             fighterView.name = compactSettingText((i == 0 ? "P1 " : "P" + std::to_string(i + 1) + " ") + arenaFighterName(state, static_cast<size_t>(i)), 13);
             fighterView.life = state.fighters[static_cast<size_t>(i)].life;
-            fighterView.maxLife = 1000;
+            fighterView.maxLife = characterMaxLifeForFighterIndex(state, static_cast<size_t>(i));
         }
     }
 
@@ -11261,8 +11597,9 @@ void drawLightFightPauseOverlay(SDL_Renderer* renderer, const AppState& state) {
         return;
     }
 
-    const float panelW = 122.0f;
-    const float panelH = 39.0f;
+    const bool trainingMode = state.frontend.pendingMode == PendingMode::Training;
+    const float panelW = trainingMode ? 146.0f : 122.0f;
+    const float panelH = trainingMode ? 57.0f : 39.0f;
     const float x = screenCenterX(state) - panelW * 0.5f;
     constexpr float y = 102.0f;
     setColor(renderer, 4, 7, 12, 182);
@@ -11274,6 +11611,10 @@ void drawLightFightPauseOverlay(SDL_Renderer* renderer, const AppState& state) {
     setColor(renderer, 160, 178, 205, 224);
     debugText(renderer, x + 10.0f, y + 18.0f, "START:RESUME");
     debugText(renderer, x + 10.0f, y + 27.0f, "SEL:OPTIONS");
+    if (trainingMode) {
+        debugText(renderer, x + 10.0f, y + 39.0f, "H/L3/R3:SHOW");
+        debugText(renderer, x + 10.0f, y + 48.0f, "PGUP/DN LB/RB");
+    }
 }
 
 void drawScreenshotFreezeOverlay(SDL_Renderer* renderer, const AppState& state) {
@@ -11397,6 +11738,7 @@ void drawFightViewFrame(SDL_Renderer* renderer, const AppState& state, bool pres
     drawFightFreezeWatchOverlay(renderer, state);
     drawLightFightPauseOverlay(renderer, state);
     drawScreenshotFreezeOverlay(renderer, state);
+    drawFpsCounter(renderer, state);
     if (present) {
         SDL_RenderPresent(renderer);
     }
@@ -11566,18 +11908,27 @@ int runApp(const std::filesystem::path& gameRoot) {
 
     using clock = std::chrono::steady_clock;
     constexpr double fixedStep = 1.0 / 60.0;
+    constexpr double targetFrameSeconds = 1.0 / 60.0;
     auto previous = clock::now();
 
     while (state.running) {
         const auto now = clock::now();
         const std::chrono::duration<double> elapsed = now - previous;
         previous = now;
-        state.accumulator += elapsed.count();
+        const double realElapsedSeconds = std::max(0.0, elapsed.count());
+        const double simulationElapsedSeconds = std::min(realElapsedSeconds, fixedStep * 5.0);
+        state.accumulator = std::min(state.accumulator + simulationElapsedSeconds, fixedStep * 5.0);
+        updateFpsCounter(state, realElapsedSeconds);
 
         pumpEvents(renderer, state);
-        while (state.accumulator >= fixedStep) {
+        int fixedStepsThisFrame = 0;
+        while (state.accumulator >= fixedStep && fixedStepsThisFrame < 5) {
             fixedUpdate(state);
             state.accumulator -= fixedStep;
+            ++fixedStepsThisFrame;
+        }
+        if (fixedStepsThisFrame >= 5 && state.accumulator >= fixedStep) {
+            state.accumulator = 0.0;
         }
 
         clearPhysicalFrame(renderer);
@@ -11600,7 +11951,12 @@ int runApp(const std::filesystem::path& gameRoot) {
             drawFightView(renderer, state);
         }
 
-        SDL_Delay(1);
+        const auto frameEnd = clock::now();
+        const std::chrono::duration<double> frameDuration = frameEnd - now;
+        const double remainingSeconds = targetFrameSeconds - frameDuration.count();
+        if (state.mainSettings.fpsCapEnabled && remainingSeconds > 0.001) {
+            SDL_Delay(static_cast<Uint32>(remainingSeconds * 1000.0));
+        }
     }
 
     closeAllGamepads(state);

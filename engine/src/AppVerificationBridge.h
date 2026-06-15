@@ -324,7 +324,7 @@ public:
 
     std::vector<verification::TrainingMoveInfo> trainingMovesForMode(CommandButtonPromptMode mode) const {
         std::vector<verification::TrainingMoveInfo> moves;
-        const auto entries = activeDisplayableMoveListEntries(state_);
+        const auto& entries = activeDisplayableMoveListEntries(state_);
         moves.reserve(entries.size());
         for (const auto* entry : entries) {
             if (!entry) {
@@ -361,6 +361,7 @@ public:
                 entry->requiredStateType,
                 commandEntryRequiredPower(*entry),
                 std::move(commandNames),
+                commandEntryMoveListSectionLabel(*entry),
             });
         }
         return moves;
@@ -390,6 +391,17 @@ public:
             return;
         }
         setTrainingMoveListTabPreservingSelection(state_, TrainingMoveListTab::All);
+    }
+
+    bool trainingMoveListSelectedRowVisible() const override {
+        std::vector<TrainingMoveRowView> rows;
+        const TrainingMoveListView view = trainingMoveListView(state_, rows);
+        if (view.empty) {
+            return false;
+        }
+        return std::any_of(rows.begin(), rows.end(), [](const TrainingMoveRowView& row) {
+            return row.selected;
+        });
     }
 
     bool commandIconAtlasLoaded() const override {
@@ -432,24 +444,24 @@ public:
     }
 
     bool selectTrainingMoveIndex(int index) override {
-        const auto entries = activeDisplayableMoveListEntries(state_);
+        const auto& entries = activeDisplayableMoveListEntries(state_);
         if (index < 0 || index >= static_cast<int>(entries.size())) {
             return false;
         }
         state_.training.options.selectedMoveListEntry = index;
-        state_.training.options.moveListScroll = std::max(0, index - 2);
+        clampTrainingMoveListSelection(state_);
         return true;
     }
 
     bool selectTrainingMove(std::string_view label) override {
         const std::string wanted = lowercaseCopy(label);
-        const auto entries = activeDisplayableMoveListEntries(state_);
+        const auto& entries = activeDisplayableMoveListEntries(state_);
         for (int i = 0; i < static_cast<int>(entries.size()); ++i) {
             if (lowercaseCopy(moveListEntryName(*entries[static_cast<size_t>(i)])) != wanted) {
                 continue;
             }
             state_.training.options.selectedMoveListEntry = i;
-            state_.training.options.moveListScroll = std::max(0, i - 2);
+            clampTrainingMoveListSelection(state_);
             return true;
         }
         return false;
@@ -546,7 +558,7 @@ public:
         out.arenaCameraRotationSelected = arenaCameraRotationSelected(state_);
         out.arenaCameraRotationActive = arenaCameraRotationActive(state_);
         out.lastHitText = state_.messages.lastHitText;
-        const auto trainingEntries = activeDisplayableMoveListEntries(state_);
+        const auto& trainingEntries = activeDisplayableMoveListEntries(state_);
         if (!trainingEntries.empty()) {
             const int selected = std::clamp(
                 state_.training.options.selectedMoveListEntry,
@@ -564,8 +576,8 @@ public:
         };
         appendCommands(out.p1Commands, collectCurrentFighterCommands(state_, state_.fighters[0]));
         appendCommands(out.p2Commands, collectCurrentFighterCommands(state_, state_.fighters[1]));
-        out.p1 = fighterSnapshot(state_.fighters[0]);
-        out.p2 = fighterSnapshot(state_.fighters[1]);
+        out.p1 = fighterSnapshot(state_.fighters[0], characterMaxLifeForFighterIndex(state_, 0));
+        out.p2 = fighterSnapshot(state_.fighters[1], characterMaxLifeForFighterIndex(state_, 1));
         out.p1AnimElem = currentAnimElemForFighter(state_, state_.fighters[0]);
         out.p2AnimElem = currentAnimElemForFighter(state_, state_.fighters[1]);
         out.p1P2BodyDistX = p2BodyDistXValue(state_, state_.fighters[0], state_.fighters[1]);
@@ -660,7 +672,7 @@ private:
         };
     }
 
-    static verification::FighterSnapshot fighterSnapshot(const FighterState& fighter) {
+    static verification::FighterSnapshot fighterSnapshot(const FighterState& fighter, int maxLife) {
         return verification::FighterSnapshot{
             fighter.x,
             fighter.y,
@@ -673,6 +685,7 @@ private:
             fighter.stateTime,
             fighter.animTick,
             fighter.life,
+            maxLife,
             fighter.power,
             fighter.targetIndex,
             fighter.targetTicks,

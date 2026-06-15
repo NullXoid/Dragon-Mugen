@@ -78,8 +78,10 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Stage confirmation opens the VS screen first.
 - Fight view loads selected character and selected stage after VS.
 - Fight view fully repaints the window during hitpause, camera shake, and result overlays; no stale desktop/debug text should appear around the game viewport.
+- A compact FPS counter remains visible in the top-right corner so live performance drops can be distinguished from gameplay hitpause or state timing.
 - Fight view `F3` toggles Freeze Watch. Normal play should show only a small status badge; expanded fighter/helper details should appear only for sustained runtime or pose stalls.
 - Fight view Start opens a lightweight pause/resume overlay. While this pause is open, Select/Back opens the full mode options menu.
+- In Training, the lightweight pause overlay exposes command Show and Next/Previous controls without requiring the large options menu.
 - Fight view `F4` toggles screenshot freeze with only a small temporary notice so screenshots can capture frozen gameplay without the full options menu covering the screen.
 - Arena and classic sweep/trip hits leave hitpause by entering the trip/fall/lying states instead of staying in grounded hitstun.
 - Arena shows one health bar per active fighter, not a shared CPU health average.
@@ -95,12 +97,16 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Arena gamepad Start opens pause/start behavior only and is not mapped as a fighter button or depth input.
 - Evil Ken crouch roundhouse trip follows the first low arc, hits the floor, then performs two small vertical-only floor bounces before knockdown without rising into air recovery.
 - KFM, Evil Ken, and Evil Ryu supers are blocked below their authored CMD power gate and still consume power through CNS `poweradd` after valid entry.
+- Character life, HUD max life, healing clamps, and damage scaling use each loaded fighter's CNS `[Data]` constants generically; KFM should start at `1000`, Evil Ken at `900`, and Evil Ryu at `950` without character-specific engine branches.
 - Training dummy behavior still works.
 - Training command HUD Show Me still starts from keyboard `H`, P1 controller L3/R3/touchpad, or a 2-second Select/Back hold; short Select/Back tap still advances to the next move.
 - Training command HUD prefers optional Ikemen `movelist.dat` presentation text for move inputs, so human command cards can show diagonals such as `DB` even when CMD recognition uses a lenient shorthand.
 - Training command HUD/input history shows action-strength labels (`LP/MP/SP` and `LK/MK/SK`) instead of keyboard letters.
 - Training command HUD/full command list switches to assigned P1 controller prompts when a controller is detected: Xbox-style `X/Y/LB` and `A/B/RB`, or PlayStation-style `SQ/TRI/L1` and `X/O/R1`.
 - Training command HUD/full command list render facing-aware physical arrows when fighters switch sides, while live/recent input and D-pad guides show the actual physical direction pressed.
+- Training full command list keeps selected bottom entries visible in both Main Techniques and All Techniques even when section headers are inserted into the visible rows.
+- Training full command list starts on standard standing punches/kicks and orders sections as standing normals, crouching normals, air normals, specials, supers, throws, then counters.
+- Training command HUD uses a compact top command strip plus a smaller live-input panel, not a large lower command card that covers the fight.
 - Training command HUD shows a full-command completion flash/checkmark when the selected input sequence is completed.
 - Training P2 control still switches the opponent to local P2 behavior.
 - Single Fight round timer, KO/time-over, pips, match result, and rematch/menu inputs still work.

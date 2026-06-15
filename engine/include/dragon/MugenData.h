@@ -51,6 +51,10 @@ struct CharacterConstants {
     CharacterSize size;
     float sizeScaleX = 1.0f;
     float sizeScaleY = 1.0f;
+    int life = 1000;
+    int attack = 100;
+    int defence = 100;
+    int fallDefenceUp = 50;
     int maxPower = 3000;
     int liedownTime = 60;
     int attackDistance = 160;

@@ -475,6 +475,13 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
             } else if (key == SDLK_ESCAPE) {
                 state.frontend.fightPauseOpen = false;
                 playMenuCancelSound(state);
+            } else if (state.frontend.pendingMode == PendingMode::Training && key == SDLK_H) {
+                state.frontend.fightPauseOpen = false;
+                beginTrainingCommandDemo(state);
+            } else if (state.frontend.pendingMode == PendingMode::Training && key == SDLK_PAGEDOWN) {
+                cycleSelectedTrainingCommandEntry(state, 1);
+            } else if (state.frontend.pendingMode == PendingMode::Training && key == SDLK_PAGEUP) {
+                cycleSelectedTrainingCommandEntry(state, -1);
             }
             return;
         }
@@ -661,9 +668,7 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
 
         if (state.training.options.menuOpen) {
             if (state.training.options.moveListOpen) {
-                const auto entries = activeDisplayableMoveListEntries(state);
-                const int visibleRows = trainingMoveListVisibleMoveCapacity();
-                const int maxScroll = std::max(0, static_cast<int>(entries.size()) - visibleRows);
+                const auto& entries = activeDisplayableMoveListEntries(state);
                 const int maxSelected = std::max(0, static_cast<int>(entries.size()) - 1);
                 switch (key) {
                 case SDLK_ESCAPE:
@@ -676,17 +681,10 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
                 case SDLK_UP:
                     state.training.options.selectedMoveListEntry =
                         std::max(0, state.training.options.selectedMoveListEntry - 1);
-                    if (state.training.options.selectedMoveListEntry < state.training.options.moveListScroll) {
-                        state.training.options.moveListScroll = state.training.options.selectedMoveListEntry;
-                    }
                     break;
                 case SDLK_DOWN:
                     state.training.options.selectedMoveListEntry =
                         std::min(maxSelected, state.training.options.selectedMoveListEntry + 1);
-                    if (state.training.options.selectedMoveListEntry >= state.training.options.moveListScroll + visibleRows) {
-                        state.training.options.moveListScroll =
-                            std::min(maxScroll, state.training.options.selectedMoveListEntry - visibleRows + 1);
-                    }
                     break;
                 case SDLK_LEFT:
                 case SDLK_Q:
@@ -704,7 +702,7 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
                 default:
                     break;
                 }
-                state.training.options.moveListScroll = std::clamp(state.training.options.moveListScroll, 0, maxScroll);
+                clampTrainingMoveListSelection(state);
                 return;
             }
 
@@ -806,6 +804,17 @@ std::optional<SDL_Keycode> gamepadMenuKeyForButton(const AppState& state, SDL_Ga
             || (isMatchMode(state) && state.frontend.singleFightPauseOpen));
 
     if (state.frontend.screen == Screen::FightView && state.frontend.fightPauseOpen) {
+        if (state.frontend.pendingMode == PendingMode::Training) {
+            if (isTrainingShowShortcutButton(button)) {
+                return SDLK_H;
+            }
+            if (button == SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER) {
+                return SDLK_PAGEDOWN;
+            }
+            if (button == SDL_GAMEPAD_BUTTON_LEFT_SHOULDER) {
+                return SDLK_PAGEUP;
+            }
+        }
         if (button == SDL_GAMEPAD_BUTTON_START || button == SDL_GAMEPAD_BUTTON_SOUTH) {
             return SDLK_RETURN;
         }

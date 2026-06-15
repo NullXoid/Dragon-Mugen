@@ -407,65 +407,63 @@ void drawTrainingCommandOverlay(const UiRenderContext& ui, const TrainingCommand
     const float widthF = static_cast<float>(ui.logicalWidth);
 
     if (view.commandsVisible) {
-        const float promptX = 34.0f;
-        const float promptY = 142.0f;
         const bool showAnyGuide = view.buttonGuide.visible || view.directionGuide.visible;
-        const float guidePanelW = showAnyGuide ? 90.0f : 0.0f;
-        const float promptW = std::clamp(widthF - promptX - 14.0f - guidePanelW, 164.0f, 226.0f);
-        const float guideX = promptX + promptW + 4.0f;
-        const bool guideFits = showAnyGuide && guideX + guidePanelW <= widthF - 8.0f;
         const bool flashOn = view.completeFlash && ((SDL_GetTicks() / 120) % 2 == 0);
         const float completeProgress = completionProgress(view);
 
+        const float commandX = 14.0f;
+        const float commandY = 39.0f;
+        const float commandW = std::clamp(widthF - 28.0f, 202.0f, 318.0f);
+        const float commandH = 30.0f;
         setColor(renderer, 5, 7, 12, 206);
-        fillScaledRect(renderer, scale, promptX - 8.0f, promptY - 8.0f, promptW + 4.0f, 60.0f);
+        fillScaledRect(renderer, scale, commandX, commandY, commandW, commandH);
         setColor(renderer, view.completeFlash ? 76 : 54, view.completeFlash ? 152 : 70, view.completeFlash ? 118 : 98, 220);
-        drawScaledRect(renderer, scale, promptX - 8.0f, promptY - 8.0f, promptW + 4.0f, 60.0f);
+        drawScaledRect(renderer, scale, commandX, commandY, commandW, commandH);
 
         if (view.completeFlash) {
             setColor(renderer, flashOn ? 96 : 44, flashOn ? 220 : 156, flashOn ? 160 : 116, flashOn ? 188 : 128);
-            fillScaledRect(renderer, scale, promptX - 5.0f, promptY - 5.0f, promptW - 2.0f, 17.0f);
+            fillScaledRect(renderer, scale, commandX + 2.0f, commandY + 2.0f, commandW - 4.0f, 12.0f);
             setColor(renderer, 8, 12, 16);
         } else if (view.demoActive) {
             setColor(renderer, 96, 134, 214, 132);
-            fillScaledRect(renderer, scale, promptX - 5.0f, promptY - 5.0f, promptW - 2.0f, 17.0f);
+            fillScaledRect(renderer, scale, commandX + 2.0f, commandY + 2.0f, commandW - 4.0f, 12.0f);
             setColor(renderer, 236, 240, 246);
         } else {
             setColor(renderer, 24, 32, 48, 220);
-            fillScaledRect(renderer, scale, promptX - 5.0f, promptY - 5.0f, promptW - 2.0f, 17.0f);
+            fillScaledRect(renderer, scale, commandX + 2.0f, commandY + 2.0f, commandW - 4.0f, 12.0f);
             setColor(renderer, 222, 226, 232);
         }
-        scaledDebugText(renderer, scale, promptX, promptY, view.currentMoveName);
+        scaledDebugText(renderer, scale, commandX + 6.0f, commandY + 5.0f, view.currentMoveName);
         setColor(renderer, 230, 190, 105, 180);
-        fillScaledRect(renderer, scale, promptX - 5.0f, promptY + 12.0f, promptW - 2.0f, 1.0f);
+        fillScaledRect(renderer, scale, commandX + 3.0f, commandY + 14.0f, commandW - 6.0f, 1.0f);
         if (view.completionVisible) {
             drawCompletionCheckBadge(
                 renderer,
                 scale,
                 view.completionCheck,
-                promptX + promptW - 12.0f,
-                promptY + 5.0f,
+                commandX + commandW - 12.0f,
+                commandY + 8.0f,
                 completeProgress,
                 flashOn);
         }
 
-        float stepX = promptX;
-        const float stepY = promptY + 17.0f;
-        const float stepRight = promptX + promptW - 12.0f;
+        float stepX = commandX + 6.0f;
+        const float stepY = commandY + 18.0f;
+        const float stepRight = commandX + commandW - (view.completionVisible ? 24.0f : 8.0f);
         int stepsDrawn = 0;
         if (view.completionVisible) {
             drawCompletionSweep(
                 renderer,
                 scale,
-                promptX - 4.0f,
+                commandX + 4.0f,
                 stepY - 4.0f,
-                promptW - 10.0f,
-                15.0f,
+                stepRight - commandX - 8.0f,
+                13.0f,
                 completeProgress,
                 flashOn);
         }
         for (const auto& step : view.practiceSteps) {
-            if (stepsDrawn >= 8) {
+            if (stepsDrawn >= 16) {
                 break;
             }
             const auto stepOptions = commandInputOptions(scale, commandStepTone(step.status), view);
@@ -486,50 +484,56 @@ void drawTrainingCommandOverlay(const UiRenderContext& ui, const TrainingCommand
         if (stepsDrawn == 0) {
             drawCommandInputChips(
                 renderer,
-                promptX,
+                commandX + 6.0f,
                 stepY - 2.0f,
-                promptW - 18.0f,
+                stepRight - commandX - 6.0f,
                 view.currentMoveInput,
                 commandInputOptions(scale, CommandInputChipTone::Current, view));
         }
 
+        const float inputX = 34.0f;
+        const float inputY = 148.0f;
+        const float guidePanelW = showAnyGuide ? 90.0f : 0.0f;
+        const float inputW = view.input.visible
+            ? std::clamp(widthF - inputX - guidePanelW - 18.0f, 124.0f, 174.0f)
+            : 0.0f;
+        const float guideX = view.input.visible
+            ? inputX + inputW + 6.0f
+            : widthF - guidePanelW - 10.0f;
+        const bool guideFits = showAnyGuide && guideX + guidePanelW <= widthF - 8.0f;
+
         if (view.input.visible) {
-            setColor(renderer, 130, 142, 156);
-            scaledDebugText(renderer, scale, promptX, promptY + 34.0f, "NOW");
+            setColor(renderer, 5, 7, 12, 186);
+            fillScaledRect(renderer, scale, inputX - 8.0f, inputY - 7.0f, inputW + 4.0f, 29.0f);
+            setColor(renderer, 54, 70, 98, 210);
+            drawScaledRect(renderer, scale, inputX - 8.0f, inputY - 7.0f, inputW + 4.0f, 29.0f);
+            setColor(renderer, 130, 142, 156, 230);
+            scaledDebugText(renderer, scale, inputX, inputY - 1.0f, "INPUT");
             setColor(renderer, 18, 24, 34, 220);
-            fillScaledRect(renderer, scale, promptX + 27.0f, promptY + 31.0f, promptW - 38.0f, 11.0f);
+            fillScaledRect(renderer, scale, inputX + 42.0f, inputY - 4.0f, inputW - 50.0f, 11.0f);
             drawCommandInputChips(
                 renderer,
-                promptX + 30.0f,
-                promptY + 32.0f,
-                promptW - 44.0f,
+                inputX + 45.0f,
+                inputY - 3.0f,
+                inputW - 56.0f,
                 view.input.currentInput,
                 liveInputOptions(scale, CommandInputChipTone::Normal, view));
-        }
-
-        if (view.completionVisible) {
-            drawCompletionCheckBadge(
-                renderer,
-                scale,
-                view.completionCheck,
-                promptX + 8.0f,
-                promptY + 50.0f,
-                completeProgress,
-                flashOn);
-            setColor(renderer, 130, 142, 156);
-            scaledDebugText(renderer, scale, promptX + 25.0f, promptY + 47.0f, view.nextMoveLabel);
-        } else {
-            setColor(renderer, view.demoActive ? 116 : 230, view.demoActive ? 190 : 220, view.demoActive ? 154 : 172);
-            scaledDebugText(renderer, scale, promptX, promptY + 47.0f, view.demoActive ? "CPU DEMO" : view.showMeLabel);
-            setColor(renderer, 130, 142, 156);
-            scaledDebugText(renderer, scale, promptX + 96.0f, promptY + 47.0f, view.nextMoveLabel);
+            if (!view.input.recentInputs.empty() && view.input.recentInputs != view.input.currentInput) {
+                drawCommandInputChips(
+                    renderer,
+                    inputX,
+                    inputY + 11.0f,
+                    inputW - 10.0f,
+                    view.input.recentInputs,
+                    liveInputOptions(scale, CommandInputChipTone::Pending, view));
+            }
         }
         if (guideFits) {
             drawTrainingGuideDock(
                 renderer,
                 scale,
                 guideX,
-                promptY + 4.0f,
+                inputY - 7.0f,
                 view.directionGuide,
                 view.buttonGuide,
                 view.commandIcons,

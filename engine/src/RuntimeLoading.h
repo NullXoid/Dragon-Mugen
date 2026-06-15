@@ -442,6 +442,10 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
         state.hitDefs = std::move(hitDefs);
         state.commandEntries = std::move(commandEntries);
         state.commandDefinitions = std::move(commandDefinitions);
+        state.trainingMoveListEntriesCache.clear();
+        state.trainingMoveListCacheValid = false;
+        state.trainingMoveListCacheData = nullptr;
+        state.trainingMoveListCacheCount = 0;
         state.victoryQuotes = std::move(victoryQuotes);
         state.characterConstants = constants;
         state.characterCompatibility = compatibility;
@@ -527,6 +531,10 @@ void unloadCharacterRuntime(AppState& state) {
     state.hitDefs.clear();
     state.commandEntries.clear();
     state.commandDefinitions.clear();
+    state.trainingMoveListEntriesCache.clear();
+    state.trainingMoveListCacheValid = false;
+    state.trainingMoveListCacheData = nullptr;
+    state.trainingMoveListCacheCount = 0;
     state.victoryQuotes.clear();
     state.characterCompatibility = CompatibilityContext{};
     state.characterConstants = CharacterConstants{};
