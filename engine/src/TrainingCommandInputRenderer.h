@@ -68,6 +68,7 @@ struct CommandInputRenderOptions {
     bool preferBitmapIcons = true;
     CommandInputDirectionPresentation directionPresentation = CommandInputDirectionPresentation::Relative;
     int facing = 1;
+    float visualScale = 1.0f;
 };
 
 std::vector<CommandInputToken> commandInputTokens(const std::string& input);

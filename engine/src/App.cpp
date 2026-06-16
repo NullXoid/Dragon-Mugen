@@ -1542,6 +1542,7 @@ struct AppState {
     double fpsWindowSeconds = 0.0;
     int fpsWindowFrames = 0;
     float renderFps = 0.0f;
+    bool suppressFpsCounter = false;
     int frame = 0;
     float cameraX = 0.0f;
     float cameraY = 0.0f;
@@ -1632,6 +1633,9 @@ void updateFpsCounter(AppState& state, double elapsedSeconds) {
 }
 
 void drawFpsCounter(SDL_Renderer* renderer, const AppState& state) {
+    if (state.suppressFpsCounter) {
+        return;
+    }
     const int fps = static_cast<int>(std::lround(std::max(0.0f, state.renderFps)));
     const std::string text = "FPS " + std::to_string(fps);
     const float w = static_cast<float>(text.size()) * 8.0f + 8.0f;
@@ -11115,6 +11119,7 @@ TrainingCommandHudView trainingCommandHudView(
     view.commandIcons = state.commandInputIcons.view();
     view.completionCheck = uiSpriteView(&state.commandCompleteCheck);
     view.physicalDirections = true;
+    view.paused = state.frontend.fightPauseOpen || state.frontend.screenshotFreeze;
 
     if (!view.input.visible && !view.commandsVisible) {
         return view;
@@ -11127,6 +11132,8 @@ TrainingCommandHudView trainingCommandHudView(
 
     const auto& fighter = state.fighters[0];
     view.facing = fighter.facing;
+    view.hasGuideAnchor = true;
+    view.guideAnchorX = screenCenterX(state) + (fighter.x - state.cameraX);
     const CommandButtonPromptMode promptMode = commandButtonPromptModeForPlayer(state, 0);
     const FighterState* opponent = state.fighters.size() > 1 ? &state.fighters[1] : nullptr;
     const std::vector<std::string> commands = fighter.inputHistory.empty()
@@ -11216,8 +11223,15 @@ TrainingCommandHudView trainingCommandHudView(
         const FighterInputState currentInput = fighter.inputHistory.empty()
             ? FighterInputState{}
             : fighter.inputHistory.back().input;
+        if (view.input.visible) {
+            view.input.expectedInput = fitDebugText(currentTrainingCommandStepLabel(steps), 16);
+        }
         view.buttonGuide = trainingCommandButtonGuideView(currentInput, promptMode, steps);
         view.directionGuide = trainingCommandDirectionGuideView(currentInput, fighter.facing, steps);
+        if (view.paused || state.training.options.showHitboxes || state.freezeWatch.visible) {
+            view.buttonGuide.visible = false;
+            view.directionGuide.visible = false;
+        }
     }
 
     view.commandRows = rows;
@@ -11598,8 +11612,16 @@ void drawLightFightPauseOverlay(SDL_Renderer* renderer, const AppState& state) {
     }
 
     const bool trainingMode = state.frontend.pendingMode == PendingMode::Training;
-    const float panelW = trainingMode ? 146.0f : 122.0f;
-    const float panelH = trainingMode ? 57.0f : 39.0f;
+    setColor(renderer, 0, 0, 0, trainingMode ? 104 : 84);
+    fillRect(renderer, 0, 0, logicalWidthF(state), static_cast<float>(kLogicalHeight));
+
+    if (trainingMode) {
+        drawTrainingPauseHelpOverlay(uiRenderContext(renderer, state), TrainingPauseHelpView{ true });
+        return;
+    }
+
+    const float panelW = 122.0f;
+    const float panelH = 39.0f;
     const float x = screenCenterX(state) - panelW * 0.5f;
     constexpr float y = 102.0f;
     setColor(renderer, 4, 7, 12, 182);
@@ -11611,10 +11633,6 @@ void drawLightFightPauseOverlay(SDL_Renderer* renderer, const AppState& state) {
     setColor(renderer, 160, 178, 205, 224);
     debugText(renderer, x + 10.0f, y + 18.0f, "START:RESUME");
     debugText(renderer, x + 10.0f, y + 27.0f, "SEL:OPTIONS");
-    if (trainingMode) {
-        debugText(renderer, x + 10.0f, y + 39.0f, "H/L3/R3:SHOW");
-        debugText(renderer, x + 10.0f, y + 48.0f, "PGUP/DN LB/RB");
-    }
 }
 
 void drawScreenshotFreezeOverlay(SDL_Renderer* renderer, const AppState& state) {
@@ -11710,7 +11728,10 @@ void drawFightViewFrame(SDL_Renderer* renderer, const AppState& state, bool pres
         drawFightHudView(renderer, state);
     }
 
-    if (state.frontend.pendingMode == PendingMode::Training && !state.training.options.menuOpen && !hideHud) {
+    if (state.frontend.pendingMode == PendingMode::Training
+        && !state.training.options.menuOpen
+        && !state.frontend.fightPauseOpen
+        && !hideHud) {
         drawTrainingCommandHud(renderer, state);
     }
 

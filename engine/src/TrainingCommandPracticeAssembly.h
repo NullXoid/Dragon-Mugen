@@ -28,6 +28,18 @@ bool holdTrainingCommandToken(std::string_view command) {
         || command == "hold_c";
 }
 
+std::string trainingRequiredCommandDisplayToken(
+    std::string_view command,
+    CommandButtonPromptMode mode = CommandButtonPromptMode::Strength) {
+    if (command == "holddown"
+        || command == "holdup"
+        || command == "holdfwd"
+        || command == "holdback") {
+        return "HOLD " + moveListTokenForCommand(command, mode);
+    }
+    return moveListTokenForCommand(command, mode);
+}
+
 std::string commandAtomDisplayLabel(
     const CommandAtom& atom,
     CommandButtonPromptMode mode = CommandButtonPromptMode::Strength) {
@@ -93,7 +105,14 @@ const CommandDefinition* practiceCommandDefinitionForEntry(
     std::vector<std::string_view> names;
     appendEntryCommandNames(entry, names);
 
+    const auto namedMotionDefinition = [](std::string_view name) {
+        return !holdTrainingCommandToken(name) && !simpleTrainingCommandToken(name);
+    };
+
     for (const auto name : names) {
+        if (!namedMotionDefinition(name)) {
+            continue;
+        }
         if (commandListContains(activeCommands, name)) {
             if (const CommandDefinition* definition = findCommandDefinitionByName(state, name)) {
                 return definition;
@@ -101,13 +120,9 @@ const CommandDefinition* practiceCommandDefinitionForEntry(
         }
     }
     for (const auto name : names) {
-        if (!holdTrainingCommandToken(name) && !simpleTrainingCommandToken(name)) {
-            if (const CommandDefinition* definition = findCommandDefinitionByName(state, name)) {
-                return definition;
-            }
+        if (!namedMotionDefinition(name)) {
+            continue;
         }
-    }
-    for (const auto name : names) {
         if (const CommandDefinition* definition = findCommandDefinitionByName(state, name)) {
             return definition;
         }
@@ -217,66 +232,82 @@ void appendEntryPracticeSteps(
     const std::vector<std::string>& activeCommands,
     bool complete,
     CommandButtonPromptMode mode = CommandButtonPromptMode::Strength) {
-    struct PracticeCommandChip {
-        std::string command;
-        std::string label;
+    std::string label;
+    bool allActive = complete;
+    const auto appendPart = [&label](std::string part) {
+        part = trim(part);
+        if (part.empty()) {
+            return;
+        }
+        if (!label.empty()) {
+            label += "+";
+        }
+        label += std::move(part);
     };
 
-    std::vector<PracticeCommandChip> chips;
-    const auto appendIfRequired = [&chips, &entry, mode](std::string_view command) {
-        if (commandListContains(entry.requiredCommands, command)) {
-            chips.push_back(PracticeCommandChip{
-                std::string(command),
-                moveListTokenForCommand(command, mode),
-            });
+    if (!complete) {
+        allActive = true;
+    }
+
+    const auto appendIfRequired = [&](std::string_view command) {
+        if (!commandListContains(entry.requiredCommands, command)) {
+            return;
         }
+        appendPart(trainingRequiredCommandDisplayToken(command, mode));
+        allActive = allActive && commandListContains(activeCommands, command);
     };
 
     appendIfRequired("holddown");
     appendIfRequired("holdfwd");
     appendIfRequired("holdback");
     appendIfRequired("holdup");
+    appendIfRequired("hold_x");
+    appendIfRequired("hold_y");
+    appendIfRequired("hold_z");
+    appendIfRequired("hold_a");
+    appendIfRequired("hold_b");
+    appendIfRequired("hold_c");
     appendIfRequired("x");
     appendIfRequired("y");
     appendIfRequired("z");
     appendIfRequired("a");
     appendIfRequired("b");
     appendIfRequired("c");
+    appendIfRequired("s");
 
     for (const auto& group : entry.commandOptionGroups) {
-        std::string label;
+        std::string groupLabel;
         bool groupActive = false;
         for (const auto& option : group) {
-            if (!label.empty()) {
-                label += "/";
+            if (!groupLabel.empty()) {
+                groupLabel += "/";
             }
-            label += moveListTokenForCommand(option, mode);
+            groupLabel += trainingRequiredCommandDisplayToken(option, mode);
             groupActive = groupActive || commandListContains(activeCommands, option);
         }
-        if (!label.empty()) {
-            steps.push_back(TrainingCommandStepView{
-                fitDebugText(label, 12),
-                complete || groupActive ? TrainingCommandStepStatus::Matched : TrainingCommandStepStatus::Current,
-            });
+        if (!groupLabel.empty()) {
+            appendPart(groupLabel);
+            allActive = allActive && (complete || groupActive);
         }
     }
 
-    bool waitingMarked = false;
-    for (const auto& chip : chips) {
-        const bool matched = commandListContains(activeCommands, chip.command) || complete;
-        TrainingCommandStepStatus status = TrainingCommandStepStatus::Pending;
-        if (matched) {
-            status = TrainingCommandStepStatus::Matched;
-        } else if (!waitingMarked) {
-            status = TrainingCommandStepStatus::Current;
-            waitingMarked = true;
+    for (const auto& command : entry.requiredCommands) {
+        if (holdTrainingCommandToken(command)
+            || simpleTrainingCommandToken(command)
+            || commandListContains(activeCommands, command)) {
+            continue;
         }
-        steps.push_back(TrainingCommandStepView{ fitDebugText(chip.label, 12), status });
+        appendPart(moveListTokenForCommand(command, mode));
+        allActive = false;
     }
 
-    if (steps.empty()) {
-        steps.push_back(TrainingCommandStepView{ "-", TrainingCommandStepStatus::Current });
+    if (label.empty()) {
+        label = "-";
     }
+    steps.push_back(TrainingCommandStepView{
+        fitDebugText(label, 20),
+        allActive ? TrainingCommandStepStatus::Matched : TrainingCommandStepStatus::Current,
+    });
 }
 
 void applyTrainingDemoDirection(FighterInputState& input, std::string_view symbol, int facing) {

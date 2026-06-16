@@ -19,6 +19,10 @@ float debugTextWidth(const std::string& text) {
 
 bool explicitButtonToken(std::string_view text);
 
+float clampedVisualScale(const CommandInputRenderOptions& options) {
+    return std::clamp(options.visualScale, 0.75f, 1.75f);
+}
+
 void fillChipPill(SDL_Renderer* renderer, float scale, float x, float y, float w, float h) {
     if (w <= 0.0f || h <= 0.0f) {
         return;
@@ -245,8 +249,9 @@ bool drawCommandInputIcon(
         return false;
     }
 
-    const float iconW = commandInputIconWidthForId(iconId);
-    const float iconH = 10.0f;
+    const float visualScale = clampedVisualScale(options);
+    const float iconW = commandInputIconWidthForId(iconId) * visualScale;
+    const float iconH = 10.0f * visualScale;
     const bool direction = isDirectionIconId(iconId);
     if (drawBacking) {
         setOuterChipColor(renderer, options.tone, direction);
@@ -464,22 +469,23 @@ float commandInputTokenWidth(const CommandInputToken& token) {
 }
 
 float commandInputTokenWidth(const CommandInputToken& token, const CommandInputRenderOptions& options) {
+    const float visualScale = clampedVisualScale(options);
     if (commandInputIconAtlasReady(options.iconAtlas)
         && options.preferBitmapIcons
         && commandInputIconIndex(token.text, options)) {
         if (token.kind == CommandInputTokenKind::Space) {
-            return 4.0f;
+            return 4.0f * visualScale;
         }
-        return commandInputIconWidth(token.text, options);
+        return commandInputIconWidth(token.text, options) * visualScale;
     }
 
     switch (token.kind) {
     case CommandInputTokenKind::Chip:
-        return commandInputChipWidth(token.text);
+        return commandInputChipWidth(token.text) * visualScale;
     case CommandInputTokenKind::Operator:
-        return 7.0f;
+        return 7.0f * visualScale;
     case CommandInputTokenKind::Space:
-        return 4.0f;
+        return 4.0f * visualScale;
     }
     return 0.0f;
 }
@@ -507,8 +513,9 @@ float drawCommandInputChip(
     }
 
     const std::string displayText = commandInputPresentedText(text, options);
-    const float chipW = commandInputChipWidth(displayText);
-    const float chipH = 9.0f;
+    const float visualScale = clampedVisualScale(options);
+    const float chipW = commandInputChipWidth(displayText) * visualScale;
+    const float chipH = 9.0f * visualScale;
     const bool direction = isDirectionToken(text, options);
 
     setOuterChipColor(renderer, options.tone, direction);
@@ -518,7 +525,8 @@ float drawCommandInputChip(
     setChipTextColor(renderer, options.tone, direction);
 
     const float textX = x + std::max(2.0f, (chipW - debugTextWidth(displayText)) * 0.5f);
-    scaledDebugText(renderer, options.scale, textX, y + 2.0f, displayText);
+    const float textY = y + std::max(1.0f, (chipH - 7.0f) * 0.5f);
+    scaledDebugText(renderer, options.scale, textX, textY, displayText);
     return chipW;
 }
 

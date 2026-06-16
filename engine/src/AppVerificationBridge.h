@@ -249,6 +249,14 @@ public:
         updateArenaCameraRotation(state_);
     }
 
+    void setFightPaused(bool paused) override {
+        state_.frontend.fightPauseOpen = paused;
+        if (paused) {
+            state_.frontend.singleFightPauseOpen = false;
+            state_.training.options.menuOpen = false;
+        }
+    }
+
     void setFighterHitPause(int fighterIndex, int ticks) override {
         if (fighterIndex < 0 || fighterIndex >= static_cast<int>(state_.fighters.size())) {
             return;
@@ -417,6 +425,13 @@ public:
             commandButtonPromptModeForPlayer(state_, 0));
     }
 
+    std::string trainingExpectedInputDisplay() const override {
+        std::vector<TrainingCommandRowView> rows;
+        std::vector<TrainingCommandStepView> steps;
+        const TrainingCommandHudView view = trainingCommandHudView(state_, rows, steps);
+        return view.input.expectedInput;
+    }
+
     std::string trainingDirectionGuideState() const override {
         std::vector<TrainingCommandRowView> rows;
         std::vector<TrainingCommandStepView> steps;
@@ -441,6 +456,32 @@ public:
         std::vector<TrainingCommandStepView> steps;
         const TrainingCommandHudView view = trainingCommandHudView(state_, rows, steps);
         return view.completeFlash;
+    }
+
+    verification::UiGeometryProbe trainingCommandHudGeometry(int logicalWidth) const override {
+        std::vector<TrainingCommandRowView> rows;
+        std::vector<TrainingCommandStepView> steps;
+        const TrainingCommandHudView view = trainingCommandHudView(state_, rows, steps);
+        const TrainingCommandHudGeometryReport report = verifyTrainingCommandHudGeometry(view, logicalWidth);
+        return verification::UiGeometryProbe{
+            report.ok,
+            report.objectiveVisible,
+            report.bottomLegendVisible,
+            report.commandIconsVisible,
+            report.detail,
+        };
+    }
+
+    verification::UiGeometryProbe trainingPauseHelpGeometry(int logicalWidth, bool optionsOpen) const override {
+        const TrainingPauseHelpView view{ !optionsOpen };
+        const TrainingPauseHelpGeometryReport report = verifyTrainingPauseHelpGeometry(view, logicalWidth);
+        return verification::UiGeometryProbe{
+            report.ok,
+            report.visible,
+            report.legendVisible,
+            false,
+            report.detail,
+        };
     }
 
     bool selectTrainingMoveIndex(int index) override {
@@ -489,7 +530,10 @@ public:
 
         clearPhysicalFrame(renderer_);
         applyLogicalPresentation(renderer_, state_);
+        const bool oldSuppressFps = state_.suppressFpsCounter;
+        state_.suppressFpsCounter = true;
         drawFightViewFrame(renderer_, state_, false);
+        state_.suppressFpsCounter = oldSuppressFps;
         SDL_Surface* surface = SDL_RenderReadPixels(renderer_, nullptr);
         if (!surface) {
             return false;
@@ -687,6 +731,8 @@ private:
             fighter.life,
             maxLife,
             fighter.power,
+            fighter.attackMultiplier,
+            fighter.defenceMultiplier,
             fighter.targetIndex,
             fighter.targetTicks,
             fighter.targetHitId,

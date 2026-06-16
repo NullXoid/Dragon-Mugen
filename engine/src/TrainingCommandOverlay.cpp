@@ -35,11 +35,13 @@ CommandInputChipTone commandStepTone(TrainingCommandStepStatus status) {
 CommandInputRenderOptions commandInputOptions(
     float scale,
     CommandInputChipTone tone,
-    const TrainingCommandHudView& view) {
+    const TrainingCommandHudView& view,
+    float visualScale = 1.0f) {
     CommandInputRenderOptions options;
     options.scale = scale;
     options.tone = tone;
     options.iconAtlas = view.commandIcons;
+    options.visualScale = visualScale;
     if (view.physicalDirections) {
         options.directionPresentation = CommandInputDirectionPresentation::Physical;
         options.facing = view.facing;
@@ -365,6 +367,151 @@ void drawGuideCluster(
     }
 }
 
+struct TrainingHudRect {
+    float x = 0.0f;
+    float y = 0.0f;
+    float w = 0.0f;
+    float h = 0.0f;
+};
+
+struct TrainingCommandHudLayout {
+    TrainingHudRect objective;
+    TrainingHudRect input;
+    TrainingHudRect guide;
+    float stepX = 0.0f;
+    float stepY = 0.0f;
+    float stepRight = 0.0f;
+    bool objectiveVisible = false;
+    bool inputVisible = false;
+    bool guideVisible = false;
+    bool commandIconsVisible = false;
+};
+
+float clampUi(float value, float minValue, float maxValue) {
+    return std::clamp(value, minValue, std::max(minValue, maxValue));
+}
+
+std::pair<int, int> practiceStepProgress(const TrainingCommandHudView& view) {
+    int matched = 0;
+    int total = 0;
+    for (const auto& step : view.practiceSteps) {
+        ++total;
+        if (step.status == TrainingCommandStepStatus::Matched) {
+            ++matched;
+        }
+    }
+    return { matched, total };
+}
+
+std::string expectedStepText(const TrainingCommandHudView& view) {
+    const auto [matched, total] = practiceStepProgress(view);
+    if (total <= 0) {
+        return {};
+    }
+    return "STEP " + std::to_string(std::min(matched + 1, total)) + "/" + std::to_string(total);
+}
+
+bool rectIntersects(const TrainingHudRect& a, const TrainingHudRect& b) {
+    if (a.w <= 0.0f || a.h <= 0.0f || b.w <= 0.0f || b.h <= 0.0f) {
+        return false;
+    }
+    return a.x < b.x + b.w
+        && a.x + a.w > b.x
+        && a.y < b.y + b.h
+        && a.y + a.h > b.y;
+}
+
+float dynamicInputHudWidth(const TrainingCommandHudView& view) {
+    const auto actualOptions = liveInputOptions(1.0f, CommandInputChipTone::Normal, view);
+    const auto expectedOptions = commandInputOptions(1.0f, CommandInputChipTone::Current, view);
+    const float currentW = commandInputWidth(view.input.currentInput, actualOptions);
+    const float recentW = commandInputWidth(view.input.recentInputs, actualOptions);
+    const float expectedW = commandInputWidth(view.input.expectedInput.empty() ? "-" : view.input.expectedInput, expectedOptions);
+    const float labelW = debugTextWidth("INPUT HISTORY") + 18.0f;
+    const std::string stepText = expectedStepText(view);
+    const float expectedLabelW = debugTextWidth("EXPECTED")
+        + (stepText.empty() ? 0.0f : debugTextWidth(stepText) + 10.0f)
+        + 18.0f;
+    const float desired = std::max({
+        124.0f,
+        labelW,
+        expectedLabelW,
+        currentW + 18.0f,
+        recentW + 18.0f,
+        expectedW + 18.0f,
+    });
+    return std::clamp(desired, 124.0f, 212.0f);
+}
+
+TrainingCommandHudLayout trainingCommandHudLayout(
+    const TrainingCommandHudView& view,
+    float widthF,
+    float heightF) {
+    TrainingCommandHudLayout layout;
+
+    if (view.commandsVisible) {
+        const float commandW = clampUi(widthF - 126.0f, 246.0f, 306.0f);
+        const float commandX = std::max(10.0f, (widthF - commandW) * 0.5f);
+        const float commandY = 49.0f;
+        const float commandH = 50.0f;
+        const float statusW = widthF < 360.0f ? 42.0f : 64.0f;
+        layout.objective = TrainingHudRect{ commandX, commandY, commandW, commandH };
+        layout.stepX = commandX + 8.0f;
+        layout.stepY = commandY + 28.0f;
+        layout.stepRight = commandX + commandW - statusW - 8.0f;
+        layout.objectiveVisible = true;
+        layout.commandIconsVisible = layout.stepRight - layout.stepX >= 54.0f;
+    }
+
+    const bool showAnyGuide = (view.buttonGuide.visible || view.directionGuide.visible) && !view.paused;
+    constexpr float inputX = 24.0f;
+    constexpr float inputY = 158.0f;
+    constexpr float inputH = 64.0f;
+    constexpr float guideW = 104.0f;
+    constexpr float guideH = 52.0f;
+    if (showAnyGuide) {
+        const float desiredGuideX = widthF - guideW - 20.0f;
+        float guideX = clampUi(desiredGuideX, 8.0f, widthF - guideW - 8.0f);
+        const float desiredInputW = view.input.visible ? dynamicInputHudWidth(view) : 0.0f;
+        float inputW = view.input.visible
+            ? std::min(desiredInputW, std::max(112.0f, guideX - inputX - 20.0f))
+            : 0.0f;
+        if (view.input.visible && inputX + inputW + 12.0f > guideX) {
+            guideX = clampUi(inputX + inputW + 12.0f, 8.0f, widthF - guideW - 8.0f);
+            if (inputX + inputW + 12.0f > guideX) {
+                inputW = std::clamp(guideX - inputX - 12.0f, 112.0f, desiredInputW);
+            }
+        }
+        layout.guide = TrainingHudRect{ guideX, inputY - 1.0f, guideW, guideH };
+        layout.guideVisible = layout.guide.x >= 8.0f
+            && layout.guide.x + layout.guide.w <= widthF - 8.0f
+            && layout.guide.y + layout.guide.h <= heightF - 8.0f;
+        if (view.input.visible) {
+            layout.input = TrainingHudRect{ inputX - 8.0f, inputY - 7.0f, inputW + 6.0f, inputH };
+            layout.inputVisible = true;
+        }
+    } else if (view.input.visible) {
+        const float inputW = std::min(dynamicInputHudWidth(view), widthF - inputX - 18.0f);
+        layout.input = TrainingHudRect{ inputX - 8.0f, inputY - 7.0f, inputW + 6.0f, inputH };
+        layout.inputVisible = true;
+    }
+
+    return layout;
+}
+
+void drawCornerAccents(SDL_Renderer* renderer, float scale, const TrainingHudRect& rect, Uint8 alpha) {
+    constexpr float tick = 9.0f;
+    setColor(renderer, 72, 208, 246, alpha);
+    fillScaledRect(renderer, scale, rect.x, rect.y, tick, 1.0f);
+    fillScaledRect(renderer, scale, rect.x, rect.y, 1.0f, tick);
+    fillScaledRect(renderer, scale, rect.x + rect.w - tick, rect.y, tick, 1.0f);
+    fillScaledRect(renderer, scale, rect.x + rect.w - 1.0f, rect.y, 1.0f, tick);
+    fillScaledRect(renderer, scale, rect.x, rect.y + rect.h - 1.0f, tick, 1.0f);
+    fillScaledRect(renderer, scale, rect.x, rect.y + rect.h - tick, 1.0f, tick);
+    fillScaledRect(renderer, scale, rect.x + rect.w - tick, rect.y + rect.h - 1.0f, tick, 1.0f);
+    fillScaledRect(renderer, scale, rect.x + rect.w - 1.0f, rect.y + rect.h - tick, 1.0f, tick);
+}
+
 void drawTrainingGuideDock(
     SDL_Renderer* renderer,
     float scale,
@@ -378,21 +525,47 @@ void drawTrainingGuideDock(
         return;
     }
 
-    constexpr float dockW = 86.0f;
-    constexpr float dockH = 44.0f;
-    setColor(renderer, 5, 8, 14, 118);
-    fillScaledRect(renderer, scale, x, y, dockW, dockH);
-    setColor(renderer, flash ? 96 : 48, flash ? 170 : 62, flash ? 132 : 88, flash ? 190 : 132);
-    drawScaledRect(renderer, scale, x, y, dockW, dockH);
-    setColor(renderer, 42, 58, 82, 92);
-    fillScaledRect(renderer, scale, x + 42.0f, y + 6.0f, 1.0f, dockH - 12.0f);
+    constexpr float dockW = 104.0f;
+    constexpr float dockH = 52.0f;
+    setColor(renderer, 102, 210, 246, flash ? 232 : 204);
+    const std::string playerLabel = "PLAYER 1";
+    scaledDebugText(renderer, scale, x + dockW * 0.5f - debugTextWidth(playerLabel) * 0.5f, y - 9.0f, playerLabel);
+    setColor(renderer, 170, 178, 188, 22);
+    fillScaledRect(renderer, scale, x + 51.0f, y + 7.0f, 1.0f, dockH - 14.0f);
 
     if (directionGuide.visible) {
-        drawGuideCluster(renderer, scale, x + 2.0f, y + 2.0f, directionGuide.directions, commandIcons, flash);
+        drawGuideCluster(renderer, scale, x + 8.0f, y + 6.0f, directionGuide.directions, commandIcons, flash);
     }
     if (buttonGuide.visible) {
-        drawGuideCluster(renderer, scale, x + 45.0f, y + 2.0f, buttonGuide.buttons, commandIcons, flash);
+        drawGuideCluster(renderer, scale, x + 60.0f, y + 6.0f, buttonGuide.buttons, commandIcons, flash);
     }
+}
+
+void drawPauseLegendRow(
+    SDL_Renderer* renderer,
+    float scale,
+    float x,
+    float y,
+    const std::string& label,
+    const std::string& text,
+    Uint8 r,
+    Uint8 g,
+    Uint8 b) {
+    setColor(renderer, r, g, b, 238);
+    scaledDebugText(renderer, scale, x, y, label);
+    setColor(renderer, 176, 188, 204, 224);
+    scaledDebugText(renderer, scale, x + 88.0f, y, text);
+}
+
+std::string liveStatusText(const TrainingCommandHudView& view) {
+    if (view.completeFlash || view.completionVisible) {
+        return "COMPLETE";
+    }
+    const auto [matched, total] = practiceStepProgress(view);
+    if (total <= 0) {
+        return "READY";
+    }
+    return "READY";
 }
 
 } // namespace
@@ -405,69 +578,99 @@ void drawTrainingCommandOverlay(const UiRenderContext& ui, const TrainingCommand
     SDL_Renderer* renderer = ui.renderer;
     const float scale = ui.scale;
     const float widthF = static_cast<float>(ui.logicalWidth);
+    const float heightF = static_cast<float>(ui.logicalHeight);
+    const TrainingCommandHudLayout layout = trainingCommandHudLayout(view, widthF, heightF);
 
     if (view.commandsVisible) {
-        const bool showAnyGuide = view.buttonGuide.visible || view.directionGuide.visible;
         const bool flashOn = view.completeFlash && ((SDL_GetTicks() / 120) % 2 == 0);
         const float completeProgress = completionProgress(view);
-
-        const float commandX = 14.0f;
-        const float commandY = 39.0f;
-        const float commandW = std::clamp(widthF - 28.0f, 202.0f, 318.0f);
-        const float commandH = 30.0f;
-        setColor(renderer, 5, 7, 12, 206);
-        fillScaledRect(renderer, scale, commandX, commandY, commandW, commandH);
-        setColor(renderer, view.completeFlash ? 76 : 54, view.completeFlash ? 152 : 70, view.completeFlash ? 118 : 98, 220);
-        drawScaledRect(renderer, scale, commandX, commandY, commandW, commandH);
+        constexpr float objectiveIconScale = 1.25f;
+        const TrainingHudRect& command = layout.objective;
+        const float statusDividerX = layout.stepRight + 4.0f;
+        setColor(renderer, 3, 6, 12, view.paused ? 96 : 128);
+        fillScaledRect(renderer, scale, command.x, command.y, command.w, command.h);
+        setColor(renderer, 28, 42, 62, view.paused ? 64 : 86);
+        fillScaledRect(renderer, scale, command.x + 1.0f, command.y + 1.0f, command.w - 2.0f, command.h - 2.0f);
+        setColor(renderer, 66, 202, 246, view.paused ? 42 : 58);
+        fillScaledRect(renderer, scale, command.x + 10.0f, command.y, command.w - 20.0f, 1.0f);
+        setColor(renderer, 224, 190, 82, view.paused ? 112 : 178);
+        fillScaledRect(renderer, scale, command.x + 8.0f, command.y + 20.0f, command.w - 16.0f, 1.0f);
+        drawCornerAccents(renderer, scale, command, view.completeFlash ? 194 : 82);
 
         if (view.completeFlash) {
-            setColor(renderer, flashOn ? 96 : 44, flashOn ? 220 : 156, flashOn ? 160 : 116, flashOn ? 188 : 128);
-            fillScaledRect(renderer, scale, commandX + 2.0f, commandY + 2.0f, commandW - 4.0f, 12.0f);
-            setColor(renderer, 8, 12, 16);
+            setColor(renderer, flashOn ? 52 : 26, flashOn ? 162 : 108, flashOn ? 118 : 92, flashOn ? 164 : 104);
+            fillScaledRect(renderer, scale, command.x + 1.0f, command.y + 1.0f, command.w - 2.0f, 17.0f);
+            setColor(renderer, 216, 255, 230);
         } else if (view.demoActive) {
-            setColor(renderer, 96, 134, 214, 132);
-            fillScaledRect(renderer, scale, commandX + 2.0f, commandY + 2.0f, commandW - 4.0f, 12.0f);
-            setColor(renderer, 236, 240, 246);
+            setColor(renderer, 34, 78, 132, 104);
+            fillScaledRect(renderer, scale, command.x + 1.0f, command.y + 1.0f, command.w - 2.0f, 17.0f);
+            setColor(renderer, 222, 236, 252);
         } else {
-            setColor(renderer, 24, 32, 48, 220);
-            fillScaledRect(renderer, scale, commandX + 2.0f, commandY + 2.0f, commandW - 4.0f, 12.0f);
-            setColor(renderer, 222, 226, 232);
+            setColor(renderer, 128, 216, 242);
         }
-        scaledDebugText(renderer, scale, commandX + 6.0f, commandY + 5.0f, view.currentMoveName);
-        setColor(renderer, 230, 190, 105, 180);
-        fillScaledRect(renderer, scale, commandX + 3.0f, commandY + 14.0f, commandW - 6.0f, 1.0f);
+        scaledDebugText(renderer, scale, command.x + 8.0f, command.y + 7.0f, "MOVE:");
+        setColor(renderer, view.completeFlash ? 184 : 90, view.completeFlash ? 255 : 226, view.completeFlash ? 212 : 246);
+        const float nameX = command.x + 48.0f;
+        const std::size_t nameChars = static_cast<std::size_t>(
+            std::max(6.0f, (statusDividerX - nameX - 5.0f) / 8.0f));
+        scaledDebugText(renderer, scale, nameX, command.y + 7.0f, fitDebugText(view.currentMoveName, nameChars));
+        setColor(renderer, 52, 118, 144, view.paused ? 54 : 86);
+        fillScaledRect(renderer, scale, statusDividerX, command.y + 7.0f, 1.0f, command.h - 14.0f);
+        const std::string statusText = liveStatusText(view);
+        const bool completeStatus = view.completeFlash || view.completionVisible;
+        if (completeStatus) {
+            setColor(renderer, 116, 244, 176, view.paused ? 144 : 238);
+        } else {
+            setColor(renderer, 246, 218, 82, view.paused ? 128 : 220);
+        }
+        const std::size_t statusChars = command.w < 300.0f ? 5u : 8u;
+        scaledDebugText(renderer, scale, statusDividerX + 6.0f, command.y + 7.0f, fitDebugText(statusText, statusChars));
         if (view.completionVisible) {
             drawCompletionCheckBadge(
                 renderer,
                 scale,
                 view.completionCheck,
-                commandX + commandW - 12.0f,
-                commandY + 8.0f,
+                command.x + command.w - 18.0f,
+                command.y + 31.0f,
                 completeProgress,
                 flashOn);
         }
 
-        float stepX = commandX + 6.0f;
-        const float stepY = commandY + 18.0f;
-        const float stepRight = commandX + commandW - (view.completionVisible ? 24.0f : 8.0f);
+        float stepX = layout.stepX;
+        const float stepY = layout.stepY;
+        const float stepRight = layout.stepRight;
         int stepsDrawn = 0;
         if (view.completionVisible) {
             drawCompletionSweep(
                 renderer,
                 scale,
-                commandX + 4.0f,
+                command.x + 7.0f,
                 stepY - 4.0f,
-                stepRight - commandX - 8.0f,
+                stepRight - command.x - 12.0f,
                 13.0f,
                 completeProgress,
                 flashOn);
         }
+        const std::size_t visibleStepCount = std::min<std::size_t>(view.practiceSteps.size(), 16u);
+        const bool roomyCommand = visibleStepCount > 0 && visibleStepCount <= 5
+            && (stepRight - layout.stepX) >= 150.0f;
+        const float separatorW = roomyCommand ? 16.0f : 12.0f;
+        const float stepGap = roomyCommand ? 9.0f : 6.0f;
         for (const auto& step : view.practiceSteps) {
             if (stepsDrawn >= 16) {
                 break;
             }
-            const auto stepOptions = commandInputOptions(scale, commandStepTone(step.status), view);
+            const auto stepOptions = commandInputOptions(scale, commandStepTone(step.status), view, objectiveIconScale);
             const float stepW = std::max(10.0f, commandInputWidth(step.label, stepOptions));
+            if (stepsDrawn > 0) {
+                if (stepX + separatorW + stepW > stepRight) {
+                    break;
+                }
+                setColor(renderer, 255, 226, 64, 246);
+                scaledDebugText(renderer, scale, stepX + 2.0f, stepY + 1.0f, ">");
+                scaledDebugText(renderer, scale, stepX + 3.0f, stepY + 1.0f, ">");
+                stepX += separatorW;
+            }
             if (stepX + stepW > stepRight) {
                 break;
             }
@@ -478,62 +681,59 @@ void drawTrainingCommandOverlay(const UiRenderContext& ui, const TrainingCommand
                 stepRight - stepX,
                 step.label,
                 stepOptions);
-            stepX += stepW + 6.0f;
+            stepX += stepW + stepGap;
             ++stepsDrawn;
         }
         if (stepsDrawn == 0) {
             drawCommandInputChips(
                 renderer,
-                commandX + 6.0f,
+                command.x + 6.0f,
                 stepY - 2.0f,
-                stepRight - commandX - 6.0f,
+                stepRight - command.x - 6.0f,
                 view.currentMoveInput,
-                commandInputOptions(scale, CommandInputChipTone::Current, view));
+                commandInputOptions(scale, CommandInputChipTone::Current, view, objectiveIconScale));
         }
 
-        const float inputX = 34.0f;
-        const float inputY = 148.0f;
-        const float guidePanelW = showAnyGuide ? 90.0f : 0.0f;
-        const float inputW = view.input.visible
-            ? std::clamp(widthF - inputX - guidePanelW - 18.0f, 124.0f, 174.0f)
-            : 0.0f;
-        const float guideX = view.input.visible
-            ? inputX + inputW + 6.0f
-            : widthF - guidePanelW - 10.0f;
-        const bool guideFits = showAnyGuide && guideX + guidePanelW <= widthF - 8.0f;
-
-        if (view.input.visible) {
-            setColor(renderer, 5, 7, 12, 186);
-            fillScaledRect(renderer, scale, inputX - 8.0f, inputY - 7.0f, inputW + 4.0f, 29.0f);
-            setColor(renderer, 54, 70, 98, 210);
-            drawScaledRect(renderer, scale, inputX - 8.0f, inputY - 7.0f, inputW + 4.0f, 29.0f);
-            setColor(renderer, 130, 142, 156, 230);
-            scaledDebugText(renderer, scale, inputX, inputY - 1.0f, "INPUT");
-            setColor(renderer, 18, 24, 34, 220);
-            fillScaledRect(renderer, scale, inputX + 42.0f, inputY - 4.0f, inputW - 50.0f, 11.0f);
+        if (layout.inputVisible) {
+            const TrainingHudRect& input = layout.input;
+            const float inputX = input.x + 8.0f;
+            const float inputY = input.y + 8.0f;
+            const float inputW = input.w - 12.0f;
+            setColor(renderer, 102, 210, 246, 224);
+            scaledDebugText(renderer, scale, inputX, inputY, "INPUT HISTORY");
+            const std::string actualInput = !view.input.recentInputs.empty()
+                ? view.input.recentInputs
+                : view.input.currentInput;
             drawCommandInputChips(
                 renderer,
-                inputX + 45.0f,
-                inputY - 3.0f,
-                inputW - 56.0f,
-                view.input.currentInput,
-                liveInputOptions(scale, CommandInputChipTone::Normal, view));
-            if (!view.input.recentInputs.empty() && view.input.recentInputs != view.input.currentInput) {
-                drawCommandInputChips(
-                    renderer,
-                    inputX,
-                    inputY + 11.0f,
-                    inputW - 10.0f,
-                    view.input.recentInputs,
-                    liveInputOptions(scale, CommandInputChipTone::Pending, view));
+                inputX,
+                inputY + 15.0f,
+                inputW,
+                actualInput,
+                liveInputOptions(scale, CommandInputChipTone::Pending, view));
+            setColor(renderer, 176, 182, 190, 96);
+            fillScaledRect(renderer, scale, inputX, inputY + 31.0f, inputW, 1.0f);
+            setColor(renderer, 244, 212, 102, 235);
+            scaledDebugText(renderer, scale, inputX, inputY + 38.0f, "EXPECTED");
+            const std::string stepText = expectedStepText(view);
+            if (!stepText.empty()) {
+                setColor(renderer, 190, 196, 206, 176);
+                scaledDebugText(renderer, scale, inputX + 72.0f, inputY + 38.0f, stepText);
             }
+            drawCommandInputChips(
+                renderer,
+                inputX,
+                inputY + 49.0f,
+                inputW,
+                view.input.expectedInput.empty() ? "-" : view.input.expectedInput,
+                commandInputOptions(scale, CommandInputChipTone::Current, view));
         }
-        if (guideFits) {
+        if (layout.guideVisible) {
             drawTrainingGuideDock(
                 renderer,
                 scale,
-                guideX,
-                inputY - 7.0f,
+                layout.guide.x,
+                layout.guide.y,
                 view.directionGuide,
                 view.buttonGuide,
                 view.commandIcons,
@@ -543,31 +743,26 @@ void drawTrainingCommandOverlay(const UiRenderContext& ui, const TrainingCommand
     }
 
     if (view.input.visible) {
-        const float panelW = std::min(178.0f, widthF - 16.0f);
+        const float panelW = std::min(190.0f, widthF - 18.0f);
         const float panelX = widthF - panelW - 8.0f;
         const float panelY = 42.0f;
 
-        setColor(renderer, 5, 7, 12, 224);
+        setColor(renderer, 5, 7, 12, 158);
         fillScaledRect(renderer, scale, panelX, panelY, panelW, 50.0f);
-        setColor(renderer, 54, 70, 98);
-        drawScaledRect(renderer, scale, panelX, panelY, panelW, 50.0f);
-        setColor(renderer, 20, 30, 48, 220);
-        fillScaledRect(renderer, scale, panelX + 2.0f, panelY + 2.0f, panelW - 4.0f, 14.0f);
-        setColor(renderer, 158, 64, 58, 200);
-        fillScaledRect(renderer, scale, panelX + 2.0f, panelY + 16.0f, panelW - 4.0f, 1.0f);
-        setColor(renderer, 230, 220, 172);
-        scaledDebugText(renderer, scale, panelX + 7.0f, panelY + 5.0f, "INPUT");
+        setColor(renderer, 32, 152, 214, 176);
+        fillScaledRect(renderer, scale, panelX, panelY, panelW, 1.0f);
+        fillScaledRect(renderer, scale, panelX, panelY, 1.0f, 50.0f);
+        setColor(renderer, 102, 210, 246, 224);
+        scaledDebugText(renderer, scale, panelX + 7.0f, panelY + 5.0f, "INPUT HISTORY");
 
         float y = panelY + 23.0f;
-        setColor(renderer, 230, 220, 172);
-        scaledDebugText(renderer, scale, panelX + 8.0f, y, "INPUT");
         setColor(renderer, 18, 24, 34, 230);
-        fillScaledRect(renderer, scale, panelX + 54.0f, y - 3.0f, panelW - 64.0f, 11.0f);
+        fillScaledRect(renderer, scale, panelX + 8.0f, y - 3.0f, panelW - 16.0f, 11.0f);
         drawCommandInputChips(
             renderer,
-            panelX + 58.0f,
+            panelX + 12.0f,
             y - 2.0f,
-            panelW - 70.0f,
+            panelW - 24.0f,
             view.input.currentInput,
             liveInputOptions(scale, CommandInputChipTone::Normal, view));
         y += 12.0f;
@@ -580,6 +775,132 @@ void drawTrainingCommandOverlay(const UiRenderContext& ui, const TrainingCommand
             view.input.recentInputs,
             liveInputOptions(scale, CommandInputChipTone::Pending, view));
     }
+}
+
+void drawTrainingPauseHelpOverlay(const UiRenderContext& ui, const TrainingPauseHelpView& view) {
+    if (!view.visible) {
+        return;
+    }
+
+    SDL_Renderer* renderer = ui.renderer;
+    const float scale = ui.scale;
+    const float widthF = static_cast<float>(ui.logicalWidth);
+    const float panelW = clampUi(widthF - 44.0f, 238.0f, 292.0f);
+    constexpr float panelH = 121.0f;
+    const float x = std::max(8.0f, (widthF - panelW) * 0.5f);
+    constexpr float y = 61.0f;
+    const TrainingHudRect panel{ x, y, panelW, panelH };
+
+    setColor(renderer, 4, 7, 12, 210);
+    fillScaledRect(renderer, scale, panel.x, panel.y, panel.w, panel.h);
+    setColor(renderer, 20, 30, 48, 224);
+    fillScaledRect(renderer, scale, panel.x + 1.0f, panel.y + 1.0f, panel.w - 2.0f, 18.0f);
+    setColor(renderer, 66, 202, 246, 198);
+    fillScaledRect(renderer, scale, panel.x, panel.y, panel.w, 1.0f);
+    setColor(renderer, 224, 190, 82, 190);
+    fillScaledRect(renderer, scale, panel.x + 2.0f, panel.y + 19.0f, panel.w - 4.0f, 1.0f);
+    drawCornerAccents(renderer, scale, panel, 172);
+
+    setColor(renderer, 230, 220, 172, 240);
+    scaledDebugText(renderer, scale, x + 10.0f, y + 7.0f, "PAUSED");
+    setColor(renderer, 166, 184, 210, 230);
+    scaledDebugText(renderer, scale, x + 10.0f, y + 25.0f, "START:RESUME");
+    scaledDebugText(renderer, scale, x + 122.0f, y + 25.0f, "SEL:OPTIONS");
+    scaledDebugText(renderer, scale, x + 10.0f, y + 36.0f, "H/L3/R3/TP:SHOW");
+    scaledDebugText(renderer, scale, x + 10.0f, y + 47.0f, "PGUP/DN LB/RB:NEXT");
+
+    setColor(renderer, 224, 190, 82, 164);
+    fillScaledRect(renderer, scale, x + 10.0f, y + 61.0f, panelW - 20.0f, 1.0f);
+    drawPauseLegendRow(renderer, scale, x + 10.0f, y + 69.0f, "WAITING", "WAITING FOR INPUT", 102, 210, 246);
+    drawPauseLegendRow(renderer, scale, x + 10.0f, y + 78.0f, "NOW", "PRESS HIGHLIGHTED", 246, 218, 82);
+    drawPauseLegendRow(renderer, scale, x + 10.0f, y + 87.0f, "GOOD", "CORRECT", 104, 244, 172);
+    drawPauseLegendRow(renderer, scale, x + 10.0f, y + 96.0f, "MISS", "WRONG INPUT/ORDER", 246, 112, 72);
+    drawPauseLegendRow(renderer, scale, x + 10.0f, y + 105.0f, "INCOMPLETE", "SEQUENCE NOT DONE", 248, 170, 58);
+}
+
+TrainingCommandHudGeometryReport verifyTrainingCommandHudGeometry(
+    const TrainingCommandHudView& view,
+    int logicalWidth,
+    int logicalHeight) {
+    const float widthF = static_cast<float>(logicalWidth);
+    const float heightF = static_cast<float>(logicalHeight);
+    const TrainingCommandHudLayout layout = trainingCommandHudLayout(view, widthF, heightF);
+    TrainingCommandHudGeometryReport report;
+    report.objectiveVisible = layout.objectiveVisible;
+    report.inputVisible = layout.inputVisible;
+    report.controllerVisible = layout.guideVisible;
+    report.bottomLegendVisible = false;
+    report.commandIconsVisible = layout.commandIconsVisible;
+
+    auto inside = [widthF, heightF](const TrainingHudRect& rect) {
+        return rect.x >= 0.0f
+            && rect.y >= 0.0f
+            && rect.x + rect.w <= widthF + 0.5f
+            && rect.y + rect.h <= heightF + 0.5f;
+    };
+
+    if (layout.objectiveVisible && !inside(layout.objective)) {
+        report.detail = "objective outside frame";
+        return report;
+    }
+    if (layout.inputVisible && !inside(layout.input)) {
+        report.detail = "input outside frame";
+        return report;
+    }
+    if (layout.guideVisible && !inside(layout.guide)) {
+        report.detail = "controller guide outside frame";
+        return report;
+    }
+    if (layout.inputVisible && layout.guideVisible && rectIntersects(layout.input, layout.guide)) {
+        report.detail = "input overlaps controller guide";
+        return report;
+    }
+    if (view.commandsVisible && !layout.commandIconsVisible) {
+        report.detail = "command icon lane too narrow";
+        return report;
+    }
+
+    report.ok = true;
+    report.detail = "width=" + std::to_string(logicalWidth)
+        + " objective=" + std::to_string(report.objectiveVisible ? 1 : 0)
+        + " input=" + std::to_string(report.inputVisible ? 1 : 0)
+        + " controller=" + std::to_string(report.controllerVisible ? 1 : 0)
+        + " bottom_legend=0 icons=" + std::to_string(report.commandIconsVisible ? 1 : 0);
+    return report;
+}
+
+TrainingPauseHelpGeometryReport verifyTrainingPauseHelpGeometry(
+    const TrainingPauseHelpView& view,
+    int logicalWidth,
+    int logicalHeight) {
+    TrainingPauseHelpGeometryReport report;
+    report.visible = view.visible;
+    report.legendVisible = view.visible;
+    if (!view.visible) {
+        report.ok = true;
+        report.detail = "hidden";
+        return report;
+    }
+
+    const float widthF = static_cast<float>(logicalWidth);
+    const float heightF = static_cast<float>(logicalHeight);
+    const float panelW = clampUi(widthF - 44.0f, 238.0f, 292.0f);
+    constexpr float panelH = 121.0f;
+    const float x = std::max(8.0f, (widthF - panelW) * 0.5f);
+    constexpr float y = 61.0f;
+    const bool fits = x >= 0.0f
+        && y >= 0.0f
+        && x + panelW <= widthF + 0.5f
+        && y + panelH <= heightF + 0.5f
+        && panelW >= 238.0f;
+    report.ok = fits;
+    report.detail = "width=" + std::to_string(logicalWidth)
+        + " panelW=" + std::to_string(static_cast<int>(panelW))
+        + " legend=" + std::to_string(report.legendVisible ? 1 : 0);
+    if (!fits) {
+        report.detail += " overflow";
+    }
+    return report;
 }
 
 } // namespace dragon

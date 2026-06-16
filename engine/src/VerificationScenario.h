@@ -46,6 +46,8 @@ struct FighterSnapshot {
     int life = 0;
     int maxLife = 1000;
     int power = 0;
+    float attackMultiplier = 1.0f;
+    float defenceMultiplier = 1.0f;
     int targetIndex = -1;
     int targetTicks = 0;
     int targetHitId = -1;
@@ -153,6 +155,14 @@ struct TrainingMoveInfo {
     std::string section;
 };
 
+struct UiGeometryProbe {
+    bool ok = false;
+    bool visible = false;
+    bool secondaryVisible = false;
+    bool tertiaryVisible = false;
+    std::string detail;
+};
+
 class RuntimeProbe {
 public:
     virtual ~RuntimeProbe() = default;
@@ -175,6 +185,7 @@ public:
     virtual void setFighterControl(int fighterIndex, bool enabled) = 0;
     virtual void setArenaZAxisEnabled(bool enabled) = 0;
     virtual void setArenaCameraRotationEnabled(bool enabled) = 0;
+    virtual void setFightPaused(bool paused) = 0;
     virtual void setFighterHitPause(int fighterIndex, int ticks) = 0;
     virtual void setFighterHitStun(int fighterIndex, int ticks) = 0;
     virtual void forceFighterState(int fighterIndex, int stateNo) = 0;
@@ -187,8 +198,11 @@ public:
     virtual bool trainingMoveListSelectedRowVisible() const = 0;
     virtual bool commandIconAtlasLoaded() const = 0;
     virtual std::string trainingCurrentInputDisplay() const = 0;
+    virtual std::string trainingExpectedInputDisplay() const = 0;
     virtual std::string trainingDirectionGuideState() const = 0;
     virtual bool trainingCommandCompleteFlash() const = 0;
+    virtual UiGeometryProbe trainingCommandHudGeometry(int logicalWidth) const = 0;
+    virtual UiGeometryProbe trainingPauseHelpGeometry(int logicalWidth, bool optionsOpen) const = 0;
     virtual bool selectTrainingMoveIndex(int index) = 0;
     virtual bool selectTrainingMove(std::string_view label) = 0;
     virtual void startTrainingCommandDemo() = 0;

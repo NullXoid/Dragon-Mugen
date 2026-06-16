@@ -332,6 +332,17 @@ struct SpecialProbeCase {
     int power = 0;
 };
 
+struct ForcedDamageProbe {
+    std::string_view name;
+    int stateNo = 0;
+    float p1X = -24.0f;
+    float p2X = 28.0f;
+    int expectedFirstHitDamage = 0;
+    int maxFrames = 120;
+    int setupVarIndex = -1;
+    int setupVarValue = 0;
+};
+
 void recordObservedState(
     std::ostream& out,
     Counts& counts,
@@ -377,6 +388,48 @@ void recordCharacterDataLifeLoaded(RuntimeProbe& runtime, std::ostream& out, Cou
         + " expected=" + std::to_string(expectedMaxLife));
 }
 
+int observeForcedStateFirstDamage(RuntimeProbe& runtime, const ForcedDamageProbe& probe, std::string& hitText) {
+    runtime.positionFighters(probe.p1X, probe.p2X);
+    runtime.forceFighterState(0, 0);
+    runtime.forceFighterState(1, 0);
+    runtime.setFighterPosition(0, probe.p1X, 0.0f);
+    runtime.setFighterPosition(1, probe.p2X, 0.0f);
+    runtime.setFighterControl(0, false);
+    runtime.setFighterControl(1, false);
+    runtime.setFighterLife(1, 1000);
+    runtime.setFighterPower(0, 3000);
+    runtime.setFighterVar(0, 17, 0);
+    if (probe.setupVarIndex >= 0) {
+        runtime.setFighterVar(0, probe.setupVarIndex, probe.setupVarValue);
+    }
+    runtime.forceFighterState(0, probe.stateNo);
+    runtime.setFighterControl(0, false);
+
+    int previousLife = runtime.snapshot().p2.life;
+    for (int frame = 0; frame < probe.maxFrames; ++frame) {
+        runtime.step({}, 1);
+        const auto snapshot = runtime.snapshot();
+        if (snapshot.p2.life < previousLife) {
+            hitText = snapshot.lastHitText;
+            return previousLife - snapshot.p2.life;
+        }
+        previousLife = snapshot.p2.life;
+    }
+    hitText = runtime.snapshot().lastHitText;
+    return 0;
+}
+
+void recordForcedDamageProbe(RuntimeProbe& runtime, std::ostream& out, Counts& counts, const ForcedDamageProbe& probe) {
+    std::string hitText;
+    const int damage = observeForcedStateFirstDamage(runtime, probe, hitText);
+    const bool passed = damage == probe.expectedFirstHitDamage;
+    record(out, counts, passed ? Status::Pass : Status::Fail, probe.name,
+        "state=" + std::to_string(probe.stateNo)
+        + " damage=" + std::to_string(damage)
+        + " expected=" + std::to_string(probe.expectedFirstHitDamage)
+        + " hit=\"" + hitText + "\"");
+}
+
 int runShotoSpecialsSupers(
     RuntimeProbe& runtime,
     std::ostream& out,
@@ -386,7 +439,8 @@ int runShotoSpecialsSupers(
     int forcedZeroMoveSuperPauseState = 0,
     int forcedIgnoreHitPauseState = 0,
     int forcedInfiniteAnimExitState = 0,
-    int expectedMaxLife = 1000) {
+    int expectedMaxLife = 1000,
+    std::vector<ForcedDamageProbe> forcedDamageProbes = {}) {
     Counts counts;
     if (!runtime.setup(characterId, "Mountainside", ScenarioMode::Training, out)) {
         record(out, counts, Status::Blocked, "setup", "Training setup failed");
@@ -569,6 +623,10 @@ int runShotoSpecialsSupers(
         "power_before=" + std::to_string(powerBefore)
         + " power_after=" + std::to_string(powerAfter));
 
+    for (const auto& probe : forcedDamageProbes) {
+        recordForcedDamageProbe(runtime, out, counts, probe);
+    }
+
     record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
     summary(out, counts);
     return exitCode(counts);
@@ -640,13 +698,24 @@ int runKfmSpecialsSupers(RuntimeProbe& runtime, std::ostream& out) {
         "power_before=" + std::to_string(powerBefore)
         + " power_after=" + std::to_string(powerAfter));
 
+    recordForcedDamageProbe(runtime, out, counts, {
+        "super_first_hit_damage_matches_authored",
+        3000,
+        -32.0f,
+        24.0f,
+        72,
+        120,
+    });
+
     record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
     summary(out, counts);
     return exitCode(counts);
 }
 
 int runEvilKenSpecialsSupers(RuntimeProbe& runtime, std::ostream& out) {
-    return runShotoSpecialsSupers(runtime, out, "EvilKen", "evilken-specials-supers", { 3450 }, 60050, 0, 2211, 900);
+    return runShotoSpecialsSupers(runtime, out, "EvilKen", "evilken-specials-supers", { 3450 }, 60050, 0, 2211, 900, {
+        { "super_first_hit_damage_matches_authored", 3450, -24.0f, 26.0f, 30, 140 },
+    });
 }
 
 int runEvilKenAirSpecialContactLanding(RuntimeProbe& runtime, std::ostream& out) {
@@ -1331,7 +1400,9 @@ int runEvilKenTrainingCommandPracticeAdvance(RuntimeProbe& runtime, std::ostream
 }
 
 int runEvilRyuSpecialsSupers(RuntimeProbe& runtime, std::ostream& out) {
-    return runShotoSpecialsSupers(runtime, out, "EvilRyu", "evilryu-specials-supers", { 3885 }, 0, 11164, 0, 950);
+    return runShotoSpecialsSupers(runtime, out, "EvilRyu", "evilryu-specials-supers", { 3885 }, 0, 11164, 0, 950, {
+        { "super_first_hit_damage_matches_authored", 3885, 0.0f, 105.0f, 60, 180, 28, 3 },
+    });
 }
 
 int runEvilRyuShinShoryukenStun(RuntimeProbe& runtime, std::ostream& out) {

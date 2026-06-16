@@ -31,6 +31,7 @@ struct TrainingInputHudView {
     bool visible = false;
     std::string currentInput;
     std::string recentInputs;
+    std::string expectedInput;
 };
 
 struct TrainingCommandButtonGuideButtonView {
@@ -79,7 +80,10 @@ struct TrainingCommandHudView {
     bool demoActive = false;
     bool commandsVisible = false;
     bool physicalDirections = false;
+    bool paused = false;
+    bool hasGuideAnchor = false;
     int facing = 1;
+    float guideAnchorX = 0.0f;
 };
 
 } // namespace dragon

@@ -21,6 +21,8 @@
 namespace dragon::verification {
 int runTrainingOptionsMenuGeometry(RuntimeProbe& runtime, std::ostream& out);
 int runTrainingMoveListGeometry(RuntimeProbe& runtime, std::ostream& out);
+int runTrainingCommandHudLayout(RuntimeProbe& runtime, std::ostream& out);
+int runTrainingPauseHelpLegend(RuntimeProbe& runtime, std::ostream& out);
 int runTrainingCommandListTabs(RuntimeProbe& runtime, std::ostream& out);
 int runTrainingCommandIconAtlas(RuntimeProbe& runtime, std::ostream& out);
 int runTrainingCommandSideSwitchHighlight(RuntimeProbe& runtime, std::ostream& out);
@@ -1865,6 +1867,92 @@ int runTrainingMoveListGeometry(RuntimeProbe&, std::ostream& out) {
     return exitCode(counts);
 }
 
+int runTrainingCommandHudLayout(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("EvilKen", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Evil Ken/Mountainside Training setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "training-command-hud-layout");
+
+    const bool idle = waitForControllableIdle(runtime, 420);
+    record(out, counts, idle ? Status::Pass : Status::Fail, "controllable_idle_ready",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo));
+    if (!idle) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    const bool selected = runtime.selectTrainingMove("Ground Recovery Roll") || runtime.selectTrainingMoveIndex(0);
+    record(out, counts, selected ? Status::Pass : Status::Fail, "selected_training_move",
+        "selected=\"" + runtime.snapshot().selectedTrainingMoveLabel + "\"");
+    runtime.step({}, 1);
+
+    for (int width : { 320, 426, 480 }) {
+        const UiGeometryProbe geometry = runtime.trainingCommandHudGeometry(width);
+        const std::string prefix = "width_" + std::to_string(width);
+        record(out, counts, geometry.ok ? Status::Pass : Status::Fail,
+            prefix + "_layout_fits",
+            geometry.detail);
+        record(out, counts, geometry.visible ? Status::Pass : Status::Fail,
+            prefix + "_objective_visible",
+            geometry.detail);
+        record(out, counts, !geometry.secondaryVisible ? Status::Pass : Status::Fail,
+            prefix + "_no_live_bottom_legend",
+            geometry.detail);
+        record(out, counts, geometry.tertiaryVisible ? Status::Pass : Status::Fail,
+            prefix + "_command_icons_visible",
+            geometry.detail);
+    }
+
+    if (const char* screenshotPath = std::getenv("DRAGON_SCREENSHOT_PATH"); screenshotPath && *screenshotPath) {
+        const bool captured = runtime.captureScreenshot(std::filesystem::path(screenshotPath));
+        record(out, counts, captured ? Status::Pass : Status::Fail, "screenshot_captured", screenshotPath);
+    }
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runTrainingPauseHelpLegend(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("EvilKen", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Evil Ken/Mountainside Training setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "training-pause-help-legend");
+
+    for (int width : { 320, 426, 480 }) {
+        const UiGeometryProbe paused = runtime.trainingPauseHelpGeometry(width, false);
+        const std::string prefix = "width_" + std::to_string(width);
+        record(out, counts, paused.ok ? Status::Pass : Status::Fail,
+            prefix + "_pause_help_fits",
+            paused.detail);
+        record(out, counts, paused.visible && paused.secondaryVisible ? Status::Pass : Status::Fail,
+            prefix + "_pause_legend_visible",
+            paused.detail);
+
+        const UiGeometryProbe optionsOpen = runtime.trainingPauseHelpGeometry(width, true);
+        record(out, counts,
+            optionsOpen.ok && !optionsOpen.visible && !optionsOpen.secondaryVisible ? Status::Pass : Status::Fail,
+            prefix + "_options_hides_pause_help",
+            optionsOpen.detail);
+    }
+
+    if (const char* screenshotPath = std::getenv("DRAGON_PAUSE_SCREENSHOT_PATH"); screenshotPath && *screenshotPath) {
+        runtime.setFightPaused(true);
+        const bool captured = runtime.captureScreenshot(std::filesystem::path(screenshotPath));
+        record(out, counts, captured ? Status::Pass : Status::Fail, "pause_screenshot_captured", screenshotPath);
+    }
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
 int runTrainingCommandListTabs(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
     if (!runtime.setup("EvilKen", "Mountainside", ScenarioMode::Training, out)) {
@@ -2359,10 +2447,82 @@ int runTrainingShowControllerShortcut(RuntimeProbe& runtime, std::ostream& out) 
     return exitCode(counts);
 }
 
+int runTrainingCommandHeldButtonPrompt(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("EvilKen", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Evil Ken/Mountainside Training setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "training-command-held-button-prompt");
+
+    const bool idle = waitForControllableIdle(runtime, 420);
+    record(out, counts, idle ? Status::Pass : Status::Fail, "controllable_idle_ready",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo));
+    if (!idle) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    const auto moves = runtime.trainingMoves();
+    const auto closeRoundhouse = std::find_if(moves.begin(), moves.end(), [](const TrainingMoveInfo& move) {
+        return move.label == "Close S.RoundHouse" || move.label == "Close S.Roundhouse";
+    });
+    const bool listShowsHeldKick =
+        closeRoundhouse != moves.end()
+        && closeRoundhouse->input.find("BACK") != std::string::npos
+        && closeRoundhouse->input.find("SK") != std::string::npos;
+    record(out, counts, listShowsHeldKick ? Status::Pass : Status::Fail,
+        "close_roundhouse_list_shows_back_and_strong_kick",
+        closeRoundhouse == moves.end() ? "Close S.RoundHouse missing" : "input=\"" + closeRoundhouse->input + "\"");
+
+    const bool selected = runtime.selectTrainingMove("Close S.RoundHouse")
+        || runtime.selectTrainingMove("Close S.Roundhouse");
+    record(out, counts, selected ? Status::Pass : Status::Fail,
+        "selected_close_roundhouse",
+        "selected=\"" + runtime.snapshot().selectedTrainingMoveLabel + "\"");
+    if (!selected) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    runtime.step({}, 1);
+    const std::string expected = runtime.trainingExpectedInputDisplay();
+    const bool hudShowsHeldKick =
+        expected.find("BACK") != std::string::npos
+        && (expected.find("SK") != std::string::npos
+            || expected.find("R1") != std::string::npos
+            || expected.find("RB") != std::string::npos);
+    record(out, counts, hudShowsHeldKick ? Status::Pass : Status::Fail,
+        "hud_expected_shows_back_and_strong_kick",
+        "expected=\"" + expected + "\"");
+
+    runtime.step(SymbolicInput{ .left = true }, 6);
+    const auto backOnly = runtime.snapshot();
+    record(out, counts, backOnly.p1.stateNo != 209 ? Status::Pass : Status::Fail,
+        "back_only_does_not_fire_close_roundhouse",
+        "state=" + std::to_string(backOnly.p1.stateNo)
+        + " action=" + std::to_string(backOnly.p1.action));
+
+    waitForControllableIdle(runtime, 180);
+    runtime.step(SymbolicInput{ .left = true, .c = true }, 8);
+    const auto backKick = runtime.snapshot();
+    record(out, counts, backKick.p1.stateNo == 209 || backKick.p1.action == 209 ? Status::Pass : Status::Fail,
+        "back_plus_strong_kick_fires_close_roundhouse",
+        "state=" + std::to_string(backKick.p1.stateNo)
+        + " action=" + std::to_string(backKick.p1.action));
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
 int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::ostream& out) {
     if (scenarioName == "compatibility-profile-resolver") return runCompatibilityProfileResolver(runtime, out);
     if (scenarioName == "training-options-menu-geometry") return runTrainingOptionsMenuGeometry(runtime, out);
     if (scenarioName == "training-move-list-geometry") return runTrainingMoveListGeometry(runtime, out);
+    if (scenarioName == "training-command-hud-layout") return runTrainingCommandHudLayout(runtime, out);
+    if (scenarioName == "training-pause-help-legend") return runTrainingPauseHelpLegend(runtime, out);
     if (scenarioName == "training-command-list-tabs") return runTrainingCommandListTabs(runtime, out);
     if (scenarioName == "training-command-icon-atlas") return runTrainingCommandIconAtlas(runtime, out);
     if (scenarioName == "training-command-side-switch-highlight") return runTrainingCommandSideSwitchHighlight(runtime, out);
@@ -2372,6 +2532,7 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
     if (scenarioName == "training-palette-slot-separation") return runTrainingPaletteSlotSeparation(runtime, out);
     if (scenarioName == "training-show-select-hold") return runTrainingShowSelectHold(runtime, out);
     if (scenarioName == "training-show-controller-shortcut") return runTrainingShowControllerShortcut(runtime, out);
+    if (scenarioName == "training-command-held-button-prompt") return runTrainingCommandHeldButtonPrompt(runtime, out);
     if (scenarioName == "character-auto-fit-scale") return runCharacterAutoFitScale(runtime, out);
     if (scenarioName == "lili-smoke") return runLiliSmoke(runtime, out);
     if (scenarioName == "lili-changeanim2-fallback") return runLiliChangeAnim2Fallback(runtime, out);
@@ -2435,7 +2596,7 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
 
     out << "VERIFY " << scenarioName << "\n"
         << "BLOCKED unknown_scenario\n"
-        << "  supported: compatibility-profile-resolver, training-options-menu-geometry, training-move-list-geometry, training-command-list-tabs, training-command-icon-atlas, training-command-side-switch-highlight, training-command-facing-aware-display, training-command-physical-direction-guide, training-command-complete-blink, training-palette-slot-separation, training-show-select-hold, training-show-controller-shortcut, character-auto-fit-scale, lili-smoke, lili-changeanim2-fallback, lili-kuuch-state-fallback, lili-hien-houou-kyaku-demo, lili-training-demo-all, kfm-baseline, kfm-throw, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-guard-recovery, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-power-charge-helper, evilken-air-special-contact-landing, evilken-training-demo-hit, evilken-training-command-practice-advance, evilryu-specials-supers, evilryu-shin-shoryuken-stun, evilryu-super-stress, evilryu-air-special-contact-landing, evilryu-power-charge-helper, evilryu-throw-bind, evilryu-training-throw-demo, evilken-smoke, evilken-trip-grounding, evilken-overhead-trip-chain, evilken-overhead-trip-chain-stress, evilken-trip-jump-buffer, evilken-attack-jump-buffer-release, evilken-throw, evilken-corner-visual-bounds, evilken-kuuchuu-shakunetsu, evilken-training-demo-all, evilken-shinryuken-recovery, evilken-shun-goku-satsu, evilken-shouki-hatsudou-spacing, cpu-baseline, vs-p2-runtime, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-camera-rotation-toggle, arena-camera-rotation-projection, arena-camera-rotation-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-evilken-forward-dash-bounds, arena-per-fighter-runtime, arena-openbor-scroll-stage, arena-evilryu-air-special-contact-landing, evilryu-dash\n"
+        << "  supported: compatibility-profile-resolver, training-options-menu-geometry, training-move-list-geometry, training-command-hud-layout, training-pause-help-legend, training-command-list-tabs, training-command-icon-atlas, training-command-side-switch-highlight, training-command-facing-aware-display, training-command-physical-direction-guide, training-command-complete-blink, training-palette-slot-separation, training-show-select-hold, training-show-controller-shortcut, training-command-held-button-prompt, character-auto-fit-scale, lili-smoke, lili-changeanim2-fallback, lili-kuuch-state-fallback, lili-hien-houou-kyaku-demo, lili-training-demo-all, kfm-baseline, kfm-throw, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-guard-recovery, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-power-charge-helper, evilken-air-special-contact-landing, evilken-training-demo-hit, evilken-training-command-practice-advance, evilryu-specials-supers, evilryu-shin-shoryuken-stun, evilryu-super-stress, evilryu-air-special-contact-landing, evilryu-power-charge-helper, evilryu-throw-bind, evilryu-training-throw-demo, evilken-smoke, evilken-trip-grounding, evilken-overhead-trip-chain, evilken-overhead-trip-chain-stress, evilken-trip-jump-buffer, evilken-attack-jump-buffer-release, evilken-throw, evilken-corner-visual-bounds, evilken-kuuchuu-shakunetsu, evilken-training-demo-all, evilken-shinryuken-recovery, evilken-shun-goku-satsu, evilken-shouki-hatsudou-spacing, cpu-baseline, vs-p2-runtime, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-camera-rotation-toggle, arena-camera-rotation-projection, arena-camera-rotation-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-evilken-forward-dash-bounds, arena-per-fighter-runtime, arena-openbor-scroll-stage, arena-evilryu-air-special-contact-landing, evilryu-dash\n"
         << "SUMMARY pass=0 partial=0 fail=0 blocked=1\n";
     return 2;
 }
