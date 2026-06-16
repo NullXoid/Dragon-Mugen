@@ -64,6 +64,33 @@ float debugTextWidth(const std::string& text) {
     return static_cast<float>(text.size()) * 8.0f;
 }
 
+bool emptyInputHistoryPlaceholder(const std::string& input) {
+    return input.empty() || input == "-";
+}
+
+void drawInputHistoryValue(
+    SDL_Renderer* renderer,
+    float scale,
+    float x,
+    float y,
+    float w,
+    const std::string& input,
+    const TrainingCommandHudView& view) {
+    if (emptyInputHistoryPlaceholder(input)) {
+        setColor(renderer, 154, 166, 184, 210);
+        scaledDebugText(renderer, scale, x, y + 1.0f, "- - -");
+        return;
+    }
+
+    drawCommandInputChips(
+        renderer,
+        x,
+        y,
+        w,
+        input,
+        liveInputOptions(scale, CommandInputChipTone::Pending, view));
+}
+
 void fillScaledCircle(SDL_Renderer* renderer, float scale, float centerX, float centerY, float radius) {
     const int rowCount = std::max(1, static_cast<int>(std::ceil(radius * 2.0f)));
     for (int row = 0; row < rowCount; ++row) {
@@ -527,9 +554,6 @@ void drawTrainingGuideDock(
 
     constexpr float dockW = 104.0f;
     constexpr float dockH = 52.0f;
-    setColor(renderer, 102, 210, 246, flash ? 232 : 204);
-    const std::string playerLabel = "PLAYER 1";
-    scaledDebugText(renderer, scale, x + dockW * 0.5f - debugTextWidth(playerLabel) * 0.5f, y - 9.0f, playerLabel);
     setColor(renderer, 170, 178, 188, 22);
     fillScaledRect(renderer, scale, x + 51.0f, y + 7.0f, 1.0f, dockH - 14.0f);
 
@@ -561,11 +585,7 @@ std::string liveStatusText(const TrainingCommandHudView& view) {
     if (view.completeFlash || view.completionVisible) {
         return "COMPLETE";
     }
-    const auto [matched, total] = practiceStepProgress(view);
-    if (total <= 0) {
-        return "READY";
-    }
-    return "READY";
+    return {};
 }
 
 } // namespace
@@ -614,17 +634,19 @@ void drawTrainingCommandOverlay(const UiRenderContext& ui, const TrainingCommand
         const std::size_t nameChars = static_cast<std::size_t>(
             std::max(6.0f, (statusDividerX - nameX - 5.0f) / 8.0f));
         scaledDebugText(renderer, scale, nameX, command.y + 7.0f, fitDebugText(view.currentMoveName, nameChars));
-        setColor(renderer, 52, 118, 144, view.paused ? 54 : 86);
-        fillScaledRect(renderer, scale, statusDividerX, command.y + 7.0f, 1.0f, command.h - 14.0f);
         const std::string statusText = liveStatusText(view);
         const bool completeStatus = view.completeFlash || view.completionVisible;
-        if (completeStatus) {
-            setColor(renderer, 116, 244, 176, view.paused ? 144 : 238);
-        } else {
-            setColor(renderer, 246, 218, 82, view.paused ? 128 : 220);
+        if (!statusText.empty()) {
+            setColor(renderer, 52, 118, 144, view.paused ? 54 : 86);
+            fillScaledRect(renderer, scale, statusDividerX, command.y + 7.0f, 1.0f, command.h - 14.0f);
+            if (completeStatus) {
+                setColor(renderer, 116, 244, 176, view.paused ? 144 : 238);
+            } else {
+                setColor(renderer, 246, 218, 82, view.paused ? 128 : 220);
+            }
+            const std::size_t statusChars = command.w < 300.0f ? 5u : 8u;
+            scaledDebugText(renderer, scale, statusDividerX + 6.0f, command.y + 7.0f, fitDebugText(statusText, statusChars));
         }
-        const std::size_t statusChars = command.w < 300.0f ? 5u : 8u;
-        scaledDebugText(renderer, scale, statusDividerX + 6.0f, command.y + 7.0f, fitDebugText(statusText, statusChars));
         if (view.completionVisible) {
             drawCompletionCheckBadge(
                 renderer,
@@ -704,13 +726,14 @@ void drawTrainingCommandOverlay(const UiRenderContext& ui, const TrainingCommand
             const std::string actualInput = !view.input.recentInputs.empty()
                 ? view.input.recentInputs
                 : view.input.currentInput;
-            drawCommandInputChips(
+            drawInputHistoryValue(
                 renderer,
+                scale,
                 inputX,
                 inputY + 15.0f,
                 inputW,
                 actualInput,
-                liveInputOptions(scale, CommandInputChipTone::Pending, view));
+                view);
             setColor(renderer, 176, 182, 190, 96);
             fillScaledRect(renderer, scale, inputX, inputY + 31.0f, inputW, 1.0f);
             setColor(renderer, 244, 212, 102, 235);
@@ -758,13 +781,14 @@ void drawTrainingCommandOverlay(const UiRenderContext& ui, const TrainingCommand
         float y = panelY + 23.0f;
         setColor(renderer, 18, 24, 34, 230);
         fillScaledRect(renderer, scale, panelX + 8.0f, y - 3.0f, panelW - 16.0f, 11.0f);
-        drawCommandInputChips(
+        drawInputHistoryValue(
             renderer,
+            scale,
             panelX + 12.0f,
             y - 2.0f,
             panelW - 24.0f,
             view.input.currentInput,
-            liveInputOptions(scale, CommandInputChipTone::Normal, view));
+            view);
         y += 12.0f;
 
         drawCommandInputChips(
