@@ -158,6 +158,13 @@ SymbolicInput withDirection(std::string_view direction) {
         input.right = true;
     } else if (direction == "F") {
         input.right = true;
+    } else if (direction == "DB") {
+        input.down = true;
+        input.left = true;
+    } else if (direction == "B") {
+        input.left = true;
+    } else if (direction == "U") {
+        input.up = true;
     }
     return input;
 }
@@ -179,6 +186,13 @@ void performQcfButton(RuntimeProbe& runtime, char button) {
     runtime.step(withDirection("D"), 2);
     runtime.step(withDirection("DF"), 2);
     runtime.step(withDirectionAndButton("F", button), 3);
+}
+
+void performQcbButton(RuntimeProbe& runtime, char button) {
+    runtime.step({}, 3);
+    runtime.step(withDirection("D"), 2);
+    runtime.step(withDirection("DB"), 2);
+    runtime.step(withDirectionAndButton("B", button), 3);
 }
 
 void performDpButton(RuntimeProbe& runtime, char button) {
@@ -2559,6 +2573,65 @@ int runTrainingCommandFilteredComplete(RuntimeProbe& runtime, std::ostream& out)
         "second_filtered_special_completion_flash",
         "selected=\"" + afterSecondMove.selectedTrainingMoveLabel
             + "\" last_hit=\"" + afterSecondMove.lastHitText + "\"");
+
+    if (!runtime.setup("EvilRyu", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "evilryu_setup", "Evil Ryu/Mountainside Training setup failed");
+        summary(out, counts);
+        return exitCode(counts);
+    }
+    header(out, runtime, "training-command-filtered-complete-evilryu");
+
+    const bool evilRyuIdle = waitForControllableIdle(runtime, 420);
+    record(out, counts, evilRyuIdle ? Status::Pass : Status::Fail, "evilryu_controllable_idle_ready",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo));
+    if (!evilRyuIdle) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    runtime.positionFighters(-260.0f, 260.0f);
+    runtime.setTrainingMoveCategory("special");
+    const bool selectedZankuu = runtime.selectTrainingMove("Zankuu Hadouken");
+    record(out, counts, selectedZankuu ? Status::Pass : Status::Blocked, "select_filtered_special_zankuu",
+        "selected=\"" + runtime.snapshot().selectedTrainingMoveLabel + "\"");
+    if (!selectedZankuu) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    runtime.forceFighterState(0, 50);
+    runtime.setFighterPosition(0, -260.0f, -80.0f);
+    runtime.setFighterControl(0, true);
+    runtime.step({}, 1);
+    performQcbButton(runtime, 'x');
+    bool sawEvilRyuFlash = runtime.trainingCommandCompleteFlash();
+    for (int i = 0; i < 36 && !sawEvilRyuFlash; ++i) {
+        runtime.step({}, 1);
+        sawEvilRyuFlash = runtime.trainingCommandCompleteFlash();
+    }
+
+    const auto evilRyuAfterZankuu = runtime.snapshot();
+    const bool zankuuEntered =
+        evilRyuAfterZankuu.p1.stateNo == 1865 || evilRyuAfterZankuu.p1.action == 1865;
+    record(out, counts, zankuuEntered ? Status::Pass : Status::Fail,
+        "evilryu_zankuu_entered",
+        "state=" + std::to_string(evilRyuAfterZankuu.p1.stateNo)
+            + " action=" + std::to_string(evilRyuAfterZankuu.p1.action)
+            + " commands=\"" + evilRyuAfterZankuu.p1Commands + "\"");
+    record(out, counts, sawEvilRyuFlash ? Status::Pass : Status::Fail,
+        "evilryu_zankuu_completion_flash",
+        "selected=\"" + evilRyuAfterZankuu.selectedTrainingMoveLabel
+            + "\" last_hit=\"" + evilRyuAfterZankuu.lastHitText + "\"");
+
+    const bool evilRyuRecovered = waitForControllableIdle(runtime, 420);
+    const auto evilRyuAfterFirstOk = runtime.snapshot();
+    record(out, counts, evilRyuRecovered ? Status::Pass : Status::Fail,
+        "evilryu_recovered_after_zankuu_ok",
+        "state=" + std::to_string(evilRyuAfterFirstOk.p1.stateNo)
+            + " selected=\"" + evilRyuAfterFirstOk.selectedTrainingMoveLabel + "\"");
+    record(out, counts, evilRyuAfterFirstOk.selectedTrainingMoveLabel != "Seoi Zankuu Hadouken" ? Status::Pass : Status::Fail,
+        "evilryu_auto_advance_skips_unavailable_followup",
+        "selected=\"" + evilRyuAfterFirstOk.selectedTrainingMoveLabel + "\"");
     record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
     summary(out, counts);
     return exitCode(counts);

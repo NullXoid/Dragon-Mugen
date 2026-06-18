@@ -48,7 +48,7 @@ build\dragon_mugen.exe --verify training-command-side-switch-highlight
 build\dragon_mugen.exe --verify training-command-facing-aware-display
 build\dragon_mugen.exe --verify training-command-physical-direction-guide
 build\dragon_mugen.exe --verify training-command-complete-blink
-build\dragon_mugen.exe --verify training-command-filtered-complete
+build\dragon_mugen.exe --verify training-command-filtered-complete  # Evil Ken + Evil Ryu variable-gated follow-up skip
 build\dragon_mugen.exe --verify training-command-list-tabs
 build\dragon_mugen.exe --verify training-command-icon-atlas
 build\dragon_mugen.exe --verify training-palette-slot-separation
