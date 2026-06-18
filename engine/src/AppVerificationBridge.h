@@ -389,6 +389,22 @@ public:
         return trainingMovesForMode(CommandButtonPromptMode::Strength);
     }
 
+    void setTrainingMoveCategory(std::string_view category) override {
+        if (category == "normal" || category == "normals") {
+            state_.training.options.moveCategory = TrainingMoveCategory::Normals;
+        } else if (category == "special" || category == "specials") {
+            state_.training.options.moveCategory = TrainingMoveCategory::Specials;
+        } else if (category == "super" || category == "supers") {
+            state_.training.options.moveCategory = TrainingMoveCategory::Supers;
+        } else {
+            state_.training.options.moveCategory = TrainingMoveCategory::All;
+        }
+        state_.trainingMoveListCacheValid = false;
+        state_.training.options.selectedMoveListEntry = 0;
+        state_.training.options.moveListScroll = 0;
+        clampTrainingMoveListSelection(state_);
+    }
+
     std::string trainingMoveListTab() const override {
         return state_.training.options.moveListTab == TrainingMoveListTab::Main ? "main" : "all";
     }

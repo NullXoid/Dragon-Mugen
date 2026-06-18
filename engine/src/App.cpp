@@ -11006,6 +11006,41 @@ std::string commandEntrySelectionKey(const CommandStateEntry& entry) {
     return key;
 }
 
+bool commandEntryTargetsEquivalentMove(const CommandStateEntry& lhs, const CommandStateEntry& rhs) {
+    if (!lhs.targetStateExpression.empty()
+        && !rhs.targetStateExpression.empty()
+        && lhs.targetStateExpression == rhs.targetStateExpression) {
+        return true;
+    }
+    return lhs.targetState != 0 && lhs.targetState == rhs.targetState;
+}
+
+bool commandEntriesShareCommandName(const CommandStateEntry& lhs, const CommandStateEntry& rhs) {
+    return anyCommandEntryCommand(lhs, [&rhs](const std::string& command) {
+        return commandEntryUsesCommand(rhs, command);
+    });
+}
+
+bool commandEntriesRepresentSameTrainingMove(const CommandStateEntry& lhs, const CommandStateEntry& rhs) {
+    if (&lhs == &rhs || commandEntrySelectionKey(lhs) == commandEntrySelectionKey(rhs)) {
+        return true;
+    }
+    if (commandEntryTargetsEquivalentMove(lhs, rhs)) {
+        return true;
+    }
+    if (!equalsNoCase(moveListEntryName(lhs), moveListEntryName(rhs))) {
+        return false;
+    }
+    return commandEntryCategory(lhs) == commandEntryCategory(rhs)
+        && commandEntriesShareCommandName(lhs, rhs);
+}
+
+bool commandEntryMatchesActiveTrainingMove(
+    const CommandStateEntry& selectedEntry,
+    const CommandStateEntry* activeEntry) {
+    return activeEntry && commandEntriesRepresentSameTrainingMove(selectedEntry, *activeEntry);
+}
+
 int findMoveListEntryByKey(const std::vector<const CommandStateEntry*>& entries, const std::string& key) {
     for (int i = 0; i < static_cast<int>(entries.size()); ++i) {
         const auto* entry = entries[static_cast<size_t>(i)];
@@ -11197,7 +11232,7 @@ TrainingCommandHudView trainingCommandHudView(
         }
         if (selected >= 0) {
             const auto& entry = *entries[static_cast<size_t>(selected)];
-            const bool complete = activeEntry == &entry;
+            const bool complete = commandEntryMatchesActiveTrainingMove(entry, activeEntry);
             const CommandDefinition* definition = practiceCommandDefinitionForEntry(state, entry, commands);
             const int matched = definition ? matchedPracticeStepCount(fighter, *definition) : 0;
             view.currentMoveName = fitDebugText(moveListEntryName(entry), 20);

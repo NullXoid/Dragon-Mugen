@@ -48,6 +48,7 @@ build\dragon_mugen.exe --verify training-command-side-switch-highlight
 build\dragon_mugen.exe --verify training-command-facing-aware-display
 build\dragon_mugen.exe --verify training-command-physical-direction-guide
 build\dragon_mugen.exe --verify training-command-complete-blink
+build\dragon_mugen.exe --verify training-command-filtered-complete
 build\dragon_mugen.exe --verify training-command-list-tabs
 build\dragon_mugen.exe --verify training-command-icon-atlas
 build\dragon_mugen.exe --verify training-palette-slot-separation
@@ -107,7 +108,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Training full command list keeps selected bottom entries visible in both Main Techniques and All Techniques even when section headers are inserted into the visible rows.
 - Training full command list starts on standard standing punches/kicks and orders sections as standing normals, crouching normals, air normals, specials, supers, throws, then counters.
 - Training command HUD uses a compact top command strip plus a smaller live-input panel, not a large lower command card that covers the fight.
-- Training command HUD keeps live input/expected rows as lightweight floating clusters without a hard panel box, renders empty input history as plain `- - -` instead of a placeholder button, keeps the controller guide right-aligned without a redundant player label, shows the current `STEP n/n` beside `EXPECTED`, and reserves the top-right command strip status for real result feedback such as completion instead of a generic ready state.
+- Training command HUD keeps live input/expected rows as lightweight floating clusters without a hard panel box, renders empty input history as plain `- - -` instead of a placeholder button, keeps the controller guide right-aligned without a redundant player label, uses the expected input highlight as the progress cue, reserves the top-right command strip status for real result feedback such as completion instead of a generic ready state, and renders the top objective as a strongly faded-end band without corner ticks.
 - Training command HUD shows a full-command completion flash/checkmark when the selected input sequence is completed.
 - Training P2 control still switches the opponent to local P2 behavior.
 - Single Fight round timer, KO/time-over, pips, match result, and rematch/menu inputs still work.

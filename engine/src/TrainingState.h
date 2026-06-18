@@ -17,8 +17,6 @@ struct TrainingCommandDemoState {
 };
 
 struct TrainingCommandPracticeState {
-    int completedMoveListEntry = -1;
-    int completedTargetState = -1;
     int flashTicks = 0;
     int cooldownTicks = 0;
     std::string notification;

@@ -513,7 +513,86 @@ const CommandStateEntry* selectedTrainingCommandEntry(const AppState& state, int
     return entries[static_cast<size_t>(selected)];
 }
 
-bool cycleSelectedTrainingCommandEntry(AppState& state, int direction, bool announce = true) {
+std::optional<float> trainingCommandDirectVariableGateValue(
+    const FighterState& fighter,
+    std::string_view expression,
+    bool& usesVariable) {
+    if (const auto ref = parseMugenVariableRef(expression)) {
+        usesVariable = true;
+        return fighterVariableValue(fighter, *ref);
+    }
+    return parsePlainFloatValue(std::string(expression));
+}
+
+std::optional<bool> trainingCommandDirectVariableGateSatisfied(
+    const FighterState& fighter,
+    const MugenExpressionCondition& condition) {
+    bool lhsUsesVariable = false;
+    bool rhsUsesVariable = false;
+    const auto lhs = trainingCommandDirectVariableGateValue(fighter, trim(condition.lhs), lhsUsesVariable);
+    const auto rhs = trainingCommandDirectVariableGateValue(fighter, trim(condition.rhs), rhsUsesVariable);
+    if (!lhs || !rhs || (!lhsUsesVariable && !rhsUsesVariable)) {
+        return std::nullopt;
+    }
+    return compareFloatValue(*lhs, condition.op, *rhs);
+}
+
+bool trainingCommandBooleanVariableGatesSatisfied(const FighterState& fighter, const std::string& expression) {
+    bool sawVariableBranch = false;
+    for (const auto& orClause : splitTopLevelClauses(expression, "||", true)) {
+        bool branchUsesVariable = false;
+        bool branchVariablesSatisfied = true;
+        for (const auto& andClause : splitTopLevelClauses(orClause, "&&")) {
+            const auto condition = parseMugenExpressionCondition(stripOuterParens(andClause));
+            if (!condition) {
+                continue;
+            }
+            const auto satisfied = trainingCommandDirectVariableGateSatisfied(fighter, *condition);
+            if (!satisfied) {
+                continue;
+            }
+            branchUsesVariable = true;
+            branchVariablesSatisfied = branchVariablesSatisfied && *satisfied;
+        }
+        if (!branchUsesVariable) {
+            return true;
+        }
+        sawVariableBranch = true;
+        if (branchVariablesSatisfied) {
+            return true;
+        }
+    }
+    return !sawVariableBranch;
+}
+
+bool trainingCommandEntryVariableGatesSatisfied(const FighterState& fighter, const CommandStateEntry& entry) {
+    for (const auto& condition : entry.expressionConditions) {
+        const auto satisfied = trainingCommandDirectVariableGateSatisfied(fighter, condition);
+        if (satisfied && !*satisfied) {
+            return false;
+        }
+    }
+    for (const auto& expression : entry.booleanExpressions) {
+        if (!trainingCommandBooleanVariableGatesSatisfied(fighter, expression)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool trainingCommandEntryAutoAdvanceCandidate(const AppState& state, int fighterIndex, const CommandStateEntry& entry) {
+    if (fighterIndex < 0 || fighterIndex >= static_cast<int>(state.fighters.size())) {
+        return true;
+    }
+    return trainingCommandEntryVariableGatesSatisfied(state.fighters[static_cast<size_t>(fighterIndex)], entry);
+}
+
+bool cycleSelectedTrainingCommandEntry(
+    AppState& state,
+    int direction,
+    bool announce = true,
+    bool skipUnavailablePracticeEntries = false,
+    int fighterIndex = 0) {
     const auto& entries = activeDisplayableMoveListEntries(state);
     if (entries.empty() || direction == 0) {
         return false;
@@ -521,7 +600,17 @@ bool cycleSelectedTrainingCommandEntry(AppState& state, int direction, bool anno
 
     const int count = static_cast<int>(entries.size());
     const int current = std::clamp(state.training.options.selectedMoveListEntry, 0, count - 1);
-    const int selected = (current + direction + count) % count;
+    int selected = (current + direction + count) % count;
+    if (skipUnavailablePracticeEntries) {
+        for (int step = 1; step <= count; ++step) {
+            const int candidate = (current + direction * step + count * step) % count;
+            const auto* entry = entries[static_cast<size_t>(candidate)];
+            if (entry && trainingCommandEntryAutoAdvanceCandidate(state, fighterIndex, *entry)) {
+                selected = candidate;
+                break;
+            }
+        }
+    }
     state.training.options.selectedMoveListEntry = selected;
 
     const int visibleRows = trainingMoveListVisibleMoveCapacity();
@@ -563,16 +652,14 @@ bool trainingCommandPracticeActive(const AppState& state) {
         && !trainingCommandDemoActive(state);
 }
 
-void completeTrainingCommandPracticeMove(AppState& state, int selected, const CommandStateEntry& entry, int targetState) {
+void completeTrainingCommandPracticeMove(AppState& state, const CommandStateEntry& entry) {
     auto& practice = state.training.commandPractice;
     const std::string completedName = moveListEntryName(entry);
-    practice.completedMoveListEntry = selected;
-    practice.completedTargetState = targetState;
     practice.flashTicks = 72;
     practice.cooldownTicks = 24;
     playMenuCursorDoneSound(state);
 
-    cycleSelectedTrainingCommandEntry(state, 1, false);
+    cycleSelectedTrainingCommandEntry(state, 1, false, true, 0);
 
     int nextSelected = -1;
     const CommandStateEntry* nextEntry = selectedTrainingCommandEntry(state, &nextSelected);
@@ -595,20 +682,25 @@ void updateTrainingCommandPracticeProgress(
         return;
     }
 
-    int selected = -1;
-    const CommandStateEntry* selectedEntry = selectedTrainingCommandEntry(state, &selected);
+    const CommandStateEntry* selectedEntry = selectedTrainingCommandEntry(state);
     if (!selectedEntry) {
         return;
     }
 
     const auto& commandDefinitions = commandDefinitionsForActor(state, fighterBeforeUpdate);
     const std::vector<std::string> commands =
-        collectFighterCommands(fighterAfterUpdate.inputHistory.back().input, fighterBeforeUpdate, commandDefinitions);
-    if (!canEnterCommandState(state, fighterBeforeUpdate, opponent, *selectedEntry, commands)) {
-        return;
-    }
+        collectFighterCommands(fighterAfterUpdate.inputHistory.back().input, fighterAfterUpdate, commandDefinitions);
 
-    const auto targetState = resolveCommandTargetState(state, fighterBeforeUpdate, opponent, *selectedEntry, commands);
+    const CommandStateEntry* completedEntry = selectedEntry;
+    auto targetState = resolveCommandTargetState(state, fighterBeforeUpdate, opponent, *selectedEntry, commands);
+    if (!canEnterCommandState(state, fighterBeforeUpdate, opponent, *selectedEntry, commands)) {
+        const CommandStateEntry* activeEntry = activeCommandEntry(state, fighterBeforeUpdate, opponent, commands);
+        if (!commandEntryMatchesActiveTrainingMove(*selectedEntry, activeEntry)) {
+            return;
+        }
+        completedEntry = activeEntry;
+        targetState = resolveCommandTargetState(state, fighterBeforeUpdate, opponent, *completedEntry, commands);
+    }
     if (!targetState || fighterAfterUpdate.stateNo != *targetState) {
         return;
     }
@@ -616,7 +708,7 @@ void updateTrainingCommandPracticeProgress(
         return;
     }
 
-    completeTrainingCommandPracticeMove(state, selected, *selectedEntry, *targetState);
+    completeTrainingCommandPracticeMove(state, *selectedEntry);
 }
 
 bool trainingCommandEntryNeedsThrowRangeSetup(const CommandStateEntry& entry) {

@@ -193,6 +193,7 @@ public:
     virtual void spawnHelper(int ownerIndex, int helperId, int stateNo, int pauseMoveTime = 0, int superMoveTime = 0) = 0;
     virtual std::vector<TrainingMoveInfo> trainingMoves() const = 0;
     virtual std::vector<TrainingMoveInfo> trainingMovesForPromptStyle(std::string_view style) const = 0;
+    virtual void setTrainingMoveCategory(std::string_view category) = 0;
     virtual std::string trainingMoveListTab() const = 0;
     virtual void setTrainingMoveListTab(std::string_view tab) = 0;
     virtual bool trainingMoveListSelectedRowVisible() const = 0;

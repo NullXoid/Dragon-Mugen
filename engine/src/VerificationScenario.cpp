@@ -29,6 +29,7 @@ int runTrainingCommandSideSwitchHighlight(RuntimeProbe& runtime, std::ostream& o
 int runTrainingCommandFacingAwareDisplay(RuntimeProbe& runtime, std::ostream& out);
 int runTrainingCommandPhysicalDirectionGuide(RuntimeProbe& runtime, std::ostream& out);
 int runTrainingCommandCompleteBlink(RuntimeProbe& runtime, std::ostream& out);
+int runTrainingCommandFilteredComplete(RuntimeProbe& runtime, std::ostream& out);
 int runTrainingPaletteSlotSeparation(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenTripGrounding(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenOverheadTripChain(RuntimeProbe& runtime, std::ostream& out);
@@ -146,6 +147,45 @@ SymbolicInput withButton(char button) {
     if (button == 'x') input.x = true; if (button == 'y') input.y = true; if (button == 'z') input.z = true;
     if (button == 'a') input.a = true; if (button == 'b') input.b = true; if (button == 'c') input.c = true;
     return input;
+}
+
+SymbolicInput withDirection(std::string_view direction) {
+    SymbolicInput input;
+    if (direction == "D") {
+        input.down = true;
+    } else if (direction == "DF") {
+        input.down = true;
+        input.right = true;
+    } else if (direction == "F") {
+        input.right = true;
+    }
+    return input;
+}
+
+SymbolicInput withDirectionAndButton(std::string_view direction, char button) {
+    SymbolicInput input = withDirection(direction);
+    const SymbolicInput buttonInput = withButton(button);
+    input.x = input.x || buttonInput.x;
+    input.y = input.y || buttonInput.y;
+    input.z = input.z || buttonInput.z;
+    input.a = input.a || buttonInput.a;
+    input.b = input.b || buttonInput.b;
+    input.c = input.c || buttonInput.c;
+    return input;
+}
+
+void performQcfButton(RuntimeProbe& runtime, char button) {
+    runtime.step({}, 3);
+    runtime.step(withDirection("D"), 2);
+    runtime.step(withDirection("DF"), 2);
+    runtime.step(withDirectionAndButton("F", button), 3);
+}
+
+void performDpButton(RuntimeProbe& runtime, char button) {
+    runtime.step({}, 3);
+    runtime.step(withDirection("F"), 2);
+    runtime.step(withDirection("D"), 2);
+    runtime.step(withDirectionAndButton("DF", button), 3);
 }
 
 bool changedStateOrAction(const FighterSnapshot& before, const FighterSnapshot& after) { return before.stateNo != after.stateNo || before.action != after.action; }
@@ -2447,6 +2487,83 @@ int runTrainingShowControllerShortcut(RuntimeProbe& runtime, std::ostream& out) 
     return exitCode(counts);
 }
 
+int runTrainingCommandFilteredComplete(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("EvilKen", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Evil Ken/Mountainside Training setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "training-command-filtered-complete");
+
+    const bool idle = waitForControllableIdle(runtime, 420);
+    record(out, counts, idle ? Status::Pass : Status::Fail, "controllable_idle_ready",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo));
+    if (!idle) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    runtime.positionFighters(-260.0f, 260.0f);
+    runtime.setTrainingMoveCategory("special");
+    const bool selectedHadouken = runtime.selectTrainingMove("Hadouken");
+    record(out, counts, selectedHadouken ? Status::Pass : Status::Blocked, "select_filtered_special_hadouken",
+        "selected=\"" + runtime.snapshot().selectedTrainingMoveLabel + "\"");
+    if (!selectedHadouken) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    performQcfButton(runtime, 'x');
+    bool sawFlash = runtime.trainingCommandCompleteFlash();
+    for (int i = 0; i < 36 && !sawFlash; ++i) {
+        runtime.step({}, 1);
+        sawFlash = runtime.trainingCommandCompleteFlash();
+    }
+
+    const auto snap = runtime.snapshot();
+    record(out, counts, snap.p1.stateNo == 1000 || snap.p1.action == 1000 ? Status::Pass : Status::Fail,
+        "hadouken_entered",
+        "state=" + std::to_string(snap.p1.stateNo)
+            + " action=" + std::to_string(snap.p1.action)
+            + " commands=\"" + snap.p1Commands + "\"");
+    record(out, counts, sawFlash ? Status::Pass : Status::Fail,
+        "filtered_special_completion_flash",
+        "selected=\"" + snap.selectedTrainingMoveLabel
+            + "\" last_hit=\"" + snap.lastHitText + "\"");
+
+    const bool recovered = waitForControllableIdle(runtime, 420);
+    const auto afterFirstOk = runtime.snapshot();
+    record(out, counts, recovered ? Status::Pass : Status::Fail,
+        "recovered_after_first_ok",
+        "state=" + std::to_string(afterFirstOk.p1.stateNo)
+            + " selected=\"" + afterFirstOk.selectedTrainingMoveLabel + "\"");
+    record(out, counts, afterFirstOk.selectedTrainingMoveLabel != "Seoi Shoryuken" ? Status::Pass : Status::Fail,
+        "auto_advance_skips_unavailable_followup",
+        "selected=\"" + afterFirstOk.selectedTrainingMoveLabel + "\"");
+    if (recovered) {
+        performDpButton(runtime, 'x');
+    }
+    bool sawSecondFlash = runtime.trainingCommandCompleteFlash();
+    for (int i = 0; i < 36 && !sawSecondFlash; ++i) {
+        runtime.step({}, 1);
+        sawSecondFlash = runtime.trainingCommandCompleteFlash();
+    }
+    const auto afterSecondMove = runtime.snapshot();
+    record(out, counts, afterSecondMove.p1.stateNo == 1500 || afterSecondMove.p1.action == 1500 ? Status::Pass : Status::Fail,
+        "second_special_entered",
+        "state=" + std::to_string(afterSecondMove.p1.stateNo)
+            + " action=" + std::to_string(afterSecondMove.p1.action)
+            + " selected=\"" + afterFirstOk.selectedTrainingMoveLabel + "\"");
+    record(out, counts, sawSecondFlash ? Status::Pass : Status::Fail,
+        "second_filtered_special_completion_flash",
+        "selected=\"" + afterSecondMove.selectedTrainingMoveLabel
+            + "\" last_hit=\"" + afterSecondMove.lastHitText + "\"");
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
 int runTrainingCommandHeldButtonPrompt(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
     if (!runtime.setup("EvilKen", "Mountainside", ScenarioMode::Training, out)) {
@@ -2529,6 +2646,7 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
     if (scenarioName == "training-command-facing-aware-display") return runTrainingCommandFacingAwareDisplay(runtime, out);
     if (scenarioName == "training-command-physical-direction-guide") return runTrainingCommandPhysicalDirectionGuide(runtime, out);
     if (scenarioName == "training-command-complete-blink") return runTrainingCommandCompleteBlink(runtime, out);
+    if (scenarioName == "training-command-filtered-complete") return runTrainingCommandFilteredComplete(runtime, out);
     if (scenarioName == "training-palette-slot-separation") return runTrainingPaletteSlotSeparation(runtime, out);
     if (scenarioName == "training-show-select-hold") return runTrainingShowSelectHold(runtime, out);
     if (scenarioName == "training-show-controller-shortcut") return runTrainingShowControllerShortcut(runtime, out);
@@ -2596,7 +2714,7 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
 
     out << "VERIFY " << scenarioName << "\n"
         << "BLOCKED unknown_scenario\n"
-        << "  supported: compatibility-profile-resolver, training-options-menu-geometry, training-move-list-geometry, training-command-hud-layout, training-pause-help-legend, training-command-list-tabs, training-command-icon-atlas, training-command-side-switch-highlight, training-command-facing-aware-display, training-command-physical-direction-guide, training-command-complete-blink, training-palette-slot-separation, training-show-select-hold, training-show-controller-shortcut, training-command-held-button-prompt, character-auto-fit-scale, lili-smoke, lili-changeanim2-fallback, lili-kuuch-state-fallback, lili-hien-houou-kyaku-demo, lili-training-demo-all, kfm-baseline, kfm-throw, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-guard-recovery, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-power-charge-helper, evilken-air-special-contact-landing, evilken-training-demo-hit, evilken-training-command-practice-advance, evilryu-specials-supers, evilryu-shin-shoryuken-stun, evilryu-super-stress, evilryu-air-special-contact-landing, evilryu-power-charge-helper, evilryu-throw-bind, evilryu-training-throw-demo, evilken-smoke, evilken-trip-grounding, evilken-overhead-trip-chain, evilken-overhead-trip-chain-stress, evilken-trip-jump-buffer, evilken-attack-jump-buffer-release, evilken-throw, evilken-corner-visual-bounds, evilken-kuuchuu-shakunetsu, evilken-training-demo-all, evilken-shinryuken-recovery, evilken-shun-goku-satsu, evilken-shouki-hatsudou-spacing, cpu-baseline, vs-p2-runtime, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-camera-rotation-toggle, arena-camera-rotation-projection, arena-camera-rotation-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-evilken-forward-dash-bounds, arena-per-fighter-runtime, arena-openbor-scroll-stage, arena-evilryu-air-special-contact-landing, evilryu-dash\n"
+        << "  supported: compatibility-profile-resolver, training-options-menu-geometry, training-move-list-geometry, training-command-hud-layout, training-pause-help-legend, training-command-list-tabs, training-command-icon-atlas, training-command-side-switch-highlight, training-command-facing-aware-display, training-command-physical-direction-guide, training-command-complete-blink, training-command-filtered-complete, training-palette-slot-separation, training-show-select-hold, training-show-controller-shortcut, training-command-held-button-prompt, character-auto-fit-scale, lili-smoke, lili-changeanim2-fallback, lili-kuuch-state-fallback, lili-hien-houou-kyaku-demo, lili-training-demo-all, kfm-baseline, kfm-throw, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-guard-recovery, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-power-charge-helper, evilken-air-special-contact-landing, evilken-training-demo-hit, evilken-training-command-practice-advance, evilryu-specials-supers, evilryu-shin-shoryuken-stun, evilryu-super-stress, evilryu-air-special-contact-landing, evilryu-power-charge-helper, evilryu-throw-bind, evilryu-training-throw-demo, evilken-smoke, evilken-trip-grounding, evilken-overhead-trip-chain, evilken-overhead-trip-chain-stress, evilken-trip-jump-buffer, evilken-attack-jump-buffer-release, evilken-throw, evilken-corner-visual-bounds, evilken-kuuchuu-shakunetsu, evilken-training-demo-all, evilken-shinryuken-recovery, evilken-shun-goku-satsu, evilken-shouki-hatsudou-spacing, cpu-baseline, vs-p2-runtime, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-camera-rotation-toggle, arena-camera-rotation-projection, arena-camera-rotation-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-evilken-forward-dash-bounds, arena-per-fighter-runtime, arena-openbor-scroll-stage, arena-evilryu-air-special-contact-landing, evilryu-dash\n"
         << "SUMMARY pass=0 partial=0 fail=0 blocked=1\n";
     return 2;
 }

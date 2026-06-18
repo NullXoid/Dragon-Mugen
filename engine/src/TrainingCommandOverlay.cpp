@@ -132,6 +132,42 @@ void drawScaledUiSprite(
     SDL_SetTextureAlphaMod(sprite.texture, oldAlpha);
 }
 
+void drawFadedHorizontalBand(
+    SDL_Renderer* renderer,
+    float scale,
+    float x,
+    float y,
+    float w,
+    float h,
+    Uint8 r,
+    Uint8 g,
+    Uint8 b,
+    Uint8 alpha,
+    float fadeW) {
+    if (w <= 0.0f || h <= 0.0f || alpha == 0) {
+        return;
+    }
+
+    const float edgeW = std::clamp(fadeW, 0.0f, w * 0.5f);
+    const float centerW = std::max(0.0f, w - edgeW * 2.0f);
+    if (centerW > 0.0f) {
+        setColor(renderer, r, g, b, alpha);
+        fillScaledRect(renderer, scale, x + edgeW, y, centerW, h);
+    }
+
+    const int steps = std::max(1, static_cast<int>(std::ceil(edgeW)));
+    const float stripW = edgeW / static_cast<float>(steps);
+    for (int i = 0; i < steps; ++i) {
+        const float t = static_cast<float>(i + 1) / static_cast<float>(steps);
+        const Uint8 leftAlpha = static_cast<Uint8>(std::clamp(static_cast<int>(std::round(static_cast<float>(alpha) * t)), 0, 255));
+        const Uint8 rightAlpha = static_cast<Uint8>(std::clamp(static_cast<int>(std::round(static_cast<float>(alpha) * (1.0f - (static_cast<float>(i) / static_cast<float>(steps))))), 0, 255));
+        setColor(renderer, r, g, b, leftAlpha);
+        fillScaledRect(renderer, scale, x + stripW * static_cast<float>(i), y, stripW + 0.25f, h);
+        setColor(renderer, r, g, b, rightAlpha);
+        fillScaledRect(renderer, scale, x + w - edgeW + stripW * static_cast<float>(i), y, stripW + 0.25f, h);
+    }
+}
+
 float completionProgress(const TrainingCommandHudView& view) {
     if (!view.completionVisible || view.completionTicks <= 0) {
         return 0.0f;
@@ -430,14 +466,6 @@ std::pair<int, int> practiceStepProgress(const TrainingCommandHudView& view) {
     return { matched, total };
 }
 
-std::string expectedStepText(const TrainingCommandHudView& view) {
-    const auto [matched, total] = practiceStepProgress(view);
-    if (total <= 0) {
-        return {};
-    }
-    return "STEP " + std::to_string(std::min(matched + 1, total)) + "/" + std::to_string(total);
-}
-
 bool rectIntersects(const TrainingHudRect& a, const TrainingHudRect& b) {
     if (a.w <= 0.0f || a.h <= 0.0f || b.w <= 0.0f || b.h <= 0.0f) {
         return false;
@@ -455,10 +483,7 @@ float dynamicInputHudWidth(const TrainingCommandHudView& view) {
     const float recentW = commandInputWidth(view.input.recentInputs, actualOptions);
     const float expectedW = commandInputWidth(view.input.expectedInput.empty() ? "-" : view.input.expectedInput, expectedOptions);
     const float labelW = debugTextWidth("INPUT HISTORY") + 18.0f;
-    const std::string stepText = expectedStepText(view);
-    const float expectedLabelW = debugTextWidth("EXPECTED")
-        + (stepText.empty() ? 0.0f : debugTextWidth(stepText) + 10.0f)
-        + 18.0f;
+    const float expectedLabelW = debugTextWidth("EXPECTED") + 18.0f;
     const float desired = std::max({
         124.0f,
         labelW,
@@ -607,23 +632,30 @@ void drawTrainingCommandOverlay(const UiRenderContext& ui, const TrainingCommand
         constexpr float objectiveIconScale = 1.25f;
         const TrainingHudRect& command = layout.objective;
         const float statusDividerX = layout.stepRight + 4.0f;
-        setColor(renderer, 3, 6, 12, view.paused ? 96 : 128);
-        fillScaledRect(renderer, scale, command.x, command.y, command.w, command.h);
-        setColor(renderer, 28, 42, 62, view.paused ? 64 : 86);
-        fillScaledRect(renderer, scale, command.x + 1.0f, command.y + 1.0f, command.w - 2.0f, command.h - 2.0f);
-        setColor(renderer, 66, 202, 246, view.paused ? 42 : 58);
-        fillScaledRect(renderer, scale, command.x + 10.0f, command.y, command.w - 20.0f, 1.0f);
-        setColor(renderer, 224, 190, 82, view.paused ? 112 : 178);
-        fillScaledRect(renderer, scale, command.x + 8.0f, command.y + 20.0f, command.w - 16.0f, 1.0f);
-        drawCornerAccents(renderer, scale, command, view.completeFlash ? 194 : 82);
+        const float bandY = command.y + command.h * 0.05f;
+        const float bandH = command.h * 0.90f;
+        const float fadeW = std::max(24.0f, command.w * 0.12f);
+        drawFadedHorizontalBand(renderer, scale, command.x, bandY, command.w, bandH, 3, 6, 12, view.paused ? 84 : 116, fadeW);
+        drawFadedHorizontalBand(renderer, scale, command.x + 1.0f, bandY + 1.0f, command.w - 2.0f, bandH - 2.0f, 28, 42, 62, view.paused ? 54 : 74, fadeW - 1.0f);
+        drawFadedHorizontalBand(renderer, scale, command.x + 10.0f, bandY, command.w - 20.0f, 1.0f, 66, 202, 246, view.paused ? 28 : 38, fadeW);
+        drawFadedHorizontalBand(renderer, scale, command.x + 8.0f, command.y + 20.0f, command.w - 16.0f, 1.0f, 224, 190, 82, view.paused ? 104 : 168, fadeW);
 
         if (view.completeFlash) {
-            setColor(renderer, flashOn ? 52 : 26, flashOn ? 162 : 108, flashOn ? 118 : 92, flashOn ? 164 : 104);
-            fillScaledRect(renderer, scale, command.x + 1.0f, command.y + 1.0f, command.w - 2.0f, 17.0f);
+            drawFadedHorizontalBand(
+                renderer,
+                scale,
+                command.x + 1.0f,
+                bandY + 1.0f,
+                command.w - 2.0f,
+                17.0f,
+                flashOn ? 52 : 26,
+                flashOn ? 162 : 108,
+                flashOn ? 118 : 92,
+                flashOn ? 164 : 104,
+                fadeW - 1.0f);
             setColor(renderer, 216, 255, 230);
         } else if (view.demoActive) {
-            setColor(renderer, 34, 78, 132, 104);
-            fillScaledRect(renderer, scale, command.x + 1.0f, command.y + 1.0f, command.w - 2.0f, 17.0f);
+            drawFadedHorizontalBand(renderer, scale, command.x + 1.0f, bandY + 1.0f, command.w - 2.0f, 17.0f, 34, 78, 132, 94, fadeW - 1.0f);
             setColor(renderer, 222, 236, 252);
         } else {
             setColor(renderer, 128, 216, 242);
@@ -738,11 +770,6 @@ void drawTrainingCommandOverlay(const UiRenderContext& ui, const TrainingCommand
             fillScaledRect(renderer, scale, inputX, inputY + 31.0f, inputW, 1.0f);
             setColor(renderer, 244, 212, 102, 235);
             scaledDebugText(renderer, scale, inputX, inputY + 38.0f, "EXPECTED");
-            const std::string stepText = expectedStepText(view);
-            if (!stepText.empty()) {
-                setColor(renderer, 190, 196, 206, 176);
-                scaledDebugText(renderer, scale, inputX + 72.0f, inputY + 38.0f, stepText);
-            }
             drawCommandInputChips(
                 renderer,
                 inputX,
