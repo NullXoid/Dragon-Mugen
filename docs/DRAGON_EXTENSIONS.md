@@ -499,9 +499,10 @@ Every new feature must update documentation at the same time as code.
 Required updates:
 
 1. `docs/DRAGON_EXTENSIONS.md` if the feature is not plain M.U.G.E.N.
-2. `docs/STRICT_ROADMAP.md` if the feature changes scope, milestones, folder rules, or compatibility strategy.
-3. The relevant folder README under `game/` if creators need to know where files belong.
-4. `docs/MEMORY_MODEL.md` if the feature changes loading, caching, ownership, or asset lifetime.
+2. `docs/ENGINE_COMPLETION_ROADMAP.md` if the feature changes scope, milestones, completion phases, or compatibility strategy.
+3. `docs/STRICT_ROADMAP.md` if the feature changes platform, renderer, folder rules, or content-loading assumptions.
+4. The relevant folder README under `game/` if creators need to know where files belong.
+5. `docs/MEMORY_MODEL.md` if the feature changes loading, caching, ownership, or asset lifetime.
 
 For each Dragon extension, document:
 

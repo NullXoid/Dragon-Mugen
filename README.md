@@ -43,9 +43,11 @@ The native build uses the Visual Studio developer environment. Plain PowerShell 
 
 ## Roadmap
 
-The implementation contract is [docs/STRICT_ROADMAP.md](docs/STRICT_ROADMAP.md). It locks the engine direction to C++20+, CMake, SDL3, bgfx, M.U.G.E.N-style runtime folders, and the first playable KFM training sandbox.
+The current completion plan is [docs/ENGINE_COMPLETION_ROADMAP.md](docs/ENGINE_COMPLETION_ROADMAP.md). It is the single roadmap for what remains before the engine can be called complete.
 
-Update the roadmap before making changes that alter platform, renderer, folder structure, milestone order, or content-loading assumptions.
+[docs/STRICT_ROADMAP.md](docs/STRICT_ROADMAP.md) is now the stable engine-direction contract. It locks the platform, renderer direction, M.U.G.E.N-style runtime folders, `select.def` authority, and content ownership rules.
+
+Update the completion roadmap before changing phase order or planned scope. Update the strict roadmap before changing platform, renderer, folder structure, or content-loading assumptions.
 
 Dragon-only features are tracked in [docs/DRAGON_EXTENSIONS.md](docs/DRAGON_EXTENSIONS.md). Anything the engine adds that M.U.G.E.N does not already define must be documented there with its file location, section/key format, defaults, and compatibility impact.
 
@@ -70,11 +72,6 @@ The compatibility audit is documented in [docs/COMPATIBILITY_AUDIT.md](docs/COMP
 
 Feature work is governed by [docs/FEATURE_COMPLETION_POLICY.md](docs/FEATURE_COMPLETION_POLICY.md). The active recovery plan is [docs/FEATURE_SPECS/0001_architecture_recovery.md](docs/FEATURE_SPECS/0001_architecture_recovery.md), and the module split target is [docs/MODULE_SPLIT_PLAN.md](docs/MODULE_SPLIT_PLAN.md). `App.cpp` growth is intentionally frozen until owned runtime modules are extracted.
 
-## Intended First Runtime Milestones
+## Historical First Runtime Target
 
-1. Parse DEF, AIR, CMD, CNS, ACT, SFF, and SND enough to inspect KFM.
-2. Decode SFF v1 sprites and ACT palettes.
-3. Render the stage and one KFM idle animation.
-4. Add fixed-step input, position, facing, velocity, and training dummy behavior.
-5. Implement the smallest useful CNS subset: Statedef, ChangeState, ChangeAnim, VelSet, PosSet, HitDef placeholders.
-6. Add a training mode loop with hitbox/hurtbox debug overlays.
+The original narrow MVP is preserved in [docs/MVP.md](docs/MVP.md). The active completion phases now live in [docs/ENGINE_COMPLETION_ROADMAP.md](docs/ENGINE_COMPLETION_ROADMAP.md).

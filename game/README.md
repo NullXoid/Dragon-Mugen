@@ -2,7 +2,7 @@
 
 This is the runtime content root. It intentionally follows the M.U.G.E.N folder model so creators know where things belong.
 
-The engine roadmap and folder-structure contract live in [../docs/STRICT_ROADMAP.md](../docs/STRICT_ROADMAP.md).
+The current engine completion roadmap lives in [../docs/ENGINE_COMPLETION_ROADMAP.md](../docs/ENGINE_COMPLETION_ROADMAP.md). The stable folder-structure contract lives in [../docs/STRICT_ROADMAP.md](../docs/STRICT_ROADMAP.md).
 
 Dragon-only extension rules live in [../docs/DRAGON_EXTENSIONS.md](../docs/DRAGON_EXTENSIONS.md). If a feature is not plain M.U.G.E.N, it must be documented there before the runtime depends on it.
 

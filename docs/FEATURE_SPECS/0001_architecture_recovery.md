@@ -8,6 +8,7 @@ Stop the current pattern where gameplay features are added in small app-layer sl
 
 ## Source References
 
+- `docs/ENGINE_COMPLETION_ROADMAP.md`
 - `docs/STRICT_ROADMAP.md`
 - `docs/MODULE_SPLIT_PLAN.md`
 - `docs/FEATURE_COMPLETION_POLICY.md`

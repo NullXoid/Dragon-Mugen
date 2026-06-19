@@ -1,5 +1,7 @@
 # Feature Ledger
 
+This is the preservation record, not the roadmap. Use [ENGINE_COMPLETION_ROADMAP.md](ENGINE_COMPLETION_ROADMAP.md) for the current completion plan and phase ordering.
+
 This ledger is the preservation record for Dragon MUGEN. When engine/app code changes, update this file or `docs/REGRESSION_CHECKLIST.md` in the same commit so prior work does not disappear silently.
 
 ## Preservation Rule
@@ -41,7 +43,7 @@ Latest pass: Fight Freeze Watch is available with `F3` during Fight View. Normal
 | --- | --- | --- | --- |
 | `[VERIFIED-STATIC]` | M.U.G.E.N folder layout | Runtime content lives under `game/chars`, `game/data`, `game/font`, `game/sound`, `game/stages`, `game/plugins`, and `game/save`. | A deliberate roadmap update changes the content model. |
 | `[VERIFIED-STATIC]` | Fight freeze diagnostics | Fight View supports Freeze Watch toggled by `F3`. Normal play shows only a small `F3 OK/WATCH/POSE/STALL` badge. Expanded details appear only after sustained runtime stalls or per-actor pose stalls, and SDL logs include the stalled actor/state details. It is intended for debugging stuck states such as air-special contact pauses without covering normal gameplay. | Replace only with a richer debugger or trace recorder. |
-| `[VERIFIED-STATIC]` | M.U.G.E.N customization preservation policy | M.U.G.E.N customization preservation policy is documented in `docs/REPOSITORY_POLICY.md`, `docs/DRAGON_EXTENSIONS.md`, and `docs/STRICT_ROADMAP.md`. This means the policy is repo-visible; it does not mean full runtime enforcement has been audited. Runtime support may still be partial. The policy preserves editability and source-of-truth ownership, not instant perfect compatibility with every M.U.G.E.N character. | Always, for M.U.G.E.N-style customization. |
+| `[VERIFIED-STATIC]` | M.U.G.E.N customization preservation policy | M.U.G.E.N customization preservation policy is documented in `docs/REPOSITORY_POLICY.md`, `docs/DRAGON_EXTENSIONS.md`, `docs/STRICT_ROADMAP.md`, and current completion planning now points through `docs/ENGINE_COMPLETION_ROADMAP.md`. This means the policy is repo-visible; it does not mean full runtime enforcement has been audited. Runtime support may still be partial. The policy preserves editability and source-of-truth ownership, not instant perfect compatibility with every M.U.G.E.N character. | Always, for M.U.G.E.N-style customization. |
 | `[VERIFIED-STATIC]` | Roster loading | Characters and stages are selected through `game/data/select.def`; character folders alone do not make a character selectable. | Always, for M.U.G.E.N compatibility. |
 | `[VERIFIED-STATIC]` | Character file resolution | Selected character DEF `[Files]` resolves CMD, CNS/ST, `stcommon`, AIR, SFF, SND, and ACT files. | Always, for compatibility-era loading. |
 | `[VERIFIED-STATIC]` | Character combat constants | Loaded character CNS `[Data]` values now feed runtime combat constants generically: `life`, `attack`, `defence`, `fall.defence_up`, `power`, and existing movement/size values resolve through the active fighter runtime. Fight reset, Training demo reset, dummy auto-life, HUD max-life bars, `LifeAdd`/`TargetLifeAdd` clamps, and hit/projectile damage scaling use the fighter's own active runtime constants rather than hardcoded Ken/Ryu/KFM branches. | Always, for M.U.G.E.N compatibility. |

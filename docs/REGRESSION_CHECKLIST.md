@@ -1,5 +1,7 @@
 # Regression Checklist
 
+This is the verification appendix, not the roadmap. Use [ENGINE_COMPLETION_ROADMAP.md](ENGINE_COMPLETION_ROADMAP.md) for the current completion plan and phase ordering.
+
 Use this checklist before committing engine/app code. It exists because previous work was lost while adding new features.
 
 ## Automated Checks

@@ -49,4 +49,5 @@ JSON is not the runtime character/stage sidecar format. Developer or test artifa
 - Commit source, docs, tools, and intentional runtime test content.
 - Do not commit build output, personal saves, downloaded archives, or generated binaries.
 - Update `docs/DRAGON_EXTENSIONS.md` when adding Dragon-only behavior that M.U.G.E.N does not define.
-- Update `docs/STRICT_ROADMAP.md` before changing platform, renderer, folder layout, or milestone order.
+- Update `docs/ENGINE_COMPLETION_ROADMAP.md` before changing planned scope, completion phases, or milestone order.
+- Update `docs/STRICT_ROADMAP.md` before changing platform, renderer, folder layout, or content-loading assumptions.
