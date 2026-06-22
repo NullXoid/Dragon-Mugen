@@ -162,6 +162,30 @@ float lifeBarFillWidth(const FighterHudView& fighter, float maxWidth) {
     return maxWidth * std::clamp(static_cast<float>(fighter.life) / static_cast<float>(maxLife), 0.0f, 1.0f);
 }
 
+void drawArenaPowerStrip(const UiRenderContext& ui, const FighterHudView& fighter, float x, float y, float width) {
+    const int maxPower = std::max(1, fighter.power.maxValue);
+    const float fillW = std::clamp(static_cast<float>(fighter.power.value) / static_cast<float>(maxPower), 0.0f, 1.0f)
+        * std::max(1.0f, width - 4.0f);
+
+    setColor(ui.renderer, 8, 10, 12, 220);
+    fillRect(ui.renderer, x, y, width, 5.0f);
+    setColor(ui.renderer, 50, 58, 74, 210);
+    drawRect(ui.renderer, x, y, width, 5.0f);
+    setColor(ui.renderer, 236, 198, 74);
+    fillRect(ui.renderer, x + 2.0f, y + 2.0f, fillW, 1.0f);
+
+    const int stocks = std::clamp(fighter.power.value / 1000, 0, 3);
+    for (int i = 0; i < 3; ++i) {
+        const float pipX = x + width - 22.0f + static_cast<float>(i * 7);
+        if (i < stocks) {
+            setColor(ui.renderer, 236, 198, 74);
+        } else {
+            setColor(ui.renderer, 56, 62, 76);
+        }
+        fillRect(ui.renderer, pipX, y + 2.0f, 4.0f, 1.0f);
+    }
+}
+
 void drawArenaHealthBars(const UiRenderContext& ui, const FightHudView& view) {
     const int count = std::clamp(view.arenaFighterCount, 1, static_cast<int>(view.arenaFighters.size()));
     const float widthF = static_cast<float>(ui.logicalWidth);
@@ -186,8 +210,9 @@ void drawArenaHealthBars(const UiRenderContext& ui, const FightHudView& view) {
         const auto& fill = fills[static_cast<size_t>(i % static_cast<int>(fills.size()))];
         setColor(ui.renderer, fill[0], fill[1], fill[2]);
         fillRect(ui.renderer, x + 2.0f, 12, fillW, 5);
+        drawArenaPowerStrip(ui, fighter, x, 20.0f, barW);
         setColor(ui.renderer, 222, 226, 232);
-        debugText(ui.renderer, x, 23, fighter.name);
+        debugText(ui.renderer, x, 27, fighter.name);
     }
 }
 
@@ -235,6 +260,18 @@ void drawFightHud(const UiRenderContext& ui, const FightHudView& view) {
     setColor(ui.renderer, 222, 226, 232);
     debugText(ui.renderer, 20, 24, view.p1.name);
     debugText(ui.renderer, widthF - 106.0f, 24, view.p2.name);
+    if (!view.p1.progressionLabel.empty()) {
+        setColor(ui.renderer, 120, 230, 170);
+        debugText(ui.renderer, 20, 36, view.p1.progressionLabel);
+    }
+    if (!view.p2.progressionLabel.empty()) {
+        setColor(ui.renderer, 120, 230, 170);
+        debugText(
+            ui.renderer,
+            widthF - 20.0f - static_cast<float>(view.p2.progressionLabel.size() * 8),
+            36,
+            view.p2.progressionLabel);
+    }
 
     if (view.showMatchTimer) {
         setColor(ui.renderer, 8, 10, 12);

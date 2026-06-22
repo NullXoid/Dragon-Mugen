@@ -49,6 +49,24 @@ if(NOT SDL3_image_FOUND AND DRAGON_FETCH_SDL3)
     FetchContent_MakeAvailable(SDL3_image)
 endif()
 
+find_package(SDL3_mixer CONFIG QUIET)
+
+if(NOT SDL3_mixer_FOUND AND DRAGON_FETCH_SDL3)
+    set(SDLMIXER_INSTALL OFF CACHE BOOL "" FORCE)
+    set(SDLMIXER_SAMPLES OFF CACHE BOOL "" FORCE)
+    set(SDLMIXER_TESTS OFF CACHE BOOL "" FORCE)
+    set(SDLMIXER_VENDORED ON CACHE BOOL "" FORCE)
+    set(SDLMIXER_OPUS OFF CACHE BOOL "" FORCE)
+    set(SDLMIXER_MIDI_NATIVE OFF CACHE BOOL "" FORCE)
+
+    FetchContent_Declare(SDL3_mixer
+        GIT_REPOSITORY https://github.com/libsdl-org/SDL_mixer.git
+        GIT_TAG release-3.2.4
+        GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(SDL3_mixer)
+endif()
+
 add_custom_target(dragon_architecture_guard
     COMMAND ${Python3_EXECUTABLE}
         ${CMAKE_CURRENT_SOURCE_DIR}/engine/tools/guard_architecture.py
@@ -69,9 +87,15 @@ add_custom_target(dragon_dev_check
 add_library(dragon_core
     engine/src/ArenaConfig.cpp
     engine/src/ArenaSetupOverlay.cpp
+    engine/src/ControlMapping.cpp
+    engine/src/ControlsOptionsMenu.cpp
     engine/src/Compatibility.cpp
+    engine/src/ControlsStore.cpp
+    engine/src/DragonProgression.cpp
+    engine/src/DragonProgressionProfile.cpp
     engine/src/MugenText.cpp
     engine/src/FightData.cpp
+    engine/src/FightDebugLog.cpp
     engine/src/FightHudOverlay.cpp
     engine/src/FightResultOverlay.cpp
     engine/src/CharacterSelectOverlay.cpp
@@ -83,6 +107,7 @@ add_library(dragon_core
     engine/src/OptionsMenuOverlay.cpp
     engine/src/PauseMenuOverlay.cpp
     engine/src/StageSelectOverlay.cpp
+    engine/src/StoryStageSelectOverlay.cpp
     engine/src/UiMenuList.cpp
     engine/src/UiRenderPrimitives.cpp
     engine/src/UiSpriteView.cpp
@@ -96,10 +121,18 @@ add_library(dragon_core
     engine/src/Input.cpp
     engine/src/VerificationScenario.cpp
     engine/src/VerificationScenarioArena.cpp
+    engine/src/VerificationScenarioArenaOpenBor.cpp
     engine/src/VerificationScenarioEvilKen.cpp
     engine/src/VerificationScenarioEvilRyu.cpp
+    engine/src/VerificationScenarioClassicCombat.cpp
+    engine/src/VerificationScenarioFightOutcomes.cpp
+    engine/src/VerificationScenarioDragonProgression.cpp
     engine/src/VerificationScenarioKfmHit.cpp
+    engine/src/VerificationScenarioLoading.cpp
     engine/src/VerificationScenarioMovement.cpp
+    engine/src/VerificationScenarioRosterCompatibility.cpp
+    engine/src/VerificationScenarioScottCompatibility.cpp
+    engine/src/VerificationScenarioStoryMode.cpp
     engine/src/VerificationScenarioSpecials.cpp
     engine/src/App.cpp
 )
@@ -113,6 +146,7 @@ target_link_libraries(dragon_core
     PUBLIC
         SDL3::SDL3
         SDL3_image::SDL3_image
+        SDL3_mixer::SDL3_mixer
 )
 
 add_dependencies(dragon_core dragon_architecture_guard)
@@ -132,6 +166,9 @@ if(WIN32)
             $<TARGET_FILE_DIR:dragon_mugen>
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             $<TARGET_FILE:SDL3_image::SDL3_image>
+            $<TARGET_FILE_DIR:dragon_mugen>
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_FILE:SDL3_mixer::SDL3_mixer>
             $<TARGET_FILE_DIR:dragon_mugen>
     )
 endif()

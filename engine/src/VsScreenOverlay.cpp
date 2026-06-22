@@ -31,6 +31,41 @@ void drawFixedOpponentSlot(
     debugTextCentered(renderer, x + width * 0.5f, y + height * 0.86f, label);
 }
 
+void drawLoadingProgressBar(
+    SDL_Renderer* renderer,
+    float x,
+    float y,
+    float width,
+    float height,
+    float progress,
+    VsScreenLoadStatus status) {
+    const float clamped = std::clamp(progress, 0.0f, 1.0f);
+    setColor(renderer, 8, 10, 15, 230);
+    fillRect(renderer, x, y, width, height);
+    setColor(renderer, 72, 80, 98, 230);
+    drawRect(renderer, x, y, width, height);
+
+    Uint8 r = 96;
+    Uint8 g = 168;
+    Uint8 b = 230;
+    if (status == VsScreenLoadStatus::Ready) {
+        r = 118;
+        g = 226;
+        b = 160;
+    } else if (status == VsScreenLoadStatus::Failed) {
+        r = 230;
+        g = 96;
+        b = 92;
+    }
+
+    if (clamped > 0.0f) {
+        setColor(renderer, r, g, b, 220);
+        fillRect(renderer, x + 2.0f, y + 2.0f, std::max(0.0f, (width - 4.0f) * clamped), height - 4.0f);
+        setColor(renderer, 245, 235, 150, 90);
+        fillRect(renderer, x + 2.0f, y + 2.0f, std::max(0.0f, (width - 4.0f) * clamped), 2.0f);
+    }
+}
+
 } // namespace
 
 void drawVersusScreenOverlay(const UiRenderContext& ui, const VsScreenView& view) {
@@ -93,21 +128,32 @@ void drawVersusScreenOverlay(const UiRenderContext& ui, const VsScreenView& view
     setColor(renderer, 230, 130, 120);
     debugTextCentered(renderer, centerX, 98, "VS");
 
+    const float progress = std::clamp(view.loadProgress, 0.0f, 1.0f);
+    const std::string phaseText = view.loadPhaseText.empty() ? "Preparing" : view.loadPhaseText;
+    const std::string progressText = view.loadProgressText.empty()
+        ? std::to_string(static_cast<int>(progress * 100.0f + 0.5f)) + "%"
+        : view.loadProgressText;
+
     setColor(renderer, 155, 164, 174);
     debugText(renderer, 20, 184, "Stage: " + view.stageName);
+    setColor(renderer, 190, 204, 218);
+    debugText(renderer, 20, 202, phaseText);
+    setColor(renderer, 224, 232, 238);
+    debugText(renderer, widthF - 54.0f, 202, progressText);
+    drawLoadingProgressBar(renderer, 20.0f, 216.0f, widthF - 40.0f, 10.0f, progress, view.loadStatus);
+
     switch (view.loadStatus) {
     case VsScreenLoadStatus::Failed:
         setColor(renderer, 230, 130, 120);
-        debugText(renderer, 20, 204, "Load failed. ESC stage select");
+        debugText(renderer, 20, 230, "Load failed. ESC stage select");
         break;
     case VsScreenLoadStatus::Ready:
-        debugText(renderer, 20, 204, "Ready. ENTER start now");
-        debugText(renderer, 20, 216, "Auto-start after a short pause");
+        debugText(renderer, 20, 230, "Ready. ENTER start now");
         break;
     case VsScreenLoadStatus::Loading:
     default:
-        debugText(renderer, 20, 204, "Loading fighter and stage...");
-        debugText(renderer, 20, 216, "Please wait");
+        setColor(renderer, 155, 164, 174);
+        debugText(renderer, 20, 230, "Please wait");
         break;
     }
 }

@@ -113,6 +113,8 @@ struct StageSlot {
     float rightbound = 1000.0f;
     float screenleft = 15.0f;
     float screenright = 15.0f;
+    std::filesystem::path bgMusicPath;
+    int bgMusicVolume = 0;
     bool openborScrolling = false;
     float openborScrollStartx = 0.0f;
     float openborScrollEndx = 0.0f;
@@ -121,6 +123,9 @@ struct StageSlot {
     std::filesystem::path dragonSidecarPath;
     bool dragonSidecarAvailable = false;
     bool legacyOpenBorSection = false;
+    bool externalContent = false;
+    std::filesystem::path externalRoot;
+    std::string externalPackageName;
 };
 
 inline bool hasMugenRuntimeRootFiles(const std::filesystem::path& gameRoot) {

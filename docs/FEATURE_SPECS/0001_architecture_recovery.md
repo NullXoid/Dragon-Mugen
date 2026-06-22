@@ -1,10 +1,12 @@
 # Architecture Recovery
 
-Status: In Progress
+Status: Planned
 
 ## Goal
 
 Stop the current pattern where gameplay features are added in small app-layer slices and then need repeated repair. Recover the project shape by freezing `App.cpp` growth, documenting feature completion rules, and extracting owned modules before new broad gameplay work.
+
+Architecture recovery remains required, but it is not the active feature while Phase 1 fight correctness is being closed.
 
 ## Source References
 
@@ -31,9 +33,11 @@ Out of scope:
 - New moves, AI, shop, equipment, tournament, storyboard, networking, or editor work.
 - Character-specific fixes that bypass CMD/CNS/AIR/SFF/SND data.
 
-## Minimum Batch
+## Feature Slice
 
-Architecture recovery must preserve playability and compatibility behavior already listed in `docs/FEATURE_LEDGER.md`. The smallest acceptable batch is one complete subsystem extraction or one complete preservation/verification improvement. Engine/app code commits must update `docs/FEATURE_LEDGER.md`, `docs/REGRESSION_CHECKLIST.md`, or this spec in the same commit.
+Architecture recovery must preserve playability and compatibility behavior already listed in `docs/FEATURE_LEDGER.md`. The active architecture slice is one complete subsystem extraction or one complete preservation/verification hardening pass with ownership, docs, and checks closed together.
+
+Incremental commits may land inside that extraction or hardening pass, but they must not become loose app-layer slices or line-count-only movement. Engine/app code commits must update `docs/FEATURE_LEDGER.md`, `docs/REGRESSION_CHECKLIST.md`, or this spec in the same commit.
 
 ## Ownership
 

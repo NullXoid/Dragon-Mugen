@@ -5,6 +5,8 @@
 // SDL audio handles, and runtime sound helpers. Include only from App.cpp after
 // those dependencies are defined.
 
+#include "StageMusicDecoder.h"
+
 std::vector<DecodedSoundSample> loadDecodedSoundSamples(const std::filesystem::path& path, const SDL_AudioSpec& playbackSpec) {
     if (!std::filesystem::exists(path)) {
         return {};
@@ -109,6 +111,11 @@ bool initAudio(AppState& state) {
         return false;
     }
     state.audio.subsystemInitialized = true;
+    if (MIX_Init()) {
+        state.audio.mixerInitialized = true;
+    } else {
+        SDL_Log("SDL_mixer init failed: %s", SDL_GetError());
+    }
 
     state.audio.stream = SDL_OpenAudioDeviceStream(
         SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
@@ -152,6 +159,12 @@ void destroyAudioAssets(AppState& state) {
     state.audio.systemSamples.clear();
     state.audio.commonSamples.clear();
     state.audio.fightSamples.clear();
+    state.audio.stageMusicSample.audio.clear();
+    state.audio.stageMusicPath.clear();
+    if (state.audio.mixerInitialized) {
+        MIX_Quit();
+        state.audio.mixerInitialized = false;
+    }
     if (state.audio.subsystemInitialized) {
         SDL_QuitSubSystem(SDL_INIT_AUDIO);
         state.audio.subsystemInitialized = false;
@@ -320,6 +333,47 @@ void playSound(
         state.frame,
         gain,
         loop,
+    });
+}
+
+float stageMusicGain(int bgVolume) {
+    return std::clamp(1.0f + static_cast<float>(bgVolume) / 100.0f, 0.0f, 2.0f);
+}
+
+void stopStageMusic(AppState& state) {
+    constexpr int kStageMusicChannel = 96;
+    stopSoundChannel(state.audio, kStageMusicChannel);
+}
+
+void startStageMusic(AppState& state, const StageSlot& stage) {
+    constexpr int kStageMusicGroup = -20;
+    constexpr int kStageMusicIndex = 0;
+    constexpr int kStageMusicChannel = 96;
+
+    stopStageMusic(state);
+    state.audio.stageMusicSample.audio.clear();
+    state.audio.stageMusicPath.clear();
+
+    if (!state.audio.stream || !state.audio.mixerInitialized || stage.bgMusicPath.empty()) {
+        return;
+    }
+
+    auto sample = loadDecodedStageMusicSample(stage.bgMusicPath, state.audio.playbackSpec, kStageMusicGroup, kStageMusicIndex);
+    if (!sample || sample->audio.empty()) {
+        return;
+    }
+
+    state.audio.stageMusicSample = std::move(*sample);
+    state.audio.stageMusicPath = stage.bgMusicPath;
+    state.audio.activeVoices.push_back(ActiveSoundVoice{
+        &state.audio.stageMusicSample,
+        kStageMusicGroup,
+        kStageMusicIndex,
+        kStageMusicChannel,
+        0,
+        state.frame,
+        stageMusicGain(stage.bgMusicVolume),
+        true,
     });
 }
 

@@ -185,31 +185,50 @@ std::vector<StageBackgroundElement> loadStageBackground(SDL_Renderer* renderer, 
         if (!(section.name == "BG" || startsWithNoCase(section.name, "BG "))) {
             continue;
         }
-        const auto* spriteNo = findProperty(section, "spriteno");
-        if (!spriteNo) {
-            continue;
-        }
-        const auto pair = parsePair(spriteNo->value);
-        if (!pair) {
-            continue;
-        }
-        const auto* sprite = findSprite(sff, static_cast<int>(pair->first), static_cast<int>(pair->second));
-        if (!sprite) {
-            continue;
-        }
 
         DecodeOptions options;
         options.transparentColorZero = true;
         if (const auto* mask = findProperty(section, "mask")) {
             options.transparentColorZero = trim(mask->value) != "0";
         }
-        const auto decoded = decodeSffSprite(sff, *sprite, options);
-        if (!decoded) {
-            continue;
-        }
 
         StageBackgroundElement element;
-        element.sprite = makeTextureSprite(renderer, *decoded);
+        const auto* type = findProperty(section, "type");
+        const bool animated = type && equalsNoCase(trim(type->value), "anim");
+        if (animated) {
+            const auto* actionNo = findProperty(section, "actionno");
+            if (!actionNo) {
+                continue;
+            }
+            try {
+                element.animation = loadSffClip(renderer, sff, doc, std::stoi(actionNo->value), options);
+                if (element.animation.frames.empty()) {
+                    continue;
+                }
+                element.animated = true;
+            } catch (...) {
+                continue;
+            }
+        } else {
+            const auto* spriteNo = findProperty(section, "spriteno");
+            if (!spriteNo) {
+                continue;
+            }
+            const auto pair = parsePair(spriteNo->value);
+            if (!pair) {
+                continue;
+            }
+            const auto* sprite = findSprite(sff, static_cast<int>(pair->first), static_cast<int>(pair->second));
+            if (!sprite) {
+                continue;
+            }
+            const auto decoded = decodeSffSprite(sff, *sprite, options);
+            if (!decoded) {
+                continue;
+            }
+            element.sprite = makeTextureSprite(renderer, *decoded);
+        }
+
         if (const auto* start = findProperty(section, "start")) {
             if (const auto startPair = parsePair(start->value)) {
                 element.x = startPair->first;
@@ -354,28 +373,42 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
     std::filesystem::path opponentPalettePath;
 
     try {
+        updateLoadingProgress(state.loadingProgress, 0.10f, "Resolving player files");
+        presentVersusLoadingProgress(renderer, state);
         const CharacterFiles files = characterFilesWithPalette(resolveCharacterFiles(state.gameRoot, *character), 1);
         characterPaletteNo = files.paletteNo;
         characterPalettePath = files.palette;
         compatibility = makeLoadedCompatibilityContext(state, *character);
         constants = loadCharacterConstants(files);
+        updateLoadingProgress(state.loadingProgress, 0.18f, "Loading player data");
+        presentVersusLoadingProgress(renderer, state);
         stateDefs = loadStateDefinitions(files, constants);
         hitDefs = loadHitDefinitions(files);
         commandDefinitions = loadCommandDefinitions(files);
         commandEntries = loadCommandStateEntries(files);
         victoryQuotes = loadVictoryQuotes(files);
+        updateLoadingProgress(state.loadingProgress, 0.28f, "Loading player media");
+        presentVersusLoadingProgress(renderer, state);
         if (state.audio.stream) {
             characterSamples = loadDecodedSoundSamples(files.sound, state.audio.playbackSpec);
         }
         clips = loadCharacterClips(renderer, files);
         largePortrait = loadCharacterSprite(renderer, files, 9000, 1);
+        updateLoadingProgress(state.loadingProgress, 0.38f, "Player ready");
+        presentVersusLoadingProgress(renderer, state);
         if (state.frontend.pendingMode == PendingMode::Training) {
+            updateLoadingProgress(state.loadingProgress, 0.46f, "Loading training dummy");
+            presentVersusLoadingProgress(renderer, state);
             const CharacterFiles dummyFiles = characterFilesWithPalette(resolveCharacterFiles(state.gameRoot, *character), 2);
             opponentPaletteNo = dummyFiles.paletteNo;
             opponentPalettePath = dummyFiles.palette;
             opponentClips = loadCharacterClips(renderer, dummyFiles);
+            updateLoadingProgress(state.loadingProgress, 0.62f, "Training dummy ready");
+            presentVersusLoadingProgress(renderer, state);
         } else if (state.frontend.pendingMode == PendingMode::SingleFight) {
             if (const CharacterSlot* opponent = characterSlotAt(state.selection, state.selection.sessionSlots.opponentCharacter)) {
+                updateLoadingProgress(state.loadingProgress, 0.44f, "Loading opponent data");
+                presentVersusLoadingProgress(renderer, state);
                 const CharacterFiles opponentFiles = characterFilesWithPalette(resolveCharacterFiles(state.gameRoot, *opponent), 2);
                 opponentPaletteNo = opponentFiles.paletteNo;
                 opponentPalettePath = opponentFiles.palette;
@@ -392,17 +425,40 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
                 if (state.audio.stream) {
                     opponentRuntime.samples = loadDecodedSoundSamples(opponentFiles.sound, state.audio.playbackSpec);
                 }
+                updateLoadingProgress(state.loadingProgress, 0.56f, "Loading opponent media");
+                presentVersusLoadingProgress(renderer, state);
                 opponentRuntime.clips = loadCharacterClips(renderer, opponentFiles);
+                updateLoadingProgress(state.loadingProgress, 0.66f, "Opponent ready");
+                presentVersusLoadingProgress(renderer, state);
             }
-        } else if (state.frontend.pendingMode == PendingMode::Arena) {
-            const int fighterCount = arenaFighterCount(state);
+        } else if (state.frontend.pendingMode == PendingMode::Arena || state.frontend.pendingMode == PendingMode::Story) {
+            if (state.frontend.pendingMode == PendingMode::Story) {
+                chooseStoryEnemyCharacters(state);
+            }
+            const int fighterCount = state.frontend.pendingMode == PendingMode::Story
+                ? storyFighterCount()
+                : arenaFighterCount(state);
             arenaClips.resize(static_cast<size_t>(fighterCount));
             arenaRuntimes.resize(static_cast<size_t>(fighterCount));
             for (int i = 0; i < fighterCount; ++i) {
-                const int characterIndex = arenaFighterCharacterIndex(state, static_cast<size_t>(i));
+                const float start = 0.40f + (0.22f * static_cast<float>(i) / static_cast<float>(std::max(1, fighterCount)));
+                updateLoadingProgress(
+                    state.loadingProgress,
+                    start,
+                    (state.frontend.pendingMode == PendingMode::Story ? "Loading story fighter " : "Loading arena fighter ")
+                        + std::to_string(i + 1)
+                        + "/"
+                        + std::to_string(fighterCount));
+                presentVersusLoadingProgress(renderer, state);
+                const int characterIndex = state.frontend.pendingMode == PendingMode::Story
+                    ? storyFighterCharacterIndex(state, static_cast<size_t>(i))
+                    : arenaFighterCharacterIndex(state, static_cast<size_t>(i));
                 const CharacterSlot* arenaCharacter = characterSlotAt(state.selection, characterIndex);
                 if (!arenaCharacter) {
-                    throw std::runtime_error("Arena fighter slot missing character");
+                    throw std::runtime_error(
+                        state.frontend.pendingMode == PendingMode::Story
+                            ? "Story fighter slot missing character"
+                            : "Arena fighter slot missing character");
                 }
 
                 const CharacterFiles arenaFiles = characterFilesWithPalette(resolveCharacterFiles(state.gameRoot, *arenaCharacter), i + 1);
@@ -421,6 +477,15 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
                     runtime.samples = loadDecodedSoundSamples(arenaFiles.sound, state.audio.playbackSpec);
                 }
                 runtime.clips = loadCharacterClips(renderer, arenaFiles);
+                const float done = 0.42f + (0.24f * static_cast<float>(i + 1) / static_cast<float>(std::max(1, fighterCount)));
+                updateLoadingProgress(
+                    state.loadingProgress,
+                    done,
+                    (state.frontend.pendingMode == PendingMode::Story ? "Story fighter ready " : "Arena fighter ready ")
+                        + std::to_string(i + 1)
+                        + "/"
+                        + std::to_string(fighterCount));
+                presentVersusLoadingProgress(renderer, state);
             }
         }
 
@@ -454,6 +519,8 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
         state.opponentPaletteNo = opponentPaletteNo;
         state.opponentPalettePath = opponentPalettePath;
         state.audio.activeVoices.clear();
+        state.audio.stageMusicSample.audio.clear();
+        state.audio.stageMusicPath.clear();
         if (state.audio.stream) {
             SDL_ClearAudioStream(state.audio.stream);
         }
@@ -483,11 +550,12 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
                 state.opponentRuntime.commandEntries.size(),
                 state.opponentRuntime.samples.size());
         }
-        if (state.frontend.pendingMode == PendingMode::Arena) {
+        if (state.frontend.pendingMode == PendingMode::Arena || state.frontend.pendingMode == PendingMode::Story) {
             for (size_t i = 0; i < state.arenaRuntimes.size(); ++i) {
                 const auto& runtime = state.arenaRuntimes[i];
                 SDL_Log(
-                    "Arena runtime loaded: %s pal=%d actions=%zu states=%zu hitdefs=%zu command-defs=%zu command-states=%zu sounds=%zu",
+                    "%s runtime loaded: %s pal=%d actions=%zu states=%zu hitdefs=%zu command-defs=%zu command-states=%zu sounds=%zu",
+                    state.frontend.pendingMode == PendingMode::Story ? "Story" : "Arena",
                     runtime.name.c_str(),
                     runtime.paletteNo,
                     runtime.clips.size(),
@@ -552,6 +620,7 @@ void unloadCharacterRuntime(AppState& state) {
     state.selection.loadedP1Character = -1;
     state.fightSessionPrepared = false;
     state.fightSessionLoadFailed = false;
+    resetLoadingProgress(state.loadingProgress);
 }
 
 void destroySystemScreenAssets(SystemScreenAssets& assets) {
@@ -572,6 +641,9 @@ void destroySystemScreenAssets(SystemScreenAssets& assets) {
 void destroyStageBackground(std::vector<StageBackgroundElement>& background) {
     for (auto& element : background) {
         destroyTextureSprite(element.sprite);
+        for (auto& frame : element.animation.frames) {
+            destroyTextureSprite(frame.sprite);
+        }
     }
     background.clear();
 }

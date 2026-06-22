@@ -21,7 +21,7 @@ That made the project feel broken and untrustworthy. The response afterward also
 - The failed `ScreenFlow` extraction was reverted before commit.
 - The repo returned to the clean committed state at `ec2f265`.
 - `engine/tools/guard_active_change.py` now blocks future engine/app code commits unless preservation documentation is updated with the same commit.
-- Feature specs now require a minimum batch definition.
+- Feature specs now require a full feature-slice definition.
 - `docs/FEATURE_LEDGER.md` and `docs/REGRESSION_CHECKLIST.md` now track behavior that must not disappear silently.
 - The policy now uses dependency order, difficulty, and completion value as planning language.
 

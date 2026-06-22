@@ -42,6 +42,7 @@ struct FightComboCounterView {
 
 struct FighterHudView {
     std::string name;
+    std::string progressionLabel;
     int life = 0;
     int maxLife = 1000;
     FightPowerGaugeView power;
@@ -92,6 +93,7 @@ struct FightMatchResultView {
     std::string winnerText;
     std::string scoreText;
     std::string methodText;
+    std::string progressionText;
     std::string quoteText;
     std::string stageText;
     std::array<FightResultMenuRowView, kMatchResultOptionCount> menuRows;

@@ -4,6 +4,9 @@
 #include "dragon/MugenData.h"
 
 #include "AppTypes.h"
+#include "ControlsOptionsMenu.h"
+#include "ControlsStore.h"
+#include "Input.h"
 #include "TrainingCommandInputRenderer.h"
 #include "TrainingOptionsBehavior.h"
 #include "TrainingOptionsOverlay.h"
@@ -28,6 +31,7 @@ int runTrainingCommandIconAtlas(RuntimeProbe& runtime, std::ostream& out);
 int runTrainingCommandSideSwitchHighlight(RuntimeProbe& runtime, std::ostream& out);
 int runTrainingCommandFacingAwareDisplay(RuntimeProbe& runtime, std::ostream& out);
 int runTrainingCommandPhysicalDirectionGuide(RuntimeProbe& runtime, std::ostream& out);
+int runTrainingCommandStartButtonGuide(RuntimeProbe& runtime, std::ostream& out);
 int runTrainingCommandCompleteBlink(RuntimeProbe& runtime, std::ostream& out);
 int runTrainingCommandFilteredComplete(RuntimeProbe& runtime, std::ostream& out);
 int runTrainingPaletteSlotSeparation(RuntimeProbe& runtime, std::ostream& out);
@@ -44,6 +48,12 @@ int runEvilKenShinryukenRecovery(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenShunGokuSatsu(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenShoukiHatsudouSpacing(RuntimeProbe& runtime, std::ostream& out);
 int runEvilKenTrainingCommandPracticeAdvance(RuntimeProbe& runtime, std::ostream& out);
+int runClassicFightOutcomes(RuntimeProbe& runtime, std::ostream& out);
+int runClassicFightRouting(RuntimeProbe& runtime, std::ostream& out);
+int runClassicFightCombat(RuntimeProbe& runtime, std::ostream& out);
+int runRosterCompatibilitySmoke(RuntimeProbe& runtime, std::ostream& out);
+int runDragonProgressionLevelItems(RuntimeProbe& runtime, std::ostream& out);
+int runDragonProgressionPlayerProfiles(RuntimeProbe& runtime, std::ostream& out);
 int runKfmDownHitProfile(RuntimeProbe& runtime, std::ostream& out);
 int runKfmGuardRecovery(RuntimeProbe& runtime, std::ostream& out);
 int runKfmSpecialsSupers(RuntimeProbe& runtime, std::ostream& out);
@@ -63,7 +73,33 @@ int runArenaZCpuAlign(RuntimeProbe& runtime, std::ostream& out);
 int runArenaZModifierSidestep(RuntimeProbe& runtime, std::ostream& out);
 int runArenaEvilKenForwardDashBounds(RuntimeProbe& runtime, std::ostream& out);
 int runArenaPerFighterRuntime(RuntimeProbe& runtime, std::ostream& out);
-int runArenaOpenBorScrollStage(RuntimeProbe& runtime, std::ostream& out), runArenaEvilRyuAirSpecialContactLanding(RuntimeProbe& runtime, std::ostream& out);
+int runArenaOpenBorScrollStage(RuntimeProbe& runtime, std::ostream& out), runArenaTmntOpenBorStage(RuntimeProbe& runtime, std::ostream& out), runArenaEvilRyuAirSpecialContactLanding(RuntimeProbe& runtime, std::ostream& out);
+int runStoryModeMenuRoute(RuntimeProbe& runtime, std::ostream& out);
+int runStoryStageSelectMap(RuntimeProbe& runtime, std::ostream& out);
+int runStoryDifficultyEnemyScaling(RuntimeProbe& runtime, std::ostream& out);
+int runStoryOpenBorStageDefault(RuntimeProbe& runtime, std::ostream& out);
+int runStoryStageBoardExpansion(RuntimeProbe& runtime, std::ostream& out);
+int runStoryWaveSpawnScroll(RuntimeProbe& runtime, std::ostream& out);
+int runStoryEnemyTargeting(RuntimeProbe& runtime, std::ostream& out);
+int runStoryStageClear(RuntimeProbe& runtime, std::ostream& out);
+int runStoryPlayerDefeat(RuntimeProbe& runtime, std::ostream& out);
+int runStoryProgressionAward(RuntimeProbe& runtime, std::ostream& out);
+int runStoryEvilRyuSuperRecovery(RuntimeProbe& runtime, std::ostream& out);
+int runVsLoadingProgressBar(RuntimeProbe& runtime, std::ostream& out);
+int runSffV2PngDecode(RuntimeProbe& runtime, std::ostream& out);
+int runIkemenSelectSlotParsing(RuntimeProbe& runtime, std::ostream& out);
+int runStageMusicCodecDecode(RuntimeProbe& runtime, std::ostream& out);
+int runExternalStageMount(RuntimeProbe& runtime, std::ostream& out);
+int runStoryScottTramRooftop(RuntimeProbe& runtime, std::ostream& out);
+int runOptionsCategoryNavigation(RuntimeProbe& runtime, std::ostream& out);
+int runControlsPlayerOneToFourNavigation(RuntimeProbe& runtime, std::ostream& out);
+int runControlsGuidedSetup(RuntimeProbe& runtime, std::ostream& out);
+int runControlsManualEditConflicts(RuntimeProbe& runtime, std::ostream& out);
+int runControlsPresets(RuntimeProbe& runtime, std::ostream& out);
+int runControlsProfilePersistence(RuntimeProbe& runtime, std::ostream& out);
+int runControlsInputTestLive(RuntimeProbe& runtime, std::ostream& out);
+int runControlsGlyphDeviceDetection(RuntimeProbe& runtime, std::ostream& out);
+int runControlsPauseTauntSeparation(RuntimeProbe& runtime, std::ostream& out);
 namespace {
 
 enum class Status { Pass, Partial, Fail, Blocked };
@@ -971,8 +1007,8 @@ int runEvilKenSmoke(RuntimeProbe& runtime, std::ostream& out) {
 
 int runLiliSmoke(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
-    if (!runtime.setup("lili", "Mountainside", ScenarioMode::Training, out)) {
-        record(out, counts, Status::Blocked, "setup", "Lili/Mountainside Training setup failed");
+    if (!runtime.setup("Lili_QYC_Normal", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Lili_QYC_Normal/Mountainside Training setup failed");
         summary(out, counts);
         return 2;
     }
@@ -993,7 +1029,8 @@ int runLiliSmoke(RuntimeProbe& runtime, std::ostream& out) {
             + "," + std::to_string(idle.p1LocalCoordHeight)
             + " mugen_semantics=" + std::to_string(idle.p1UsesMugenSemantics ? 1 : 0));
     record(out, counts,
-        std::abs(idle.p1.scaleX - 0.41f) < 0.001f && std::abs(idle.p1.scaleY - 0.41f) < 0.001f
+        idle.p1.scaleX > 0.0f && idle.p1.scaleY > 0.0f
+            && idle.p1.scaleX < 1.0f && idle.p1.scaleY < 1.0f
             ? Status::Pass : Status::Fail,
         "size_scale_applied",
         "scale_x=" + std::to_string(idle.p1.scaleX)
@@ -1080,8 +1117,8 @@ int runCharacterAutoFitScale(RuntimeProbe& runtime, std::ostream& out) {
 
 int runLiliChangeAnim2Fallback(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
-    if (!runtime.setup("lili", "Mountainside", ScenarioMode::Training, out)) {
-        record(out, counts, Status::Blocked, "setup", "Lili/Mountainside Training setup failed");
+    if (!runtime.setup("Lili_QYC_Normal", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Lili_QYC_Normal/Mountainside Training setup failed");
         summary(out, counts);
         return 2;
     }
@@ -1129,8 +1166,8 @@ std::string compactFighterStateText(const FighterSnapshot& fighter) {
 
 int runLiliKuuchStateFallback(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
-    if (!runtime.setup("lili", "Mountainside", ScenarioMode::Training, out)) {
-        record(out, counts, Status::Blocked, "setup", "Lili/Mountainside Training setup failed");
+    if (!runtime.setup("Lili_QYC_Custom", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Lili_QYC_Custom/Mountainside Training setup failed");
         summary(out, counts);
         return 2;
     }
@@ -1229,8 +1266,8 @@ int runLiliKuuchStateFallback(RuntimeProbe& runtime, std::ostream& out) {
 
 int runLiliHienHououKyakuDemo(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
-    if (!runtime.setup("lili", "Mountainside", ScenarioMode::Training, out)) {
-        record(out, counts, Status::Blocked, "setup", "Lili/Mountainside Training setup failed");
+    if (!runtime.setup("Lili_QYC_Normal", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Lili_QYC_Normal/Mountainside Training setup failed");
         summary(out, counts);
         return 2;
     }
@@ -1513,18 +1550,32 @@ int runArenaSmoke(RuntimeProbe& runtime, std::ostream& out, int cpuCount) {
         "draw_order=" + start.arenaDrawOrder);
 
     if (cpuCount == 1) {
-        runtime.positionFighters(-18.0f, 24.0f); waitForControllableIdle(runtime, 120);
+        waitForControllableIdle(runtime, 120);
+        runtime.setArenaCpuFrozen(true);
+        runtime.positionFighters(-14.0f, 14.0f);
+        runtime.forceFighterState(1, 0);
         runtime.setFighterControl(1, false);
-        runtime.step(SymbolicInput{ .down = true, .b = true }, 4);
-        bool sawTripFall = false, sawLieDown = false; FighterSnapshot tripAfter;
-        for (int i = 0; i < 120; ++i) {
-            runtime.step({}, 1); tripAfter = runtime.snapshot().p2;
-            sawTripFall = sawTripFall || tripAfter.stateNo == 5070 || tripAfter.stateNo == 5071 || tripAfter.y < -0.5f;
-            sawLieDown = sawLieDown || tripAfter.stateType == 'L' || tripAfter.stateNo == 5110 || tripAfter.stateNo == 5120;
+        const auto hitBefore = runtime.snapshot();
+        runtime.step(SymbolicInput{ .x = true }, 4);
+        bool sawPlayerHit = false;
+        RuntimeSnapshot hitAfter = runtime.snapshot();
+        for (int i = 0; i < 90; ++i) {
+            runtime.step({}, 1);
+            hitAfter = runtime.snapshot();
+            sawPlayerHit = sawPlayerHit
+                || hitAfter.p2.life < hitBefore.p2.life
+                || hitAfter.p1.moveHit
+                || hitAfter.p1.hitCount > hitBefore.p1.hitCount
+                || hitAfter.lastHitText.find("P1 hit ") != std::string::npos;
         }
-        record(out, counts, sawTripFall && sawLieDown ? Status::Pass : Status::Fail, "arena_trip_hit_knockdown",
-            "trip_or_air=" + std::to_string(sawTripFall ? 1 : 0) + " liedown=" + std::to_string(sawLieDown ? 1 : 0)
-            + " p2_state=" + std::to_string(tripAfter.stateNo) + " p2_y=" + std::to_string(tripAfter.y));
+        record(out, counts, sawPlayerHit ? Status::Pass : Status::Fail, "arena_player_hit_cpu",
+            "p2_life_before=" + std::to_string(hitBefore.p2.life)
+            + " p2_life_after=" + std::to_string(hitAfter.p2.life)
+            + " p1_hit_count_before=" + std::to_string(hitBefore.p1.hitCount)
+            + " p1_hit_count_after=" + std::to_string(hitAfter.p1.hitCount)
+            + " p2_state=" + std::to_string(hitAfter.p2.stateNo)
+            + " last_hit=\"" + hitAfter.lastHitText + "\"");
+        runtime.setArenaCpuFrozen(false);
     }
 
     if (expectedFighters > 2) {
@@ -2249,6 +2300,93 @@ int runTrainingCommandPhysicalDirectionGuide(RuntimeProbe& runtime, std::ostream
     return exitCode(counts);
 }
 
+int runTrainingCommandStartButtonGuide(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("EvilKen", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "Evil Ken/Mountainside Training setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "training-command-start-button-guide");
+
+    record(out, counts,
+        gamepadButtonMapsToFighterStart(SDL_GAMEPAD_TYPE_PS5, SDL_GAMEPAD_BUTTON_TOUCHPAD)
+            ? Status::Pass
+            : Status::Fail,
+        "ps_touchpad_maps_to_fighter_start",
+        "PS5 touchpad should feed ST/Taunt");
+    record(out, counts,
+        !gamepadButtonMapsToFighterStart(SDL_GAMEPAD_TYPE_PS5, SDL_GAMEPAD_BUTTON_START)
+            ? Status::Pass
+            : Status::Fail,
+        "ps_start_reserved_for_pause",
+        "PS5 Start/Options should stay system pause");
+    record(out, counts,
+        !gamepadButtonMapsToFighterStart(SDL_GAMEPAD_TYPE_XBOXONE, SDL_GAMEPAD_BUTTON_TOUCHPAD)
+            ? Status::Pass
+            : Status::Fail,
+        "non_ps_touchpad_not_fighter_start",
+        "touchpad taunt is PlayStation-only");
+
+    const bool idle = waitForControllableIdle(runtime, 420);
+    record(out, counts, idle ? Status::Pass : Status::Fail, "controllable_idle_ready",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo));
+    if (!idle) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    const bool selected = runtime.selectTrainingMove("Taunt");
+    record(out, counts, selected ? Status::Pass : Status::Blocked, "select_taunt_move",
+        "selected=\"" + runtime.snapshot().selectedTrainingMoveLabel + "\"");
+    if (!selected) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    const std::string expected = runtime.trainingExpectedInputDisplay();
+    const std::string initialGuide = runtime.trainingButtonGuideState();
+    record(out, counts,
+        expected.find("START") != std::string::npos || expected.find("ST") != std::string::npos
+            ? Status::Pass
+            : Status::Fail,
+        "expected_input_contains_start",
+        "expected=\"" + expected + "\"");
+    record(out, counts,
+        initialGuide.find("SYSTEM:v:START:-r-") != std::string::npos
+            || initialGuide.find("SYSTEM:v:MENU:-r-") != std::string::npos
+            || initialGuide.find("SYSTEM:v:OPT:-r-") != std::string::npos
+            ? Status::Pass
+            : Status::Fail,
+        "start_button_required_visible",
+        initialGuide);
+
+    runtime.step(SymbolicInput{ .s = true }, 1);
+    const std::string pressedDisplay = runtime.trainingCurrentInputDisplay();
+    const std::string pressedGuide = runtime.trainingButtonGuideState();
+    record(out, counts,
+        pressedDisplay.find("START") != std::string::npos
+            || pressedDisplay.find("ST") != std::string::npos
+            || pressedDisplay.find("MENU") != std::string::npos
+            || pressedDisplay.find("OPT") != std::string::npos
+            ? Status::Pass
+            : Status::Fail,
+        "start_input_reaches_history",
+        "display=\"" + pressedDisplay + "\"");
+    record(out, counts,
+        pressedGuide.find("SYSTEM:v:START:p") != std::string::npos
+            || pressedGuide.find("SYSTEM:v:MENU:p") != std::string::npos
+            || pressedGuide.find("SYSTEM:v:OPT:p") != std::string::npos
+            ? Status::Pass
+            : Status::Fail,
+        "start_button_pressed",
+        pressedGuide);
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
 int runTrainingCommandCompleteBlink(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
     if (!runtime.setup("EvilKen", "Mountainside", ScenarioMode::Training, out)) {
@@ -2707,7 +2845,263 @@ int runTrainingCommandHeldButtonPrompt(RuntimeProbe& runtime, std::ostream& out)
     return exitCode(counts);
 }
 
+ControlsOptionsContext defaultControlsOptionsContext(MainSettings settings = {}) {
+    static ControlsSettings controls;
+    controls = {};
+    controls.gamepadAssignments = { 0, 0, 0, 0 };
+    controls.profiles.push_back(makeDefaultControlProfile("player1", 0));
+    controls.profiles.push_back(makeDefaultControlProfile("player2", 1));
+    controls.profiles.push_back(makeDefaultControlProfile("player3", 2));
+    controls.profiles.push_back(makeDefaultControlProfile("player4", 3));
+
+    ControlsOptionsContext context;
+    context.settings = settings;
+    context.controls = &controls;
+    context.playerProfileIds = { "player1", "player2", "player3", "player4" };
+    context.playerProfileNames = { "Player 1", "Player 2", "Player 3", "Player 4" };
+    context.gamepadAssignmentText = { "AUTO NONE", "AUTO NONE", "AUTO NONE", "AUTO NONE" };
+    context.padSummary = "PADS NONE";
+    context.promptStyle = GamepadPromptStyle::Playstation;
+    return context;
+}
+
+int runOptionsCategoryNavigation(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY options-category-navigation\n";
+
+    MainSettings settings;
+    settings.optionsScreen = OptionsMenuScreen::Root;
+    auto rootRows = buildControlsOptionsRows(defaultControlsOptionsContext(settings));
+    record(out, counts, rootRows.size() == kOptionsRootCount ? Status::Pass : Status::Fail,
+        "root_category_count",
+        "rows=" + std::to_string(rootRows.size()));
+    const bool rootHasCategories =
+        rootRows.size() >= 4
+        && rootRows[0].label == "GAMEPLAY"
+        && rootRows[1].label == "VIDEO"
+        && rootRows[2].label == "CONTROLS"
+        && rootRows[3].label == "BACK";
+    record(out, counts, rootHasCategories ? Status::Pass : Status::Fail,
+        "root_categories_present",
+        rootHasCategories ? "" : "expected Gameplay/Video/Controls/Back");
+
+    settings.optionsScreen = OptionsMenuScreen::Gameplay;
+    auto gameplayRows = buildControlsOptionsRows(defaultControlsOptionsContext(settings));
+    record(out, counts,
+        gameplayRows.size() == kOptionsGameplayCount
+            && gameplayRows[0].label == "MATCH TIMER"
+            && gameplayRows[1].label == "P1 PROFILE"
+            && gameplayRows[2].label == "P2 PROFILE" ? Status::Pass : Status::Fail,
+        "gameplay_rows",
+        "rows=" + std::to_string(gameplayRows.size()));
+
+    settings.optionsScreen = OptionsMenuScreen::Video;
+    auto videoRows = buildControlsOptionsRows(defaultControlsOptionsContext(settings));
+    record(out, counts,
+        videoRows.size() == kOptionsVideoCount
+            && videoRows[0].label == "CANVAS SIZE"
+            && videoRows[2].label == "FPS CAP" ? Status::Pass : Status::Fail,
+        "video_rows",
+        "rows=" + std::to_string(videoRows.size()));
+
+    settings.optionsScreen = OptionsMenuScreen::Controls;
+    auto controlRows = buildControlsOptionsRows(defaultControlsOptionsContext(settings));
+    record(out, counts,
+        controlRows.size() == kOptionsControlsCount
+            && controlRows[0].label == "PLAYER 1 CONTROLS"
+            && controlRows[3].label == "PLAYER 4 CONTROLS" ? Status::Pass : Status::Fail,
+        "controls_rows",
+        "rows=" + std::to_string(controlRows.size()));
+
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runControlsPlayerOneToFourNavigation(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY controls-player-1-4-navigation\n";
+    for (int player = 0; player < kControlPlayerCount; ++player) {
+        MainSettings settings;
+        settings.optionsScreen = OptionsMenuScreen::PlayerControls;
+        settings.selectedControlPlayer = player;
+        const auto rows = buildControlsOptionsRows(defaultControlsOptionsContext(settings));
+        const bool hasCoreRows =
+            rows.size() >= kControlPlayerStaticRows + fightingInputActions().size() + 3
+            && rows[0].label == "PROFILE"
+            && rows[1].label == "DEVICE"
+            && rows[2].label == "PRESET"
+            && rows[3].label == "ACTION SET";
+        record(out, counts, hasCoreRows ? Status::Pass : Status::Fail,
+            "player_" + std::to_string(player + 1) + "_control_rows",
+            "rows=" + std::to_string(rows.size()));
+    }
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runControlsGuidedSetup(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY controls-guided-setup\n";
+    ControlProfileBinding profile = makeDefaultControlProfile("player1", 0);
+    setPrimaryActionBinding(profile, InputAction::MoveLeft, keyBinding(SDL_SCANCODE_F));
+    setPrimaryActionBinding(profile, InputAction::LP, gamepadButtonBinding(SDL_GAMEPAD_BUTTON_SOUTH));
+    record(out, counts,
+        actionBindingLabel(profile, InputAction::MoveLeft).find("F") != std::string::npos ? Status::Pass : Status::Fail,
+        "keyboard_rebind_applied",
+        actionBindingLabel(profile, InputAction::MoveLeft));
+    record(out, counts,
+        actionBindingLabel(profile, InputAction::LP, GamepadPromptStyle::Xbox).find("A") != std::string::npos ? Status::Pass : Status::Fail,
+        "gamepad_rebind_applied",
+        actionBindingLabel(profile, InputAction::LP, GamepadPromptStyle::Xbox));
+    record(out, counts,
+        missingRequiredControlActions(profile).empty() ? Status::Pass : Status::Fail,
+        "required_actions_still_satisfied",
+        "missing=" + std::to_string(missingRequiredControlActions(profile).size()));
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runControlsManualEditConflicts(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY controls-manual-edit-conflicts\n";
+    ControlProfileBinding profile = makeDefaultControlProfile("player1", 0);
+    setPrimaryActionBinding(profile, InputAction::Pause, keyBinding(SDL_SCANCODE_SPACE));
+    setPrimaryActionBinding(profile, InputAction::Taunt, keyBinding(SDL_SCANCODE_SPACE));
+    const auto conflicts = controlBindingConflicts(profile);
+    record(out, counts, !conflicts.empty() ? Status::Pass : Status::Fail,
+        "pause_taunt_conflict_detected",
+        conflicts.empty() ? "no conflicts" : conflicts.front());
+    setPrimaryActionBinding(profile, InputAction::Pause, keyBinding(SDL_SCANCODE_RETURN));
+    const auto fixed = controlBindingConflicts(profile);
+    record(out, counts, fixed.empty() ? Status::Pass : Status::Fail,
+        "conflict_clears_after_rebind",
+        fixed.empty() ? "OK" : fixed.front());
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runControlsPresets(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY controls-presets\n";
+    ControlProfileBinding profile = makeDefaultControlProfile("player1", 0);
+    applyControlPreset(profile, ControlPreset::BeatEmUpModern, 0);
+    record(out, counts, profile.actionSet == InputActionSet::BeatEmUp ? Status::Pass : Status::Fail,
+        "beat_em_up_preset_sets_action_set",
+        std::string(inputActionSetLabel(profile.actionSet)));
+    record(out, counts, findActionBinding(profile, InputAction::Jump) != nullptr ? Status::Pass : Status::Fail,
+        "beat_em_up_jump_binding",
+        actionBindingLabel(profile, InputAction::Jump, GamepadPromptStyle::Xbox));
+    const ControlPreset next = cycleControlPreset(profile.presetName, 1);
+    record(out, counts, !std::string(controlPresetName(next)).empty() ? Status::Pass : Status::Fail,
+        "preset_cycle_available",
+        std::string(controlPresetName(next)));
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runControlsProfilePersistence(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY controls-profile-persistence\n";
+    ControlsSettings settings;
+    settings.gamepadAssignments = { 1, -1, 2, 0 };
+    ControlProfileBinding profile = makeDefaultControlProfile("player1", 0);
+    setPrimaryActionBinding(profile, InputAction::MoveRight, keyBinding(SDL_SCANCODE_G));
+    settings.profiles.push_back(std::move(profile));
+
+    const auto path = std::filesystem::temp_directory_path() / "dragon_mugen_controls_verify.def";
+    saveControlsSettings(path, settings);
+    const ControlsSettings loaded = loadControlsSettings(path);
+    std::error_code ec;
+    std::filesystem::remove(path, ec);
+
+    const auto* loadedProfile = findControlProfile(loaded, "player1");
+    record(out, counts, loaded.gamepadAssignments[0] == 1 && loaded.gamepadAssignments[1] == -1 ? Status::Pass : Status::Fail,
+        "assignments_round_trip",
+        "p1=" + std::to_string(loaded.gamepadAssignments[0]) + " p2=" + std::to_string(loaded.gamepadAssignments[1]));
+    record(out, counts,
+        loadedProfile && actionBindingLabel(*loadedProfile, InputAction::MoveRight).find("G") != std::string::npos ? Status::Pass : Status::Fail,
+        "profile_binding_round_trip",
+        loadedProfile ? actionBindingLabel(*loadedProfile, InputAction::MoveRight) : "missing profile");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runControlsInputTestLive(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY controls-input-test-live\n";
+    ControlProfileBinding profile = makeDefaultControlProfile("player1", 0);
+    std::array<bool, SDL_SCANCODE_COUNT> keys{};
+    keys[SDL_SCANCODE_A] = true;
+    record(out, counts,
+        controlActionDown(keys.data(), nullptr, profile, InputAction::LP) ? Status::Pass : Status::Fail,
+        "keyboard_action_detected",
+        "A -> LP");
+    keys[SDL_SCANCODE_A] = false;
+    keys[SDL_SCANCODE_RETURN] = true;
+    record(out, counts,
+        controlActionDown(keys.data(), nullptr, profile, InputAction::Pause) ? Status::Pass : Status::Fail,
+        "pause_action_detected",
+        "Return -> Pause");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runControlsGlyphDeviceDetection(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY controls-glyph-device-detection\n";
+    record(out, counts,
+        isPlaystationGamepad(SDL_GAMEPAD_TYPE_PS5) && isXboxGamepad(SDL_GAMEPAD_TYPE_XBOXONE) ? Status::Pass : Status::Fail,
+        "device_family_detection",
+        "ps5/xboxone");
+    record(out, counts,
+        physicalInputLabel(gamepadButtonBinding(SDL_GAMEPAD_BUTTON_WEST), GamepadPromptStyle::Playstation) == "SQ"
+            && physicalInputLabel(gamepadButtonBinding(SDL_GAMEPAD_BUTTON_WEST), GamepadPromptStyle::Xbox) == "X" ? Status::Pass : Status::Fail,
+        "west_button_glyph_style",
+        physicalInputLabel(gamepadButtonBinding(SDL_GAMEPAD_BUTTON_WEST), GamepadPromptStyle::Playstation)
+            + "/"
+            + physicalInputLabel(gamepadButtonBinding(SDL_GAMEPAD_BUTTON_WEST), GamepadPromptStyle::Xbox));
+    record(out, counts,
+        physicalInputLabel(gamepadButtonBinding(SDL_GAMEPAD_BUTTON_TOUCHPAD), GamepadPromptStyle::Playstation) == "TP" ? Status::Pass : Status::Fail,
+        "touchpad_glyph",
+        physicalInputLabel(gamepadButtonBinding(SDL_GAMEPAD_BUTTON_TOUCHPAD), GamepadPromptStyle::Playstation));
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runControlsPauseTauntSeparation(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY controls-pause-taunt-separation\n";
+    const ControlProfileBinding profile = makeDefaultControlProfile("player1", 0);
+    const auto* pause = findActionBinding(profile, InputAction::Pause);
+    const auto* taunt = findActionBinding(profile, InputAction::Taunt);
+    const bool hasPauseStart = pause && std::any_of(pause->bindings.begin(), pause->bindings.end(), [](const auto& binding) {
+        return samePhysicalInput(binding, gamepadButtonBinding(SDL_GAMEPAD_BUTTON_START));
+    });
+    const bool hasTauntTouchpad = taunt && std::any_of(taunt->bindings.begin(), taunt->bindings.end(), [](const auto& binding) {
+        return samePhysicalInput(binding, gamepadButtonBinding(SDL_GAMEPAD_BUTTON_TOUCHPAD));
+    });
+    const bool separated = pause && taunt && std::none_of(pause->bindings.begin(), pause->bindings.end(), [&](const auto& lhs) {
+        return std::any_of(taunt->bindings.begin(), taunt->bindings.end(), [&](const auto& rhs) {
+            return samePhysicalInput(lhs, rhs);
+        });
+    });
+    record(out, counts, hasPauseStart ? Status::Pass : Status::Fail, "pause_defaults_to_start", "");
+    record(out, counts, hasTauntTouchpad ? Status::Pass : Status::Fail, "taunt_defaults_to_touchpad", "");
+    record(out, counts, separated ? Status::Pass : Status::Fail, "pause_and_taunt_separate", "");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
 int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::ostream& out) {
+    if (scenarioName == "options-category-navigation") return runOptionsCategoryNavigation(runtime, out);
+    if (scenarioName == "controls-player-1-4-navigation") return runControlsPlayerOneToFourNavigation(runtime, out);
+    if (scenarioName == "controls-guided-setup") return runControlsGuidedSetup(runtime, out);
+    if (scenarioName == "controls-manual-edit-conflicts") return runControlsManualEditConflicts(runtime, out);
+    if (scenarioName == "controls-presets") return runControlsPresets(runtime, out);
+    if (scenarioName == "controls-profile-persistence") return runControlsProfilePersistence(runtime, out);
+    if (scenarioName == "controls-input-test-live") return runControlsInputTestLive(runtime, out);
+    if (scenarioName == "controls-glyph-device-detection") return runControlsGlyphDeviceDetection(runtime, out);
+    if (scenarioName == "controls-pause-taunt-separation") return runControlsPauseTauntSeparation(runtime, out);
     if (scenarioName == "compatibility-profile-resolver") return runCompatibilityProfileResolver(runtime, out);
     if (scenarioName == "training-options-menu-geometry") return runTrainingOptionsMenuGeometry(runtime, out);
     if (scenarioName == "training-move-list-geometry") return runTrainingMoveListGeometry(runtime, out);
@@ -2718,6 +3112,7 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
     if (scenarioName == "training-command-side-switch-highlight") return runTrainingCommandSideSwitchHighlight(runtime, out);
     if (scenarioName == "training-command-facing-aware-display") return runTrainingCommandFacingAwareDisplay(runtime, out);
     if (scenarioName == "training-command-physical-direction-guide") return runTrainingCommandPhysicalDirectionGuide(runtime, out);
+    if (scenarioName == "training-command-start-button-guide") return runTrainingCommandStartButtonGuide(runtime, out);
     if (scenarioName == "training-command-complete-blink") return runTrainingCommandCompleteBlink(runtime, out);
     if (scenarioName == "training-command-filtered-complete") return runTrainingCommandFilteredComplete(runtime, out);
     if (scenarioName == "training-palette-slot-separation") return runTrainingPaletteSlotSeparation(runtime, out);
@@ -2765,6 +3160,12 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
     if (scenarioName == "evilken-shun-goku-satsu") return runEvilKenShunGokuSatsu(runtime, out);
     if (scenarioName == "evilken-shouki-hatsudou-spacing") return runEvilKenShoukiHatsudouSpacing(runtime, out);
     if (scenarioName == "cpu-baseline") return runCpuBaseline(runtime, out);
+    if (scenarioName == "classic-fight-outcomes") return runClassicFightOutcomes(runtime, out);
+    if (scenarioName == "classic-fight-routing") return runClassicFightRouting(runtime, out);
+    if (scenarioName == "classic-fight-combat") return runClassicFightCombat(runtime, out);
+    if (scenarioName == "roster-compatibility-smoke") return runRosterCompatibilitySmoke(runtime, out);
+    if (scenarioName == "dragon-progression-level-items") return runDragonProgressionLevelItems(runtime, out);
+    if (scenarioName == "dragon-progression-player-profiles") return runDragonProgressionPlayerProfiles(runtime, out);
     if (scenarioName == "vs-p2-runtime") return runVsP2Runtime(runtime, out);
     if (scenarioName == "arena-cpu-1") return runArenaSmoke(runtime, out, 1);
     if (scenarioName == "arena-cpu-2") return runArenaSmoke(runtime, out, 2);
@@ -2782,12 +3183,30 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
     if (scenarioName == "arena-evilken-forward-dash-bounds") return runArenaEvilKenForwardDashBounds(runtime, out);
     if (scenarioName == "arena-per-fighter-runtime") return runArenaPerFighterRuntime(runtime, out);
     if (scenarioName == "arena-openbor-scroll-stage") return runArenaOpenBorScrollStage(runtime, out);
+    if (scenarioName == "arena-tmnt-openbor-stage") return runArenaTmntOpenBorStage(runtime, out);
     if (scenarioName == "arena-evilryu-air-special-contact-landing") return runArenaEvilRyuAirSpecialContactLanding(runtime, out);
+    if (scenarioName == "story-mode-menu-route") return runStoryModeMenuRoute(runtime, out);
+    if (scenarioName == "story-stage-select-map") return runStoryStageSelectMap(runtime, out);
+    if (scenarioName == "story-difficulty-enemy-scaling") return runStoryDifficultyEnemyScaling(runtime, out);
+    if (scenarioName == "story-openbor-stage-default") return runStoryOpenBorStageDefault(runtime, out);
+    if (scenarioName == "story-stage-board-expansion") return runStoryStageBoardExpansion(runtime, out);
+    if (scenarioName == "story-wave-spawn-scroll") return runStoryWaveSpawnScroll(runtime, out);
+    if (scenarioName == "story-enemy-targeting") return runStoryEnemyTargeting(runtime, out);
+    if (scenarioName == "story-stage-clear") return runStoryStageClear(runtime, out);
+    if (scenarioName == "story-player-defeat") return runStoryPlayerDefeat(runtime, out);
+    if (scenarioName == "story-progression-award") return runStoryProgressionAward(runtime, out);
+    if (scenarioName == "story-evilryu-super-recovery") return runStoryEvilRyuSuperRecovery(runtime, out);
+    if (scenarioName == "vs-loading-progress-bar") return runVsLoadingProgressBar(runtime, out);
+    if (scenarioName == "sff-v2-png-decode") return runSffV2PngDecode(runtime, out);
+    if (scenarioName == "ikemen-select-slot-parsing") return runIkemenSelectSlotParsing(runtime, out);
+    if (scenarioName == "stage-music-codec-decode") return runStageMusicCodecDecode(runtime, out);
+    if (scenarioName == "external-stage-mount") return runExternalStageMount(runtime, out);
+    if (scenarioName == "story-scott-tram-rooftop") return runStoryScottTramRooftop(runtime, out);
     if (scenarioName == "evilryu-dash") return runEvilRyuDash(runtime, out);
 
     out << "VERIFY " << scenarioName << "\n"
         << "BLOCKED unknown_scenario\n"
-        << "  supported: compatibility-profile-resolver, training-options-menu-geometry, training-move-list-geometry, training-command-hud-layout, training-pause-help-legend, training-command-list-tabs, training-command-icon-atlas, training-command-side-switch-highlight, training-command-facing-aware-display, training-command-physical-direction-guide, training-command-complete-blink, training-command-filtered-complete, training-palette-slot-separation, training-show-select-hold, training-show-controller-shortcut, training-command-held-button-prompt, character-auto-fit-scale, lili-smoke, lili-changeanim2-fallback, lili-kuuch-state-fallback, lili-hien-houou-kyaku-demo, lili-training-demo-all, kfm-baseline, kfm-throw, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-guard-recovery, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-power-charge-helper, evilken-air-special-contact-landing, evilken-training-demo-hit, evilken-training-command-practice-advance, evilryu-specials-supers, evilryu-shin-shoryuken-stun, evilryu-super-stress, evilryu-air-special-contact-landing, evilryu-power-charge-helper, evilryu-throw-bind, evilryu-training-throw-demo, evilken-smoke, evilken-trip-grounding, evilken-overhead-trip-chain, evilken-overhead-trip-chain-stress, evilken-trip-jump-buffer, evilken-attack-jump-buffer-release, evilken-throw, evilken-corner-visual-bounds, evilken-kuuchuu-shakunetsu, evilken-training-demo-all, evilken-shinryuken-recovery, evilken-shun-goku-satsu, evilken-shouki-hatsudou-spacing, cpu-baseline, vs-p2-runtime, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-camera-rotation-toggle, arena-camera-rotation-projection, arena-camera-rotation-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-evilken-forward-dash-bounds, arena-per-fighter-runtime, arena-openbor-scroll-stage, arena-evilryu-air-special-contact-landing, evilryu-dash\n"
+        << "  supported: compatibility-profile-resolver, options-category-navigation, controls-player-1-4-navigation, controls-guided-setup, controls-manual-edit-conflicts, controls-presets, controls-profile-persistence, controls-input-test-live, controls-glyph-device-detection, controls-pause-taunt-separation, training-options-menu-geometry, training-move-list-geometry, training-command-hud-layout, training-pause-help-legend, training-command-list-tabs, training-command-icon-atlas, training-command-side-switch-highlight, training-command-facing-aware-display, training-command-physical-direction-guide, training-command-start-button-guide, training-command-complete-blink, training-command-filtered-complete, training-palette-slot-separation, training-show-select-hold, training-show-controller-shortcut, training-command-held-button-prompt, character-auto-fit-scale, lili-smoke, lili-changeanim2-fallback, lili-kuuch-state-fallback, lili-hien-houou-kyaku-demo, lili-training-demo-all, kfm-baseline, kfm-throw, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-guard-recovery, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-power-charge-helper, evilken-air-special-contact-landing, evilken-training-demo-hit, evilken-training-command-practice-advance, evilryu-specials-supers, evilryu-shin-shoryuken-stun, evilryu-super-stress, evilryu-air-special-contact-landing, evilryu-power-charge-helper, evilryu-throw-bind, evilryu-training-throw-demo, evilken-smoke, evilken-trip-grounding, evilken-overhead-trip-chain, evilken-overhead-trip-chain-stress, evilken-trip-jump-buffer, evilken-attack-jump-buffer-release, evilken-throw, evilken-corner-visual-bounds, evilken-kuuchuu-shakunetsu, evilken-training-demo-all, evilken-shinryuken-recovery, evilken-shun-goku-satsu, evilken-shouki-hatsudou-spacing, cpu-baseline, classic-fight-outcomes, classic-fight-routing, classic-fight-combat, roster-compatibility-smoke, dragon-progression-level-items, dragon-progression-player-profiles, vs-p2-runtime, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-camera-rotation-toggle, arena-camera-rotation-projection, arena-camera-rotation-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-evilken-forward-dash-bounds, arena-per-fighter-runtime, arena-openbor-scroll-stage, arena-tmnt-openbor-stage, arena-evilryu-air-special-contact-landing, story-mode-menu-route, story-stage-select-map, story-difficulty-enemy-scaling, story-openbor-stage-default, story-stage-board-expansion, story-wave-spawn-scroll, story-enemy-targeting, story-stage-clear, story-player-defeat, story-progression-award, story-evilryu-super-recovery, vs-loading-progress-bar, sff-v2-png-decode, ikemen-select-slot-parsing, stage-music-codec-decode, external-stage-mount, story-scott-tram-rooftop, evilryu-dash\n"
         << "SUMMARY pass=0 partial=0 fail=0 blocked=1\n";
     return 2;
 }

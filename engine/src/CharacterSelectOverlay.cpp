@@ -120,11 +120,29 @@ void drawCharacterSelectOverlay(const UiRenderContext& ui, const CharacterSelect
     }
 
     setColor(renderer, 235, 240, 248);
-    debugText(renderer, 10, 154, view.selectedName);
+    debugText(renderer, 10, 148, view.selectedName);
+    if (!view.selectedProgressionLabel.empty()) {
+        setColor(renderer, 120, 230, 170);
+        debugText(renderer, 10, 160, view.selectedProgressionLabel);
+    }
+    if (!view.profileName.empty()) {
+        setColor(renderer, 128, 171, 225);
+        std::string profileLine = "P1 " + view.profileName;
+        if (!view.opponentProfileName.empty()) {
+            profileLine += "   P2 " + view.opponentProfileName;
+        }
+        debugTextCentered(renderer, centerX, 34, "PROFILE " + profileLine);
+    }
+    setColor(renderer, 235, 240, 248);
     if (opponentHasPortrait) {
         debugText(renderer, widthF - 10.0f - static_cast<float>(view.opponentName.size() * 8), 154, view.opponentName);
     } else {
         debugTextCentered(renderer, opponentPortraitX + 60.0f, 154, view.opponentName);
+    }
+    if (!view.opponentProgressionLabel.empty()) {
+        setColor(renderer, 120, 230, 170);
+        const float labelX = widthF - 10.0f - static_cast<float>(view.opponentProgressionLabel.size() * 8);
+        debugText(renderer, std::max(10.0f, labelX), 166, view.opponentProgressionLabel);
     }
 
     static constexpr float kCellSize = 27.0f;

@@ -144,9 +144,10 @@ Current engine status:
 
 - Reads `[BGDef] spr`.
 - Reads `[BG ...] spriteno`, `start`, `delta`, `tile`, `mask`, and `layerno`.
+- Reads first-pass stage `[BG ...] type = anim` / `actionno` blocks through matching `Begin Action` frames.
 - Applies camera movement to `delta`.
 - Handles basic tiling and foreground/background ordering.
-- Still needs a fuller pass for animated backgrounds, parallax-specific stage syntax, advanced transparency, and edge cases.
+- Still needs a fuller pass for BG controllers, parallax-specific stage syntax, advanced transparency, and edge cases.
 
 If Dragon later adds stage options that M.U.G.E.N does not have, they go in `game/stages/<stage>.dragon.def`, not in a replacement stage format.
 
@@ -233,12 +234,42 @@ labels = auto
 
 Do not commit personal save/settings files as required content unless they are sample defaults.
 
+### Local External Content Mounts
+
+Use `game/data/external_content.local.def` for private compatibility test packages that must stay outside the repository.
+
+This file is a Dragon extension, is ignored by git, and is not required for normal shipped content. It lets a developer mount a local M.U.G.E.N or IKEMEN package without copying third-party assets into `game/`.
+
+Current syntax:
+
+```ini
+[ExternalPackage ScottPilgrim]
+name = Scott Pilgrim Versus
+root = C:\Users\kasom\Desktop\Scott Pilgrim Versus Vanilla\Scott Pilgrim Versus
+stage = stages\Tram_Rooftop.def
+```
+
+Keys:
+
+- `name`: display/source label for diagnostics.
+- `root`: local package root. Relative paths are resolved from the Dragon project root; absolute paths are accepted for developer machines.
+- `stage`: stage DEF path inside the package. Multiple `stage` keys may be listed in one package section.
+
+Default behavior:
+
+- If the file is absent, Dragon ignores external mounts.
+- If a package root or stage path is missing, Dragon skips that mount without modifying `select.def`.
+- Mounted stages keep their source metadata and load their normal stage DEF/SFF/music files from the external package.
+- IKEMEN-only select metadata such as `slot = { ... }` is treated as metadata and must not create fake characters or stages.
+- External mounts are for private compatibility testing only. Public content must be copied or packaged only when licensing allows it.
+
 ## Current Dragon-Only Feature Registry
 
 These features are currently in the prototype and are not plain M.U.G.E.N behavior.
 
 | Feature | Current Status | Where It Lives Now | Future Data Location | Compatibility Rule |
 | --- | --- | --- | --- | --- |
+| Local external package mounts | Implemented for private stage compatibility tests | `game/data/external_content.local.def` | Local ignored file only | Must not copy or ship third-party assets by default; mounted content keeps normal M.U.G.E.N/IKEMEN DEF/SFF/music authority |
 | SDL3 training/options overlay | Implemented in app code | Runtime only | `game/data/dragon.def` defaults, `game/save/settings.def` user prefs | Must not replace M.U.G.E.N `system.def`/`fight.def` once those are parsed |
 | `F1` quick hitbox toggle | Implemented in app code | Runtime only | `game/save/settings.def` | Debug convenience only |
 | `F2` training options menu | Implemented in app code | Runtime only | `game/data/dragon.def`, `game/save/settings.def` | Dragon training tool, not character content |
@@ -268,6 +299,7 @@ These features are currently in the prototype and are not plain M.U.G.E.N behavi
 | Combo hit counter | Implemented with `FightData` parsing plus app runtime | Parsed `game/data/fight.def` `[Combo]` keys | `game/data/fight.def` | Counts unguarded hit chains and uses parsed `pos`, `start.x`, `counter.font` palette, `counter.shake`, `text.text`, `text.font` palette, `text.offset`, and `displaytime` |
 | First-pass power gauge rectangles | Implemented with `FightData` parsing plus app runtime | Parsed `game/data/fight.def` `[Powerbar]` keys | `game/data/fight.def` plus future `fight.sff` rendering | Data comes from M.U.G.E.N `fight.def`; rectangle drawing is temporary until the sprite-based fight UI renderer lands |
 | Flying-Dragon-style match result menu | Implemented in app code | Runtime UI after M.U.G.E.N-compatible round scoring | `game/data/dragon.def`, `game/save/settings.def`, future tournament/shop/equipment files | Dragon-only post-match decision layer; must not change character, stage, or `fight.def` compatibility |
+| Dragon progression leveling/items | Implemented as Dragon progression foundation | Runtime progression data, local save data, and result-screen XP feedback | `game/data/dragon.def`, `game/save/progression.def` | Computes character levels, inventory, equipment, and stat bonuses but does not apply them to live M.U.G.E.N combat constants by default |
 | Main Settings screen | Implemented in app code | Runtime only | `game/data/dragon.def`, `game/save/settings.def` | Dragon project/user settings UI; M.U.G.E.N backend files stay authoritative |
 | Local Reu Evil Ryu/Evil Ken compatibility entries | Copied into `game/chars` and listed in `game/data/select.def` for local tests | M.U.G.E.N character content, not a Dragon feature | Not applicable | Used only to audit compatibility; public builds must remove or replace unlicensed third-party content |
 
@@ -282,7 +314,7 @@ These are expected future extensions and must stay behind the M.U.G.E.N backend.
 | Controller/key bindings | `game/save/settings.def` | M.U.G.E.N command names remain `x/y/z/a/b/c/...` |
 | Stage preview images | `game/stages/<stage>.dragon.def` or a path referenced from it | The actual playable stage remains `.def`/`.sff` |
 | Title/story video support | `game/data/dragon.def` or storyboard sidecar | M.U.G.E.N image storyboard support comes first |
-| RPG level/shop/equipment data | `game/data/dragon.def`, `game/chars/<character>/<character>.dragon.def`, and `game/save/` | Character combat behavior still comes from `.cmd`/`.cns` |
+| Shop/equipment management UI | `game/data/dragon.def`, `game/chars/<character>/<character>.dragon.def`, and `game/save/` | Uses Dragon progression data; character combat behavior still comes from `.cmd`/`.cns` unless a Dragon mode explicitly opts into computed bonuses |
 | Tournament/campaign definitions | `game/data/dragon.def` or dedicated M.U.G.E.N-style data files under `game/data/` | Character/stage references must use normal `chars/` and `stages/` IDs |
 | Plugin configuration | `game/plugins/` and `game/data/dragon.def` | Optional only; core runtime must not depend on plugins for KFM compatibility |
 

@@ -44,6 +44,8 @@ struct TrainingCommandButtonGuideButtonView {
 struct TrainingCommandButtonGuideView {
     bool visible = false;
     std::array<TrainingCommandButtonGuideButtonView, 4> buttons;
+    TrainingCommandButtonGuideButtonView systemButton;
+    bool systemButtonVisible = false;
 };
 
 struct TrainingCommandDirectionGuideButtonView {

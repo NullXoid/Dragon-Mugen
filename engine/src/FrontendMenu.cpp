@@ -9,7 +9,7 @@
 namespace dragon {
 namespace {
 
-constexpr int kMainMenuOptionCount = 6;
+constexpr int kMainMenuOptionCount = 7;
 
 int wrapSelection(int selected, int count, int delta) {
     if (count <= 0) {
@@ -60,6 +60,7 @@ OpponentType defaultOpponentTypeForMode(PendingMode mode) {
     case PendingMode::Training:
         return OpponentType::Dummy;
     case PendingMode::SinglePlayer:
+    case PendingMode::Story:
     case PendingMode::Arena:
         return OpponentType::Cpu;
     case PendingMode::SingleFight:
@@ -69,7 +70,10 @@ OpponentType defaultOpponentTypeForMode(PendingMode mode) {
 }
 
 bool isMatchMode(PendingMode mode) {
-    return mode == PendingMode::SinglePlayer || mode == PendingMode::SingleFight || mode == PendingMode::Arena;
+    return mode == PendingMode::SinglePlayer
+        || mode == PendingMode::SingleFight
+        || mode == PendingMode::Arena
+        || mode == PendingMode::Story;
 }
 
 std::string_view pendingModeTitle(PendingMode mode) {
@@ -82,6 +86,8 @@ std::string_view pendingModeTitle(PendingMode mode) {
         return "VS MODE";
     case PendingMode::Arena:
         return "ARENA MODE";
+    case PendingMode::Story:
+        return "STORY MODE";
     default:
         return "VS MODE";
     }
@@ -120,8 +126,10 @@ FrontendAction decideMainMenuAction(int selected) {
     case 3:
         return { FrontendActionKind::OpenMode, PendingMode::Arena };
     case 4:
-        return { FrontendActionKind::OpenOptions };
+        return { FrontendActionKind::OpenMode, PendingMode::Story };
     case 5:
+        return { FrontendActionKind::OpenOptions };
+    case 6:
         return { FrontendActionKind::ExitApp };
     default:
         return {};
@@ -182,17 +190,20 @@ MainSettings cycleMainSetting(MainSettings settings, int row, int direction, int
         settings.fpsCapEnabled = !settings.fpsCapEnabled;
         break;
     case 4:
+    case 5:
+        break;
+    case 6:
         settings.gamepadPromptStyle = cyclePromptStyle(settings.gamepadPromptStyle, direction);
         break;
-    case 5:
+    case 7:
         settings.p1GamepadAssignment =
             cycleGamepadAssignmentValue(settings.p1GamepadAssignment, gamepadDeviceCount, direction);
         break;
-    case 6:
+    case 8:
         settings.p2GamepadAssignment =
             cycleGamepadAssignmentValue(settings.p2GamepadAssignment, gamepadDeviceCount, direction);
         break;
-    case 7:
+    case 9:
         settings.fallFallbacksEnabled = !settings.fallFallbacksEnabled;
         break;
     default:
@@ -205,7 +216,7 @@ FrontendAction decideOptionsAction(const MainSettings& settings, FrontendKey key
     if (key == FrontendKey::Escape) {
         return { FrontendActionKind::BackToMain };
     }
-    if (key == FrontendKey::Accept && settings.selectedOption == kMainSettingsCount - 1) {
+    if (key == FrontendKey::Accept && settings.selectedOption == kMainSettingBackOption) {
         return { FrontendActionKind::BackToMain };
     }
     return {};
@@ -217,6 +228,8 @@ std::string_view mainSettingLabel(int option) {
         "CANVAS SIZE",
         "UI SCALE",
         "FPS CAP",
+        "P1 PROFILE",
+        "P2 PROFILE",
         "PAD LABELS",
         "P1 GAMEPAD",
         "P2 GAMEPAD",

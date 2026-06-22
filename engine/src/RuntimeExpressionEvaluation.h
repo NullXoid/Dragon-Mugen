@@ -385,6 +385,17 @@ std::optional<float> evalMugenFunctionExpression(
         }
         return static_cast<float>(ownedHelperCount(state, fighter, static_cast<int>(std::lround(*helperId))));
     }
+    if (name == "numtarget") {
+        if (body.empty()) {
+            return fighter.targetTicks > 0 && fighter.targetIndex >= 0 ? 1.0f : 0.0f;
+        }
+        const auto targetId = evalMugenExpression(state, fighter, body, opponent, stage);
+        if (!targetId) {
+            return std::nullopt;
+        }
+        const int id = static_cast<int>(std::lround(*targetId));
+        return fighter.targetTicks > 0 && fighter.targetIndex >= 0 && fighter.targetHitId == id ? 1.0f : 0.0f;
+    }
     if (name == "numprojid") {
         const auto projectileId = evalMugenExpression(state, fighter, body, opponent, stage);
         if (!projectileId) {
@@ -590,6 +601,9 @@ std::optional<float> evalMugenExpression(
     }
     if (lowered == "stateno") {
         return static_cast<float>(fighter.stateNo);
+    }
+    if (lowered == "prevstateno") {
+        return static_cast<float>(fighter.prevStateNo);
     }
     if (lowered == "power") {
         return static_cast<float>(fighter.power);

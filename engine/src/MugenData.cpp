@@ -157,7 +157,19 @@ std::filesystem::path resolveSelectStagePath(const std::filesystem::path& gameRo
 
     const std::string generic = entry.generic_string();
     if (startsWithNoCase(generic, "stages/")) {
-        return gameRoot / entry;
+        const auto direct = (gameRoot / entry).lexically_normal();
+        if (std::filesystem::exists(direct)) {
+            return direct;
+        }
+        std::string stripped = generic;
+        while (startsWithNoCase(stripped, "stages/stages/")) {
+            stripped = stripped.substr(std::string("stages/").size());
+        }
+        const auto normalized = (gameRoot / std::filesystem::path(stripped)).lexically_normal();
+        if (std::filesystem::exists(normalized)) {
+            return normalized;
+        }
+        return direct;
     }
 
     const auto rootRelative = gameRoot / entry;
@@ -165,6 +177,27 @@ std::filesystem::path resolveSelectStagePath(const std::filesystem::path& gameRo
         return rootRelative;
     }
     return gameRoot / "stages" / entry;
+}
+
+std::filesystem::path resolveStageMusicPath(const std::filesystem::path& stageDef, std::string value) {
+    value = unquote(value);
+    if (value.empty()) {
+        return {};
+    }
+
+    std::filesystem::path entry(value);
+    if (entry.is_absolute()) {
+        return entry.lexically_normal();
+    }
+
+    const auto stageRoot = stageDef.parent_path();
+    const auto gameRoot = stageRoot.parent_path();
+    const auto gameRelative = (gameRoot / entry).lexically_normal();
+    if (std::filesystem::exists(gameRelative)) {
+        return gameRelative;
+    }
+
+    return (stageRoot / entry).lexically_normal();
 }
 
 std::optional<CharacterSlot> loadCharacterSlotFromDef(const std::filesystem::path& def) {
@@ -321,6 +354,15 @@ std::optional<StageSlot> loadStageSlotFromDef(const std::filesystem::path& def) 
         const auto* stageInfo = findSection(doc, "StageInfo");
         slot.zoffset = parseFloatOr(stageInfo, "zoffset", slot.zoffset);
 
+        if (const auto* music = findSection(doc, "Music")) {
+            if (const auto* bgmusic = findProperty(*music, "bgmusic")) {
+                slot.bgMusicPath = resolveStageMusicPath(def, bgmusic->value);
+            }
+            if (const auto* bgvolume = findProperty(*music, "bgvolume")) {
+                slot.bgMusicVolume = parseIntValue(bgvolume->value, slot.bgMusicVolume);
+            }
+        }
+
         const auto* openbor = findSection(doc, "OpenBOR");
         if (!openbor) {
             openbor = findSection(doc, "DragonOpenBOR");
@@ -349,14 +391,114 @@ bool hasStageDefPath(const std::vector<StageSlot>& stages, const std::filesystem
     });
 }
 
-void appendStageFromDef(std::vector<StageSlot>& stages, const std::filesystem::path& def) {
+struct ExternalStageSource {
+    bool external = false;
+    std::filesystem::path root;
+    std::string packageName;
+};
+
+void appendStageFromDef(std::vector<StageSlot>& stages, const std::filesystem::path& def, ExternalStageSource source = {}) {
     if (def.empty() || hasStageDefPath(stages, def)) {
         return;
     }
     if (auto slot = loadStageSlotFromDef(def)) {
+        slot->externalContent = source.external;
+        slot->externalRoot = source.root.lexically_normal();
+        slot->externalPackageName = source.packageName;
         stages.push_back(std::move(*slot));
     } else {
         SDL_Log("select.def stage entry skipped, DEF not found: %s", def.string().c_str());
+    }
+}
+
+bool isIgnoredSelectBodyLine(const std::string& line) {
+    const auto trimmed = trim(line);
+    if (trimmed.empty() || trimmed == "}") {
+        return true;
+    }
+    const auto lowerLine = trimmed;
+    if (startsWithNoCase(lowerLine, "slot") && lowerLine.find('{') != std::string::npos) {
+        return true;
+    }
+    if (lowerLine.find('}') != std::string::npos && lowerLine.find('{') == std::string::npos) {
+        return true;
+    }
+    return false;
+}
+
+bool updateIkemenSlotBlockState(const std::string& line, bool inSlotBlock) {
+    const auto trimmed = trim(line);
+    if (!inSlotBlock && startsWithNoCase(trimmed, "slot") && trimmed.find('{') != std::string::npos) {
+        return trimmed.find('}') == std::string::npos;
+    }
+    if (inSlotBlock && trimmed.find('}') != std::string::npos) {
+        return false;
+    }
+    return inSlotBlock;
+}
+
+std::filesystem::path resolveExternalStagePath(const std::filesystem::path& root, std::string value) {
+    value = unquote(value);
+    if (value.empty()) {
+        return {};
+    }
+    std::filesystem::path entry(value);
+    if (entry.is_absolute()) {
+        return entry.lexically_normal();
+    }
+    return (root / entry).lexically_normal();
+}
+
+void appendExternalStages(std::vector<StageSlot>& stages, const std::filesystem::path& gameRoot) {
+    const auto registry = gameRoot / "data" / "external_content.local.def";
+    if (!std::filesystem::exists(registry)) {
+        return;
+    }
+
+    try {
+        const auto doc = parseMugenTextFile(registry);
+        for (const auto& section : doc.sections) {
+            if (!startsWithNoCase(section.name, "External")) {
+                continue;
+            }
+
+            const auto* rootProperty = findProperty(section, "root");
+            if (!rootProperty) {
+                continue;
+            }
+
+            ExternalStageSource source;
+            source.external = true;
+            source.root = std::filesystem::path(unquote(rootProperty->value));
+            if (!source.root.is_absolute()) {
+                source.root = gameRoot / source.root;
+            }
+            source.root = source.root.lexically_normal();
+            source.packageName = section.name;
+            if (const auto* name = findProperty(section, "name")) {
+                source.packageName = unquote(name->value);
+            }
+
+            if (source.root.empty() || !std::filesystem::exists(source.root)) {
+                SDL_Log("external content root skipped, not found: %s", source.root.string().c_str());
+                continue;
+            }
+
+            for (const auto& line : section.body) {
+                const auto equals = line.find('=');
+                if (equals == std::string::npos) {
+                    continue;
+                }
+                const auto key = trim(std::string_view(line).substr(0, equals));
+                if (!equalsNoCase(key, "stage")) {
+                    continue;
+                }
+                const auto value = trim(std::string_view(line).substr(equals + 1));
+                appendStageFromDef(stages, resolveExternalStagePath(source.root, value), source);
+            }
+        }
+    } catch (const std::exception& ex) {
+        SDL_Log("external content registry load failed: %s", ex.what());
     }
 }
 
@@ -466,7 +608,13 @@ std::vector<CharacterSlot> loadCharacters(const std::filesystem::path& gameRoot)
         try {
             const auto doc = parseMugenTextFile(selectDef);
             if (const auto* section = findSection(doc, "Characters")) {
+                bool inSlotBlock = false;
                 for (const auto& line : section->body) {
+                    const bool wasInSlotBlock = inSlotBlock;
+                    inSlotBlock = updateIkemenSlotBlockState(line, inSlotBlock);
+                    if (wasInSlotBlock || inSlotBlock || isIgnoredSelectBodyLine(line)) {
+                        continue;
+                    }
                     if (auto slot = loadSelectCharacterEntry(gameRoot, line)) {
                         characters.push_back(std::move(*slot));
                     }
@@ -490,7 +638,13 @@ std::vector<StageSlot> loadStages(const std::filesystem::path& gameRoot) {
         try {
             const auto doc = parseMugenTextFile(selectDef);
             if (const auto* section = findSection(doc, "Characters")) {
+                bool inSlotBlock = false;
                 for (const auto& line : section->body) {
+                    const bool wasInSlotBlock = inSlotBlock;
+                    inSlotBlock = updateIkemenSlotBlockState(line, inSlotBlock);
+                    if (wasInSlotBlock || inSlotBlock || isIgnoredSelectBodyLine(line)) {
+                        continue;
+                    }
                     const auto parts = splitCsv(line);
                     if (parts.size() < 2 || equalsNoCase(parts.front(), "randomselect") || !selectEntryIncludesStage(parts)) {
                         continue;
@@ -499,13 +653,20 @@ std::vector<StageSlot> loadStages(const std::filesystem::path& gameRoot) {
                 }
             }
             if (const auto* section = findSection(doc, "ExtraStages")) {
+                bool inSlotBlock = false;
                 for (const auto& line : section->body) {
+                    const bool wasInSlotBlock = inSlotBlock;
+                    inSlotBlock = updateIkemenSlotBlockState(line, inSlotBlock);
+                    if (wasInSlotBlock || inSlotBlock || isIgnoredSelectBodyLine(line)) {
+                        continue;
+                    }
                     const auto parts = splitCsv(line);
                     if (!parts.empty()) {
                         appendStageFromDef(stages, resolveSelectStagePath(gameRoot, parts.front()));
                     }
                 }
             }
+            appendExternalStages(stages, gameRoot);
         } catch (const std::exception& ex) {
             SDL_Log("select.def stage load failed: %s", ex.what());
         }
@@ -514,7 +675,9 @@ std::vector<StageSlot> loadStages(const std::filesystem::path& gameRoot) {
         }
     }
 
-    return loadStagesFromFolders(gameRoot);
+    stages = loadStagesFromFolders(gameRoot);
+    appendExternalStages(stages, gameRoot);
+    return stages;
 }
 
 CharacterFiles resolveCharacterFiles(const std::filesystem::path& gameRoot, const CharacterSlot& character) {

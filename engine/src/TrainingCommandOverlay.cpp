@@ -520,7 +520,7 @@ TrainingCommandHudLayout trainingCommandHudLayout(
     constexpr float inputY = 158.0f;
     constexpr float inputH = 64.0f;
     constexpr float guideW = 104.0f;
-    constexpr float guideH = 52.0f;
+    constexpr float guideH = 64.0f;
     if (showAnyGuide) {
         const float desiredGuideX = widthF - guideW - 20.0f;
         float guideX = clampUi(desiredGuideX, 8.0f, widthF - guideW - 8.0f);
@@ -578,7 +578,7 @@ void drawTrainingGuideDock(
     }
 
     constexpr float dockW = 104.0f;
-    constexpr float dockH = 52.0f;
+    constexpr float dockH = 64.0f;
     setColor(renderer, 170, 178, 188, 22);
     fillScaledRect(renderer, scale, x + 51.0f, y + 7.0f, 1.0f, dockH - 14.0f);
 
@@ -587,6 +587,17 @@ void drawTrainingGuideDock(
     }
     if (buttonGuide.visible) {
         drawGuideCluster(renderer, scale, x + 60.0f, y + 6.0f, buttonGuide.buttons, commandIcons, flash);
+        if (buttonGuide.systemButtonVisible) {
+            drawGuideButton(
+                renderer,
+                scale,
+                x + 79.0f,
+                y + 51.0f,
+                buttonGuide.systemButton,
+                commandIcons,
+                flash,
+                5.4f);
+        }
     }
 }
 
@@ -857,7 +868,7 @@ void drawTrainingPauseHelpOverlay(const UiRenderContext& ui, const TrainingPause
     setColor(renderer, 166, 184, 210, 230);
     scaledDebugText(renderer, scale, x + 10.0f, y + 25.0f, "START:RESUME");
     scaledDebugText(renderer, scale, x + 122.0f, y + 25.0f, "SEL:OPTIONS");
-    scaledDebugText(renderer, scale, x + 10.0f, y + 36.0f, "H/L3/R3/TP:SHOW");
+    scaledDebugText(renderer, scale, x + 10.0f, y + 36.0f, "H/L3/R3:SHOW");
     scaledDebugText(renderer, scale, x + 10.0f, y + 47.0f, "PGUP/DN LB/RB:NEXT");
 
     setColor(renderer, 224, 190, 82, 164);

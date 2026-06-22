@@ -26,3 +26,7 @@
 *.zip binary
 *.7z binary
 *.rar binary
+
+# Imported third-party MUGEN character packages are compatibility fixtures.
+# Keep their original bytes and exclude their authored whitespace from source checks.
+game/chars/Dcat_Leo/** -text -diff

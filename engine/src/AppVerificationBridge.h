@@ -6,15 +6,7 @@ public:
         : gameRoot_(std::move(gameRoot)) {}
 
     ~AppVerificationRuntime() override {
-        closeAllGamepads(state_);
-        destroyVisualAssets(state_);
-        destroyAudioAssets(state_);
-        if (renderer_) {
-            SDL_DestroyRenderer(renderer_);
-        }
-        if (window_) {
-            SDL_DestroyWindow(window_);
-        }
+        resetSessionResources();
         if (sdlInitialized_) {
             SDL_Quit();
         }
@@ -26,35 +18,7 @@ public:
         verification::ScenarioMode mode,
         std::ostream& out,
         int arenaCpuCount = 1) override {
-        if (!sdlInitialized_) {
-            if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD)) {
-                out << "SDL_Init failed: " << SDL_GetError() << "\n";
-                return false;
-            }
-            sdlInitialized_ = true;
-        }
-
-        window_ = SDL_CreateWindow("Dragon MUGEN Verify", kWindowWidth, kWindowHeight, SDL_WINDOW_HIDDEN);
-        if (!window_) {
-            out << "SDL_CreateWindow failed: " << SDL_GetError() << "\n";
-            return false;
-        }
-        renderer_ = SDL_CreateRenderer(window_, nullptr);
-        if (!renderer_) {
-            out << "SDL_CreateRenderer failed: " << SDL_GetError() << "\n";
-            return false;
-        }
-        SDL_SetRenderLogicalPresentation(renderer_, kLogicalWidth, kLogicalHeight, SDL_LOGICAL_PRESENTATION_LETTERBOX);
-        SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
-
-        state_.gameRoot = gameRoot_;
-        state_.arenaConfig = loadArenaConfig(gameRoot_);
-        initAudio(state_);
-        state_.fightRoundSettings = loadFightRoundSettings(gameRoot_);
-        state_.selection.characters = loadCharacters(gameRoot_);
-        state_.selection.stages = loadStages(gameRoot_);
-        if (state_.selection.characters.empty() || state_.selection.stages.empty()) {
-            out << "runtime content missing characters or stages\n";
+        if (!prepareVerificationShell(out) || !loadVerificationContent(out)) {
             return false;
         }
 
@@ -66,6 +30,10 @@ public:
             setArenaCpuCount(state_, arenaCpuCount);
             state_.selection.sessionSlots.opponentType = OpponentType::Cpu;
             selectArenaDefaultStage(state_);
+        } else if (mode == verification::ScenarioMode::Story) {
+            state_.frontend.pendingMode = PendingMode::Story;
+            state_.selection.sessionSlots.opponentType = OpponentType::Cpu;
+            selectStoryDefaultStage(state_);
         } else if (mode == verification::ScenarioMode::Versus) {
             state_.frontend.pendingMode = PendingMode::SingleFight;
             state_.selection.selectedP2Character =
@@ -78,6 +46,8 @@ public:
         configureFightSessionSlotsFromSelection(state_);
         if (mode == verification::ScenarioMode::Arena) {
             selectArenaDefaultStage(state_);
+        } else if (mode == verification::ScenarioMode::Story) {
+            selectStoryDefaultStage(state_);
         } else {
             selectPreferredStage(state_);
         }
@@ -95,9 +65,40 @@ public:
         return true;
     }
 
+    bool setupStageSelect(std::string_view p1Id, verification::ScenarioMode mode, std::ostream& out) override {
+        if (!prepareVerificationShell(out) || !loadVerificationContent(out)) {
+            return false;
+        }
+
+        state_.selection.selectedCharacter = findCharacterIndex(p1Id);
+        state_.frontend.pendingMode = mode == verification::ScenarioMode::Story
+            ? PendingMode::Story
+            : PendingMode::SinglePlayer;
+        if (state_.frontend.pendingMode == PendingMode::Story) {
+            state_.selection.sessionSlots.opponentType = OpponentType::Cpu;
+            selectStoryDefaultStage(state_);
+        } else {
+            selectPreferredStage(state_);
+        }
+        configureFightSessionSlotsFromSelection(state_);
+        state_.frontend.screen = Screen::StageSelect;
+        state_.frontend.screenFrame = 0;
+
+        loadVisualAssets(renderer_, state_);
+        openExistingGamepads(state_);
+        return true;
+    }
+
     void step(const verification::SymbolicInput& p1Input, int frames) override {
+        step(p1Input, verification::SymbolicInput{}, frames);
+    }
+
+    void step(
+        const verification::SymbolicInput& p1Input,
+        const verification::SymbolicInput& p2Input,
+        int frames) override {
         const FighterInputState p1 = toFighterInput(p1Input);
-        const FighterInputState p2;
+        const FighterInputState p2 = toFighterInput(p2Input);
         for (int i = 0; i < frames; ++i) {
             ++state_.frame;
             ++state_.frontend.screenFrame;
@@ -111,6 +112,14 @@ public:
             applyTrainingPowerMode(state_);
             updateAudioMixer(state_);
         }
+    }
+
+    void pressKey(std::string_view key) override {
+        const SDL_Keycode code = keyCodeForProbeName(key);
+        if (code == 0) {
+            return;
+        }
+        handleKey(renderer_, state_, code);
     }
 
     void holdTrainingShowSelect(bool held, int frames) override {
@@ -239,6 +248,22 @@ public:
         state_.fighters[static_cast<size_t>(fighterIndex)].ctrl = enabled;
     }
 
+    void setMatchTimerTicks(int ticks) override {
+        state_.matchTimerTicks = std::max(0, ticks);
+    }
+
+    void setTrainingDummyGuardMode(std::string_view mode) override {
+        if (mode == "stand") {
+            state_.training.options.dummyGuardMode = DummyGuardMode::Stand;
+        } else if (mode == "crouch") {
+            state_.training.options.dummyGuardMode = DummyGuardMode::Crouch;
+        } else if (mode == "auto") {
+            state_.training.options.dummyGuardMode = DummyGuardMode::Auto;
+        } else {
+            state_.training.options.dummyGuardMode = DummyGuardMode::Off;
+        }
+    }
+
     void setArenaZAxisEnabled(bool enabled) override {
         state_.selection.sessionSlots.arenaZAxisEnabled = enabled;
         updateArenaCameraRotation(state_);
@@ -247,6 +272,10 @@ public:
     void setArenaCameraRotationEnabled(bool enabled) override {
         state_.selection.sessionSlots.arenaCameraRotationEnabled = enabled;
         updateArenaCameraRotation(state_);
+    }
+
+    void setArenaCpuFrozen(bool frozen) override {
+        state_.suppressArenaCpu = frozen;
     }
 
     void setFightPaused(bool paused) override {
@@ -328,6 +357,23 @@ public:
             return;
         }
         state_.helpers.push_back(std::move(helper));
+    }
+
+    std::vector<verification::RosterCharacterInfo> selectableCharacters() const override {
+        const std::vector<CharacterSlot> characters = state_.selection.characters.empty()
+            ? loadCharacters(gameRoot_)
+            : state_.selection.characters;
+        std::vector<verification::RosterCharacterInfo> out;
+        out.reserve(characters.size());
+        for (const auto& character : characters) {
+            out.push_back(verification::RosterCharacterInfo{
+                character.id,
+                character.displayName,
+                character.defPath.string(),
+                compatibilityProfileName(character.compatibilityProfile),
+            });
+        }
+        return out;
     }
 
     std::vector<verification::TrainingMoveInfo> trainingMovesForMode(CommandButtonPromptMode mode) const {
@@ -467,6 +513,33 @@ public:
         return out;
     }
 
+    std::string trainingButtonGuideState() const override {
+        std::vector<TrainingCommandRowView> rows;
+        std::vector<TrainingCommandStepView> steps;
+        const TrainingCommandHudView view = trainingCommandHudView(state_, rows, steps);
+        std::string out;
+        for (size_t i = 0; i < view.buttonGuide.buttons.size(); ++i) {
+            const auto& button = view.buttonGuide.buttons[i];
+            if (i > 0) {
+                out += ";";
+            }
+            out += button.label;
+            out += ":";
+            out += button.pressed ? "p" : "-";
+            out += button.required ? "r" : "-";
+            out += button.matched ? "m" : "-";
+        }
+        out += ";SYSTEM:";
+        out += view.buttonGuide.systemButtonVisible ? "v" : "-";
+        out += ":";
+        out += view.buttonGuide.systemButton.label;
+        out += ":";
+        out += view.buttonGuide.systemButton.pressed ? "p" : "-";
+        out += view.buttonGuide.systemButton.required ? "r" : "-";
+        out += view.buttonGuide.systemButton.matched ? "m" : "-";
+        return out;
+    }
+
     bool trainingCommandCompleteFlash() const override {
         std::vector<TrainingCommandRowView> rows;
         std::vector<TrainingCommandStepView> steps;
@@ -568,12 +641,28 @@ public:
         out.arenaCameraYawDeg = state_.arenaCameraYawDeg;
         out.arenaCameraTargetYawDeg = state_.arenaCameraTargetYawDeg;
         out.matchTimerTicks = state_.matchTimerTicks;
+        out.screen = static_cast<int>(state_.frontend.screen);
+        out.pendingMode = static_cast<int>(state_.frontend.pendingMode);
+        out.selectedStageIndex = state_.selection.selectedStage;
+        out.stageCount = static_cast<int>(state_.selection.stages.size());
+        out.stageBackgroundCount = static_cast<int>(state_.stageBackground.size());
         out.matchPhase = static_cast<int>(state_.matchPhase);
         out.activeEffects = static_cast<int>(state_.runtimeEffects.size());
         out.activeSounds = static_cast<int>(state_.audio.activeVoices.size());
         out.comboHits = state_.display.comboCounters[0].displayHits;
         out.fighterCount = static_cast<int>(state_.fighters.size());
         out.arenaRuntimeCount = static_cast<int>(state_.arenaRuntimes.size());
+        const StageSlot fallbackStage;
+        const StageSlot& stage = selectedStageSlot(state_.selection) ? *selectedStageSlot(state_.selection) : fallbackStage;
+        out.selectedStageDragonSidecarAvailable = stage.dragonSidecarAvailable; out.selectedStageLegacyOpenBorSection = stage.legacyOpenBorSection;
+        out.selectedStageHasMusic = !stage.bgMusicPath.empty(); out.selectedStageMusicPath = stage.bgMusicPath.generic_string();
+        out.loadingProgressActive = state_.loadingProgress.active;
+        out.loadingProgressFailed = state_.loadingProgress.failed;
+        out.loadingProgressFraction = loadingProgressFraction(state_.loadingProgress);
+        out.loadingProgressPhase = state_.loadingProgress.phase;
+        if (state_.fighters.size() < 2) {
+            return out;
+        }
         out.globalPauseTicks = state_.globalPauseTicks;
         out.globalPauseOwnerMoveTicks = state_.globalPauseOwnerMoveTicks;
         out.globalPauseIsSuper = state_.globalPauseIsSuper;
@@ -590,10 +679,13 @@ public:
         out.p1UsesMugenSemantics = usesMugenSemantics(state_.characterCompatibility);
         out.p1AllowsDragonExtensions = allowsDragonExtensions(state_.characterCompatibility);
         out.p1AllowsArenaExtensions = allowsArenaExtensions(state_.characterCompatibility);
-        out.p2CompatibilityProfile = compatibilityProfileName(state_.opponentRuntime.compatibility.contentProfile);
-        out.p2LocalCoordWidth = state_.opponentRuntime.compatibility.localCoord.width;
-        out.p2LocalCoordHeight = state_.opponentRuntime.compatibility.localCoord.height;
-        out.p2UsesMugenSemantics = usesMugenSemantics(state_.opponentRuntime.compatibility);
+        const CompatibilityContext& p2Compatibility = state_.fighters.size() > 1
+            ? compatibilityContextForActor(state_, state_.fighters[1])
+            : state_.opponentRuntime.compatibility;
+        out.p2CompatibilityProfile = compatibilityProfileName(p2Compatibility.contentProfile);
+        out.p2LocalCoordWidth = p2Compatibility.localCoord.width;
+        out.p2LocalCoordHeight = p2Compatibility.localCoord.height;
+        out.p2UsesMugenSemantics = usesMugenSemantics(p2Compatibility);
         for (const auto& fighter : state_.fighters) {
             if (fighter.life > 0) {
                 ++out.livingFighters;
@@ -614,10 +706,29 @@ public:
             }
         }
         out.roundWinner = state_.roundWinner;
-        out.arenaZAxisEnabled = arenaZAxisEnabled(state_);
+        out.roundEndReason = static_cast<int>(state_.roundEndReason);
+        out.roundWinsP1 = state_.roundWins[0];
+        out.roundWinsP2 = state_.roundWins[1];
+        out.matchComplete = state_.matchComplete;
+        out.matchWinner = matchWinner(state_);
+        out.storyWaveIndex = state_.story.waveIndex;
+        out.storyActiveEnemies = state_.story.activeWaveEnemyCount;
+        out.storyLivingEnemies = livingStoryEnemyCount(state_);
+        out.storyEnemiesDefeated = state_.story.enemiesDefeated;
+        out.storyTotalEnemies = state_.story.totalEnemies;
+        out.storyDifficulty = storyDifficultyIndex(state_.story.difficulty);
+        out.storyStageClear = state_.story.stageClear;
+        out.storyStageFailed = state_.story.stageFailed;
+        out.fightPauseOpen = state_.frontend.fightPauseOpen;
+        out.singleFightPauseOpen = state_.frontend.singleFightPauseOpen;
+        out.trainingOptionsOpen = state_.training.options.menuOpen;
+        out.selectedSingleFightPauseOption = state_.frontend.selectedSingleFightPauseOption;
+        out.selectedMatchResultOption = state_.frontend.selectedMatchResultOption;
+        out.arenaZAxisEnabled = arenaDepthActive(state_);
         out.arenaCameraRotationSelected = arenaCameraRotationSelected(state_);
         out.arenaCameraRotationActive = arenaCameraRotationActive(state_);
         out.lastHitText = state_.messages.lastHitText;
+        out.progressionAwardText = state_.progression.lastAwardText;
         const auto& trainingEntries = activeDisplayableMoveListEntries(state_);
         if (!trainingEntries.empty()) {
             const int selected = std::clamp(
@@ -657,10 +768,6 @@ public:
             out.p1HitFlagAllowsP2 = hitFlagAllowsDefender(*activeHitDef, state_.fighters[1]);
             out.p2HittableByP1 = defenderCanBeHitBy(state_.fighters[1], *activeHitDef);
         }
-        const StageSlot fallbackStage;
-        const StageSlot& stage = selectedStageSlot(state_.selection) ? *selectedStageSlot(state_.selection) : fallbackStage;
-        out.selectedStageDragonSidecarAvailable = stage.dragonSidecarAvailable;
-        out.selectedStageLegacyOpenBorSection = stage.legacyOpenBorSection;
         applyProjectedSnapshot(stage, state_.fighters[0], out.p1);
         applyProjectedSnapshot(stage, state_.fighters[1], out.p2);
         std::vector<int> drawOrder;
@@ -700,6 +807,47 @@ public:
     }
 
 private:
+    bool prepareVerificationShell(std::ostream& out) {
+        if (!sdlInitialized_) {
+            if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD)) {
+                out << "SDL_Init failed: " << SDL_GetError() << "\n";
+                return false;
+            }
+            sdlInitialized_ = true;
+        }
+        if (renderer_ || window_) {
+            resetSessionResources();
+        }
+        window_ = SDL_CreateWindow("Dragon MUGEN Verify", kWindowWidth, kWindowHeight, SDL_WINDOW_HIDDEN);
+        if (!window_) {
+            out << "SDL_CreateWindow failed: " << SDL_GetError() << "\n";
+            return false;
+        }
+        renderer_ = SDL_CreateRenderer(window_, nullptr);
+        if (!renderer_) {
+            out << "SDL_CreateRenderer failed: " << SDL_GetError() << "\n";
+            return false;
+        }
+        SDL_SetRenderLogicalPresentation(renderer_, kLogicalWidth, kLogicalHeight, SDL_LOGICAL_PRESENTATION_LETTERBOX);
+        SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
+        return true;
+    }
+    bool loadVerificationContent(std::ostream& out) {
+        state_.gameRoot = gameRoot_;
+        state_.arenaConfig = loadArenaConfig(gameRoot_);
+        loadProgressionState(state_);
+        loadControlsState(state_);
+        initAudio(state_);
+        state_.fightRoundSettings = loadFightRoundSettings(gameRoot_);
+        state_.selection.characters = loadCharacters(gameRoot_);
+        state_.selection.stages = loadStages(gameRoot_);
+        if (state_.selection.characters.empty() || state_.selection.stages.empty()) {
+            out << "runtime content missing characters or stages\n";
+            return false;
+        }
+        return true;
+    }
+
     void applyProjectedSnapshot(const StageSlot& stage, const FighterState& fighter, verification::FighterSnapshot& snapshot) const {
         const ArenaProjectedPoint projected = projectArenaWorldPoint(state_, stage, fighter.x, fighter.y, fighter.depthZ);
         snapshot.screenX = projected.screenX;
@@ -730,6 +878,19 @@ private:
             input.c,
             input.depthModifier,
         };
+    }
+
+    static SDL_Keycode keyCodeForProbeName(std::string_view key) {
+        if (key == "enter") return SDLK_RETURN;
+        if (key == "space") return SDLK_SPACE;
+        if (key == "escape") return SDLK_ESCAPE;
+        if (key == "up") return SDLK_UP;
+        if (key == "down") return SDLK_DOWN;
+        if (key == "left") return SDLK_LEFT;
+        if (key == "right") return SDLK_RIGHT;
+        if (key == "f2") return SDLK_F2;
+        if (key == "r") return SDLK_R;
+        return 0;
     }
 
     static verification::FighterSnapshot fighterSnapshot(const FighterState& fighter, int maxLife) {
@@ -781,13 +942,31 @@ private:
         };
     }
 
+    void resetSessionResources() {
+        closeAllGamepads(state_);
+        destroyVisualAssets(state_);
+        destroyAudioAssets(state_);
+        if (renderer_) {
+            SDL_DestroyRenderer(renderer_);
+            renderer_ = nullptr;
+        }
+        if (window_) {
+            SDL_DestroyWindow(window_);
+            window_ = nullptr;
+        }
+        state_ = AppState{};
+    }
+
     int findCharacterIndex(std::string_view hint) const {
         const std::string wanted = lowercaseCopy(hint);
         for (int i = 0; i < static_cast<int>(state_.selection.characters.size()); ++i) {
             const auto& character = state_.selection.characters[static_cast<size_t>(i)];
+            const std::string defPath = lowercaseCopy(character.defPath.generic_string());
             if (lowercaseCopy(character.id) == wanted
                 || lowercaseCopy(character.displayName) == wanted
-                || lowercaseCopy(character.folder.filename().string()) == wanted) {
+                || lowercaseCopy(character.folder.filename().string()) == wanted
+                || defPath == wanted
+                || defPath.find(wanted) != std::string::npos) {
                 return i;
             }
         }

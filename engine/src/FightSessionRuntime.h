@@ -16,6 +16,10 @@ void configureFightSessionSlotsFromSelection(AppState& state) {
         setArenaCpuCount(state, state.selection.sessionSlots.arenaCpuCount);
         chooseArenaCpuCharacters(state);
         state.selection.sessionSlots.opponentCharacter = -1;
+    } else if (state.frontend.pendingMode == PendingMode::Story) {
+        chooseStoryEnemyCharacters(state);
+        state.selection.sessionSlots.opponentType = OpponentType::Cpu;
+        state.selection.sessionSlots.opponentCharacter = -1;
     } else if (state.frontend.pendingMode == PendingMode::SingleFight) {
         if (!characterSlotAt(state.selection, state.selection.selectedP2Character)) {
             state.selection.selectedP2Character =
@@ -81,7 +85,7 @@ void clearFighterVisualRuntime(FighterState& fighter) {
 }
 
 int fighterPaletteNoForSlot(const AppState& state, size_t fighterIndex) {
-    if (state.frontend.pendingMode == PendingMode::Arena
+    if ((state.frontend.pendingMode == PendingMode::Arena || state.frontend.pendingMode == PendingMode::Story)
         && fighterIndex < state.arenaRuntimes.size()
         && state.arenaRuntimes[fighterIndex].paletteNo > 0) {
         return state.arenaRuntimes[fighterIndex].paletteNo;
@@ -161,9 +165,16 @@ void resetTrainingPositions(AppState& state) {
     state.messages.lastHitTextTicks = 90;
 }
 
+#include "StoryModeSession.h"
+
 void resetFightRound(AppState& state) {
     const StageSlot fallbackStage;
     const StageSlot& stage = selectedStageSlot(state.selection) ? *selectedStageSlot(state.selection) : fallbackStage;
+
+    if (state.frontend.pendingMode == PendingMode::Story) {
+        resetStoryFightRound(state);
+        return;
+    }
 
     if (state.frontend.pendingMode == PendingMode::Arena) {
         const int fighterCount = std::clamp(arenaFighterCount(state), 2, 4);
@@ -358,22 +369,31 @@ void resetFightState(AppState& state) {
     state.currentRound = 1;
     state.matchComplete = false;
     state.roundPoseApplied = false;
+    clearProgressionMatchAward(state);
     resetFightRound(state);
 }
 
 bool prepareFightSession(SDL_Renderer* renderer, AppState& state) {
     state.fightSessionPrepared = false;
     state.fightSessionLoadFailed = false;
+    startLoadingProgress(state.loadingProgress, "Preparing match");
+    presentVersusLoadingProgress(renderer, state);
 
     if (const StageSlot* stage = selectedStageSlot(state.selection)) {
         state.content.stageName = stage->displayName;
     }
 
+    updateLoadingProgress(state.loadingProgress, 0.06f, "Loading fighter runtime");
+    presentVersusLoadingProgress(renderer, state);
     if (!loadSelectedCharacterRuntime(renderer, state)) {
         state.fightSessionLoadFailed = true;
+        failLoadingProgress(state.loadingProgress, "Fighter runtime failed");
+        presentVersusLoadingProgress(renderer, state);
         return false;
     }
 
+    updateLoadingProgress(state.loadingProgress, 0.70f, "Loading stage background");
+    presentVersusLoadingProgress(renderer, state);
     std::vector<StageBackgroundElement> selectedBackground;
     if (const StageSlot* stage = selectedStageSlot(state.selection)) {
         try {
@@ -382,13 +402,22 @@ bool prepareFightSession(SDL_Renderer* renderer, AppState& state) {
             SDL_Log("Selected stage background load failed %s: %s", stage->displayName.c_str(), ex.what());
         }
     }
+    updateLoadingProgress(state.loadingProgress, 0.84f, "Installing stage");
+    presentVersusLoadingProgress(renderer, state);
     destroyStageBackground(state.stageBackground);
     state.stageBackground = std::move(selectedBackground);
     state.stageBackgroundStageIndex = state.selection.selectedStage;
 
+    updateLoadingProgress(state.loadingProgress, 0.92f, "Preparing fight state");
+    presentVersusLoadingProgress(renderer, state);
     resetFightState(state);
+    if (const StageSlot* stage = selectedStageSlot(state.selection)) {
+        startStageMusic(state, *stage);
+    }
     state.frontend.screenFrame = 0;
     state.fightSessionPrepared = true;
+    completeLoadingProgress(state.loadingProgress);
+    presentVersusLoadingProgress(renderer, state);
     return true;
 }
 

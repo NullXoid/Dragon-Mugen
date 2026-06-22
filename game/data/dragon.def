@@ -1,0 +1,87 @@
+; Dragon project defaults. This file is not M.U.G.E.N content.
+; Local player progression is saved under game/save/progression.def.
+
+[Dragon.Progression]
+enabled = 1
+win.xp = 75
+loss.xp = 10
+arena.win.xp = 100
+default.maxlevel = 20
+default.xp.base = 100
+default.xp.growth = 50
+default.life.perlevel = 6
+default.attack.perlevel = 8
+default.defence.perlevel = 8
+
+[Dragon.Progression.Character]
+id = kfm
+name = Kung Fu Man
+maxlevel = 20
+xp.base = 90
+xp.growth = 45
+life.perlevel = 8
+attack.perlevel = 8
+defence.perlevel = 8
+
+[Dragon.Progression.Character]
+id = EvilKen
+name = Evil Ken
+maxlevel = 20
+xp.base = 110
+xp.growth = 55
+life.perlevel = 5
+attack.perlevel = 10
+defence.perlevel = 6
+
+[Dragon.Progression.Character]
+id = EvilRyu
+name = Evil Ryu
+maxlevel = 20
+xp.base = 110
+xp.growth = 55
+life.perlevel = 5
+attack.perlevel = 10
+defence.perlevel = 6
+
+[Dragon.Progression.Character]
+id = Dcat_Leo
+name = Leonardo
+maxlevel = 20
+xp.base = 100
+xp.growth = 50
+life.perlevel = 7
+attack.perlevel = 8
+defence.perlevel = 9
+
+[Dragon.Progression.Item]
+id = training_weight
+name = Training Weight
+slot = accessory
+description = Basic strength training gear.
+level = 1
+life = 20
+power = 0
+attack = 25
+defence = 0
+
+[Dragon.Progression.Item]
+id = guard_charm
+name = Guard Charm
+slot = charm
+description = A simple defensive charm.
+level = 2
+life = 25
+power = 0
+attack = 0
+defence = 35
+
+[Dragon.Progression.Item]
+id = dragon_sash
+name = Dragon Sash
+slot = accessory
+description = Advanced gear for experienced fighters.
+level = 3
+life = 10
+power = 100
+attack = 45
+defence = 15

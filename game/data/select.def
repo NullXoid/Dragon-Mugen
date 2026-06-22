@@ -63,6 +63,7 @@
 kfm, stages/kfm.def
 EvilRyu, stages/kfm.def
 EvilKen, stages/kfm.def
+Dcat_Leo/Dcat_Leo.def, stages/kfm.def
 CFJ_Lili, stages/kfm.def
 Lili_QYC_Custom/lili.def, stages/kfm.def
 Lili_QYC_Normal/lili.def, stages/kfm.def
@@ -72,6 +73,10 @@ Lili_QYC_Normal/lili.def, stages/kfm.def
  ;Put extra stages here. They will be available in VS and Watch modes.
  ;For example, you can insert "stages/mybg.def".
 stages/openbor_scroll.def
+stages/tmnt_openbor_street.def
+stages/tmnt_sewer_patrol.def
+stages/comic_street_rumble.def
+stages/soundcheck_alley.def
 
 ;---------------------------------------------------------------------
 [Options]

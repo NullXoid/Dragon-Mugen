@@ -10,31 +10,60 @@ void drawStageLayer(SDL_Renderer* renderer, const AppState& state, int layerNo) 
     }
 
     for (const auto& element : state.stageBackground) {
-        if (!element.sprite.texture || element.layerNo != layerNo) {
+        if (element.layerNo != layerNo) {
             continue;
         }
 
-        const float baseX = screenCenterX(state)
+        const TextureSprite* sprite = &element.sprite;
+        float frameOffsetX = 0.0f;
+        float frameOffsetY = 0.0f;
+        if (element.animated) {
+            const AnimationFrame* frame = frameForClip(element.animation, state.frame);
+            if (!frame || !frame->sprite.texture) {
+                continue;
+            }
+            sprite = &frame->sprite;
+            frameOffsetX = static_cast<float>(frame->offsetX);
+            frameOffsetY = static_cast<float>(frame->offsetY);
+        } else if (!sprite->texture) {
+            continue;
+        }
+
+        float baseX = screenCenterX(state)
             + element.x
-            - static_cast<float>(element.sprite.axisX)
+            + frameOffsetX
+            - static_cast<float>(sprite->axisX)
             - state.cameraX * element.deltaX;
         const float baseY = element.y
-            - static_cast<float>(element.sprite.axisY)
+            + frameOffsetY
+            - static_cast<float>(sprite->axisY)
             - state.cameraY * element.deltaY;
+        float drawWidth = static_cast<float>(sprite->width);
+        const float widthF = logicalWidthF(state);
+        const bool fixedWideBackdrop = layerNo == 0
+            && !element.tileX
+            && element.deltaX > -0.001f
+            && element.deltaX < 0.001f
+            && drawWidth >= widthF * 0.8f
+            && (baseX > 0.0f || baseX + drawWidth < widthF);
+        if (fixedWideBackdrop) {
+            baseX = 0.0f;
+            drawWidth = widthF;
+        }
         const int repeatX = element.tileX ? 6 : 1;
         const int repeatY = element.tileY ? 3 : 1;
-        const float firstX = element.tileX ? baseX - static_cast<float>(element.sprite.width * 2) : baseX;
-        const float firstY = element.tileY ? baseY - static_cast<float>(element.sprite.height) : baseY;
+        const float firstX = element.tileX ? baseX - static_cast<float>(sprite->width * 2) : baseX;
+        const float firstY = element.tileY ? baseY - static_cast<float>(sprite->height) : baseY;
 
         for (int ty = 0; ty < repeatY; ++ty) {
             for (int tx = 0; tx < repeatX; ++tx) {
                 SDL_FRect dst{
-                    firstX + static_cast<float>(tx * element.sprite.width),
-                    firstY + static_cast<float>(ty * element.sprite.height),
-                    static_cast<float>(element.sprite.width),
-                    static_cast<float>(element.sprite.height),
+                    firstX + static_cast<float>(tx * sprite->width),
+                    firstY + static_cast<float>(ty * sprite->height),
+                    drawWidth,
+                    static_cast<float>(sprite->height),
                 };
-                SDL_RenderTexture(renderer, element.sprite.texture, nullptr, &dst);
+                SDL_RenderTexture(renderer, sprite->texture, nullptr, &dst);
             }
         }
     }
@@ -547,6 +576,9 @@ void drawWorldActors(SDL_Renderer* renderer, const AppState& state, const StageS
     std::vector<DrawItem> items;
     items.reserve(state.fighters.size() + state.helpers.size() + state.runtimeEffects.size() + state.projectiles.size());
     for (size_t i = 0; i < state.fighters.size(); ++i) {
+        if (isStoryMode(state) && i > 0 && !storyEnemySlotActive(state, i)) {
+            continue;
+        }
         items.push_back(DrawItem{
             state.fighters[i].sprPriority,
             0,

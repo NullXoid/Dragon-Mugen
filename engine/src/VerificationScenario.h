@@ -13,6 +13,7 @@ enum class ScenarioMode {
     SinglePlayer,
     Versus,
     Arena,
+    Story,
 };
 
 struct SymbolicInput {
@@ -87,6 +88,11 @@ struct RuntimeSnapshot {
     float arenaCameraYawDeg = 0.0f;
     float arenaCameraTargetYawDeg = 0.0f;
     int matchTimerTicks = 0;
+    int screen = 0;
+    int pendingMode = 0;
+    int selectedStageIndex = 0;
+    int stageCount = 0;
+    int stageBackgroundCount = 0;
     int matchPhase = 0;
     int activeEffects = 0;
     int activeSounds = 0;
@@ -108,7 +114,28 @@ struct RuntimeSnapshot {
     int p1RuntimeCommandEntries = 0;
     int p2RuntimeCommandEntries = 0;
     int roundWinner = 0;
+    int roundEndReason = 0;
+    int roundWinsP1 = 0;
+    int roundWinsP2 = 0;
+    int matchWinner = 0;
+    int selectedSingleFightPauseOption = 0;
+    int selectedMatchResultOption = 0;
     int arenaRuntimeCount = 0;
+    int storyWaveIndex = 0;
+    int storyActiveEnemies = 0;
+    int storyLivingEnemies = 0;
+    int storyEnemiesDefeated = 0;
+    int storyTotalEnemies = 0;
+    int storyDifficulty = 1;
+    bool matchComplete = false;
+    bool storyStageClear = false;
+    bool storyStageFailed = false;
+    bool fightPauseOpen = false;
+    bool singleFightPauseOpen = false;
+    bool trainingOptionsOpen = false;
+    bool loadingProgressActive = false;
+    bool loadingProgressFailed = false;
+    float loadingProgressFraction = 0.0f;
     bool arenaZAxisEnabled = false;
     bool arenaCameraRotationSelected = false;
     bool arenaCameraRotationActive = false;
@@ -126,6 +153,7 @@ struct RuntimeSnapshot {
     bool p2UsesMugenSemantics = true;
     bool selectedStageDragonSidecarAvailable = false;
     bool selectedStageLegacyOpenBorSection = false;
+    bool selectedStageHasMusic = false;
     int p1AnimElem = 0;
     int p2AnimElem = 0;
     int p1Clsn1Count = 0;
@@ -138,9 +166,12 @@ struct RuntimeSnapshot {
     std::string p1CompatibilityProfile;
     std::string p2CompatibilityProfile;
     std::string lastHitText;
+    std::string progressionAwardText;
+    std::string loadingProgressPhase;
     std::string p1Commands;
     std::string p2Commands;
     std::string selectedTrainingMoveLabel;
+    std::string selectedStageMusicPath;
     FighterSnapshot p1;
     FighterSnapshot p2;
 };
@@ -153,6 +184,13 @@ struct TrainingMoveInfo {
     int requiredPower = 0;
     std::vector<std::string> commandNames;
     std::string section;
+};
+
+struct RosterCharacterInfo {
+    std::string id;
+    std::string displayName;
+    std::string defPath;
+    std::string compatibilityProfile;
 };
 
 struct UiGeometryProbe {
@@ -173,7 +211,10 @@ public:
         ScenarioMode mode,
         std::ostream& out,
         int arenaCpuCount = 1) = 0;
+    virtual bool setupStageSelect(std::string_view p1Id, ScenarioMode mode, std::ostream& out) = 0;
     virtual void step(const SymbolicInput& p1Input, int frames) = 0;
+    virtual void step(const SymbolicInput& p1Input, const SymbolicInput& p2Input, int frames) = 0;
+    virtual void pressKey(std::string_view key) = 0;
     virtual void positionFighters(float p1X, float p2X) = 0;
     virtual void setFighterPosition(int fighterIndex, float x, float y) = 0;
     virtual void setFighterDepth(int fighterIndex, float depthZ) = 0;
@@ -183,14 +224,18 @@ public:
     virtual int fighterVar(int fighterIndex, int varIndex) const = 0;
     virtual void setFighterMoveContact(int fighterIndex, bool hit, bool guarded) = 0;
     virtual void setFighterControl(int fighterIndex, bool enabled) = 0;
+    virtual void setMatchTimerTicks(int ticks) = 0;
+    virtual void setTrainingDummyGuardMode(std::string_view mode) = 0;
     virtual void setArenaZAxisEnabled(bool enabled) = 0;
     virtual void setArenaCameraRotationEnabled(bool enabled) = 0;
+    virtual void setArenaCpuFrozen(bool frozen) = 0;
     virtual void setFightPaused(bool paused) = 0;
     virtual void setFighterHitPause(int fighterIndex, int ticks) = 0;
     virtual void setFighterHitStun(int fighterIndex, int ticks) = 0;
     virtual void forceFighterState(int fighterIndex, int stateNo) = 0;
     virtual void forceFighterLiedown(int fighterIndex, int hitStunTicks) = 0;
     virtual void spawnHelper(int ownerIndex, int helperId, int stateNo, int pauseMoveTime = 0, int superMoveTime = 0) = 0;
+    virtual std::vector<RosterCharacterInfo> selectableCharacters() const = 0;
     virtual std::vector<TrainingMoveInfo> trainingMoves() const = 0;
     virtual std::vector<TrainingMoveInfo> trainingMovesForPromptStyle(std::string_view style) const = 0;
     virtual void setTrainingMoveCategory(std::string_view category) = 0;
@@ -201,6 +246,7 @@ public:
     virtual std::string trainingCurrentInputDisplay() const = 0;
     virtual std::string trainingExpectedInputDisplay() const = 0;
     virtual std::string trainingDirectionGuideState() const = 0;
+    virtual std::string trainingButtonGuideState() const = 0;
     virtual bool trainingCommandCompleteFlash() const = 0;
     virtual UiGeometryProbe trainingCommandHudGeometry(int logicalWidth) const = 0;
     virtual UiGeometryProbe trainingPauseHelpGeometry(int logicalWidth, bool optionsOpen) const = 0;

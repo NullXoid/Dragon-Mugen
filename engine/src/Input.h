@@ -1,5 +1,7 @@
 #pragma once
 
+#include "ControlMapping.h"
+
 #include <SDL3/SDL.h>
 
 #include <string>
@@ -49,10 +51,26 @@ struct GamepadDevice {
 
 bool isPlaystationGamepad(SDL_GamepadType type);
 bool isXboxGamepad(SDL_GamepadType type);
+bool gamepadButtonMapsToFighterStart(SDL_GamepadType type, SDL_GamepadButton button);
 std::string gamepadFamilyName(SDL_GamepadType type);
 
 FighterControls p1Controls();
 FighterControls p2Controls();
 FighterInputState collectFighterInput(const bool* keys, const FighterControls& controls, const GamepadDevice* gamepad);
+bool physicalInputDown(
+    const bool* keys,
+    const GamepadDevice* gamepad,
+    PhysicalInputBinding binding,
+    int deadzone = 10000,
+    int triggerThreshold = 10000);
+bool controlActionDown(
+    const bool* keys,
+    const GamepadDevice* gamepad,
+    const ControlProfileBinding& profile,
+    InputAction action);
+FighterInputState collectMappedFighterInput(
+    const bool* keys,
+    const ControlProfileBinding& profile,
+    const GamepadDevice* gamepad);
 
 } // namespace dragon

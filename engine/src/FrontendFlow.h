@@ -76,10 +76,8 @@ int gamepadPlayerIndexForId(const AppState& state, SDL_JoystickID id) {
     return -1;
 }
 
-bool isTrainingShowShortcutButton(SDL_GamepadButton button) {
-    return button == SDL_GAMEPAD_BUTTON_LEFT_STICK
-        || button == SDL_GAMEPAD_BUTTON_RIGHT_STICK
-        || button == SDL_GAMEPAD_BUTTON_TOUCHPAD;
+bool isTrainingShowShortcutButton(const AppState& state, int playerIndex, SDL_GamepadButton button) {
+    return gamepadButtonMatchesControlAction(state, playerIndex, button, InputAction::TrainingShow);
 }
 
 bool trainingShowShortcutContext(const AppState& state) {
@@ -102,8 +100,11 @@ bool triggerTrainingShowShortcut(AppState& state) {
     return true;
 }
 
-bool startPauseKey(SDL_Keycode key) {
-    return key == SDLK_RETURN || key == SDLK_KP_ENTER || key == SDLK_SPACE || key == SDLK_PAUSE;
+bool startPauseKey(const AppState& state, SDL_Keycode key) {
+    return keyMatchesControlAction(state, key, 0, InputAction::Pause)
+        || key == SDLK_RETURN
+        || key == SDLK_KP_ENTER
+        || key == SDLK_PAUSE;
 }
 
 bool fightOptionsKey(SDL_Keycode key) {
@@ -257,11 +258,14 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
             } else if (action.mode == PendingMode::Arena) {
                 setArenaDefaultsFromConfig(state);
                 selectArenaDefaultStage(state);
+            } else if (action.mode == PendingMode::Story) {
+                selectStoryDefaultStage(state);
             }
             state.frontend.screen = Screen::CharacterSelect;
             break;
         case FrontendActionKind::OpenOptions:
             playMenuCursorDoneSound(state);
+            enterOptionsScreen(state, OptionsMenuScreen::Root);
             state.frontend.screen = Screen::MainSettings;
             break;
         default:
@@ -271,34 +275,7 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
     }
 
     if (state.frontend.screen == Screen::MainSettings) {
-        const FrontendKey frontendKey = frontendKeyFromSdl(key, true);
-        const int previousSelection = state.mainSettings.selectedOption;
-        state.mainSettings.selectedOption = moveOptionsSelection(state.mainSettings.selectedOption, frontendKey);
-        if (state.mainSettings.selectedOption != previousSelection) {
-            playMenuCursorMoveSound(state);
-        }
-
-        const int cycleDirection = settingCycleDirection(frontendKey);
-        const bool selectedAdjustableRow = state.mainSettings.selectedOption < kMainSettingsCount - 1;
-        if (cycleDirection != 0 && selectedAdjustableRow) {
-            state.mainSettings = cycleMainSetting(
-                state.mainSettings,
-                state.mainSettings.selectedOption,
-                cycleDirection,
-                static_cast<int>(state.gamepads.size()));
-            playMenuCursorDoneSound(state);
-        }
-
-        const FrontendAction action = decideOptionsAction(state.mainSettings, frontendKey);
-        if (action.kind == FrontendActionKind::BackToMain) {
-            if (frontendKey == FrontendKey::Escape) {
-                playMenuCancelSound(state);
-            } else if (frontendKey == FrontendKey::Accept) {
-                playMenuCursorDoneSound(state);
-            }
-            state.frontend.exitConfirmOpen = false;
-            state.frontend.screen = Screen::ModeSelect;
-        }
+        handleOptionsKey(state, key);
         return;
     }
 
@@ -331,6 +308,14 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
                 state.frontend.screen = Screen::ArenaSetup;
                 break;
             }
+            if (state.frontend.pendingMode == PendingMode::Story) {
+                state.selection.sessionSlots.p1Character = action.index;
+                state.selection.sessionSlots.opponentType = OpponentType::Cpu;
+                selectStoryDefaultStage(state);
+                configureFightSessionSlotsFromSelection(state);
+                state.frontend.screen = Screen::StageSelect;
+                break;
+            }
             configureFightSessionSlotsFromSelection(state);
             selectPreferredStage(state);
             state.frontend.screen = Screen::StageSelect;
@@ -350,6 +335,7 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
             state.frontend.screenFrame = 0;
             state.fightSessionPrepared = false;
             state.fightSessionLoadFailed = false;
+            startLoadingProgress(state.loadingProgress, "Waiting to load");
             playMenuCursorDoneSound(state);
         };
         const auto backToFighterSelect = [&]() {
@@ -413,7 +399,20 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
     if (state.frontend.screen == Screen::StageSelect) {
         const int stageCount = static_cast<int>(state.selection.stages.size());
         const FrontendKey frontendKey = frontendKeyFromSdl(key);
-        state.selection.selectedStage = moveStageCursor(state.selection.selectedStage, stageCount, frontendKey);
+        if (state.frontend.pendingMode == PendingMode::Story
+            && (frontendKey == FrontendKey::Up || frontendKey == FrontendKey::Down)) {
+            state.story.difficulty = cycleStoryDifficulty(
+                state.story.difficulty,
+                frontendKey == FrontendKey::Up ? 1 : -1);
+            playMenuCursorMoveSound(state);
+            return;
+        }
+        if (state.frontend.pendingMode == PendingMode::Story
+            && (frontendKey == FrontendKey::Left || frontendKey == FrontendKey::Right)) {
+            state.selection.selectedStage = moveStageCursor(state.selection.selectedStage, stageCount, frontendKey);
+        } else if (state.frontend.pendingMode != PendingMode::Story) {
+            state.selection.selectedStage = moveStageCursor(state.selection.selectedStage, stageCount, frontendKey);
+        }
         const FrontendAction action = decideStageSelectAction(state.selection.selectedStage, stageCount, frontendKey);
         switch (action.kind) {
         case FrontendActionKind::BackToCharacterSelect:
@@ -431,6 +430,7 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
             state.frontend.screenFrame = 0;
             state.fightSessionPrepared = false;
             state.fightSessionLoadFailed = false;
+            startLoadingProgress(state.loadingProgress, "Waiting to load");
             break;
         default:
             break;
@@ -468,7 +468,7 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
         }
 
         if (state.frontend.fightPauseOpen) {
-            if (startPauseKey(key)) {
+            if (startPauseKey(state, key)) {
                 resumeLightFightPause(state);
             } else if (fightOptionsKey(key)) {
                 openFightOptionsFromPause(state);
@@ -655,7 +655,7 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
                 return;
             }
 
-            if (startPauseKey(key)) {
+            if (startPauseKey(state, key)) {
                 openLightFightPause(state);
             } else if (key == SDLK_ESCAPE || key == SDLK_F2) {
                 state.frontend.singleFightPauseOpen = true;
@@ -748,7 +748,7 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
             return;
         }
 
-        if (startPauseKey(key)) {
+        if (startPauseKey(state, key)) {
             openLightFightPause(state);
         } else if (key == SDLK_ESCAPE) {
             unloadCharacterRuntime(state);
@@ -779,7 +779,14 @@ void handleGamepadButton(
     SDL_JoystickID gamepadId,
     SDL_GamepadButton button) {
     const int playerIndex = gamepadPlayerIndexForId(state, gamepadId);
-    if (playerIndex == 0 && isTrainingShowShortcutButton(button) && triggerTrainingShowShortcut(state)) {
+    if (state.frontend.screen == Screen::MainSettings) {
+        const bool captureActive = state.mainSettings.awaitingControlBinding;
+        handleOptionsGamepadButton(state, button);
+        if (captureActive) {
+            return;
+        }
+    }
+    if (playerIndex == 0 && isTrainingShowShortcutButton(state, playerIndex, button) && triggerTrainingShowShortcut(state)) {
         return;
     }
 
@@ -805,7 +812,7 @@ std::optional<SDL_Keycode> gamepadMenuKeyForButton(const AppState& state, SDL_Ga
 
     if (state.frontend.screen == Screen::FightView && state.frontend.fightPauseOpen) {
         if (state.frontend.pendingMode == PendingMode::Training) {
-            if (isTrainingShowShortcutButton(button)) {
+            if (isTrainingShowShortcutButton(state, 0, button)) {
                 return SDLK_H;
             }
             if (button == SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER) {
@@ -815,7 +822,7 @@ std::optional<SDL_Keycode> gamepadMenuKeyForButton(const AppState& state, SDL_Ga
                 return SDLK_PAGEUP;
             }
         }
-        if (button == SDL_GAMEPAD_BUTTON_START || button == SDL_GAMEPAD_BUTTON_SOUTH) {
+        if (gamepadButtonMatchesControlAction(state, 0, button, InputAction::Pause) || button == SDL_GAMEPAD_BUTTON_SOUTH) {
             return SDLK_RETURN;
         }
         if (button == SDL_GAMEPAD_BUTTON_BACK) {
@@ -842,7 +849,7 @@ std::optional<SDL_Keycode> gamepadMenuKeyForButton(const AppState& state, SDL_Ga
                 return SDLK_ESCAPE;
             }
         }
-        if (button == SDL_GAMEPAD_BUTTON_START) {
+        if (gamepadButtonMatchesControlAction(state, 0, button, InputAction::Pause)) {
             return SDLK_RETURN;
         }
         if (button == SDL_GAMEPAD_BUTTON_BACK && state.frontend.pendingMode == PendingMode::Training) {

@@ -40,9 +40,11 @@ CMakeUserPresets.json
 /game/save/*.sav
 /game/save/*.dat
 !/game/save/README.md
+/game/data/external_content.local.def
 
 # Logs and temporary files
 /work/
+/artifacts/screenshots/
 *.log
 *.tmp
 *.bak

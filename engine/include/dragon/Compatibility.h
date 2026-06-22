@@ -1,6 +1,8 @@
 #pragma once
 
 #include <filesystem>
+#include <functional>
+#include <optional>
 #include <string_view>
 
 namespace dragon {
@@ -52,6 +54,10 @@ CompatibilityContext makeCompatibilityContext(
 bool usesMugenSemantics(const CompatibilityContext& context);
 bool allowsDragonExtensions(const CompatibilityContext& context);
 bool allowsArenaExtensions(const CompatibilityContext& context);
+std::optional<int> resolveCompatibleStateAnimAction(
+    const CompatibilityContext& context,
+    int requestedAction,
+    const std::function<bool(int)>& actionExists);
 float resolveLocalCoordScaleX(const CompatibilityContext& context, float targetWidth = 320.0f);
 float resolveLocalCoordScaleY(const CompatibilityContext& context, float targetHeight = 240.0f);
 

@@ -232,9 +232,11 @@ void updateArenaPhaseTimers(AppState& state) {
             state.matchPhase = MatchPhase::MatchResult;
             state.matchPhaseTicks = 0;
             state.frontend.selectedMatchResultOption = 0;
+            awardProgressionForMatchIfNeeded(state);
         }
         break;
     case MatchPhase::MatchResult:
+        awardProgressionForMatchIfNeeded(state);
         ++state.matchPhaseTicks;
         break;
     case MatchPhase::Fight:
@@ -335,7 +337,10 @@ void updateArenaFight(AppState& state) {
     for (size_t i = 1; i < state.fighters.size(); ++i) {
         auto& fighter = state.fighters[i];
         const int targetIndex = nearestLivingEnemyIndex(state, static_cast<int>(i));
-        if (fighter.life <= 0 || targetIndex < 0 || !fighterCanUpdateDuringGlobalPause(state, static_cast<int>(i))) {
+        if (fighter.life <= 0
+            || targetIndex < 0
+            || state.suppressArenaCpu
+            || !fighterCanUpdateDuringGlobalPause(state, static_cast<int>(i))) {
             if (fighter.life > 0) {
                 fighter.vx = 0.0f;
                 fighter.vy = 0.0f;

@@ -134,17 +134,28 @@ void drawMatchResultScreen(const UiRenderContext& ui, const FightMatchResultView
     debugTextCentered(ui.renderer, centerX, 94, view.scoreText);
     setColor(ui.renderer, 174, 184, 196);
     debugTextCentered(ui.renderer, centerX, 112, view.methodText);
+    float infoY = 128.0f;
+    if (!view.progressionText.empty()) {
+        setColor(ui.renderer, 124, 222, 170);
+        debugTextCentered(ui.renderer, centerX, 128, fitDebugText(view.progressionText, 42));
+        infoY = 142.0f;
+    }
     if (!view.quoteText.empty()) {
-        debugTextCentered(ui.renderer, centerX, 128, fitDebugText("\"" + view.quoteText + "\"", 40));
-        debugTextCentered(ui.renderer, centerX, 142, fitDebugText(view.stageText, 34));
+        setColor(ui.renderer, 174, 184, 196);
+        debugTextCentered(ui.renderer, centerX, infoY, fitDebugText("\"" + view.quoteText + "\"", 40));
+        debugTextCentered(ui.renderer, centerX, infoY + 14.0f, fitDebugText(view.stageText, 34));
     } else {
-        debugTextCentered(ui.renderer, centerX, 128, fitDebugText(view.stageText, 34));
+        setColor(ui.renderer, 174, 184, 196);
+        debugTextCentered(ui.renderer, centerX, infoY, fitDebugText(view.stageText, 34));
     }
 
     const int rowCount = std::clamp(view.menuRowCount, 0, static_cast<int>(view.menuRows.size()));
+    const float menuStartY = !view.quoteText.empty()
+        ? (view.progressionText.empty() ? 166.0f : 178.0f)
+        : (view.progressionText.empty() ? 154.0f : 166.0f);
     for (int i = 0; i < rowCount; ++i) {
         const auto& row = view.menuRows[static_cast<size_t>(i)];
-        const float y = (view.quoteText.empty() ? 154.0f : 166.0f) + static_cast<float>(i * 16);
+        const float y = menuStartY + static_cast<float>(i * 16);
         if (row.selected) {
             setColor(ui.renderer, 74, 170, 134, static_cast<Uint8>(190 + pulse * 48.0f));
             fillRect(ui.renderer, centerX - 70.0f, y - 4.0f, 140, 14);

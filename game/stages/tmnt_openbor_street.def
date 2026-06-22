@@ -1,0 +1,77 @@
+; TMNT OpenBOR-style scrolling Arena stage compatibility fixture.
+; Art was converted locally from a TMNT OpenBOR PAK into a normal M.U.G.E.N SFF.
+
+[Info]
+name = "TMNT OpenBOR Street"
+displayname = "TMNT OpenBOR Street"
+author = "Dragon MUGEN compatibility fixture"
+
+[Camera]
+startx = 213
+starty = 0
+boundleft = 213
+boundright = 2080
+boundhigh = -22
+boundlow = 0
+verticalfollow = .2
+floortension = 0
+tension = 60
+
+[PlayerInfo]
+p1startx = 120
+p1starty = 0
+p1startz = 0
+p1facing = 1
+p2startx = 380
+p2starty = 0
+p2startz = 0
+p2facing = -1
+leftbound = 0
+rightbound = 2400
+topbound = 0
+botbound = 0
+
+[Scaling]
+topz = 0
+botz = 50
+topscale = 1
+botscale = 1.2
+
+[Bound]
+screenleft = 20
+screenright = 55
+
+[StageInfo]
+zoffset = 200
+autoturn = 1
+resetBG = 1
+
+[OpenBOR]
+scrolling = 1
+scrollstartx = 213
+scrollendx = 2080
+scrollspeed = 2.4
+scrolllead = 96
+
+[Shadow]
+color = 32,32,32
+yscale = -.1
+reflect = 1
+
+[Music]
+bgmusic =
+bgvolume = 0
+
+[BGDef]
+spr = tmnt_openbor_street.sff
+debugbg = 0
+
+[BG Street]
+type = normal
+spriteno = 0,0
+layerno = 0
+start = 0,0
+delta = 1,1
+trans = none
+mask = 0
+tile = 0,0

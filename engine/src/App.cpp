@@ -1,5 +1,6 @@
 #include "dragon/App.h"
 #include "dragon/Compatibility.h"
+#include "dragon/DragonProgression.h"
 #include "dragon/FightData.h"
 #include "dragon/MugenData.h"
 #include "dragon/MugenText.h"
@@ -8,7 +9,10 @@
 #include "ArenaConfig.h"
 #include "ArenaSetupOverlay.h"
 #include "AppTypes.h"
+#include "ControlsOptionsMenu.h"
+#include "ControlsStore.h"
 #include "FightDisplayState.h"
+#include "FightDebugLog.h"
 #include "FightHudOverlay.h"
 #include "FightMessageState.h"
 #include "FightPresentationView.h"
@@ -17,11 +21,14 @@
 #include "FrontendState.h"
 #include "Input.h"
 #include "CharacterSelectOverlay.h"
+#include "LoadingProgressState.h"
 #include "MainMenuOverlay.h"
 #include "OptionsMenuOverlay.h"
 #include "PauseMenuOverlay.h"
+#include "ProgressionState.h"
 #include "SelectionState.h"
 #include "StageSelectOverlay.h"
+#include "StoryStageSelectOverlay.h"
 #include "TrainingState.h"
 #include "TrainingCommandInputRenderer.h"
 #include "TrainingCommandView.h"
@@ -45,6 +52,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cmath>
+#include <exception>
 #include <fstream>
 #include <filesystem>
 #include <iomanip>
@@ -1044,6 +1052,7 @@ struct StateDefinition {
     char moveType = 'I';
     char physics = 'N';
     int anim = 0;
+    std::string animExpression;
     bool hasAnim = false;
     bool ctrl = true;
     std::string powerAddExpression;
@@ -1204,6 +1213,7 @@ struct AnimationClip {
 
 struct StageBackgroundElement {
     TextureSprite sprite;
+    AnimationClip animation;
     float x = 0.0f;
     float y = 0.0f;
     float deltaX = 1.0f;
@@ -1211,6 +1221,7 @@ struct StageBackgroundElement {
     bool tileX = false;
     bool tileY = false;
     int layerNo = 0;
+    bool animated = false;
 };
 
 struct SystemScreenAssets {
@@ -1271,10 +1282,13 @@ struct AudioState {
     SDL_AudioSpec playbackSpec{ SDL_AUDIO_F32, 2, 44100 };
     SDL_AudioStream* stream = nullptr;
     bool subsystemInitialized = false;
+    bool mixerInitialized = false;
     std::vector<DecodedSoundSample> characterSamples;
     std::vector<DecodedSoundSample> systemSamples;
     std::vector<DecodedSoundSample> commonSamples;
     std::vector<DecodedSoundSample> fightSamples;
+    DecodedSoundSample stageMusicSample;
+    std::filesystem::path stageMusicPath;
     std::vector<ActiveSoundVoice> activeVoices;
     std::vector<float> mixBuffer;
     int menuCursorMoveSoundGroup = 100;
@@ -1378,10 +1392,13 @@ struct FighterState {
     int paletteNo = 1;
     std::vector<PaletteRemap> paletteRemaps;
     int life = 1000;
+    int maxLifeOverride = 0;
     int power = 0;
     int hitCount = 0;
     float defenceMultiplier = 1.0f;
     float attackMultiplier = 1.0f;
+    float modeDefenceMultiplier = 1.0f;
+    float modeAttackMultiplier = 1.0f;
     int attackDistanceOverride = -1;
     int projectileHitId = -1;
     int projectileHitTicks = 0;
@@ -1517,6 +1534,10 @@ struct AppState {
     TrainingState training;
     FightMessageState messages;
     FightDisplayState display;
+    ProgressionState progression;
+    ControlsSettings controls;
+    StoryModeState story;
+    std::filesystem::path controlsSavePath;
     bool running = true;
     MainSettings mainSettings;
     FightRoundSettings fightRoundSettings;
@@ -1532,6 +1553,7 @@ struct AppState {
     bool roundPoseApplied = false;
     bool fightSessionPrepared = false;
     bool fightSessionLoadFailed = false;
+    LoadingProgressState loadingProgress;
     int globalPauseTicks = 0;
     int globalPauseOwnerIndex = -1;
     int globalPauseOwnerMoveTicks = 0;
@@ -1543,6 +1565,7 @@ struct AppState {
     int fpsWindowFrames = 0;
     float renderFps = 0.0f;
     bool suppressFpsCounter = false;
+    bool suppressArenaCpu = false;
     int frame = 0;
     float cameraX = 0.0f;
     float cameraY = 0.0f;
@@ -1746,9 +1769,16 @@ bool usesLocalP2Controls(const AppState& state) {
 
 #include "ArenaModeState.h"
 
+bool arenaDepthActive(const AppState& state);
+
+#include "StoryModeState.h"
+
 std::string opponentDisplayName(const AppState& state) {
     if (isArenaMode(state)) {
         return std::to_string(arenaCpuCount(state)) + " CPU";
+    }
+    if (isStoryMode(state)) {
+        return "Enemy Waves";
     }
     if (const CharacterSlot* character = characterSlotAt(state.selection, state.selection.sessionSlots.opponentCharacter)) {
         return character->displayName;
@@ -1765,7 +1795,8 @@ std::string opponentDisplayName(const AppState& state) {
 }
 
 bool arenaDepthActive(const AppState& state) {
-    return isArenaMode(state) && arenaZAxisEnabled(state);
+    return (isArenaMode(state) && arenaZAxisEnabled(state))
+        || isStoryMode(state);
 }
 
 float arenaDepthProjectionOffset(const AppState& state, float depthZ) {
@@ -1992,6 +2023,73 @@ UiSpriteView uiSpriteView(const TextureSprite* sprite) {
         sprite->axisX,
         sprite->axisY,
     };
+}
+
+VsScreenLoadStatus vsScreenLoadStatus(const AppState& state) {
+    if (state.fightSessionLoadFailed || state.loadingProgress.failed) {
+        return VsScreenLoadStatus::Failed;
+    }
+    if (state.fightSessionPrepared) {
+        return VsScreenLoadStatus::Ready;
+    }
+    return VsScreenLoadStatus::Loading;
+}
+
+std::string_view loadingOpponentSlotLabel(const AppState& state) {
+    return opponentTypeLabel(activeOpponentType(state));
+}
+
+VsScreenView versusScreenView(const AppState& state) {
+    const TextureSprite* p1Portrait = state.characterLargePortrait.texture
+        ? &state.characterLargePortrait
+        : spriteAt(state.characterFaceSprites, sessionP1CharacterIndex(state.selection));
+    const int opponentPortraitIndex = isStoryMode(state)
+        ? storyFighterCharacterIndex(state, 1)
+        : state.selection.sessionSlots.opponentCharacter;
+    const TextureSprite* opponentPortrait =
+        spriteAt(state.characterFaceSprites, opponentPortraitIndex);
+
+    const VsScreenLoadStatus status = vsScreenLoadStatus(state);
+    const float progress = status == VsScreenLoadStatus::Ready || status == VsScreenLoadStatus::Failed
+        ? 1.0f
+        : loadingProgressFraction(state.loadingProgress);
+    const std::string phase = state.loadingProgress.active
+        ? state.loadingProgress.phase
+        : std::string("Waiting to load");
+    const std::string progressText = std::to_string(
+        status == VsScreenLoadStatus::Ready || status == VsScreenLoadStatus::Failed
+            ? 100
+            : loadingProgressPercent(state.loadingProgress))
+        + "%";
+
+    return VsScreenView{
+        std::string(pendingModeTitle(state.frontend.pendingMode)),
+        compactSettingText(selectedCharacterName(state.selection), 13),
+        compactSettingText(opponentDisplayName(state), 10),
+        std::string(loadingOpponentSlotLabel(state)),
+        compactSettingText(selectedStageName(state.selection), 26),
+        phase,
+        progressText,
+        status,
+        progress,
+        uiSpriteView(p1Portrait),
+        uiSpriteView(opponentPortrait),
+    };
+}
+
+void presentVersusLoadingProgress(SDL_Renderer* renderer, AppState& state) {
+    if (!renderer || state.frontend.screen != Screen::VersusScreen) {
+        return;
+    }
+    SDL_PumpEvents();
+    SDL_SetRenderLogicalPresentation(
+        renderer,
+        logicalWidth(state),
+        kLogicalHeight,
+        SDL_LOGICAL_PRESENTATION_LETTERBOX);
+    drawVersusScreenOverlay(uiRenderContext(renderer, state), versusScreenView(state));
+    drawFpsCounter(renderer, state);
+    SDL_RenderPresent(renderer);
 }
 
 SDL_Texture* createTexture(SDL_Renderer* renderer, const DecodedSprite& sprite) {
@@ -3147,10 +3245,26 @@ void closeAllGamepads(AppState& state) {
     state.gamepads.clear();
 }
 
+int gamepadAssignmentForPlayer(const AppState& state, int playerIndex) {
+    const int safePlayer = std::clamp(playerIndex, 0, kControlPlayerCount - 1);
+    if (safePlayer < static_cast<int>(state.controls.gamepadAssignments.size())) {
+        return state.controls.gamepadAssignments[static_cast<size_t>(safePlayer)];
+    }
+    return safePlayer == 0 ? state.mainSettings.p1GamepadAssignment : state.mainSettings.p2GamepadAssignment;
+}
+
+void setGamepadAssignmentForPlayer(AppState& state, int playerIndex, int assignment) {
+    const int safePlayer = std::clamp(playerIndex, 0, kControlPlayerCount - 1);
+    state.controls.gamepadAssignments[static_cast<size_t>(safePlayer)] = assignment;
+    if (safePlayer == 0) {
+        state.mainSettings.p1GamepadAssignment = assignment;
+    } else if (safePlayer == 1) {
+        state.mainSettings.p2GamepadAssignment = assignment;
+    }
+}
+
 const GamepadDevice* assignedGamepad(const AppState& state, int playerIndex) {
-    const int assignment = playerIndex == 0
-        ? state.mainSettings.p1GamepadAssignment
-        : state.mainSettings.p2GamepadAssignment;
+    const int assignment = gamepadAssignmentForPlayer(state, playerIndex);
     if (assignment < 0 || state.gamepads.empty()) {
         return nullptr;
     }
@@ -3166,9 +3280,7 @@ const GamepadDevice* assignedGamepad(const AppState& state, int playerIndex) {
 }
 
 std::string gamepadAssignmentText(const AppState& state, int playerIndex) {
-    const int assignment = playerIndex == 0
-        ? state.mainSettings.p1GamepadAssignment
-        : state.mainSettings.p2GamepadAssignment;
+    const int assignment = gamepadAssignmentForPlayer(state, playerIndex);
     if (assignment < 0) {
         return "OFF";
     }
@@ -3215,12 +3327,16 @@ std::string mainSettingStatus(const AppState& state, int option) {
     case 3:
         return state.mainSettings.fpsCapEnabled ? "60" : "OFF";
     case 4:
-        return gamepadPromptStyleText(state.mainSettings.gamepadPromptStyle);
+        return compactSettingText(dragonProgressionPlayerProfileDisplayName(state.progression.save, 0), 18);
     case 5:
-        return gamepadAssignmentText(state, 0);
+        return compactSettingText(dragonProgressionPlayerProfileDisplayName(state.progression.save, 1), 18);
     case 6:
-        return gamepadAssignmentText(state, 1);
+        return gamepadPromptStyleText(state.mainSettings.gamepadPromptStyle);
     case 7:
+        return gamepadAssignmentText(state, 0);
+    case 8:
+        return gamepadAssignmentText(state, 1);
+    case 9:
         return state.mainSettings.fallFallbacksEnabled ? "ON" : "OFF";
     default:
         return "";
@@ -3234,20 +3350,7 @@ std::string mainSettingsPadSummary(const AppState& state) {
     return "PADS " + std::to_string(state.gamepads.size()) + "  " + compactSettingText(state.gamepads.front().name, 18);
 }
 
-std::vector<OptionsMenuRowView> buildOptionsMenuRows(const AppState& state) {
-    std::vector<OptionsMenuRowView> rows;
-    rows.reserve(kMainSettingsCount);
-    for (int i = 0; i < kMainSettingsCount; ++i) {
-        const bool adjustable = i < kMainSettingsCount - 1;
-        rows.push_back(OptionsMenuRowView{
-            std::string(mainSettingLabel(i)),
-            adjustable ? mainSettingStatus(state, i) : "",
-            i == state.mainSettings.selectedOption,
-            adjustable,
-        });
-    }
-    return rows;
-}
+ControlsOptionsContext controlsOptionsContext(const AppState& state);
 
 void drawModeSelect(SDL_Renderer* renderer, const AppState& state) {
     drawTitleBackground(renderer, state);
@@ -3268,13 +3371,11 @@ void drawModeSelect(SDL_Renderer* renderer, const AppState& state) {
 void drawMainSettings(SDL_Renderer* renderer, const AppState& state) {
     drawTitleBackground(renderer, state);
 
-    std::vector<OptionsMenuRowView> rows = buildOptionsMenuRows(state);
+    std::vector<OptionsMenuRowView> rows;
+    const OptionsMenuView view = buildControlsOptionsView(controlsOptionsContext(state), rows);
     drawOptionsMenuOverlay(
         uiRenderContext(renderer, state),
-        OptionsMenuView{
-            rows,
-            mainSettingsPadSummary(state),
-        });
+        view);
 
     drawFpsCounter(renderer, state);
     SDL_RenderPresent(renderer);
@@ -3296,6 +3397,10 @@ void drawCharacterSelect(SDL_Renderer* renderer, const AppState& state) {
     int p2SelectedCell = 0;
     std::string activePlayerLabel = "P1";
     std::string selectedName;
+    std::string profileName;
+    std::string selectedProgressionLabel;
+    std::string opponentProfileName;
+    std::string opponentProgressionLabel;
     std::string opponentName = std::string(opponentSlotLabel(state.frontend.pendingMode));
     std::string preferredStageLabel;
     UiSpriteView selectedPortrait;
@@ -3327,10 +3432,28 @@ void drawCharacterSelect(SDL_Renderer* renderer, const AppState& state) {
         selectedName = compactSettingText(p1Character.displayName, 15);
         preferredStageLabel = compactSettingText(characterPreferredStageName(state.selection, p1DisplayIndex), 22);
         selectedPortrait = uiSpriteView(spriteAt(state.characterFaceSprites, p1DisplayIndex));
+        if (state.progression.loaded && state.progression.data.config.enabled) {
+            const std::string p1ProfileId = dragonProgressionPlayerProfileId(state.progression.save, 0);
+            profileName = compactSettingText(
+                dragonProgressionProfileDisplayName(state.progression.save, p1ProfileId),
+                14);
+            selectedProgressionLabel = compactSettingText(
+                dragonProgressionCharacterSummaryForProfile(
+                    state.progression.data,
+                    state.progression.save,
+                    p1ProfileId,
+                    p1Character.id),
+                20);
+        }
 
         if (state.frontend.pendingMode == PendingMode::Arena) {
             activePlayerLabel = "ARENA";
             opponentName = "RANDOM CPU";
+            preferredStageLabel = compactSettingText(selectedStageName(state.selection), 22);
+        }
+        if (state.frontend.pendingMode == PendingMode::Story) {
+            activePlayerLabel = "STORY";
+            opponentName = "ENEMY WAVES";
             preferredStageLabel = compactSettingText(selectedStageName(state.selection), 22);
         }
 
@@ -3339,6 +3462,21 @@ void drawCharacterSelect(SDL_Renderer* renderer, const AppState& state) {
             const auto& p2Character = state.selection.characters[static_cast<size_t>(p2DisplayIndex)];
             opponentName = compactSettingText(p2Character.displayName, 15);
             opponentPortrait = uiSpriteView(spriteAt(state.characterFaceSprites, p2DisplayIndex));
+            if (state.progression.loaded && state.progression.data.config.enabled) {
+                const std::string p2ProfileId = dragonProgressionPlayerProfileId(state.progression.save, 1);
+                opponentProfileName = compactSettingText(
+                    dragonProgressionProfileDisplayName(state.progression.save, p2ProfileId),
+                    14);
+                opponentProgressionLabel = isDragonProgressionGuestProfile(p2ProfileId)
+                    ? "GUEST NO SAVE"
+                    : compactSettingText(
+                        dragonProgressionCharacterSummaryForProfile(
+                            state.progression.data,
+                            state.progression.save,
+                            p2ProfileId,
+                            p2Character.id),
+                        20);
+            }
         }
     }
 
@@ -3349,6 +3487,10 @@ void drawCharacterSelect(SDL_Renderer* renderer, const AppState& state) {
             std::string(pendingModeTitle(state.frontend.pendingMode)),
             activePlayerLabel,
             selectedName,
+            profileName,
+            selectedProgressionLabel,
+            opponentProfileName,
+            opponentProgressionLabel,
             opponentName,
             preferredStageLabel,
             selectedPortrait,
@@ -3397,7 +3539,7 @@ const AnimationClip* findClipInSet(const std::vector<AnimationClip>& clips, int 
 }
 
 const ArenaCharacterRuntime* arenaRuntimeForFighterIndex(const AppState& state, size_t fighterIndex) {
-    if (!isArenaMode(state) || fighterIndex >= state.arenaRuntimes.size()) {
+    if (!(isArenaMode(state) || isStoryMode(state)) || fighterIndex >= state.arenaRuntimes.size()) {
         return nullptr;
     }
     const auto& runtime = state.arenaRuntimes[fighterIndex];
@@ -3434,7 +3576,7 @@ const AnimationClip* findClipForFighter(const AppState& state, size_t fighterInd
     if (const auto* runtime = characterRuntimeForFighterIndex(state, fighterIndex)) {
         return findClipInSet(runtime->clips, action);
     }
-    if (state.frontend.pendingMode == PendingMode::Arena
+    if ((state.frontend.pendingMode == PendingMode::Arena || state.frontend.pendingMode == PendingMode::Story)
         && fighterIndex < state.arenaFighterClips.size()
         && !state.arenaFighterClips[fighterIndex].empty()) {
         return findClipInSet(state.arenaFighterClips[fighterIndex], action);
@@ -3458,7 +3600,7 @@ const AnimationClip* findExactClipForFighter(const AppState& state, size_t fight
     if (const auto* runtime = characterRuntimeForFighterIndex(state, fighterIndex)) {
         return findExactClipInSet(runtime->clips, action);
     }
-    if (state.frontend.pendingMode == PendingMode::Arena
+    if ((state.frontend.pendingMode == PendingMode::Arena || state.frontend.pendingMode == PendingMode::Story)
         && fighterIndex < state.arenaFighterClips.size()
         && !state.arenaFighterClips[fighterIndex].empty()) {
         return findExactClipInSet(state.arenaFighterClips[fighterIndex], action);
@@ -3636,41 +3778,19 @@ int firstExistingAction(const AppState& state, std::initializer_list<int> action
 
 const CompatibilityContext& compatibilityContextForActor(const AppState& state, const FighterState& fighter) {
     const int ownerIndex = actorClipOwnerIndex(state, fighter);
+    if ((state.frontend.pendingMode == PendingMode::Arena || state.frontend.pendingMode == PendingMode::Story)
+        && ownerIndex >= 0) {
+        if (const auto* runtime = arenaRuntimeForFighterIndex(state, static_cast<size_t>(ownerIndex))) {
+            return runtime->compatibility;
+        }
+    }
     if (ownerIndex == 0) {
         return state.characterCompatibility;
-    }
-    if (state.frontend.pendingMode == PendingMode::Arena && ownerIndex > 0) {
-        const int arenaIndex = ownerIndex - 1;
-        if (arenaIndex >= 0 && arenaIndex < static_cast<int>(state.arenaRuntimes.size())) {
-            return state.arenaRuntimes[static_cast<size_t>(arenaIndex)].compatibility;
-        }
     }
     if (ownerIndex == 1) {
         return state.opponentRuntime.compatibility;
     }
     return state.characterCompatibility;
-}
-
-int resolveStateDefinitionAnimAction(const AppState& state, const FighterState& fighter, int requestedAction) {
-    if (findExactClipForActor(state, fighter, requestedAction)) {
-        return requestedAction;
-    }
-    if (!usesMugenSemantics(compatibilityContextForActor(state, fighter))) {
-        return -1;
-    }
-
-    const int decadeBase = (requestedAction / 10) * 10;
-    for (int action = requestedAction - 1; action >= decadeBase; --action) {
-        if (findExactClipForActor(state, fighter, action)) {
-            return action;
-        }
-    }
-    for (int action = requestedAction + 1; action < decadeBase + 10; ++action) {
-        if (findExactClipForActor(state, fighter, action)) {
-            return action;
-        }
-    }
-    return -1;
 }
 
 const AnimationClip* findFightFxClip(const AppState& state, int action) {
@@ -3761,12 +3881,7 @@ const StateDefinition* findStateDefinitionForActor(const AppState& state, const 
     return findStateDefinitionInSet(stateDefinitionsForActor(state, fighter), stateNo);
 }
 
-std::optional<float> evalMugenExpression(
-    const AppState& state,
-    const FighterState& fighter,
-    const std::string& expression,
-    const FighterState* opponent,
-    const StageSlot* stage);
+#include "StateDefinitionCompatibility.h"
 
 void applyStateDefinitionPowerAdd(const AppState& state, FighterState& fighter, const StateDefinition& stateDef) {
     if (stateDef.powerAddExpression.empty()) {
@@ -3981,7 +4096,7 @@ bool enterState(const AppState& state, FighterState& fighter, int stateNo) {
 
     const StateDefinition* stateDef = findStateDefinitionForActor(state, fighter, stateNo);
     const int resolvedStateAnim = stateDef && stateDef->hasAnim
-        ? resolveStateDefinitionAnimAction(state, fighter, stateDef->anim)
+        ? resolveStateDefinitionAnimAction(state, fighter, *stateDef)
         : -1;
     if (!stateDef || (stateDef->hasAnim && resolvedStateAnim < 0)) {
         return false;
@@ -4787,10 +4902,16 @@ int characterMaxLifeForConstants(const CharacterConstants& constants) {
 }
 
 int characterMaxLifeForActor(const AppState& state, const FighterState& fighter) {
+    if (fighter.maxLifeOverride > 0) {
+        return fighter.maxLifeOverride;
+    }
     return characterMaxLifeForConstants(characterConstantsForActor(state, fighter));
 }
 
 int characterMaxLifeForFighterIndex(const AppState& state, size_t fighterIndex) {
+    if (fighterIndex < state.fighters.size() && state.fighters[fighterIndex].maxLifeOverride > 0) {
+        return state.fighters[fighterIndex].maxLifeOverride;
+    }
     return characterMaxLifeForConstants(characterConstantsForFighterIndex(state, fighterIndex));
 }
 
@@ -4798,7 +4919,7 @@ const std::vector<AnimationClip>* characterClipsForFighterIndex(const AppState& 
     if (const auto* runtime = characterRuntimeForFighterIndex(state, fighterIndex)) {
         return &runtime->clips;
     }
-    if (state.frontend.pendingMode == PendingMode::Arena
+    if ((state.frontend.pendingMode == PendingMode::Arena || state.frontend.pendingMode == PendingMode::Story)
         && fighterIndex < state.arenaFighterClips.size()
         && !state.arenaFighterClips[fighterIndex].empty()) {
         return &state.arenaFighterClips[fighterIndex];
@@ -4868,6 +4989,7 @@ void applyInitialFighterScale(AppState& state, FighterState& fighter, size_t fig
 }
 
 float clampFighterOriginToStage(float x, const StageSlot& stage);
+void clearProgressionMatchAward(AppState& state);
 
 #include "FightSessionRuntime.h"
 
@@ -5537,6 +5659,12 @@ FighterState* opponentForActor(AppState& state, const FighterState& actor) {
     if (ownerIndex < 0 || state.fighters.size() < 2) {
         return nullptr;
     }
+    if (isStoryMode(state)) {
+        const int target = storyProjectileDefenderIndex(state, ownerIndex);
+        return target >= 0 && target < static_cast<int>(state.fighters.size())
+            ? &state.fighters[static_cast<size_t>(target)]
+            : nullptr;
+    }
     return &state.fighters[static_cast<size_t>(ownerIndex == 0 ? 1 : 0)];
 }
 
@@ -5544,6 +5672,12 @@ const FighterState* opponentForActor(const AppState& state, const FighterState& 
     int ownerIndex = actor.helper ? actor.ownerIndex : fighterIndexInState(state, actor);
     if (ownerIndex < 0 || state.fighters.size() < 2) {
         return nullptr;
+    }
+    if (isStoryMode(state)) {
+        const int target = storyProjectileDefenderIndex(state, ownerIndex);
+        return target >= 0 && target < static_cast<int>(state.fighters.size())
+            ? &state.fighters[static_cast<size_t>(target)]
+            : nullptr;
     }
     return &state.fighters[static_cast<size_t>(ownerIndex == 0 ? 1 : 0)];
 }
@@ -7528,7 +7662,7 @@ int scaleDamageForDefence(const AppState& state, int damage, const FighterState&
         return 0;
     }
     const float baseDefence = std::max(1, characterConstantsForActor(state, defender).defence) / 100.0f;
-    const float multiplier = std::max(0.001f, baseDefence * defender.defenceMultiplier);
+    const float multiplier = std::max(0.001f, baseDefence * defender.defenceMultiplier * defender.modeDefenceMultiplier);
     return std::max(0, static_cast<int>(std::lround(static_cast<float>(damage) / multiplier)));
 }
 
@@ -7537,7 +7671,8 @@ int scaleDamageForAttack(const AppState& state, int damage, const FighterState& 
         return 0;
     }
     const float baseAttack = std::max(1, characterConstantsForActor(state, attacker).attack) / 100.0f;
-    return std::max(0, static_cast<int>(std::lround(static_cast<float>(damage) * baseAttack * attacker.attackMultiplier)));
+    return std::max(0, static_cast<int>(std::lround(
+        static_cast<float>(damage) * baseAttack * attacker.attackMultiplier * attacker.modeAttackMultiplier)));
 }
 
 int scaleAttackThenDefenceDamage(const AppState& state, int damage, const FighterState& attacker, const FighterState& defender) {
@@ -7759,7 +7894,7 @@ void applyHitBetween(AppState& state, size_t attackerIndex, size_t defenderIndex
     }
     state.messages.lastHitText = hitText.str();
     state.messages.lastHitTextTicks = 150;
-    SDL_Log("%s", state.messages.lastHitText.c_str());
+    logFightHitEvent(state.messages.lastHitText);
 }
 
 bool trainingCommandDemoActive(const AppState& state);
@@ -8119,7 +8254,7 @@ void applyProjectileHit(AppState& state, RuntimeProjectile& projectile, size_t d
     projectile.hitCooldownTicks = std::max(projectile.hitCooldownTicks, projectile.missTime);
     state.messages.lastHitText = hitText.str();
     state.messages.lastHitTextTicks = 150;
-    SDL_Log("%s", state.messages.lastHitText.c_str());
+    logFightHitEvent(state.messages.lastHitText);
 }
 
 void updateRuntimeProjectiles(AppState& state, const StageSlot& stage) {
@@ -8155,7 +8290,13 @@ void updateRuntimeProjectiles(AppState& state, const StageSlot& stage) {
                 continue;
             }
             size_t defenderIndex = projectile.ownerIndex == 0 ? 1 : 0;
-            if (state.frontend.pendingMode == PendingMode::Arena) {
+            if (state.frontend.pendingMode == PendingMode::Story) {
+                const int storyDefender = storyProjectileDefenderIndex(state, projectile.ownerIndex);
+                if (storyDefender < 0) {
+                    continue;
+                }
+                defenderIndex = static_cast<size_t>(storyDefender);
+            } else if (state.frontend.pendingMode == PendingMode::Arena) {
                 const int arenaDefender = nearestLivingEnemyIndex(state, projectile.ownerIndex);
                 if (arenaDefender < 0) {
                     continue;
@@ -9228,6 +9369,9 @@ std::string fighterResultName(const AppState& state, int winner) {
         }
         return "";
     }
+    if (state.frontend.pendingMode == PendingMode::Story) {
+        return winner == 1 ? selectedCharacterName(state.selection) : "Enemy Waves";
+    }
 
     switch (winner) {
     case 1:
@@ -9256,6 +9400,9 @@ std::string roundResultText(const AppState& state) {
         }
         return "DRAW GAME";
     }
+    if (state.frontend.pendingMode == PendingMode::Story) {
+        return state.roundWinner == 1 ? "STAGE CLEAR" : "MISSION FAILED";
+    }
 
     if (state.roundWinner == 1 || state.roundWinner == 2) {
         return uppercaseCopy(fighterResultName(state, state.roundWinner)) + " WINS";
@@ -9264,6 +9411,9 @@ std::string roundResultText(const AppState& state) {
 }
 
 std::string roundFinishCalloutText(const AppState& state) {
+    if (state.frontend.pendingMode == PendingMode::Story) {
+        return state.roundWinner == 1 ? "STAGE CLEAR" : "MISSION FAILED";
+    }
     switch (state.roundEndReason) {
     case RoundEndReason::TimeUp:
         return "TIME OVER";
@@ -9279,6 +9429,10 @@ std::string roundFinishCalloutText(const AppState& state) {
 std::string singleFightScoreText(const AppState& state) {
     if (state.frontend.pendingMode == PendingMode::Arena) {
         return "Free-for-all";
+    }
+    if (state.frontend.pendingMode == PendingMode::Story) {
+        return "Wave " + std::to_string(std::clamp(state.story.waveIndex + 1, 1, kStoryWaveCount))
+            + "/" + std::to_string(kStoryWaveCount);
     }
     return std::to_string(state.roundWins[0]) + " - " + std::to_string(state.roundWins[1]);
 }
@@ -9379,6 +9533,9 @@ std::string roundStartCalloutText(const AppState& state) {
     if (state.frontend.pendingMode == PendingMode::Arena) {
         return "ARENA";
     }
+    if (state.frontend.pendingMode == PendingMode::Story) {
+        return "STORY";
+    }
     if (state.roundWins[0] == matchWinsRequired(state) - 1
         && state.roundWins[1] == matchWinsRequired(state) - 1) {
         return "FINAL ROUND";
@@ -9388,6 +9545,9 @@ std::string roundStartCalloutText(const AppState& state) {
 
 int matchWinner(const AppState& state) {
     if (state.frontend.pendingMode == PendingMode::Arena) {
+        return state.roundWinner;
+    }
+    if (state.frontend.pendingMode == PendingMode::Story) {
         return state.roundWinner;
     }
 
@@ -9405,6 +9565,9 @@ std::string matchWinMethodText(const AppState& state) {
     if (state.frontend.pendingMode == PendingMode::Arena) {
         return state.roundWinner > 0 ? "Last Fighter Standing" : "No winner recorded";
     }
+    if (state.frontend.pendingMode == PendingMode::Story) {
+        return state.roundWinner == 1 ? "OpenBOR Stage Clear" : "Player Defeated";
+    }
 
     if (matchWinner(state) == 0) {
         return "Draw Game";
@@ -9416,6 +9579,235 @@ std::string matchWinMethodText(const AppState& state) {
         return "Won by Decision";
     default:
         return "Won by Decision";
+    }
+}
+
+void loadProgressionState(AppState& state) {
+    state.progression.savePath = dragonProgressionSavePath(state.gameRoot);
+    try {
+        state.progression.data = loadDragonProgressionData(state.gameRoot);
+        state.progression.save = loadDragonProgressionSave(state.progression.savePath);
+        state.progression.loaded = true;
+    } catch (const std::exception& ex) {
+        SDL_Log("Dragon progression load failed: %s", ex.what());
+        state.progression = {};
+        state.progression.loaded = true;
+    }
+}
+
+std::array<std::string, kControlPlayerCount> controlProfileIdsForPlayers(const AppState& state) {
+    std::array<std::string, kControlPlayerCount> ids{
+        "player1",
+        "guest",
+        "player3",
+        "player4",
+    };
+    if (state.progression.loaded) {
+        ids[0] = dragonProgressionPlayerProfileId(state.progression.save, 0);
+        ids[1] = dragonProgressionPlayerProfileId(state.progression.save, 1);
+    }
+    if (ids[0].empty()) {
+        ids[0] = "player1";
+    }
+    if (ids[1].empty()) {
+        ids[1] = dragonProgressionGuestProfileId();
+    }
+    return ids;
+}
+
+std::array<std::string, kControlPlayerCount> controlProfileNamesForPlayers(const AppState& state) {
+    std::array<std::string, kControlPlayerCount> names{
+        "Player 1",
+        "Guest",
+        "Player 3",
+        "Player 4",
+    };
+    if (state.progression.loaded) {
+        names[0] = dragonProgressionPlayerProfileDisplayName(state.progression.save, 0);
+        names[1] = dragonProgressionPlayerProfileDisplayName(state.progression.save, 1);
+    }
+    return names;
+}
+
+void syncControlsWithProfiles(AppState& state) {
+    syncDefaultControlProfilesForPlayers(state.controls, controlProfileIdsForPlayers(state));
+    state.mainSettings.p1GamepadAssignment = gamepadAssignmentForPlayer(state, 0);
+    state.mainSettings.p2GamepadAssignment = gamepadAssignmentForPlayer(state, 1);
+}
+
+void loadControlsState(AppState& state) {
+    state.controlsSavePath = dragonControlsSavePath(state.gameRoot);
+    try {
+        state.controls = loadControlsSettings(state.controlsSavePath);
+        syncControlsWithProfiles(state);
+    } catch (const std::exception& ex) {
+        SDL_Log("Dragon controls load failed: %s", ex.what());
+        state.controls = {};
+        syncControlsWithProfiles(state);
+    }
+}
+
+void saveControlsStateQuietly(AppState& state) {
+    try {
+        saveControlsSettings(state.controlsSavePath.empty()
+                ? dragonControlsSavePath(state.gameRoot)
+                : state.controlsSavePath,
+            state.controls);
+    } catch (const std::exception& ex) {
+        SDL_Log("Dragon controls save failed: %s", ex.what());
+    }
+}
+
+ControlProfileBinding& controlProfileForPlayer(AppState& state, int playerIndex) {
+    const auto ids = controlProfileIdsForPlayers(state);
+    return ensureControlProfile(
+        state.controls,
+        ids[static_cast<size_t>(std::clamp(playerIndex, 0, kControlPlayerCount - 1))],
+        playerIndex);
+}
+
+const ControlProfileBinding& controlProfileForPlayerConst(const AppState& state, int playerIndex) {
+    const auto ids = controlProfileIdsForPlayers(state);
+    const int safePlayer = std::clamp(playerIndex, 0, kControlPlayerCount - 1);
+    if (const auto* profile = findControlProfile(state.controls, ids[static_cast<size_t>(safePlayer)])) {
+        return *profile;
+    }
+    static const ControlProfileBinding fallback = makeDefaultControlProfile("player1", 0);
+    return fallback;
+}
+
+bool keyMatchesControlAction(const AppState& state, SDL_Keycode key, int playerIndex, InputAction action) {
+    const SDL_Scancode scancode = SDL_GetScancodeFromKey(key, nullptr);
+    if (scancode == SDL_SCANCODE_UNKNOWN) {
+        return false;
+    }
+    const auto& profile = controlProfileForPlayerConst(state, playerIndex);
+    const auto* actionBinding = findActionBinding(profile, action);
+    if (!actionBinding) {
+        return false;
+    }
+    const PhysicalInputBinding keyInput = keyBinding(scancode);
+    return std::any_of(actionBinding->bindings.begin(), actionBinding->bindings.end(), [&](const auto& binding) {
+        return samePhysicalInput(binding, keyInput);
+    });
+}
+
+bool gamepadButtonMatchesControlAction(
+    const AppState& state,
+    int playerIndex,
+    SDL_GamepadButton button,
+    InputAction action) {
+    if (playerIndex < 0) {
+        playerIndex = 0;
+    }
+    const auto& profile = controlProfileForPlayerConst(state, playerIndex);
+    const auto* actionBinding = findActionBinding(profile, action);
+    if (!actionBinding) {
+        return false;
+    }
+    const PhysicalInputBinding padInput = gamepadButtonBinding(button);
+    return std::any_of(actionBinding->bindings.begin(), actionBinding->bindings.end(), [&](const auto& binding) {
+        return samePhysicalInput(binding, padInput);
+    });
+}
+
+void clearProgressionMatchAward(AppState& state) {
+    state.progression.matchAwardApplied = false;
+    state.progression.lastAwardText.clear();
+}
+
+std::string compactProgressionAwardText(std::string_view playerLabel, const DragonProgressionAwardResult& award) {
+    if (!award.applied) {
+        return {};
+    }
+    std::ostringstream out;
+    out << playerLabel << " +" << award.xpGained << " XP LV " << award.newLevel;
+    return out.str();
+}
+
+void awardProgressionForMatchIfNeeded(AppState& state) {
+    if (!isMatchMode(state)
+        || state.matchPhase != MatchPhase::MatchResult
+        || state.progression.matchAwardApplied) {
+        return;
+    }
+    state.progression.matchAwardApplied = true;
+    if (!state.progression.loaded) {
+        loadProgressionState(state);
+    }
+    if (!state.progression.data.config.enabled) {
+        return;
+    }
+
+    const CharacterSlot* p1 = sessionP1CharacterSlot(state.selection);
+    if (!p1) {
+        return;
+    }
+    const int winner = matchWinner(state);
+    const bool p1Won = winner == 1;
+    const bool arenaMode = state.frontend.pendingMode == PendingMode::Arena
+        || state.frontend.pendingMode == PendingMode::Story;
+    const bool localVsMode = state.frontend.pendingMode == PendingMode::SingleFight
+        && activeOpponentType(state) == OpponentType::LocalP2;
+    const std::string p1ProfileId = dragonProgressionPlayerProfileId(state.progression.save, 0);
+    const auto p1Award = recordDragonProgressionMatchForProfile(
+        state.progression.data,
+        state.progression.save,
+        p1ProfileId,
+        p1->id,
+        p1->displayName,
+        p1Won,
+        arenaMode);
+
+    bool anyAwardApplied = p1Award.applied;
+    if (localVsMode) {
+        std::vector<std::string> awardLines;
+        if (const auto text = compactProgressionAwardText("P1", p1Award); !text.empty()) {
+            awardLines.push_back(text);
+        }
+
+        const CharacterSlot* p2 = characterSlotAt(state.selection, state.selection.sessionSlots.opponentCharacter);
+        const std::string p2ProfileId = dragonProgressionPlayerProfileId(state.progression.save, 1);
+        if (p2 && !isDragonProgressionGuestProfile(p2ProfileId)) {
+            const bool p2Won = winner == 2;
+            const auto p2Award = recordDragonProgressionMatchForProfile(
+                state.progression.data,
+                state.progression.save,
+                p2ProfileId,
+                p2->id,
+                p2->displayName,
+                p2Won,
+                false);
+            anyAwardApplied = anyAwardApplied || p2Award.applied;
+            if (const auto text = compactProgressionAwardText("P2", p2Award); !text.empty()) {
+                awardLines.push_back(text);
+            }
+        } else if (const auto text = compactProgressionAwardText("P1", p1Award); !text.empty()) {
+            awardLines.push_back("P2 GUEST NO SAVE");
+        }
+
+        if (!awardLines.empty()) {
+            std::ostringstream out;
+            for (size_t i = 0; i < awardLines.size(); ++i) {
+                if (i > 0) {
+                    out << " | ";
+                }
+                out << awardLines[i];
+            }
+            state.progression.lastAwardText = out.str();
+        } else {
+            state.progression.lastAwardText.clear();
+        }
+    } else {
+        state.progression.lastAwardText = dragonProgressionAwardSummary(p1Award);
+    }
+
+    if (anyAwardApplied) {
+        try {
+            saveDragonProgressionSave(state.progression.savePath, state.progression.save);
+        } catch (const std::exception& ex) {
+            SDL_Log("Dragon progression save failed: %s", ex.what());
+        }
     }
 }
 
@@ -9677,6 +10069,7 @@ void updateSingleFightPhaseTimers(AppState& state) {
                 state.matchPhase = MatchPhase::MatchResult;
                 state.matchPhaseTicks = 0;
                 state.frontend.selectedMatchResultOption = 0;
+                awardProgressionForMatchIfNeeded(state);
             } else {
                 ++state.currentRound;
                 resetFightRound(state);
@@ -9684,6 +10077,7 @@ void updateSingleFightPhaseTimers(AppState& state) {
         }
         break;
     case MatchPhase::MatchResult:
+        awardProgressionForMatchIfNeeded(state);
         ++state.matchPhaseTicks;
         break;
     case MatchPhase::Fight:
@@ -9693,9 +10087,15 @@ void updateSingleFightPhaseTimers(AppState& state) {
 }
 
 #include "ArenaModeRuntime.h"
+#include "StoryModeRuntime.h"
 
 void updateFight(AppState& state) {
     tickFightRuntimeControllerTracking(state);
+
+    if (state.frontend.pendingMode == PendingMode::Story) {
+        updateStoryFight(state);
+        return;
+    }
 
     if (state.frontend.pendingMode == PendingMode::Arena) {
         updateArenaFight(state);
@@ -9740,7 +10140,7 @@ void updateFight(AppState& state) {
 
     const FighterInputState liveP1Input = gFightInputOverride && gFightInputOverride->p1
         ? *gFightInputOverride->p1
-        : collectFighterInput(keys, p1Controls(), assignedGamepad(state, 0));
+        : collectMappedFighterInput(keys, controlProfileForPlayer(state, 0), assignedGamepad(state, 0));
     const FighterInputState neutralP1Input;
     const FighterInputState& p1Input = trainingCommandDemoActive(state) ? neutralP1Input : liveP1Input;
     if (fighterCanUpdateDuringGlobalPause(state, 0)) {
@@ -9754,7 +10154,7 @@ void updateFight(AppState& state) {
     } else if (usesLocalP2Controls(state)) {
         const FighterInputState p2Input = gFightInputOverride && gFightInputOverride->p2
             ? *gFightInputOverride->p2
-            : collectFighterInput(keys, p2Controls(), assignedGamepad(state, 1));
+            : collectMappedFighterInput(keys, controlProfileForPlayer(state, 1), assignedGamepad(state, 1));
         updateControlledFighter(state, p2, &p1, p2Input);
     } else if (activeOpponentType(state) == OpponentType::Dummy && trainingCommandDemoActive(state)) {
         const FighterInputState demoInput = nextTrainingCommandDemoInput(state, p2);
@@ -9763,6 +10163,9 @@ void updateFight(AppState& state) {
         updateControlledFighter(state, p2, &p1, demoInput, preferredEntry);
     } else if (activeOpponentType(state) == OpponentType::Dummy) {
         updateTrainingDummy(state, p2);
+    } else if (state.suppressArenaCpu) {
+        const FighterInputState neutralCpuInput;
+        updateControlledFighter(state, p2, &p1, neutralCpuInput);
     } else {
         updateCpuOpponent(state, p2, p1);
     }
@@ -9948,6 +10351,37 @@ void drawStageSelect(SDL_Renderer* renderer, AppState& state) {
     ensureSelectedStagePreviewBackground(renderer, state);
     drawStageSelectPreviewBackground(renderer, state);
 
+    if (state.frontend.pendingMode == PendingMode::Story) {
+        std::vector<StoryStageCardView> stages;
+        stages.reserve(state.selection.stages.size());
+        for (int i = 0; i < static_cast<int>(state.selection.stages.size()); ++i) {
+            const auto& stage = state.selection.stages[static_cast<std::size_t>(i)];
+            stages.push_back(StoryStageCardView{
+                stage.displayName,
+                stage.id,
+                stage.author.empty() ? std::string("UNKNOWN AUTHOR") : stage.author,
+                i == state.selection.selectedStage,
+                stage.openborScrolling || stage.legacyOpenBorSection,
+            });
+        }
+
+        StoryStageSelectView view;
+        view.stages = stages;
+        view.fighterLabel = selectedCharacterName(state.selection);
+        view.selectedIndex = state.selection.selectedStage;
+        view.waveCount = kStoryWaveCount;
+        view.frame = state.frame;
+        view.difficultyLabel = std::string(storyDifficultyLabel(state.story.difficulty));
+        if (const StageSlot* selected = selectedStageSlot(state.selection)) {
+            view.selectedStageName = selected->displayName;
+            view.selectedStageAuthor = selected->author.empty() ? std::string("UNKNOWN AUTHOR") : selected->author;
+        }
+        drawStoryStageSelectOverlay(uiRenderContext(renderer, state), view);
+        drawFpsCounter(renderer, state);
+        SDL_RenderPresent(renderer);
+        return;
+    }
+
     std::vector<StageSelectRowView> rows;
     rows.reserve(state.selection.stages.size());
     for (int i = 0; i < static_cast<int>(state.selection.stages.size()); ++i) {
@@ -9976,35 +10410,10 @@ void drawStageSelect(SDL_Renderer* renderer, AppState& state) {
     SDL_RenderPresent(renderer);
 }
 
-VsScreenLoadStatus vsScreenLoadStatus(const AppState& state) {
-    if (state.fightSessionLoadFailed) {
-        return VsScreenLoadStatus::Failed;
-    }
-    if (state.fightSessionPrepared) {
-        return VsScreenLoadStatus::Ready;
-    }
-    return VsScreenLoadStatus::Loading;
-}
-
 void drawVersusScreen(SDL_Renderer* renderer, const AppState& state) {
-    const TextureSprite* p1Portrait = state.characterLargePortrait.texture
-        ? &state.characterLargePortrait
-        : spriteAt(state.characterFaceSprites, sessionP1CharacterIndex(state.selection));
-    const TextureSprite* opponentPortrait =
-        spriteAt(state.characterFaceSprites, state.selection.sessionSlots.opponentCharacter);
-
     drawVersusScreenOverlay(
         uiRenderContext(renderer, state),
-        VsScreenView{
-            std::string(pendingModeTitle(state.frontend.pendingMode)),
-            compactSettingText(selectedCharacterName(state.selection), 13),
-            compactSettingText(opponentDisplayName(state), 10),
-            std::string(opponentSlotLabel(state)),
-            compactSettingText(selectedStageName(state.selection), 26),
-            vsScreenLoadStatus(state),
-            uiSpriteView(p1Portrait),
-            uiSpriteView(opponentPortrait),
-        });
+        versusScreenView(state));
     drawFpsCounter(renderer, state);
     SDL_RenderPresent(renderer);
 }
@@ -10225,6 +10634,7 @@ std::string moveListInputText(
     appendIfRequired("a");
     appendIfRequired("b");
     appendIfRequired("c");
+    appendIfRequired("s");
 
     for (const auto& command : entry.requiredCommands) {
         if (command == "holddown"
@@ -10236,7 +10646,8 @@ std::string moveListInputText(
             || command == "z"
             || command == "a"
             || command == "b"
-            || command == "c") {
+            || command == "c"
+            || command == "s") {
             continue;
         }
         parts.push_back(moveListTokenForCommand(command, mode));
@@ -10752,6 +11163,9 @@ std::string inputDisplayToken(
     if (input.c) {
         tokens.push_back(commandButtonDisplayToken("c", mode));
     }
+    if (input.s) {
+        tokens.push_back(commandButtonDisplayToken("s", mode));
+    }
     return joinTokens(tokens, "+");
 }
 
@@ -10780,6 +11194,9 @@ std::string physicalInputDisplayToken(
     }
     if (input.c) {
         tokens.push_back(commandButtonDisplayToken("c", mode));
+    }
+    if (input.s) {
+        tokens.push_back(commandButtonDisplayToken("s", mode));
     }
     return joinTokens(tokens, "+");
 }
@@ -10939,6 +11356,7 @@ TrainingCommandButtonGuideView trainingCommandButtonGuideView(
     const std::string north = commandButtonDisplayToken("y", mode);
     const std::string south = commandButtonDisplayToken("a", mode);
     const std::string east = commandButtonDisplayToken("b", mode);
+    const std::string system = commandButtonDisplayToken("s", mode);
 
     guide.buttons = {
         makeButton(west.empty() ? "LP" : west, input.x, "x"),
@@ -10946,6 +11364,10 @@ TrainingCommandButtonGuideView trainingCommandButtonGuideView(
         makeButton(south.empty() ? "LK" : south, input.a, "a"),
         makeButton(east.empty() ? "MK" : east, input.b, "b"),
     };
+    guide.systemButton = makeButton(system.empty() ? "START" : system, input.s, "s");
+    guide.systemButtonVisible = guide.systemButton.pressed
+        || guide.systemButton.required
+        || guide.systemButton.matched;
     return guide;
 }
 
@@ -11220,7 +11642,7 @@ TrainingCommandHudView trainingCommandHudView(
         view.pageLabel = entries.empty()
             ? "0/0"
             : std::to_string(selected + 1) + "/" + std::to_string(entries.size());
-        view.showMeLabel = "SHOW:H/L3/R3/TP";
+        view.showMeLabel = "SHOW:H/L3/R3";
         view.nextMoveLabel = "SEL NEXT/2S";
         view.demoActive = trainingCommandDemoActive(state);
         view.completionVisible = state.training.commandPractice.flashTicks > 0
@@ -11451,6 +11873,18 @@ FightPowerGaugeView fightPowerGaugeView(const AppState& state, size_t fighterInd
 FightHudView fightHudView(const AppState& state) {
     FightHudView view;
     view.p1.name = selectedCharacterName(state.selection);
+    if (state.progression.loaded && state.progression.data.config.enabled) {
+        if (const CharacterSlot* p1 = sessionP1CharacterSlot(state.selection)) {
+            const std::string p1ProfileId = dragonProgressionPlayerProfileId(state.progression.save, 0);
+            view.p1.progressionLabel = compactSettingText(
+                dragonProgressionCharacterSummaryForProfile(
+                    state.progression.data,
+                    state.progression.save,
+                    p1ProfileId,
+                    p1->id),
+                18);
+        }
+    }
     view.p1.life = state.fighters[0].life;
     view.p1.maxLife = characterMaxLifeForFighterIndex(state, 0);
     view.p1.power = fightPowerGaugeView(state, 0);
@@ -11459,14 +11893,43 @@ FightHudView fightHudView(const AppState& state) {
     view.p2.life = state.fighters[1].life;
     view.p2.maxLife = characterMaxLifeForFighterIndex(state, 1);
     view.p2.power = fightPowerGaugeView(state, 1);
-    if (state.frontend.pendingMode == PendingMode::Arena) {
+    if (state.progression.loaded
+        && state.progression.data.config.enabled
+        && activeOpponentType(state) == OpponentType::LocalP2) {
+        const std::string p2ProfileId = dragonProgressionPlayerProfileId(state.progression.save, 1);
+        if (isDragonProgressionGuestProfile(p2ProfileId)) {
+            view.p2.progressionLabel = "GUEST";
+        } else if (const CharacterSlot* p2 = characterSlotAt(state.selection, state.selection.sessionSlots.opponentCharacter)) {
+            view.p2.progressionLabel = compactSettingText(
+                dragonProgressionCharacterSummaryForProfile(
+                    state.progression.data,
+                    state.progression.save,
+                    p2ProfileId,
+                    p2->id),
+                18);
+        }
+    }
+    if (state.frontend.pendingMode == PendingMode::Arena || state.frontend.pendingMode == PendingMode::Story) {
         view.arenaMode = true;
-        view.arenaFighterCount = static_cast<int>(std::min<size_t>(view.arenaFighters.size(), state.fighters.size()));
+        const size_t visibleFighters = state.frontend.pendingMode == PendingMode::Story
+            ? static_cast<size_t>(1 + std::clamp(state.story.activeWaveEnemyCount, 0, kStoryMaxEnemies))
+            : state.fighters.size();
+        view.arenaFighterCount = static_cast<int>(std::min(view.arenaFighters.size(), visibleFighters));
         for (int i = 0; i < view.arenaFighterCount; ++i) {
             auto& fighterView = view.arenaFighters[static_cast<size_t>(i)];
-            fighterView.name = compactSettingText((i == 0 ? "P1 " : "P" + std::to_string(i + 1) + " ") + arenaFighterName(state, static_cast<size_t>(i)), 13);
+            std::string prefix = i == 0
+                ? "P1 "
+                : (state.frontend.pendingMode == PendingMode::Story ? "E" + std::to_string(i) + " " : "P" + std::to_string(i + 1) + " ");
+            if (state.frontend.pendingMode == PendingMode::Story && i > 0) {
+                prefix += std::string(storyDifficultyShortLabel(state.story.difficulty)) + " ";
+            }
+            const std::string name = state.frontend.pendingMode == PendingMode::Story
+                ? storyFighterName(state, static_cast<size_t>(i))
+                : arenaFighterName(state, static_cast<size_t>(i));
+            fighterView.name = compactSettingText(prefix + name, 13);
             fighterView.life = state.fighters[static_cast<size_t>(i)].life;
             fighterView.maxLife = characterMaxLifeForFighterIndex(state, static_cast<size_t>(i));
+            fighterView.power = fightPowerGaugeView(state, static_cast<size_t>(i));
         }
     }
 
@@ -11479,6 +11942,10 @@ FightHudView fightHudView(const AppState& state) {
             view.versusLine =
                 "P1 " + compactSettingText(selectedCharacterName(state.selection), 11)
                 + " vs " + std::to_string(arenaCpuCount(state)) + " CPU FFA";
+        } else if (state.frontend.pendingMode == PendingMode::Story) {
+            view.versusLine =
+                "P1 " + compactSettingText(selectedCharacterName(state.selection), 11)
+                + " vs Enemy Waves";
         } else {
             view.versusLine =
                 "P1 " + compactSettingText(selectedCharacterName(state.selection), 11)
@@ -11491,7 +11958,7 @@ FightHudView fightHudView(const AppState& state) {
         view.timerSeconds = std::max(0, (state.matchTimerTicks + 59) / 60);
         const int configuredTimer = state.frontend.pendingMode == PendingMode::Arena
             ? arenaTimerSeconds(state)
-            : state.mainSettings.matchTimerSeconds;
+            : (state.frontend.pendingMode == PendingMode::Story ? 0 : state.mainSettings.matchTimerSeconds);
         view.timerText = configuredTimer <= 0 ? "INF" : std::to_string(view.timerSeconds);
         view.p1.roundPips = FightRoundPipsView{ state.roundWins[0], winsRequired };
         view.p2.roundPips = FightRoundPipsView{ state.roundWins[1], winsRequired, true };
@@ -11506,6 +11973,8 @@ FightHudView fightHudView(const AppState& state) {
     } else if (isMatchMode(state)) {
         if (state.frontend.pendingMode == PendingMode::Arena && state.matchPhase == MatchPhase::Fight) {
             view.bottomLine = "Last fighter standing  Living: " + std::to_string(livingArenaFighterCount(state));
+        } else if (state.frontend.pendingMode == PendingMode::Story) {
+            view.bottomLine = storyStatusLine(state);
         } else {
             view.bottomLine = singleFightStatusLine(state);
         }
@@ -11535,6 +12004,16 @@ std::string_view arenaMatchResultLabel(int option) {
         "PLAY AGAIN",
         "ARENA SETUP",
         "FIGHTER SELECT",
+        "MODE SELECT",
+    };
+    return labels[static_cast<size_t>(std::clamp(option, 0, kMatchResultOptionCount - 1))];
+}
+
+std::string_view storyMatchResultLabel(int option) {
+    static constexpr std::array<std::string_view, kMatchResultOptionCount> labels{
+        "TRY AGAIN",
+        "FIGHTER SELECT",
+        "STAGE SELECT",
         "MODE SELECT",
     };
     return labels[static_cast<size_t>(std::clamp(option, 0, kMatchResultOptionCount - 1))];
@@ -11590,6 +12069,10 @@ FightRoundResultView roundResultOverlayView(const AppState& state) {
         view.p1RoundPips = FightRoundPipsView{ 0, 0 };
         view.p2RoundPips = FightRoundPipsView{ 0, 0 };
         view.footerText = state.arenaConfig.endTitle;
+    } else if (state.frontend.pendingMode == PendingMode::Story) {
+        view.p1RoundPips = FightRoundPipsView{ 0, 0 };
+        view.p2RoundPips = FightRoundPipsView{ 0, 0 };
+        view.footerText = state.roundWinner == 1 ? "STAGE CLEAR" : "MISSION FAILED";
     }
     view.frame = state.matchPhaseTicks;
     return view;
@@ -11602,21 +12085,30 @@ FightMatchResultView matchResultScreenView(const AppState& state) {
     view.winnerText = winner == 0 ? "DRAW GAME" : uppercaseCopy(fighterResultName(state, winner));
     if (state.frontend.pendingMode == PendingMode::Arena) {
         view.winnerText = state.arenaConfig.endTitle;
+    } else if (state.frontend.pendingMode == PendingMode::Story) {
+        view.winnerText = state.roundWinner == 1 ? "STAGE CLEAR" : "MISSION FAILED";
     }
     view.scoreText = singleFightScoreText(state);
     view.methodText = matchWinMethodText(state);
     view.quoteText = winner > 0 && winner <= static_cast<int>(state.fighters.size())
         ? selectedVictoryQuoteText(state, state.fighters[static_cast<size_t>(winner - 1)])
         : std::string{};
-    if (state.frontend.pendingMode == PendingMode::Arena) {
+    if (state.frontend.pendingMode == PendingMode::Arena || state.frontend.pendingMode == PendingMode::Story) {
         view.quoteText.clear();
     }
     view.stageText = "Stage: " + selectedStageName(state.selection);
+    view.progressionText = state.progression.lastAwardText;
     view.menuRowCount = kMatchResultOptionCount;
     view.frame = state.matchPhaseTicks;
     for (int i = 0; i < kMatchResultOptionCount; ++i) {
         auto& row = view.menuRows[static_cast<size_t>(i)];
-        row.label = std::string(state.frontend.pendingMode == PendingMode::Arena ? arenaMatchResultLabel(i) : matchResultLabel(i));
+        if (state.frontend.pendingMode == PendingMode::Arena) {
+            row.label = std::string(arenaMatchResultLabel(i));
+        } else if (state.frontend.pendingMode == PendingMode::Story) {
+            row.label = std::string(storyMatchResultLabel(i));
+        } else {
+            row.label = std::string(matchResultLabel(i));
+        }
         row.selected = i == state.frontend.selectedMatchResultOption;
     }
     return view;
@@ -11804,6 +12296,60 @@ void drawFightView(SDL_Renderer* renderer, const AppState& state) {
     drawFightViewFrame(renderer, state, true);
 }
 
+bool isMainProfileSettingOption(int option) {
+    return option == kMainSettingP1ProfileOption || option == kMainSettingP2ProfileOption;
+}
+
+int mainProfileSettingPlayerIndex(int option) {
+    return option == kMainSettingP2ProfileOption ? 1 : 0;
+}
+
+void saveProgressionStateQuietly(AppState& state) {
+    if (!state.progression.loaded) {
+        return;
+    }
+    try {
+        saveDragonProgressionSave(state.progression.savePath, state.progression.save);
+    } catch (const std::exception& ex) {
+        SDL_Log("Dragon progression save failed: %s", ex.what());
+    }
+}
+
+void cycleMainProfileSetting(AppState& state, int option, int direction) {
+    if (!isMainProfileSettingOption(option) || direction == 0) {
+        return;
+    }
+    if (!state.progression.loaded) {
+        loadProgressionState(state);
+    }
+    if (!state.progression.data.config.enabled) {
+        return;
+    }
+    cycleDragonProgressionPlayerProfile(
+        state.progression.save,
+        mainProfileSettingPlayerIndex(option),
+        direction);
+    saveProgressionStateQuietly(state);
+}
+
+void createMainProfileForSetting(AppState& state, int option) {
+    if (!isMainProfileSettingOption(option)) {
+        return;
+    }
+    if (!state.progression.loaded) {
+        loadProgressionState(state);
+    }
+    if (!state.progression.data.config.enabled) {
+        return;
+    }
+    const int playerIndex = mainProfileSettingPlayerIndex(option);
+    const std::string profileId = createNextDragonProgressionProfile(state.progression.save, "Player");
+    setDragonProgressionPlayerProfile(state.progression.save, playerIndex, profileId);
+    saveProgressionStateQuietly(state);
+}
+
+#include "ControlsOptionsFlow.h"
+
 #include "FrontendFlow.h"
 
 void pumpEvents(SDL_Renderer* renderer, AppState& state) {
@@ -11833,6 +12379,12 @@ void pumpEvents(SDL_Renderer* renderer, AppState& state) {
                 state,
                 event.gbutton.which,
                 static_cast<SDL_GamepadButton>(event.gbutton.button));
+            break;
+        case SDL_EVENT_GAMEPAD_AXIS_MOTION:
+            handleOptionsGamepadAxis(
+                state,
+                static_cast<SDL_GamepadAxis>(event.gaxis.axis),
+                event.gaxis.value);
             break;
         default:
             break;
@@ -11954,6 +12506,8 @@ int runApp(const std::filesystem::path& gameRoot) {
     state.gameRoot = gameRoot;
     state.arenaConfig = loadArenaConfig(gameRoot);
     setArenaDefaultsFromConfig(state);
+    loadProgressionState(state);
+    loadControlsState(state);
     initAudio(state);
     state.fightRoundSettings = loadFightRoundSettings(gameRoot);
     state.selection.characters = loadCharacters(gameRoot);
@@ -12015,6 +12569,7 @@ int runApp(const std::filesystem::path& gameRoot) {
         }
     }
 
+    saveControlsStateQuietly(state);
     closeAllGamepads(state);
     destroyVisualAssets(state);
     destroyAudioAssets(state);

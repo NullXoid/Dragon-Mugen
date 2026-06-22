@@ -1,5 +1,8 @@
 #include "dragon/Sff.h"
 
+#include <SDL3/SDL.h>
+#include <SDL3_image/SDL_image.h>
+
 #include <algorithm>
 #include <cstring>
 #include <fstream>
@@ -34,6 +37,12 @@ std::uint32_t u32le(const std::vector<std::uint8_t>& bytes, size_t offset) {
         | (static_cast<std::uint32_t>(bytes[offset + 1]) << 8)
         | (static_cast<std::uint32_t>(bytes[offset + 2]) << 16)
         | (static_cast<std::uint32_t>(bytes[offset + 3]) << 24);
+}
+
+void requireRange(const std::vector<std::uint8_t>& bytes, size_t offset, size_t length, const std::filesystem::path& path) {
+    if (offset > bytes.size() || length > bytes.size() - offset) {
+        throw std::runtime_error("SFF data points past end of file: " + path.string());
+    }
 }
 
 std::vector<std::uint8_t> reversedPalette(const Palette& palette) {
@@ -71,6 +80,249 @@ std::vector<std::uint8_t> paletteFromPcx(const std::vector<std::uint8_t>& pcx, c
     return grayscale;
 }
 
+std::optional<size_t> findPngPayloadOffset(const std::vector<std::uint8_t>& bytes, size_t offset, size_t length) {
+    static constexpr std::uint8_t kPngSignature[] = { 0x89, 'P', 'N', 'G', '\r', '\n', 0x1A, '\n' };
+    const size_t searchEnd = std::min(offset + length, offset + 64);
+    for (size_t i = offset; i + sizeof(kPngSignature) <= searchEnd; ++i) {
+        if (std::memcmp(bytes.data() + i, kPngSignature, sizeof(kPngSignature)) == 0) {
+            return i;
+        }
+    }
+    return std::nullopt;
+}
+
+const SffPalette* paletteForSprite(const SffArchive& archive, const SffSprite& sprite) {
+    if (sprite.paletteIndex >= 0 && sprite.paletteIndex < static_cast<int>(archive.palettes.size())) {
+        const auto& palette = archive.palettes[static_cast<size_t>(sprite.paletteIndex)];
+        if (!palette.rgba.empty()) {
+            return &palette;
+        }
+    }
+    return nullptr;
+}
+
+std::optional<DecodedSprite> decodeIndexedPngSprite(
+    SDL_Surface* surface,
+    const SffSprite& sprite,
+    const SffPalette& palette,
+    const DecodeOptions& options) {
+    if (surface->format != SDL_PIXELFORMAT_INDEX8 || !surface->pixels) {
+        return std::nullopt;
+    }
+
+    DecodedSprite decoded;
+    decoded.width = surface->w;
+    decoded.height = surface->h;
+    decoded.axisX = sprite.axisX;
+    decoded.axisY = sprite.axisY;
+    decoded.rgba.resize(static_cast<size_t>(decoded.width * decoded.height * 4));
+
+    const auto* pixels = static_cast<const std::uint8_t*>(surface->pixels);
+    const size_t maxColors = palette.rgba.size() / 4;
+    for (int y = 0; y < decoded.height; ++y) {
+        const auto* src = pixels + static_cast<size_t>(y * surface->pitch);
+        auto* dst = decoded.rgba.data() + static_cast<size_t>(y * decoded.width * 4);
+        for (int x = 0; x < decoded.width; ++x) {
+            const std::uint8_t index = src[x];
+            if (index < maxColors) {
+                const auto* color = palette.rgba.data() + static_cast<size_t>(index) * 4;
+                dst[x * 4 + 0] = color[0];
+                dst[x * 4 + 1] = color[1];
+                dst[x * 4 + 2] = color[2];
+                dst[x * 4 + 3] = options.transparentColorZero && index == 0 ? 0 : color[3];
+            } else {
+                dst[x * 4 + 0] = 0;
+                dst[x * 4 + 1] = 0;
+                dst[x * 4 + 2] = 0;
+                dst[x * 4 + 3] = 0;
+            }
+        }
+    }
+    return decoded;
+}
+
+std::optional<DecodedSprite> decodePngSprite(
+    const SffArchive& archive,
+    const SffSprite& sprite,
+    const SffSprite& source,
+    const DecodeOptions& options) {
+    const auto pngOffset = findPngPayloadOffset(archive.bytes, source.dataOffset, source.dataLength);
+    if (!pngOffset) {
+        return std::nullopt;
+    }
+
+    const size_t payloadLength = source.dataOffset + source.dataLength - *pngOffset;
+    SDL_IOStream* io = SDL_IOFromConstMem(archive.bytes.data() + *pngOffset, payloadLength);
+    if (!io) {
+        return std::nullopt;
+    }
+
+    SDL_Surface* surface = IMG_Load_IO(io, true);
+    if (!surface) {
+        return std::nullopt;
+    }
+
+    if (const auto* palette = paletteForSprite(archive, source)) {
+        if (source.colorDepth <= 8) {
+            if (auto indexed = decodeIndexedPngSprite(surface, sprite, *palette, options)) {
+                SDL_DestroySurface(surface);
+                return indexed;
+            }
+        }
+    }
+
+    SDL_Surface* converted = SDL_ConvertSurface(surface, SDL_PIXELFORMAT_RGBA32);
+    SDL_DestroySurface(surface);
+    if (!converted) {
+        return std::nullopt;
+    }
+
+    DecodedSprite decoded;
+    decoded.width = converted->w;
+    decoded.height = converted->h;
+    decoded.axisX = sprite.axisX;
+    decoded.axisY = sprite.axisY;
+    decoded.rgba.resize(static_cast<size_t>(decoded.width * decoded.height * 4));
+    const auto* pixels = static_cast<const std::uint8_t*>(converted->pixels);
+    for (int y = 0; y < decoded.height; ++y) {
+        const auto* src = pixels + static_cast<size_t>(y * converted->pitch);
+        auto* dst = decoded.rgba.data() + static_cast<size_t>(y * decoded.width * 4);
+        std::memcpy(dst, src, static_cast<size_t>(decoded.width * 4));
+    }
+    SDL_DestroySurface(converted);
+    return decoded;
+}
+
+void loadSffV1Archive(SffArchive& archive) {
+    archive.version = SffArchiveVersion::V1;
+    archive.versionMajor = 1;
+
+    archive.groups = static_cast<int>(u32le(archive.bytes, 16));
+    const auto spriteCount = u32le(archive.bytes, 20);
+    auto subfileOffset = u32le(archive.bytes, 24);
+    const auto subheaderSize = u32le(archive.bytes, 28);
+    if (subheaderSize < 32) {
+        throw std::runtime_error("Unsupported SFF v1 subheader size: " + archive.path.string());
+    }
+
+    for (std::uint32_t index = 0; index < spriteCount && subfileOffset != 0; ++index) {
+        requireRange(archive.bytes, subfileOffset, 32, archive.path);
+
+        SffSprite sprite;
+        const auto nextOffset = u32le(archive.bytes, subfileOffset);
+        sprite.dataLength = u32le(archive.bytes, subfileOffset + 4);
+        sprite.axisX = i16le(archive.bytes, subfileOffset + 8);
+        sprite.axisY = i16le(archive.bytes, subfileOffset + 10);
+        sprite.group = i16le(archive.bytes, subfileOffset + 12);
+        sprite.image = i16le(archive.bytes, subfileOffset + 14);
+        sprite.linkedIndex = i16le(archive.bytes, subfileOffset + 16);
+        sprite.sharedPalette = archive.bytes[subfileOffset + 18] != 0;
+        sprite.dataOffset = subfileOffset + subheaderSize;
+        sprite.encoding = SffSpriteEncoding::Pcx8;
+        archive.sprites.push_back(sprite);
+        subfileOffset = nextOffset;
+    }
+}
+
+SffSpriteEncoding sffV2Encoding(std::uint8_t format) {
+    switch (format) {
+    case 10:
+        return SffSpriteEncoding::Png;
+    default:
+        return SffSpriteEncoding::Unsupported;
+    }
+}
+
+void loadSffV2Archive(SffArchive& archive) {
+    archive.version = SffArchiveVersion::V2;
+    archive.versionMajor = 2;
+    archive.versionMinor = archive.bytes[14];
+    archive.versionPatch = archive.bytes[13];
+    archive.versionBuild = archive.bytes[12];
+
+    const auto spriteOffset = u32le(archive.bytes, 0x24);
+    const auto spriteCount = u32le(archive.bytes, 0x28);
+    const auto paletteOffset = u32le(archive.bytes, 0x2c);
+    const auto paletteCount = u32le(archive.bytes, 0x30);
+    const auto ldataOffset = u32le(archive.bytes, 0x34);
+    const auto ldataLength = u32le(archive.bytes, 0x38);
+    const auto tdataOffset = u32le(archive.bytes, 0x3c);
+    const auto tdataLength = u32le(archive.bytes, 0x40);
+    requireRange(archive.bytes, spriteOffset, static_cast<size_t>(spriteCount) * 28, archive.path);
+    if (paletteCount > 0) {
+        requireRange(archive.bytes, paletteOffset, static_cast<size_t>(paletteCount) * 16, archive.path);
+    }
+    if (ldataOffset != 0) {
+        requireRange(archive.bytes, ldataOffset, ldataLength, archive.path);
+    }
+    if (tdataOffset != 0) {
+        requireRange(archive.bytes, tdataOffset, tdataLength, archive.path);
+    }
+
+    for (std::uint32_t index = 0; index < paletteCount; ++index) {
+        const size_t offset = static_cast<size_t>(paletteOffset) + static_cast<size_t>(index) * 16;
+        SffPalette palette;
+        palette.group = u16le(archive.bytes, offset);
+        palette.image = u16le(archive.bytes, offset + 2);
+        palette.colorCount = u16le(archive.bytes, offset + 4);
+        palette.linkedIndex = u16le(archive.bytes, offset + 6);
+        const auto dataOffset = u32le(archive.bytes, offset + 8);
+        palette.dataLength = u32le(archive.bytes, offset + 12);
+        palette.dataOffset = ldataOffset + dataOffset;
+        if (palette.dataLength > 0) {
+            requireRange(archive.bytes, palette.dataOffset, palette.dataLength, archive.path);
+            palette.rgba.assign(
+                archive.bytes.begin() + palette.dataOffset,
+                archive.bytes.begin() + palette.dataOffset + palette.dataLength);
+        }
+        archive.palettes.push_back(std::move(palette));
+    }
+
+    for (auto& palette : archive.palettes) {
+        if (!palette.rgba.empty()) {
+            continue;
+        }
+        if (palette.linkedIndex >= 0 && palette.linkedIndex < static_cast<int>(archive.palettes.size())) {
+            palette.rgba = archive.palettes[static_cast<size_t>(palette.linkedIndex)].rgba;
+        }
+    }
+
+    for (std::uint32_t index = 0; index < spriteCount; ++index) {
+        const size_t offset = static_cast<size_t>(spriteOffset) + static_cast<size_t>(index) * 28;
+        SffSprite sprite;
+        sprite.group = u16le(archive.bytes, offset);
+        sprite.image = u16le(archive.bytes, offset + 2);
+        sprite.width = u16le(archive.bytes, offset + 4);
+        sprite.height = u16le(archive.bytes, offset + 6);
+        sprite.axisX = i16le(archive.bytes, offset + 8);
+        sprite.axisY = i16le(archive.bytes, offset + 10);
+        sprite.linkedIndex = u16le(archive.bytes, offset + 12);
+        const auto format = archive.bytes[offset + 14];
+        sprite.colorDepth = archive.bytes[offset + 15];
+        const auto dataOffset = u32le(archive.bytes, offset + 16);
+        sprite.dataLength = u32le(archive.bytes, offset + 20);
+        sprite.paletteIndex = u16le(archive.bytes, offset + 24);
+        const auto flags = u16le(archive.bytes, offset + 26);
+        const bool usesTData = (flags & 0x01) != 0;
+        const auto baseOffset = usesTData ? tdataOffset : ldataOffset;
+        sprite.dataOffset = baseOffset + dataOffset;
+        sprite.sharedPalette = true;
+        sprite.encoding = sffV2Encoding(format);
+        if (sprite.dataLength > 0) {
+            requireRange(archive.bytes, sprite.dataOffset, sprite.dataLength, archive.path);
+        }
+        archive.sprites.push_back(sprite);
+    }
+
+    std::vector<int> groups;
+    for (const auto& sprite : archive.sprites) {
+        if (std::find(groups.begin(), groups.end(), sprite.group) == groups.end()) {
+            groups.push_back(sprite.group);
+        }
+    }
+    archive.groups = static_cast<int>(groups.size());
+}
+
 } // namespace
 
 Palette loadActPalette(const std::filesystem::path& path) {
@@ -88,34 +340,16 @@ SffArchive loadSffArchive(const std::filesystem::path& path) {
     archive.path = path;
     archive.bytes = readAllBytes(path);
     if (archive.bytes.size() < 512 || std::memcmp(archive.bytes.data(), "ElecbyteSpr\0", 12) != 0) {
-        throw std::runtime_error("Invalid SFF v1 archive: " + path.string());
+        throw std::runtime_error("Invalid SFF archive: " + path.string());
     }
 
-    archive.groups = static_cast<int>(u32le(archive.bytes, 16));
-    const auto spriteCount = u32le(archive.bytes, 20);
-    auto subfileOffset = u32le(archive.bytes, 24);
-    const auto subheaderSize = u32le(archive.bytes, 28);
-    if (subheaderSize < 32) {
-        throw std::runtime_error("Unsupported SFF subheader size: " + path.string());
-    }
-
-    for (std::uint32_t index = 0; index < spriteCount && subfileOffset != 0; ++index) {
-        if (subfileOffset + 32 > archive.bytes.size()) {
-            throw std::runtime_error("SFF subheader points past end of file: " + path.string());
-        }
-
-        SffSprite sprite;
-        const auto nextOffset = u32le(archive.bytes, subfileOffset);
-        sprite.dataLength = u32le(archive.bytes, subfileOffset + 4);
-        sprite.axisX = i16le(archive.bytes, subfileOffset + 8);
-        sprite.axisY = i16le(archive.bytes, subfileOffset + 10);
-        sprite.group = i16le(archive.bytes, subfileOffset + 12);
-        sprite.image = i16le(archive.bytes, subfileOffset + 14);
-        sprite.linkedIndex = i16le(archive.bytes, subfileOffset + 16);
-        sprite.sharedPalette = archive.bytes[subfileOffset + 18] != 0;
-        sprite.dataOffset = subfileOffset + subheaderSize;
-        archive.sprites.push_back(sprite);
-        subfileOffset = nextOffset;
+    if (archive.bytes[15] >= 2) {
+        loadSffV2Archive(archive);
+    } else {
+        archive.versionMinor = archive.bytes[14];
+        archive.versionPatch = archive.bytes[13];
+        archive.versionBuild = archive.bytes[12];
+        loadSffV1Archive(archive);
     }
 
     return archive;
@@ -136,6 +370,14 @@ std::optional<DecodedSprite> decodeSffSprite(const SffArchive& archive, const Sf
         source = &archive.sprites[static_cast<size_t>(source->linkedIndex)];
     }
     if (source->dataLength == 0 || source->dataOffset + source->dataLength > archive.bytes.size()) {
+        return std::nullopt;
+    }
+
+    if (source->encoding == SffSpriteEncoding::Png) {
+        return decodePngSprite(archive, sprite, *source, options);
+    }
+
+    if (source->encoding != SffSpriteEncoding::Pcx8) {
         return std::nullopt;
     }
 

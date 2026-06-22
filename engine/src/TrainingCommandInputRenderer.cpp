@@ -348,6 +348,7 @@ std::string commandInputIconId(std::string_view text) {
     if (token == "BTN_Y") return "Y";
     if (token == "BTN_A") return "A";
     if (token == "BTN_B") return "B";
+    if (token == "ST") return "START";
     if (token == "SELECT") return "SEL";
     if (token == "...") return "..";
     return token;

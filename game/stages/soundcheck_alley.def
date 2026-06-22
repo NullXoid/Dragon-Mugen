@@ -1,0 +1,76 @@
+; Story/OpenBOR music-board fixture with an original WAV loop.
+
+[Info]
+name = "Soundcheck Alley"
+displayname = "Soundcheck Alley"
+author = "Dragon MUGEN original board"
+
+[Camera]
+startx = 140
+starty = 0
+boundleft = 140
+boundright = 1720
+boundhigh = -22
+boundlow = 0
+verticalfollow = .2
+floortension = 0
+tension = 60
+
+[PlayerInfo]
+p1startx = 100
+p1starty = 0
+p1startz = 0
+p1facing = 1
+p2startx = 320
+p2starty = 0
+p2startz = 0
+p2facing = -1
+leftbound = 0
+rightbound = 1920
+topbound = 0
+botbound = 0
+
+[Scaling]
+topz = 0
+botz = 50
+topscale = 1
+botscale = 1.2
+
+[Bound]
+screenleft = 20
+screenright = 55
+
+[StageInfo]
+zoffset = 190
+autoturn = 1
+resetBG = 1
+
+[OpenBOR]
+scrolling = 1
+scrollstartx = 140
+scrollendx = 1720
+scrollspeed = 2.4
+scrolllead = 96
+
+[Shadow]
+color = 32,32,32
+yscale = -.1
+reflect = 1
+
+[Music]
+bgmusic = sound/story_comic_loop.wav
+bgvolume = -15
+
+[BGDef]
+spr = tmnt_openbor_street.sff
+debugbg = 0
+
+[BG Street]
+type = normal
+spriteno = 0,0
+layerno = 0
+start = -80,0
+delta = 1,1
+trans = none
+mask = 0
+tile = 0,0

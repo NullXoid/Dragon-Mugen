@@ -57,6 +57,10 @@ scrolllead = 96
 
 - `kfm.def` / `kfm.sff` - Mountainside Temple, the first stage compatibility target.
 - `openbor_scroll.def` - OpenBOR Scroll Test, an Arena-only scroller sample that reuses `kfm.sff`.
+- `tmnt_openbor_street.def` / `tmnt_openbor_street.sff` - TMNT OpenBOR Street, a converted OpenBOR background fixture for testing Arena scroller stage compatibility with non-M.U.G.E.N source art.
+- `tmnt_sewer_patrol.def` - TMNT Sewer Patrol, a Story/OpenBOR board fixture for six-stage map testing.
+- `comic_street_rumble.def` - Comic Street Rumble, an original comic-beat-em-up board fixture.
+- `soundcheck_alley.def` - Soundcheck Alley, an original Story/OpenBOR board fixture with WAV stage music metadata.
 - `stage0.def` / `stage0.sff` - additional sample stage from the 2001 package.
 
 For the first renderer milestone, `kfm.def` should be parsed and its 7 background elements accounted for.

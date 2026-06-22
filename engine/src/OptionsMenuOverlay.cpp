@@ -17,7 +17,7 @@ void drawOptionsMenuOverlay(const UiRenderContext& ui, const OptionsMenuView& vi
     setColor(renderer, 238, 238, 244);
     debugTextCentered(renderer, centerX, 28, "DRAGON MUGEN CORE");
     setColor(renderer, 246, 214, 92);
-    debugTextCentered(renderer, centerX, 46, "OPTIONS");
+    debugTextCentered(renderer, centerX, 46, view.title.empty() ? "OPTIONS" : view.title);
 
     std::vector<UiMenuListRowView> rows;
     rows.reserve(view.rows.size());
@@ -27,7 +27,7 @@ void drawOptionsMenuOverlay(const UiRenderContext& ui, const OptionsMenuView& vi
             row.value,
             row.selected,
             row.adjustable,
-            false,
+            row.disabled,
         });
     }
 
@@ -35,12 +35,12 @@ void drawOptionsMenuOverlay(const UiRenderContext& ui, const OptionsMenuView& vi
         ui,
         UiMenuListView{
             rows,
-            "OPTIONS",
-            "",
-            "SETTING",
-            "VALUE",
+            view.title.empty() ? "OPTIONS" : view.title,
+            view.pageLabel,
+            view.labelHeader.empty() ? "SETTING" : view.labelHeader,
+            view.valueHeader,
             view.padSummary,
-            "UP/DOWN SEL  LEFT/RIGHT CHANGE  ENTER  ESC",
+            view.footer,
         },
         UiMenuListStyle{
             64.0f,

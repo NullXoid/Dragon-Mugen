@@ -1,5 +1,7 @@
 #pragma once
 
+#include "StoryModeTypes.h"
+
 #include <array>
 #include <string>
 
@@ -25,7 +27,19 @@ inline constexpr int kTrainingResetOption = 19;
 inline constexpr int kSingleFightPauseOptionCount = 5;
 inline constexpr int kMatchResultOptionCount = 4;
 inline constexpr int kArenaSetupOptionCount = 10;
-inline constexpr int kMainSettingsCount = 9;
+inline constexpr int kMainSettingsCount = 11;
+inline constexpr int kOptionsRootCount = 4;
+inline constexpr int kOptionsGameplayCount = 5;
+inline constexpr int kOptionsVideoCount = 4;
+inline constexpr int kOptionsControlsCount = 9;
+inline constexpr int kOptionsKeyboardSetupCount = 6;
+inline constexpr int kOptionsControllerSetupCount = 8;
+inline constexpr int kOptionsInputTestCount = 2;
+inline constexpr int kOptionsRestoreDefaultsCount = 3;
+inline constexpr int kControlPlayerStaticRows = 4;
+inline constexpr int kMainSettingP1ProfileOption = 4;
+inline constexpr int kMainSettingP2ProfileOption = 5;
+inline constexpr int kMainSettingBackOption = kMainSettingsCount - 1;
 inline constexpr int kVersusPrepareStartFrames = 2;
 inline constexpr int kCharacterSelectColumns = 5;
 inline constexpr int kCharacterSelectRows = 2;
@@ -46,6 +60,7 @@ enum class PendingMode {
     SinglePlayer,
     SingleFight,
     Arena,
+    Story,
 };
 
 enum class OpponentType {
@@ -99,6 +114,18 @@ enum class GamepadPromptStyle {
     Playstation,
 };
 
+enum class OptionsMenuScreen {
+    Root,
+    Gameplay,
+    Video,
+    Controls,
+    PlayerControls,
+    KeyboardSetup,
+    ControllerSetup,
+    InputTest,
+    RestoreDefaults,
+};
+
 struct TrainingOptions {
     bool menuOpen = false;
     bool moveListOpen = false;
@@ -128,6 +155,21 @@ struct TrainingOptions {
 
 struct MainSettings {
     int selectedOption = 0;
+    OptionsMenuScreen optionsScreen = OptionsMenuScreen::Root;
+    int selectedRootOption = 0;
+    int selectedGameplayOption = 0;
+    int selectedVideoOption = 0;
+    int selectedControlsOption = 0;
+    int selectedPlayerControlsOption = 0;
+    int selectedKeyboardSetupOption = 0;
+    int selectedControllerSetupOption = 0;
+    int selectedInputTestOption = 0;
+    int selectedRestoreDefaultsOption = 0;
+    int selectedControlPlayer = 0;
+    bool awaitingControlBinding = false;
+    bool guidedControlSetup = false;
+    int controlBindingActionIndex = 0;
+    std::string controlStatusMessage;
     int matchTimerSeconds = 99;
     int canvasWidth = kDefaultLogicalWidth;
     int uiScalePercent = 80;

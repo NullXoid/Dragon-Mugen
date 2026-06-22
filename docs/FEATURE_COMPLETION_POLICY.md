@@ -15,14 +15,21 @@ Every feature spec must include:
 - Implementation checklist
 - Verification
 - Done criteria
+- Feature slice
 
 Only one feature may be marked `Status: In Progress` at a time. Small commits are allowed inside that feature, but they must move the same feature toward its done criteria. They are not permission to start another loose slice.
 
 Planning language should use dependency order, difficulty, and completion value. Do not use uncertainty as the deciding factor for what to do next.
 
-## Preservation Documentation Rule
+## Full Feature Slice Rule
 
-Every feature spec must define a minimum batch. The minimum batch is the smallest change that can be honestly considered real progress on that feature.
+Every feature spec must define a feature slice. A feature slice is the complete set of runtime behavior, UI/options where needed, compatibility rules, documentation, and verification needed to call a named capability real progress.
+
+Incremental commits are allowed inside the slice, but the implementation plan must keep moving toward the full slice. Do not replace a feature slice with baby-step, symptom-only, verifier-only, or cosmetic-only work unless that work explicitly closes a named roadmap item.
+
+If a slice is too large to complete safely, narrow the slice in the feature spec before coding. Do not silently land a half-feature or an undocumented micro-slice.
+
+## Preservation Documentation Rule
 
 The active guard in `engine/tools/guard_active_change.py` is not a line-count guard. It is a preservation guard. Any commit that changes engine/app code must also update one of:
 
@@ -31,8 +38,6 @@ The active guard in `engine/tools/guard_active_change.py` is not a line-count gu
 - the active `docs/FEATURE_SPECS/*.md` file
 
 This forces every engine change to record what must keep working, what changed, or how it was verified.
-
-If the minimum batch is too difficult, stop and revise the feature spec before coding. Do not replace it with an undocumented slice.
 
 ## Complete Means Complete
 

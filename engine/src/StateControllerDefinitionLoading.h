@@ -53,6 +53,7 @@ std::vector<StateDefinition> loadStateDefinitions(const CharacterFiles& files, c
                 state.physics = parseStateChar(&section, "physics", state.physics);
                 if (const auto* anim = findProperty(section, "anim")) {
                     state.hasAnim = true;
+                    state.animExpression = trim(anim->value);
                     state.anim = parseIntValue(anim->value, state.anim);
                 } else {
                     state.anim = state.stateNo;

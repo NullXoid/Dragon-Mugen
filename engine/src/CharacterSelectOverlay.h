@@ -18,6 +18,10 @@ struct CharacterSelectView {
     std::string modeTitle;
     std::string activePlayerLabel = "P1";
     std::string selectedName;
+    std::string profileName;
+    std::string selectedProgressionLabel;
+    std::string opponentProfileName;
+    std::string opponentProgressionLabel;
     std::string opponentName;
     std::string preferredStageLabel;
     UiSpriteView selectedPortrait;

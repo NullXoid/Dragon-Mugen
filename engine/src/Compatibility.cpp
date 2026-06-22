@@ -137,6 +137,31 @@ bool allowsArenaExtensions(const CompatibilityContext& context) {
     return context.arenaExtensionsAvailable;
 }
 
+std::optional<int> resolveCompatibleStateAnimAction(
+    const CompatibilityContext& context,
+    int requestedAction,
+    const std::function<bool(int)>& actionExists) {
+    if (actionExists(requestedAction)) {
+        return requestedAction;
+    }
+    if (!usesMugenSemantics(context)) {
+        return std::nullopt;
+    }
+
+    const int decadeBase = (requestedAction / 10) * 10;
+    for (int action = requestedAction - 1; action >= decadeBase; --action) {
+        if (actionExists(action)) {
+            return action;
+        }
+    }
+    for (int action = requestedAction + 1; action < decadeBase + 10; ++action) {
+        if (actionExists(action)) {
+            return action;
+        }
+    }
+    return std::nullopt;
+}
+
 float resolveLocalCoordScaleX(const CompatibilityContext& context, float targetWidth) {
     return context.localCoord.width > 0 ? targetWidth / static_cast<float>(context.localCoord.width) : 1.0f;
 }

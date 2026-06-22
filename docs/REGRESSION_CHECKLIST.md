@@ -36,6 +36,22 @@ build\dragon_mugen.exe --verify arena-z-cpu-align
 build\dragon_mugen.exe --verify arena-z-modifier-sidestep
 build\dragon_mugen.exe --verify arena-per-fighter-runtime
 build\dragon_mugen.exe --verify arena-openbor-scroll-stage
+build\dragon_mugen.exe --verify arena-tmnt-openbor-stage
+build\dragon_mugen.exe --verify story-mode-menu-route
+build\dragon_mugen.exe --verify story-stage-select-map
+build\dragon_mugen.exe --verify story-openbor-stage-default
+build\dragon_mugen.exe --verify story-stage-board-expansion
+build\dragon_mugen.exe --verify story-wave-spawn-scroll
+build\dragon_mugen.exe --verify story-enemy-targeting
+build\dragon_mugen.exe --verify story-stage-clear
+build\dragon_mugen.exe --verify story-player-defeat
+build\dragon_mugen.exe --verify story-progression-award
+build\dragon_mugen.exe --verify vs-loading-progress-bar
+build\dragon_mugen.exe --verify sff-v2-png-decode
+build\dragon_mugen.exe --verify ikemen-select-slot-parsing
+build\dragon_mugen.exe --verify stage-music-codec-decode
+build\dragon_mugen.exe --verify external-stage-mount
+build\dragon_mugen.exe --verify story-scott-tram-rooftop
 build\dragon_mugen.exe --verify arena-evilryu-air-special-contact-landing
 build\dragon_mugen.exe --verify vs-p2-runtime
 build\dragon_mugen.exe --verify kfm-guard-recovery
@@ -59,6 +75,12 @@ build\dragon_mugen.exe --verify evilryu-specials-supers
 build\dragon_mugen.exe --verify evilryu-air-special-contact-landing
 build\dragon_mugen.exe --verify evilryu-dash
 build\dragon_mugen.exe --verify evilken-trip-grounding
+build\dragon_mugen.exe --verify classic-fight-outcomes
+build\dragon_mugen.exe --verify classic-fight-routing
+build\dragon_mugen.exe --verify classic-fight-combat
+build\dragon_mugen.exe --verify roster-compatibility-smoke
+build\dragon_mugen.exe --verify dragon-progression-level-items
+build\dragon_mugen.exe --verify dragon-progression-player-profiles
 ```
 
 ## Manual Play Flow
@@ -70,6 +92,16 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Single Player enters character select.
 - VS Mode enters character select.
 - Arena Mode enters character select and then Arena Setup.
+- Story Mode enters character select, prefers `TMNT OpenBOR Street` when available, starts through VS/loading, and reaches a side-scrolling enemy-wave fight.
+- Story Mode Stage Select uses the Story-only connected episode-card/map presentation, cycles all available stages with Left/Right, changes Story difficulty with Up/Down, includes the six-board test route, defaults back to `TMNT OpenBOR Street`, and Enter still opens the shared VS/loading screen.
+- Story Mode enemy labels/status use `EASY`/`MED`/`HARD` difficulty, and difficulty scales enemy life/attack/defence without applying the player profile level to enemies.
+- Story Mode `Soundcheck Alley` starts its configured WAV background music through normal stage `[Music] bgmusic` metadata.
+- When `game/data/external_content.local.def` points at the local Scott Pilgrim Versus package, Story Mode Stage Select includes `Tram_Rooftop`, the stage loads through the shared VS/loading screen, SFF v2 PNG/palette stage art and first-pass animated BG elements render, and `Run Scott Run.mp3` starts through normal stage `[Music] bgmusic` metadata.
+- Story Mode spawns wave sizes `1`, `2`, then `3`, keeps inactive future-wave enemies invisible, scrolls forward only to the current wave gate, and has enemies chase P1 rather than each other.
+- Story Mode clears to `STAGE CLEAR` after all waves, fails to `MISSION FAILED` when P1 is defeated, returns through match-result options, and awards P1 profile-owned Dragon XP only on clear.
+- Evil Ryu Story supers briefly pause as authored, then recover to gameplay after helper/projectile hit runtime; Ryu must not remain stuck after the super.
+- Story/Arena HUD shows compact per-fighter power strips under each active health bar so super availability remains visible while retaining the same generic CMD/CNS power gates and power consumption.
+- Story/Arena wave stress should not spam per-hit terminal logs by default; enable `DRAGON_DEBUG_HIT_LOG=1` only when hit-event console traces are needed.
 - Arena Setup can start 1, 2, and 3 CPU free-for-all matches.
 - Arena Setup can change CPU slots, stage, timer, Z Axis, and Camera Rotate without affecting Training, Single Player, or VS.
 - Character select moves with Up/Down/Left/Right only when a character exists in the destination cell.
@@ -80,6 +112,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Stage select previews the selected stage behind the menu, shows the stage name at the bottom, and refreshes when changing stages with Left/Right.
 - Stage confirmation opens the VS screen first.
 - Fight view loads selected character and selected stage after VS.
+- VS/Arena/Story loading shows actual load progress for character, stage, sprite/sound/runtime preparation, not only static `PLEASE WAIT` text.
 - Fight view fully repaints the window during hitpause, camera shake, and result overlays; no stale desktop/debug text should appear around the game viewport.
 - A compact FPS counter remains visible in the top-right corner so live performance drops can be distinguished from gameplay hitpause or state timing.
 - Fight view `F3` toggles Freeze Watch. Normal play should show only a small status badge; expanded fighter/helper details should appear only for sustained runtime or pose stalls.
@@ -96,7 +129,8 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Arena double-tapping the Z-axis modifier performs a short sidestep using authored walk animation; Up/Down on the second tap chooses the sidestep depth direction.
 - Arena depth affects hit gating, player push, CPU alignment, projected sprite position, and draw order only when Z Axis is enabled.
 - Arena Camera Rotate defaults off, only activates when Z Axis is also on, eases yaw from P1/living-fighter depth, and changes actor/effect projection and depth draw order without rotating backgrounds or combat math.
-- Arena can select `OpenBOR Scroll Test`; in Arena it scrolls forward only, clamps at the configured end, and does not make Training, Single Player, or VS stages auto-scroll.
+- Arena can select `OpenBOR Scroll Test` and `TMNT OpenBOR Street`; in Arena they scroll forward only, clamp at the configured end, and do not make Training, Single Player, or VS stages auto-scroll.
+- Arena OpenBOR-style stages must be retested with four active fighters onscreen. Sustained low FPS must be fixed or captured with frame-time, actor/effect/projectile, and stage draw workload telemetry before OpenBOR Stage Compatibility v2 is marked complete.
 - Arena gamepad Start opens pause/start behavior only and is not mapped as a fighter button or depth input.
 - Evil Ken crouch roundhouse trip follows the first low arc, hits the floor, then performs two small vertical-only floor bounces before knockdown without rising into air recovery.
 - KFM, Evil Ken, and Evil Ryu supers are blocked below their authored CMD power gate and still consume power through CNS `poweradd` after valid entry.
@@ -114,9 +148,12 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Training command HUD shows a full-command completion flash/checkmark when the selected input sequence is completed.
 - Training P2 control still switches the opponent to local P2 behavior.
 - Single Fight round timer, KO/time-over, pips, match result, and rematch/menu inputs still work.
+- Dragon progression awards XP once on match result, writes local profile-owned save data under `game/save/progression.def`, displays P1/P2 profile and selected fighter LV/XP on Character Select, displays compact P1 LV/XP and local real-profile P2 LV/XP in the fight HUD, keeps P2 Guest non-persistent by default, prevents P1/P2 from sharing the same real profile, migrates old flat character saves into P1, awards VS XP to both non-Guest local profiles, and does not change Training or M.U.G.E.N-authored combat constants by default.
+- Classic KFM, Evil Ken, and Evil Ryu guard contact/presentation/recovery, trip/fall recovery, and actual-hit KO routing stay covered by `classic-fight-combat`.
 - Arena defeated fighters are ignored for targeting/win checks, and last-fighter-standing reaches the winner and end screens.
 - Keyboard and controller inputs both feed the command buffer.
 - KFM, Evil Ryu, and Evil Ken still appear from `game/data/select.def`.
+- New character testing starts by adding the character to `game/data/select.def`, running `roster-compatibility-smoke`, and only then moving into command, damage, helper, projectile, throw, and super-specific audits.
 
 ## Compatibility Checks
 
@@ -130,5 +167,8 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
   - SFF/ACT for sprites/palettes.
   - SND/fight common sounds for audio.
   - stage DEF/SFF for backgrounds, starts, bounds, zoffset, and camera.
+- For external package tests, keep third-party assets outside `game/` and mount them through the git-ignored `game/data/external_content.local.def`.
+- For IKEMEN packages, verify `slot = { ... }` metadata is ignored as metadata and not loaded as a fake character or stage.
+- For SFF v2 stages, verify PNG-backed indexed sprites use their SFF palette records and decode without regressing SFF v1 PCX stages.
 - Update `docs/COMPATIBILITY_AUDIT.md` if the runtime subset changes.
 - Update `docs/FEATURE_LEDGER.md` if a feature behavior is added, removed, or intentionally replaced.
