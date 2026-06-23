@@ -4,14 +4,15 @@ A.Ben is an original Dragon MUGEN benchmark character foundation.
 
 ## Current Status
 
-This folder now contains a normal M.U.G.E.N-style foundation fileset:
+This folder now contains a normal M.U.G.E.N-style text foundation:
 
 - `A.Ben.def`
 - `A.Ben.cmd`
 - `A.Ben.cns`
 - `A.Ben.air`
-- `A.Ben.sff`
 - `A.Ben.dragon.def`
+
+The runtime sprite archive `A.Ben.sff` still needs to be produced from approved/redistributable sprite assets before the character is added to `game/data/select.def`.
 
 The character is intentionally **not** added to `game/data/select.def` in this pass. Add it to the active roster only after local runtime verification confirms that the foundation loads and fights in Training, VS, and Single Player.
 
