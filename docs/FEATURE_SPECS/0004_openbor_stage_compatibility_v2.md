@@ -20,6 +20,9 @@ Turn the current Arena-only OpenBOR-style scroll-stage experiment into a real co
 - `engine/src/LoadingProgressState.h`
 - `engine/src/RuntimeLoading.h`
 - `engine/src/FightSessionRuntime.h`
+- `engine/src/FramePerformance.h`
+- `engine/src/WorldRender.h`
+- `engine/src/VerificationScenarioPerformance.cpp`
 - `engine/src/VsScreenOverlay.h`
 - `engine/src/VsScreenOverlay.cpp`
 
@@ -53,7 +56,7 @@ The loading bar must represent actual progress through known work such as charac
 - OpenBOR compatibility rules live in Arena/stage compatibility modules and `docs/DRAGON_EXTENSIONS.md`.
 - Converted fixture coverage lives in `engine/src/VerificationScenarioArenaOpenBor.cpp`.
 - VS/Arena load presentation lives in `VsScreenOverlay` through prepared view data, while loading/resource ownership remains outside the overlay.
-- Performance telemetry belongs in a focused diagnostics/performance module, not in `App.cpp`.
+- Performance telemetry belongs in the focused `FramePerformance` diagnostics module, with render-only culling kept in world-render helpers and thin integration in `App.cpp`.
 - Regression requirements live in `docs/REGRESSION_CHECKLIST.md`.
 - Preservation claims live in `docs/FEATURE_LEDGER.md`.
 
@@ -65,10 +68,12 @@ The loading bar must represent actual progress through known work such as charac
 - [ ] Define and document OpenBOR Stage Compatibility v2 metadata fields, importer/converter expectations, and unsupported OpenBOR behaviors.
 - [ ] Add or update a conversion tool/path for OpenBOR-style stage panels into Dragon/M.U.G.E.N-compatible stage DEF/SFF assets.
 - [ ] Expand `arena-tmnt-openbor-stage` coverage for stage metadata, scroll bounds, start spacing, pause/result routing, and non-Arena isolation.
-- [ ] Add 4-fighter Arena performance telemetry for frame time, FPS, fighter count, helper/projectile/effect count, and stage draw workload.
-- [ ] Add a 4-fighter Arena/OpenBOR stress verifier or recorded telemetry capture that can distinguish renderer/runtime slowdown from hitpause or pause states.
-- [ ] Profile and fix the confirmed low-FPS 4-player case without hardcoding Leonardo or the TMNT fixture.
-- [ ] Update roadmap, ledger, regression checklist, and compatibility docs after the feature behavior is implemented.
+- [x] Add 4-fighter Arena performance telemetry for frame time, FPS, fighter count, helper/projectile/effect count, and stage draw workload.
+- [x] Add a 4-fighter Arena/OpenBOR stress verifier or recorded telemetry capture that can distinguish renderer/runtime slowdown from hitpause or pause states.
+- [x] Profile and fix the confirmed low-FPS 4-player case without hardcoding Leonardo or the TMNT fixture.
+- [x] Update roadmap, ledger, regression checklist, and compatibility docs after the feature behavior is implemented.
+
+Performance note: `FramePerformance` now tracks rolling frame summaries, p95/worst frame time, fixed-step pressure, draw/skipped-draw counts, workload counts, and pause/hitpause/superpause separation. Video Options can show `FPS`, `PERF`, or `OFF`; `DRAGON_PERF_OVERLAY=1` forces the detailed overlay and `DRAGON_PERF_LOG=1` writes local ignored TSV captures under `artifacts/perf/`. World rendering performs expanded-viewport render-only culling for stage tiles, actors, projectiles, effects, shadows, and afterimages without skipping gameplay updates, collision, helper/projectile lifetime, or result/death rendering.
 
 ## Verification
 
@@ -79,6 +84,9 @@ cmake --build build --target dragon_mugen
 build\dragon_mugen.exe --verify arena-openbor-scroll-stage
 build\dragon_mugen.exe --verify arena-tmnt-openbor-stage
 build\dragon_mugen.exe --verify vs-loading-progress-bar
+build\dragon_mugen.exe --verify runtime-performance-metrics
+build\dragon_mugen.exe --verify arena-openbor-4fighter-performance
+build\dragon_mugen.exe --verify render-culling-preserves-runtime
 build\dragon_mugen.exe --verify arena-cpu-1
 build\dragon_mugen.exe --verify arena-cpu-2
 build\dragon_mugen.exe --verify arena-cpu-3

@@ -199,12 +199,12 @@ void drawStoryStageSelectOverlay(const UiRenderContext& ui, const StoryStageSele
     storyText(renderer, panelX + 12.0f, panelY + 4.0f, "EPISODE " + std::to_string(selectedOneBased) + "/" + std::to_string(stageCount), 246, 226, 112);
     storyText(renderer, panelX + 102.0f, panelY + 4.0f, fitDebugText(view.selectedStageName, 24), 150, 226, 252);
     storyText(renderer, panelX + 12.0f, panelY + 30.0f, "WAVES " + std::to_string(std::max(1, view.waveCount)), 220, 232, 242);
-    storyText(renderer, panelX + 78.0f, panelY + 30.0f, "DIFF " + fitDebugText(view.difficultyLabel, 6), 246, 226, 112);
-    storyText(renderer, panelX + 154.0f, panelY + 30.0f, fitDebugText(view.selectedStageAuthor, 14), 196, 206, 220);
+    storyText(renderer, panelX + 78.0f, panelY + 30.0f, "DIFF " + fitDebugText(view.difficultyLabel, 4), 246, 226, 112);
+    storyText(renderer, panelX + 150.0f, panelY + 30.0f, fitDebugText(view.selectedStageAuthor, 16), 196, 206, 220);
 
     setColor(renderer, 6, 8, 12, 190);
     fillRect(renderer, 0, heightF - 15.0f, widthF, 15.0f);
-    storyTextCentered(renderer, centerX, heightF - 12.0f, "LEFT/RIGHT MAP   UP/DOWN DIFF   ENTER START   ESC FIGHTER", 220, 232, 242);
+    storyTextCentered(renderer, centerX, heightF - 12.0f, "L/R MAP   UP/DOWN DIFF   ENTER START   ESC BACK", 220, 232, 242);
 }
 
 } // namespace dragon

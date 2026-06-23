@@ -1,5 +1,7 @@
 #pragma once
 
+#include "FramePerformance.h"
+
 #include <iosfwd>
 #include <filesystem>
 #include <string>
@@ -154,6 +156,15 @@ struct RuntimeSnapshot {
     bool selectedStageDragonSidecarAvailable = false;
     bool selectedStageLegacyOpenBorSection = false;
     bool selectedStageHasMusic = false;
+    double perfFps = 0.0;
+    double perfAvgFrameMs = 0.0;
+    double perfP95FrameMs = 0.0;
+    double perfWorstFrameMs = 0.0;
+    double perfFpsEquivalent = 0.0;
+    int perfDrawCalls = 0;
+    int perfSkippedDraws = 0;
+    int perfFixedSteps = 0;
+    std::string perfDominantSection;
     int p1AnimElem = 0;
     int p2AnimElem = 0;
     int p1Clsn1Count = 0;
@@ -184,6 +195,21 @@ struct TrainingMoveInfo {
     int requiredPower = 0;
     std::vector<std::string> commandNames;
     std::string section;
+};
+
+struct RuntimePerformanceResult {
+    bool ran = false;
+    int warmupFrames = 0;
+    int measuredFrames = 0;
+    double fpsEquivalent = 0.0;
+    double avgFrameMs = 0.0;
+    double p95FrameMs = 0.0;
+    double worstFrameMs = 0.0;
+    double pauseFrameAvgMs = 0.0;
+    int gameplayFrames = 0;
+    int pauseFrames = 0;
+    FramePerfCounters counters;
+    std::string dominantSection;
 };
 
 struct RosterCharacterInfo {
@@ -229,6 +255,7 @@ public:
     virtual void setArenaZAxisEnabled(bool enabled) = 0;
     virtual void setArenaCameraRotationEnabled(bool enabled) = 0;
     virtual void setArenaCpuFrozen(bool frozen) = 0;
+    virtual void setStoryWave(int waveIndex) = 0;
     virtual void setFightPaused(bool paused) = 0;
     virtual void setFighterHitPause(int fighterIndex, int ticks) = 0;
     virtual void setFighterHitStun(int fighterIndex, int ticks) = 0;
@@ -255,6 +282,7 @@ public:
     virtual void startTrainingCommandDemo() = 0;
     virtual void pressTrainingShowShortcut() = 0;
     virtual void holdTrainingShowSelect(bool held, int frames) = 0;
+    virtual RuntimePerformanceResult measurePerformance(int warmupFrames, int measuredFrames, bool renderEachFrame, bool stressInputs) = 0;
     virtual bool captureScreenshot(const std::filesystem::path& path) = 0;
     virtual RuntimeSnapshot snapshot() const = 0;
     virtual std::string rootText() const = 0;

@@ -24,7 +24,7 @@ These rules apply before planning or implementing any new engine feature:
 Non-goals before the core engine is stable:
 
 - No networking.
-- No tournament, shop, or equipment-management mode as active work beyond the accepted Dragon progression and Story foundations.
+- No tournament or equipment-management mode as active work beyond the accepted Dragon progression and Story foundations. Shop work is tracked as a Dragon-only future feature spec and should start only as a complete Arena-style hub slice.
 - No editor runtime pivot.
 - No hardcoded fixes for individual downloaded characters.
 - No JSON character/stage runtime sidecars replacing `.dragon.def`.
@@ -39,11 +39,12 @@ The engine already has a working local play loop:
 - SFF v1 PCX, SFF v2 PNG/palette stage sprites, ACT, AIR, CMD, CNS, SND, stage DEF/SFF, basic animated stage backgrounds, fight data, and common fight FX are partially supported.
 - Training includes command HUD, input history, command list, Show Me, pause/capture controls, controller prompts, palette separation, and command completion feedback.
 - Options now uses Gameplay, Video, and Controls categories. Controls provide Player 1-4 setup, keyboard/controller setup, live input test, restore defaults, action presets, conflict/missing-action warnings, per-profile persistence, and canonical action mapping into the existing `FighterInputState`.
-- Arena includes FFA CPU counts, per-fighter runtimes, Z-axis movement, sidestep, depth-aware hit/push/draw order, camera yaw, and a simple OpenBOR-style scroll-stage pass. OpenBOR Stage Compatibility v2 is now a planned Arena feature spec; shared VS/Arena/Story loading progress is implemented, while the 4-fighter performance gate remains open.
+- Arena includes FFA CPU counts, per-fighter runtimes, Z-axis movement, sidestep, depth-aware hit/push/draw order, camera yaw, and a simple OpenBOR-style scroll-stage pass. OpenBOR Stage Compatibility v2 remains the active broader conversion/import feature spec; shared VS/Arena/Story loading progress and the first 4-fighter performance diagnostics/culling gate are implemented.
 - Story Mode has a first playable OpenBOR-style side-scrolling foundation: one local player, a Story-only map-style stage select with six board entries, `EASY`/`MEDIUM`/`HARD` enemy difficulty selection, three reusable enemy runtime slots, three waves, forward scrolling gates, enemy targeting against P1, stage clear/fail result presentation, Dragon progression XP award on clear, Story-specific enemy scaling that does not reuse player level data, Evil Ryu Story super recovery coverage, and stage BGM support for WAV/MP3/OGG through SDL_mixer.
 - A local-only external content registry can mount private third-party test packages outside `game/`; the first proof mounts Scott Pilgrim Versus `Tram_Rooftop` as a Story-compatible board with SFF v2 PNG/palette animated backgrounds and MP3 stage music when the local package exists.
 - Single Player and VS have round/match presentation, pause, result, rematch, local P2 runtime support, and a Dragon-only progression foundation with P1/P2 local profile slots, Guest P2 support, per-profile character/item ownership, P1-only Single Player/Arena awards, and VS awards for both non-Guest local players without changing base M.U.G.E.N character files.
-- Scripted verifiers cover the selectable roster smoke gate, classic fight outcomes/routing/combat, Arena runtime, Training command systems, and CPU baseline.
+- A modular performance diagnostics layer tracks frame timing, fixed-step pressure, workload counts, pause/hitpause/superpause separation, PERF/FPS/OFF HUD modes, optional local perf logs under `artifacts/perf/`, and safe render-only culling for stage/actor/effect drawing.
+- Scripted verifiers cover the selectable roster smoke gate, classic fight outcomes/routing/combat, Arena runtime, Story runtime, Training command systems, performance stress paths, and CPU baseline.
 
 The engine is not complete yet. The main remaining work is fight-rule correctness, deeper M.U.G.E.N compatibility, Training completion, Arena polish, persistent input/settings, presentation, and architecture recovery.
 
@@ -123,7 +124,7 @@ Key work:
 - Improve CPU behavior after fight correctness is stable, still using generic character runtime data.
 - Expand OpenBOR-style scrolling stages only through documented Arena/DLC metadata.
 - Keep the shared VS/Arena/Story loading progress bar backed by staged loading phases, and extend phase detail when more loader work is split out.
-- Add a 4-fighter Arena performance gate for converted OpenBOR-style stages, including frame-time/FPS telemetry and stress coverage for fighters, helpers, projectiles, effects, and scrolling backgrounds.
+- Keep the 4-fighter Arena performance gate for converted OpenBOR-style stages green, including frame-time/FPS telemetry and stress coverage for fighters, helpers, projectiles, effects, and scrolling backgrounds.
 - Define OpenBOR Stage Compatibility v2 around import/conversion, scroll metadata, camera bounds, actor projection, and performance budgets before claiming broader OpenBOR support.
 - Keep Z-axis, camera yaw, depth hit gating, depth push, draw order, and defeated-fighter handling Arena-only.
 
@@ -131,7 +132,7 @@ Done when:
 
 - Arena scripted verifiers and a current manual GUI pass cover setup, runtime, pause/result routing, and Z/camera behavior.
 - The VS/Arena/Story load screen exposes actual staged progress for character, stage, sprite, sound, and runtime preparation.
-- A 4-fighter Arena match on the converted TMNT OpenBOR Street fixture has measured frame-time/FPS evidence and no known sustained 4-player slowdown left untriaged.
+- A 4-fighter Arena match on the converted TMNT OpenBOR Street fixture has measured frame-time/FPS evidence, safe culling preservation checks, and no known sustained 4-player slowdown left untriaged.
 - Training, Single Player, and VS are unaffected when Arena Z/camera/scroller features are enabled in Arena.
 
 ### 5. Input And Settings
@@ -198,6 +199,10 @@ Completed feature specs:
 - [FEATURE_SPECS/0007_local_player_profiles_vs_progression.md](FEATURE_SPECS/0007_local_player_profiles_vs_progression.md)
 - [FEATURE_SPECS/0009_story_mode_openbor_side_scroller.md](FEATURE_SPECS/0009_story_mode_openbor_side_scroller.md)
 
+Planned feature specs:
+
+- [FEATURE_SPECS/0011_arena_shop_hub.md](FEATURE_SPECS/0011_arena_shop_hub.md)
+
 Accepted foundation work:
 
 - Dragon progression data/save support for character XP, levels, item inventory, equipment slots, and computed stat bonuses.
@@ -206,11 +211,12 @@ Accepted foundation work:
 - Match-result XP feedback for the local P1 character in Single Player/Arena and both local non-Guest profiles in VS, plus character-select and fight-HUD LV/XP display.
 - No default application of progression bonuses to live M.U.G.E.N combat constants until a future Dragon mode explicitly opts in.
 - Story Mode foundation route with converted OpenBOR-style stage scrolling, one-player enemy waves, stage clear/fail results, and P1 progression award on clear.
+- Arena-style shop direction: a Dragon-only non-combat hub inspired by Flying Dragon, using Arena projection/actor presentation for player/NPC/shopkeeper movement while Dragon progression owns profile currency, item inventory, purchases, and equipment. This is planned work, not current runtime behavior.
 
 Blocked until earlier phases are stable:
 
 - Tournament/campaign shell.
-- Full shop/equipment-management UI and campaign progression flow beyond the current Dragon progression foundation.
+- Full shop/equipment-management UI and campaign progression flow beyond the current Dragon progression foundation, except for the accepted Arena-style shop hub spec when it is implemented as one complete feature slice.
 - External editor.
 - Original benchmark characters as real playable fixtures.
 
@@ -225,7 +231,7 @@ High priority:
 - Classic fight outcome, routing, and active-roster guard/fall/KO behavior now have scripted coverage; current manual GUI smoke for those same routes is still due.
 - Broader CMD/runtime compatibility remains partial for air-only specials, throws, alpha counters, custom combo, full super catalogs, and non-roster characters.
 - Newly added or non-selectable characters remain unproven until they are added to `game/data/select.def` and pass `roster-compatibility-smoke`.
-- Four-fighter Arena on converted OpenBOR-style stages has live low-FPS evidence and needs a measured performance pass before OpenBOR Stage Compatibility v2 can be called complete.
+- Four-fighter Arena and Story wave 3 now have scripted performance telemetry/culling coverage; a current manual live retest is still needed after major runtime or renderer changes before OpenBOR Stage Compatibility v2 can be called complete.
 - Story Mode has scripted coverage for routing, map-style Stage Select, OpenBOR-stage defaulting, wave spawning, scrolling, targeting, clear/fail, and progression award. A current manual GUI pass is still due before calling the first Story foundation live-verified.
 - Scott `Tram_Rooftop` is a local external stage proof only. Full Scott character compatibility, broader Scott stage coverage such as `Movie_Set` and `Cherry_Garden`, and direct OpenBOR `.pak` compatibility remain separate future work.
 

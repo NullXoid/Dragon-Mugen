@@ -98,6 +98,7 @@ add_library(dragon_core
     engine/src/FightDebugLog.cpp
     engine/src/FightHudOverlay.cpp
     engine/src/FightResultOverlay.cpp
+    engine/src/FramePerformance.cpp
     engine/src/CharacterSelectOverlay.cpp
     engine/src/MugenData.cpp
     engine/src/SelectionState.cpp
@@ -123,17 +124,27 @@ add_library(dragon_core
     engine/src/VerificationScenarioArena.cpp
     engine/src/VerificationScenarioArenaOpenBor.cpp
     engine/src/VerificationScenarioEvilKen.cpp
+    engine/src/VerificationScenarioEvilKenAdvanced.cpp
     engine/src/VerificationScenarioEvilRyu.cpp
+    engine/src/VerificationScenarioEvilRyuSpecials.cpp
+    engine/src/VerificationScenarioCoreSmoke.cpp
     engine/src/VerificationScenarioClassicCombat.cpp
+    engine/src/VerificationScenarioModeSmoke.cpp
+    engine/src/VerificationScenarioOptionsControls.cpp
     engine/src/VerificationScenarioFightOutcomes.cpp
     engine/src/VerificationScenarioDragonProgression.cpp
     engine/src/VerificationScenarioKfmHit.cpp
     engine/src/VerificationScenarioLoading.cpp
     engine/src/VerificationScenarioMovement.cpp
+    engine/src/VerificationScenarioPerformance.cpp
     engine/src/VerificationScenarioRosterCompatibility.cpp
     engine/src/VerificationScenarioScottCompatibility.cpp
     engine/src/VerificationScenarioStoryMode.cpp
     engine/src/VerificationScenarioSpecials.cpp
+    engine/src/VerificationScenarioTrainingSpecials.cpp
+    engine/src/VerificationScenarioTrainingDemoAll.cpp
+    engine/src/VerificationScenarioTrainingCommands.cpp
+    engine/src/VerificationScenarioTrainingGeometry.cpp
     engine/src/App.cpp
 )
 

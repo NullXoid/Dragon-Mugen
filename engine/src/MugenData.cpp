@@ -696,8 +696,6 @@ CharacterFiles resolveCharacterFiles(const std::filesystem::path& gameRoot, cons
     if (std::filesystem::exists(defaultPalette)) {
         resolved.palettes[0] = defaultPalette.lexically_normal();
         resolved.palette = resolved.palettes[0];
-    } else {
-        resolved.palette = defaultPalette;
     }
     if (files) {
         if (const auto* movelist = findProperty(*files, "movelist")) {

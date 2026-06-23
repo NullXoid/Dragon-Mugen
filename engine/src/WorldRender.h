@@ -4,6 +4,48 @@
 // This depends on App.cpp-local runtime/render types and helpers; include it only
 // from App.cpp after those dependencies are defined.
 
+bool renderCullingEnabled() {
+    const char* disabled = SDL_getenv("DRAGON_DISABLE_RENDER_CULLING");
+    return !disabled || disabled[0] == '\0' || disabled[0] == '0';
+}
+
+bool renderRectVisible(const AppState& state, const SDL_FRect& rect, float pad = 64.0f) {
+    if (!renderCullingEnabled()) {
+        return true;
+    }
+    const float right = static_cast<float>(logicalWidth(state)) + pad;
+    const float bottom = static_cast<float>(kLogicalHeight) + pad;
+    return rect.x + rect.w >= -pad
+        && rect.x <= right
+        && rect.y + rect.h >= -pad
+        && rect.y <= bottom;
+}
+
+bool skipInvisibleRenderRect(const AppState& state, const SDL_FRect& rect, float pad = 64.0f) {
+    if (renderRectVisible(state, rect, pad)) {
+        return false;
+    }
+    state.framePerf.addSkippedDraw();
+    return true;
+}
+
+void renderTexturePerf(SDL_Renderer* renderer, const AppState& state, SDL_Texture* texture, const SDL_FRect& dst) {
+    state.framePerf.addDrawCall();
+    SDL_RenderTexture(renderer, texture, nullptr, &dst);
+}
+
+void renderTextureRotatedPerf(
+    SDL_Renderer* renderer,
+    const AppState& state,
+    SDL_Texture* texture,
+    const SDL_FRect& dst,
+    double angle,
+    const SDL_FPoint* center,
+    SDL_FlipMode flipMode) {
+    state.framePerf.addDrawCall();
+    SDL_RenderTextureRotated(renderer, texture, nullptr, &dst, angle, center, flipMode);
+}
+
 void drawStageLayer(SDL_Renderer* renderer, const AppState& state, int layerNo) {
     if (!hasSelectedStageBackground(state)) {
         return;
@@ -55,15 +97,33 @@ void drawStageLayer(SDL_Renderer* renderer, const AppState& state, int layerNo) 
         const float firstX = element.tileX ? baseX - static_cast<float>(sprite->width * 2) : baseX;
         const float firstY = element.tileY ? baseY - static_cast<float>(sprite->height) : baseY;
 
-        for (int ty = 0; ty < repeatY; ++ty) {
-            for (int tx = 0; tx < repeatX; ++tx) {
+        int startTx = 0;
+        int endTx = repeatX;
+        if (element.tileX && sprite->width > 0) {
+            constexpr float pad = 72.0f;
+            startTx = std::clamp(static_cast<int>(std::floor((-pad - firstX) / static_cast<float>(sprite->width))), 0, repeatX - 1);
+            endTx = std::clamp(static_cast<int>(std::ceil((widthF + pad - firstX) / static_cast<float>(sprite->width))) + 1, startTx + 1, repeatX);
+        }
+        int startTy = 0;
+        int endTy = repeatY;
+        if (element.tileY && sprite->height > 0) {
+            constexpr float pad = 72.0f;
+            startTy = std::clamp(static_cast<int>(std::floor((-pad - firstY) / static_cast<float>(sprite->height))), 0, repeatY - 1);
+            endTy = std::clamp(static_cast<int>(std::ceil((static_cast<float>(kLogicalHeight) + pad - firstY) / static_cast<float>(sprite->height))) + 1, startTy + 1, repeatY);
+        }
+
+        for (int ty = startTy; ty < endTy; ++ty) {
+            for (int tx = startTx; tx < endTx; ++tx) {
                 SDL_FRect dst{
                     firstX + static_cast<float>(tx * sprite->width),
                     firstY + static_cast<float>(ty * sprite->height),
                     drawWidth,
                     static_cast<float>(sprite->height),
                 };
-                SDL_RenderTexture(renderer, sprite->texture, nullptr, &dst);
+                if (skipInvisibleRenderRect(state, dst, 72.0f)) {
+                    continue;
+                }
+                renderTexturePerf(renderer, state, sprite->texture, dst);
             }
         }
     }
@@ -229,6 +289,9 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
             static_cast<float>(frame->sprite.width) * scaleX,
             static_cast<float>(frame->sprite.height) * scaleY,
         };
+        if (skipInvisibleRenderRect(state, dst, 96.0f)) {
+            return false;
+        }
         int flipMode = SDL_FLIP_NONE;
         if (flipH) {
             flipMode |= SDL_FLIP_HORIZONTAL;
@@ -252,7 +315,7 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
         SDL_SetTextureBlendMode(frame->sprite.texture, additive ? SDL_BLENDMODE_ADD : SDL_BLENDMODE_BLEND);
         SDL_SetTextureColorMod(frame->sprite.texture, colorMod[0], colorMod[1], colorMod[2]);
         SDL_SetTextureAlphaMod(frame->sprite.texture, static_cast<Uint8>(std::clamp(alpha, 0, 255)));
-        SDL_RenderTextureRotated(renderer, frame->sprite.texture, nullptr, &dst, 0.0, nullptr, static_cast<SDL_FlipMode>(flipMode));
+        renderTextureRotatedPerf(renderer, state, frame->sprite.texture, dst, 0.0, nullptr, static_cast<SDL_FlipMode>(flipMode));
         if (palette) {
             const auto add = paletteEffectAdd(*palette);
             const int overlayAlpha = std::clamp(std::max({ add[0], add[1], add[2] }), 0, std::clamp(alpha, 0, 255));
@@ -264,7 +327,7 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
                     static_cast<Uint8>(std::clamp(add[1], 0, 255)),
                     static_cast<Uint8>(std::clamp(add[2], 0, 255)));
                 SDL_SetTextureAlphaMod(frame->sprite.texture, static_cast<Uint8>(overlayAlpha));
-                SDL_RenderTextureRotated(renderer, frame->sprite.texture, nullptr, &dst, 0.0, nullptr, static_cast<SDL_FlipMode>(flipMode));
+                renderTextureRotatedPerf(renderer, state, frame->sprite.texture, dst, 0.0, nullptr, static_cast<SDL_FlipMode>(flipMode));
             }
         }
 
@@ -331,6 +394,9 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
             static_cast<float>(frame->sprite.width) * fighter.scaleX,
             static_cast<float>(frame->sprite.height) * fighter.scaleY,
         };
+        if (skipInvisibleRenderRect(state, dst, 96.0f)) {
+            return;
+        }
         int flipMode = SDL_FLIP_NONE;
         if (flipH) {
             flipMode |= SDL_FLIP_HORIZONTAL;
@@ -359,7 +425,7 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
         SDL_SetTextureBlendMode(frame->sprite.texture, additiveTrans ? SDL_BLENDMODE_ADD : SDL_BLENDMODE_BLEND);
         SDL_SetTextureColorMod(frame->sprite.texture, colorMod[0], colorMod[1], colorMod[2]);
         SDL_SetTextureAlphaMod(frame->sprite.texture, static_cast<Uint8>(std::clamp(sourceAlpha, 0, 256) * 255 / 256));
-        SDL_RenderTextureRotated(renderer, frame->sprite.texture, nullptr, &dst, angle, &rotationCenter, static_cast<SDL_FlipMode>(flipMode));
+        renderTextureRotatedPerf(renderer, state, frame->sprite.texture, dst, angle, &rotationCenter, static_cast<SDL_FlipMode>(flipMode));
         const auto add = paletteEffectAdd(fighter.paletteEffect);
         const int additiveAlpha = std::clamp(std::max({ add[0], add[1], add[2] }), 0, 180);
         if (additiveAlpha > 0) {
@@ -369,7 +435,7 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
                 static_cast<Uint8>(std::clamp(add[0], 0, 255)),
                 static_cast<Uint8>(std::clamp(add[1], 0, 255)),
                 static_cast<Uint8>(std::clamp(add[2], 0, 255)));
-            SDL_RenderTextureRotated(renderer, frame->sprite.texture, nullptr, &dst, angle, &rotationCenter, static_cast<SDL_FlipMode>(flipMode));
+            renderTextureRotatedPerf(renderer, state, frame->sprite.texture, dst, angle, &rotationCenter, static_cast<SDL_FlipMode>(flipMode));
         }
         SDL_SetTextureBlendMode(frame->sprite.texture, previousBlend);
         SDL_SetTextureColorMod(frame->sprite.texture, previousR, previousG, previousB);
@@ -385,7 +451,7 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
             SDL_SetTextureBlendMode(frame->sprite.texture, SDL_BLENDMODE_ADD);
             SDL_SetTextureColorMod(frame->sprite.texture, 255, 178, 86);
             SDL_SetTextureAlphaMod(frame->sprite.texture, static_cast<Uint8>(feedbackAlpha));
-            SDL_RenderTextureRotated(renderer, frame->sprite.texture, nullptr, &flashDst, angle, &rotationCenter, static_cast<SDL_FlipMode>(flipMode));
+            renderTextureRotatedPerf(renderer, state, frame->sprite.texture, flashDst, angle, &rotationCenter, static_cast<SDL_FlipMode>(flipMode));
             SDL_SetTextureBlendMode(frame->sprite.texture, previousBlend);
             SDL_SetTextureColorMod(frame->sprite.texture, previousR, previousG, previousB);
             SDL_SetTextureAlphaMod(frame->sprite.texture, previousA);
@@ -443,6 +509,9 @@ void drawRuntimeEffect(SDL_Renderer* renderer, const AppState& state, const Stag
         static_cast<float>(frame->sprite.width) * effect.scaleX,
         static_cast<float>(frame->sprite.height) * effect.scaleY,
     };
+    if (skipInvisibleRenderRect(state, dst, 96.0f)) {
+        return;
+    }
 
     int flipMode = SDL_FLIP_NONE;
     if (frame->flipX) {
@@ -472,13 +541,13 @@ void drawRuntimeEffect(SDL_Renderer* renderer, const AppState& state, const Stag
         SDL_SetTextureBlendMode(frame->sprite.texture, SDL_BLENDMODE_ADD);
         SDL_SetTextureColorMod(frame->sprite.texture, 255, 204, 96);
         SDL_SetTextureAlphaMod(frame->sprite.texture, static_cast<Uint8>(150 - effect.ageTicks * 18));
-        SDL_RenderTextureRotated(renderer, frame->sprite.texture, nullptr, &glowDst, 0.0, nullptr, static_cast<SDL_FlipMode>(flipMode));
+        renderTextureRotatedPerf(renderer, state, frame->sprite.texture, glowDst, 0.0, nullptr, static_cast<SDL_FlipMode>(flipMode));
     }
 
     SDL_SetTextureBlendMode(frame->sprite.texture, frame->additive ? SDL_BLENDMODE_ADD : SDL_BLENDMODE_BLEND);
     SDL_SetTextureColorMod(frame->sprite.texture, 255, 255, 255);
     SDL_SetTextureAlphaMod(frame->sprite.texture, 255);
-    SDL_RenderTextureRotated(renderer, frame->sprite.texture, nullptr, &dst, 0.0, nullptr, static_cast<SDL_FlipMode>(flipMode));
+    renderTextureRotatedPerf(renderer, state, frame->sprite.texture, dst, 0.0, nullptr, static_cast<SDL_FlipMode>(flipMode));
 
     SDL_SetTextureBlendMode(frame->sprite.texture, previousBlend);
     SDL_SetTextureColorMod(frame->sprite.texture, previousR, previousG, previousB);
@@ -515,6 +584,9 @@ void drawRuntimeProjectile(SDL_Renderer* renderer, const AppState& state, const 
         static_cast<float>(frame->sprite.width) * projectile.scaleX,
         static_cast<float>(frame->sprite.height) * projectile.scaleY,
     };
+    if (skipInvisibleRenderRect(state, dst, 96.0f)) {
+        return;
+    }
 
     int flipMode = SDL_FLIP_NONE;
     if (flipH) {
@@ -552,13 +624,15 @@ void drawRuntimeProjectile(SDL_Renderer* renderer, const AppState& state, const 
             static_cast<Uint8>(std::clamp(255 - projectile.shadowG, 0, 255)),
             static_cast<Uint8>(std::clamp(255 - projectile.shadowB, 0, 255)));
         SDL_SetTextureAlphaMod(frame->sprite.texture, 96);
-        SDL_RenderTextureRotated(renderer, frame->sprite.texture, nullptr, &shadowDst, 0.0, nullptr, static_cast<SDL_FlipMode>(flipMode));
+        if (!skipInvisibleRenderRect(state, shadowDst, 96.0f)) {
+            renderTextureRotatedPerf(renderer, state, frame->sprite.texture, shadowDst, 0.0, nullptr, static_cast<SDL_FlipMode>(flipMode));
+        }
     }
 
     SDL_SetTextureBlendMode(frame->sprite.texture, frame->additive ? SDL_BLENDMODE_ADD : SDL_BLENDMODE_BLEND);
     SDL_SetTextureColorMod(frame->sprite.texture, 255, 255, 255);
     SDL_SetTextureAlphaMod(frame->sprite.texture, 255);
-    SDL_RenderTextureRotated(renderer, frame->sprite.texture, nullptr, &dst, 0.0, nullptr, static_cast<SDL_FlipMode>(flipMode));
+    renderTextureRotatedPerf(renderer, state, frame->sprite.texture, dst, 0.0, nullptr, static_cast<SDL_FlipMode>(flipMode));
 
     SDL_SetTextureBlendMode(frame->sprite.texture, previousBlend);
     SDL_SetTextureColorMod(frame->sprite.texture, previousR, previousG, previousB);

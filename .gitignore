@@ -45,6 +45,8 @@ CMakeUserPresets.json
 # Logs and temporary files
 /work/
 /artifacts/screenshots/
+/artifacts/perf/
+/artifacts/character_proof/
 *.log
 *.tmp
 *.bak

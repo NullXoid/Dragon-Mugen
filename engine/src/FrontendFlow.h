@@ -263,6 +263,11 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
             }
             state.frontend.screen = Screen::CharacterSelect;
             break;
+        case FrontendActionKind::OpenShopDemo:
+            unloadCharacterRuntime(state);
+            playMenuCursorDoneSound(state);
+            enterShopDemo(renderer, state);
+            break;
         case FrontendActionKind::OpenOptions:
             playMenuCursorDoneSound(state);
             enterOptionsScreen(state, OptionsMenuScreen::Root);
@@ -276,6 +281,11 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
 
     if (state.frontend.screen == Screen::MainSettings) {
         handleOptionsKey(state, key);
+        return;
+    }
+
+    if (state.frontend.screen == Screen::ShopDemo) {
+        handleShopDemoKey(renderer, state, key);
         return;
     }
 
@@ -782,7 +792,7 @@ void handleGamepadButton(
     if (state.frontend.screen == Screen::MainSettings) {
         const bool captureActive = state.mainSettings.awaitingControlBinding;
         handleOptionsGamepadButton(state, button);
-        if (captureActive) {
+        if (captureActive || state.mainSettings.optionsScreen == OptionsMenuScreen::InputTest) {
             return;
         }
     }

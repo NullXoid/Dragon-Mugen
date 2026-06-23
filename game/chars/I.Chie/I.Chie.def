@@ -1,0 +1,21 @@
+; Definition file for I.Chie
+
+[Info]
+name = "I.Chie"
+displayname = "I.Chie"
+versiondate = 06,22,2026
+mugenversion = 04,14,2001
+author = "NullXoid"
+pal.defaults = 1
+
+[Files]
+cmd      = I.Chie.cmd
+cns      = I.Chie.cns
+st       = I.Chie.cns
+stcommon = common1.cns
+sprite   = I.Chie.sff
+anim     = I.Chie.air
+
+[Arcade]
+intro.storyboard =
+ending.storyboard =

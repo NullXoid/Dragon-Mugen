@@ -175,6 +175,7 @@ void applyStoryScreenBounds(AppState& state, const StageSlot& stage) {
 }
 
 void applyStoryHitIfNeeded(AppState& state) {
+    FramePerfScope scope(state.framePerf, FramePerfSection::CollisionHitRouting);
     if (state.fighters.empty() || state.fighters[0].life <= 0) {
         return;
     }

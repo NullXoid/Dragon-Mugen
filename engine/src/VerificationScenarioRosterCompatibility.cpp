@@ -4,7 +4,9 @@
 
 #include <array>
 #include <cctype>
+#include <cstdlib>
 #include <cmath>
+#include <filesystem>
 #include <ostream>
 #include <string>
 #include <string_view>
@@ -58,6 +60,25 @@ void summary(std::ostream& out, const Counts& counts) {
         << " partial=" << counts.partial
         << " fail=" << counts.fail
         << " blocked=" << counts.blocked << "\n";
+}
+
+void captureRosterProofFrame(
+    RuntimeProbe& runtime,
+    std::ostream& out,
+    Counts& counts,
+    std::string_view characterPrefix,
+    std::string_view poseName) {
+    const char* directory = std::getenv("DRAGON_ROSTER_SCREENSHOT_DIR");
+    if (!directory || !*directory) {
+        return;
+    }
+
+    const std::filesystem::path path =
+        std::filesystem::path(directory) / (std::string(characterPrefix) + "_" + std::string(poseName) + ".bmp");
+    const bool captured = runtime.captureScreenshot(path);
+    record(out, counts, captured ? Status::Pass : Status::Fail,
+        std::string(characterPrefix) + "_" + std::string(poseName) + "_screenshot",
+        path.string());
 }
 
 int exitCode(const Counts& counts) {
@@ -261,6 +282,7 @@ void verifyCharacter(RuntimeProbe& runtime, std::ostream& out, Counts& counts, c
     if (!fightReady || !idleReady) {
         return;
     }
+    captureRosterProofFrame(runtime, out, counts, prefix, "standing");
 
     record(out, counts, p1LooksPlayable(readySnap) ? Status::Pass : Status::Fail,
         prefix + "_playable_basics",
@@ -291,6 +313,9 @@ void verifyCharacter(RuntimeProbe& runtime, std::ostream& out, Counts& counts, c
         "x_before=" + std::to_string(beforeMove.p1.x)
         + " x_after=" + std::to_string(afterMove.p1.x)
         + " p1{" + fighterDetail(afterMove.p1) + "}");
+    if (moved) {
+        captureRosterProofFrame(runtime, out, counts, prefix, "walking");
+    }
 
     RuntimeSnapshot jumpSnap;
     const bool jumped = detectJump(runtime, jumpSnap);

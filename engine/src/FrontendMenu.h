@@ -21,6 +21,7 @@ enum class FrontendActionKind {
     None,
     ExitApp,
     OpenMode,
+    OpenShopDemo,
     OpenOptions,
     BackToMain,
     BackToCharacterSelect,

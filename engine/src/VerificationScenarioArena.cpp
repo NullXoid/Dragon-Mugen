@@ -260,9 +260,17 @@ int runArenaZHitDepth(RuntimeProbe& runtime, std::ostream& out) {
         return exitCode(counts);
     }
 
-    runtime.positionFighters(-18.0f, 24.0f);
-    runtime.setFighterControl(1, false);
-    waitForControllableIdle(runtime, 240);
+    runtime.setArenaCpuFrozen(true);
+    auto resetDepthHitProbe = [&]() {
+        runtime.positionFighters(-18.0f, 24.0f);
+        runtime.forceFighterState(0, 0);
+        runtime.forceFighterState(1, 0);
+        runtime.setFighterControl(0, true);
+        runtime.setFighterControl(1, false);
+        waitForControllableIdle(runtime, 240);
+    };
+
+    resetDepthHitProbe();
     runtime.setFighterDepth(0, -48.0f);
     runtime.setFighterDepth(1, 48.0f);
     const auto farBefore = runtime.snapshot();
@@ -281,9 +289,7 @@ int runArenaZHitDepth(RuntimeProbe& runtime, std::ostream& out) {
         + " p2_life_after=" + std::to_string(farAfter.p2.life)
         + " depth_distance=" + std::to_string(depthDistance(farBefore)));
 
-    runtime.positionFighters(-18.0f, 24.0f);
-    runtime.setFighterControl(1, false);
-    waitForControllableIdle(runtime, 240);
+    resetDepthHitProbe();
     runtime.setFighterDepth(0, 0.0f);
     runtime.setFighterDepth(1, 0.0f);
     const auto closeBefore = runtime.snapshot();
@@ -756,13 +762,25 @@ int runArenaPerFighterRuntime(RuntimeProbe& runtime, std::ostream& out) {
     runtime.setFighterControl(1, false);
     waitForControllableIdle(runtime, 240);
     runtime.spawnHelper(0, 101, 60060, 9999, 9999);
-    runtime.step({}, 8);
-    const auto helper = runtime.snapshot();
-    record(out, counts, helper.activeHelpers > 0 && helper.firstHelperState == 60060 ? Status::Pass : Status::Fail,
+    int peakHelpers = 0;
+    int observedHelperState = 0;
+    int observedHelperAction = 0;
+    RuntimeSnapshot helper = runtime.snapshot();
+    for (int frame = 0; frame < 20; ++frame) {
+        helper = runtime.snapshot();
+        peakHelpers = std::max(peakHelpers, helper.activeHelpers);
+        if (helper.activeHelpers > 0 && helper.firstHelperState != 0) {
+            observedHelperState = helper.firstHelperState;
+            observedHelperAction = helper.firstHelperAction;
+        }
+        runtime.step({}, 1);
+    }
+    record(out, counts, peakHelpers > 0 && observedHelperState == 60060 ? Status::Pass : Status::Fail,
         "owner_runtime_spawns_helper_state",
-        "active_helpers=" + std::to_string(helper.activeHelpers)
-        + " first_helper_state=" + std::to_string(helper.firstHelperState)
-        + " first_helper_action=" + std::to_string(helper.firstHelperAction));
+        "peak_helpers=" + std::to_string(peakHelpers)
+        + " active_helpers=" + std::to_string(helper.activeHelpers)
+        + " observed_helper_state=" + std::to_string(observedHelperState)
+        + " observed_helper_action=" + std::to_string(observedHelperAction));
 
     record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
     summary(out, counts);

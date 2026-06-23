@@ -729,6 +729,8 @@ void destroyVisualAssets(AppState& state) {
     destroySystemScreenAssets(state.systemScreens);
     destroyCommandInputIconAtlas(state.commandInputIcons);
     destroyTextureSprite(state.commandCompleteCheck);
+    destroyTextureSprite(state.shopDemo.shopkeeperPose);
+    state.shopDemo.assetsLoaded = false;
     destroyTextureSprite(state.characterLargePortrait);
     for (auto& sprite : state.characterIconSprites) {
         destroyTextureSprite(sprite);

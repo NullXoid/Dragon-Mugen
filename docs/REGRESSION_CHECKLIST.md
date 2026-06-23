@@ -52,6 +52,10 @@ build\dragon_mugen.exe --verify ikemen-select-slot-parsing
 build\dragon_mugen.exe --verify stage-music-codec-decode
 build\dragon_mugen.exe --verify external-stage-mount
 build\dragon_mugen.exe --verify story-scott-tram-rooftop
+build\dragon_mugen.exe --verify runtime-performance-metrics
+build\dragon_mugen.exe --verify story-wave3-performance
+build\dragon_mugen.exe --verify arena-openbor-4fighter-performance
+build\dragon_mugen.exe --verify render-culling-preserves-runtime
 build\dragon_mugen.exe --verify arena-evilryu-air-special-contact-landing
 build\dragon_mugen.exe --verify vs-p2-runtime
 build\dragon_mugen.exe --verify kfm-guard-recovery
@@ -114,7 +118,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Fight view loads selected character and selected stage after VS.
 - VS/Arena/Story loading shows actual load progress for character, stage, sprite/sound/runtime preparation, not only static `PLEASE WAIT` text.
 - Fight view fully repaints the window during hitpause, camera shake, and result overlays; no stale desktop/debug text should appear around the game viewport.
-- A compact FPS counter remains visible in the top-right corner so live performance drops can be distinguished from gameplay hitpause or state timing.
+- Video Options exposes Performance HUD `FPS`/`PERF`/`OFF`. `FPS` keeps the compact top-right counter visible by default; `PERF` shows frame-time/workload telemetry so live performance drops can be distinguished from gameplay hitpause, superpause, or state timing.
 - Fight view `F3` toggles Freeze Watch. Normal play should show only a small status badge; expanded fighter/helper details should appear only for sustained runtime or pose stalls.
 - Fight view Start opens a lightweight pause/resume overlay. While this pause is open, Select/Back opens the full mode options menu.
 - In Training, the lightweight pause overlay exposes command Show and Next/Previous controls without requiring the large options menu.
@@ -130,7 +134,8 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Arena depth affects hit gating, player push, CPU alignment, projected sprite position, and draw order only when Z Axis is enabled.
 - Arena Camera Rotate defaults off, only activates when Z Axis is also on, eases yaw from P1/living-fighter depth, and changes actor/effect projection and depth draw order without rotating backgrounds or combat math.
 - Arena can select `OpenBOR Scroll Test` and `TMNT OpenBOR Street`; in Arena they scroll forward only, clamp at the configured end, and do not make Training, Single Player, or VS stages auto-scroll.
-- Arena OpenBOR-style stages must be retested with four active fighters onscreen. Sustained low FPS must be fixed or captured with frame-time, actor/effect/projectile, and stage draw workload telemetry before OpenBOR Stage Compatibility v2 is marked complete.
+- Arena OpenBOR-style stages must be retested with four active fighters onscreen. `arena-openbor-4fighter-performance` and `render-culling-preserves-runtime` must stay green, and any sustained live low FPS must be fixed or captured with frame-time, actor/effect/projectile, and stage draw workload telemetry before OpenBOR Stage Compatibility v2 is marked complete.
+- Story wave 3 stress must keep `story-wave3-performance` green; hitpause/superpause dips should be reported separately from non-pause gameplay frame time.
 - Arena gamepad Start opens pause/start behavior only and is not mapped as a fighter button or depth input.
 - Evil Ken crouch roundhouse trip follows the first low arc, hits the floor, then performs two small vertical-only floor bounces before knockdown without rising into air recovery.
 - KFM, Evil Ken, and Evil Ryu supers are blocked below their authored CMD power gate and still consume power through CNS `poweradd` after valid entry.

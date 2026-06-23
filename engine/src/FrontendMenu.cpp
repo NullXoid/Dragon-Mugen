@@ -9,7 +9,7 @@
 namespace dragon {
 namespace {
 
-constexpr int kMainMenuOptionCount = 7;
+constexpr int kMainMenuOptionCount = 8;
 
 int wrapSelection(int selected, int count, int delta) {
     if (count <= 0) {
@@ -128,8 +128,10 @@ FrontendAction decideMainMenuAction(int selected) {
     case 4:
         return { FrontendActionKind::OpenMode, PendingMode::Story };
     case 5:
-        return { FrontendActionKind::OpenOptions };
+        return { FrontendActionKind::OpenShopDemo };
     case 6:
+        return { FrontendActionKind::OpenOptions };
+    case 7:
         return { FrontendActionKind::ExitApp };
     default:
         return {};

@@ -12,22 +12,13 @@
 namespace dragon {
 namespace {
 
-constexpr std::array<std::string_view, 7> kModeLabels{ {
+constexpr std::array<std::string_view, 8> kModeLabels{ {
     "TRAINING",
     "SINGLE PLAYER",
     "VS MODE",
     "ARENA MODE",
     "STORY MODE",
-    "OPTIONS",
-    "EXIT",
-} };
-
-constexpr std::array<std::string_view, kModeLabels.size()> kModeDescriptions{ {
-    "TRAINING SANDBOX",
-    "ARCADE STYLE MATCH",
-    "LOCAL COUCH MATCH",
-    "Free-for-all battle with up to 4 fighters.",
-    "Side-scrolling chapter with enemy waves.",
+    "SHOP DEMO",
     "OPTIONS",
     "EXIT",
 } };
@@ -59,16 +50,16 @@ void drawMainMenuOverlay(const UiRenderContext& ui, const MainMenuView& view) {
     const int pulseAlpha = 96 + static_cast<int>(pulse * 70.0f);
 
     setColor(renderer, 6, 8, 12, 224);
-    fillRect(renderer, menuX, 118, 152, 111);
+    fillRect(renderer, menuX, 112, 152, 126);
     setColor(renderer, 24, 32, 46, 238);
-    fillRect(renderer, menuX + 2.0f, 120.0f, 148.0f, 14.0f);
+    fillRect(renderer, menuX + 2.0f, 114.0f, 148.0f, 14.0f);
     setColor(renderer, 92, 108, 138);
-    drawRect(renderer, menuX, 118, 152, 111);
+    drawRect(renderer, menuX, 112, 152, 126);
     setColor(renderer, 158, 64, 58);
-    fillRect(renderer, menuX + 2.0f, 134.0f, 148.0f, 2.0f);
+    fillRect(renderer, menuX + 2.0f, 128.0f, 148.0f, 2.0f);
 
     for (int i = 0; i < static_cast<int>(kModeLabels.size()); ++i) {
-        const float y = 144.0f + static_cast<float>(i * 13);
+        const float y = 138.0f + static_cast<float>(i * 13);
         const std::string label(kModeLabels[static_cast<std::size_t>(i)]);
         const float textX = centerX - static_cast<float>(label.size()) * 4.0f;
 
@@ -87,21 +78,15 @@ void drawMainMenuOverlay(const UiRenderContext& ui, const MainMenuView& view) {
         }
     }
 
-    setColor(renderer, 18, 24, 34, 232);
-    fillRect(renderer, centerX - 118.0f, 216.0f, 236.0f, 20.0f);
-    setColor(renderer, view.exitConfirmOpen ? 158 : 74, view.exitConfirmOpen ? 64 : 170, view.exitConfirmOpen ? 58 : 134);
-    drawRect(renderer, centerX - 118.0f, 216.0f, 236.0f, 20.0f);
     if (view.exitConfirmOpen) {
+        setColor(renderer, 18, 24, 34, 232);
+        fillRect(renderer, centerX - 92.0f, 216.0f, 184.0f, 20.0f);
+        setColor(renderer, 158, 64, 58);
+        drawRect(renderer, centerX - 92.0f, 216.0f, 184.0f, 20.0f);
         setColor(renderer, 255, 222, 130);
         debugTextCentered(renderer, centerX, 219, "ARE YOU SURE?");
         setColor(renderer, 150, 156, 166);
         debugTextCentered(renderer, centerX, 230, "ENTER YES  ESC NO");
-    } else {
-        setColor(renderer, 230, 220, 172);
-        debugTextCentered(renderer, centerX, 219, std::string(kModeDescriptions[static_cast<std::size_t>(selectedMode)]));
-
-        setColor(renderer, 150, 156, 166);
-        debugTextCentered(renderer, centerX, 230, "UP/DOWN  ENTER  ESC");
     }
 }
 

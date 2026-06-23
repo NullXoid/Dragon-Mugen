@@ -1,0 +1,26 @@
+; Dragon-only presentation metadata for I.Chie.
+[DragonInfo]
+role = "shop-saleswoman"
+theme.color = "violet"
+benchmark = 1
+shopkeeper = 1
+shop.name = "I.Chie"
+shop.action = 9100
+shop.state = 9100
+shop.pose = "sales-counter"
+
+[CommandLabels]
+x = "Quick Palm"
+y = "Elbow Strike"
+z = "Violet Launcher"
+a = "Low Kick"
+b = "Step Kick"
+c = "Spinning Heel"
+violet_pulse_x = "Violet Pulse Light"
+violet_pulse_y = "Violet Pulse Medium"
+violet_pulse_z = "Violet Pulse Strong"
+violet_rise_x = "Violet Rise Light"
+violet_rise_y = "Violet Rise Medium"
+violet_rise_z = "Violet Rise Strong"
+prism_break_rush = "Prism Break Rush"
+start = "Violet Wrist Pulse"

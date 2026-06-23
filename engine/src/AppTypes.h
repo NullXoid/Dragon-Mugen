@@ -1,5 +1,6 @@
 #pragma once
 
+#include "FramePerformance.h"
 #include "StoryModeTypes.h"
 
 #include <array>
@@ -29,8 +30,8 @@ inline constexpr int kMatchResultOptionCount = 4;
 inline constexpr int kArenaSetupOptionCount = 10;
 inline constexpr int kMainSettingsCount = 11;
 inline constexpr int kOptionsRootCount = 4;
-inline constexpr int kOptionsGameplayCount = 5;
-inline constexpr int kOptionsVideoCount = 4;
+inline constexpr int kOptionsGameplayCount = 7;
+inline constexpr int kOptionsVideoCount = 5;
 inline constexpr int kOptionsControlsCount = 9;
 inline constexpr int kOptionsKeyboardSetupCount = 6;
 inline constexpr int kOptionsControllerSetupCount = 8;
@@ -52,6 +53,7 @@ enum class Screen {
     StageSelect,
     VersusScreen,
     FightView,
+    ShopDemo,
     MainSettings,
 };
 
@@ -174,6 +176,7 @@ struct MainSettings {
     int canvasWidth = kDefaultLogicalWidth;
     int uiScalePercent = 80;
     bool fpsCapEnabled = true;
+    PerformanceHudMode performanceHudMode = PerformanceHudMode::Fps;
     GamepadPromptStyle gamepadPromptStyle = GamepadPromptStyle::Auto;
     int p1GamepadAssignment = 0;
     int p2GamepadAssignment = 0;

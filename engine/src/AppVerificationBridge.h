@@ -1,5 +1,8 @@
 #pragma once
 
+#include "AppVerificationProbeHelpers.h"
+#include "AppVerificationPerformanceBridge.h"
+
 class AppVerificationRuntime final : public verification::RuntimeProbe {
 public:
     explicit AppVerificationRuntime(std::filesystem::path gameRoot)
@@ -97,8 +100,8 @@ public:
         const verification::SymbolicInput& p1Input,
         const verification::SymbolicInput& p2Input,
         int frames) override {
-        const FighterInputState p1 = toFighterInput(p1Input);
-        const FighterInputState p2 = toFighterInput(p2Input);
+        const FighterInputState p1 = verificationProbeInput(p1Input);
+        const FighterInputState p2 = verificationProbeInput(p2Input);
         for (int i = 0; i < frames; ++i) {
             ++state_.frame;
             ++state_.frontend.screenFrame;
@@ -115,7 +118,7 @@ public:
     }
 
     void pressKey(std::string_view key) override {
-        const SDL_Keycode code = keyCodeForProbeName(key);
+        const SDL_Keycode code = verificationProbeKeyCode(key);
         if (code == 0) {
             return;
         }
@@ -276,6 +279,17 @@ public:
 
     void setArenaCpuFrozen(bool frozen) override {
         state_.suppressArenaCpu = frozen;
+    }
+
+    void setStoryWave(int waveIndex) override {
+        if (state_.frontend.pendingMode != PendingMode::Story || state_.fighters.empty()) {
+            return;
+        }
+        const StageSlot fallbackStage;
+        const StageSlot& stage = selectedStageSlot(state_.selection) ? *selectedStageSlot(state_.selection) : fallbackStage;
+        state_.story.waveIndex = std::clamp(waveIndex, 0, kStoryWaveCount - 1);
+        startStoryWave(state_, stage, false);
+        updateStoryFighterFacing(state_);
     }
 
     void setFightPaused(bool paused) override {
@@ -605,6 +619,14 @@ public:
         triggerTrainingShowShortcut(state_);
     }
 
+    verification::RuntimePerformanceResult measurePerformance(
+        int warmupFrames,
+        int measuredFrames,
+        bool renderEachFrame,
+        bool stressInputs) override {
+        return measureVerificationPerformance(state_, renderer_, warmupFrames, measuredFrames, renderEachFrame, stressInputs);
+    }
+
     bool captureScreenshot(const std::filesystem::path& path) override {
         if (!renderer_) {
             return false;
@@ -649,6 +671,16 @@ public:
         out.matchPhase = static_cast<int>(state_.matchPhase);
         out.activeEffects = static_cast<int>(state_.runtimeEffects.size());
         out.activeSounds = static_cast<int>(state_.audio.activeVoices.size());
+        const FramePerfSummary perfSummary = state_.framePerf.summary(true);
+        out.perfFps = perfSummary.fps;
+        out.perfAvgFrameMs = perfSummary.avgFrameMs;
+        out.perfP95FrameMs = perfSummary.p95FrameMs;
+        out.perfWorstFrameMs = perfSummary.worstFrameMs;
+        out.perfFpsEquivalent = perfSummary.fpsEquivalent;
+        out.perfDrawCalls = perfSummary.latestCounters.drawCalls;
+        out.perfSkippedDraws = perfSummary.latestCounters.skippedDraws;
+        out.perfFixedSteps = perfSummary.latestCounters.fixedSteps;
+        out.perfDominantSection = std::string(framePerfSectionLabel(perfSummary.dominantSection));
         out.comboHits = state_.display.comboCounters[0].displayHits;
         out.fighterCount = static_cast<int>(state_.fighters.size());
         out.arenaRuntimeCount = static_cast<int>(state_.arenaRuntimes.size());
@@ -747,8 +779,8 @@ public:
         };
         appendCommands(out.p1Commands, collectCurrentFighterCommands(state_, state_.fighters[0]));
         appendCommands(out.p2Commands, collectCurrentFighterCommands(state_, state_.fighters[1]));
-        out.p1 = fighterSnapshot(state_.fighters[0], characterMaxLifeForFighterIndex(state_, 0));
-        out.p2 = fighterSnapshot(state_.fighters[1], characterMaxLifeForFighterIndex(state_, 1));
+        out.p1 = verificationProbeFighterSnapshot(state_.fighters[0], characterMaxLifeForFighterIndex(state_, 0));
+        out.p2 = verificationProbeFighterSnapshot(state_.fighters[1], characterMaxLifeForFighterIndex(state_, 1));
         out.p1AnimElem = currentAnimElemForFighter(state_, state_.fighters[0]);
         out.p2AnimElem = currentAnimElemForFighter(state_, state_.fighters[1]);
         out.p1P2BodyDistX = p2BodyDistXValue(state_, state_.fighters[0], state_.fighters[1]);
@@ -861,85 +893,6 @@ private:
             snapshot.visualScreenLeft = projected.screenX;
             snapshot.visualScreenRight = projected.screenX;
         }
-    }
-
-    static FighterInputState toFighterInput(const verification::SymbolicInput& input) {
-        return FighterInputState{
-            input.left,
-            input.right,
-            input.up,
-            input.down,
-            input.s,
-            input.x,
-            input.y,
-            input.z,
-            input.a,
-            input.b,
-            input.c,
-            input.depthModifier,
-        };
-    }
-
-    static SDL_Keycode keyCodeForProbeName(std::string_view key) {
-        if (key == "enter") return SDLK_RETURN;
-        if (key == "space") return SDLK_SPACE;
-        if (key == "escape") return SDLK_ESCAPE;
-        if (key == "up") return SDLK_UP;
-        if (key == "down") return SDLK_DOWN;
-        if (key == "left") return SDLK_LEFT;
-        if (key == "right") return SDLK_RIGHT;
-        if (key == "f2") return SDLK_F2;
-        if (key == "r") return SDLK_R;
-        return 0;
-    }
-
-    static verification::FighterSnapshot fighterSnapshot(const FighterState& fighter, int maxLife) {
-        return verification::FighterSnapshot{
-            fighter.x,
-            fighter.y,
-            fighter.depthZ,
-            fighter.vx,
-            fighter.vy,
-            fighter.depthVz,
-            fighter.stateNo,
-            fighter.action,
-            fighter.stateTime,
-            fighter.animTick,
-            fighter.life,
-            maxLife,
-            fighter.power,
-            fighter.attackMultiplier,
-            fighter.defenceMultiplier,
-            fighter.targetIndex,
-            fighter.targetTicks,
-            fighter.targetHitId,
-            fighter.hitCount,
-            fighter.paletteNo,
-            fighter.hitPauseTicks,
-            fighter.hitStunTicks,
-            fighter.hitDownVelocityX,
-            fighter.hitDownVelocityY,
-            fighter.displayOffsetX,
-            fighter.displayOffsetY,
-            fighter.scaleX,
-            fighter.scaleY,
-            0.0f,
-            0.0f,
-            0.0f,
-            0.0f,
-            0.0f,
-            fighter.facing,
-            fighter.stateType,
-            fighter.moveType,
-            fighter.physics,
-            fighter.ctrl,
-            fighter.onGround,
-            fighter.moveContact,
-            fighter.moveHit,
-            fighter.moveGuarded,
-            fighter.afterImage.active,
-            static_cast<int>(fighter.afterImage.trail.size()),
-        };
     }
 
     void resetSessionResources() {

@@ -148,10 +148,10 @@ void cycleOptionsValue(AppState& state, int direction) {
     case OptionsMenuScreen::Gameplay:
         if (row == 0) {
             state.mainSettings = cycleMainSetting(state.mainSettings, 0, direction, static_cast<int>(state.gamepads.size()));
-        } else if (row == 1 || row == 2) {
+        } else if (row == 1 || row == 3) {
             cycleMainProfileSetting(state, row == 1 ? kMainSettingP1ProfileOption : kMainSettingP2ProfileOption, direction);
             syncControlsWithProfiles(state);
-        } else if (row == 3) {
+        } else if (row == 5) {
             state.mainSettings.fallFallbacksEnabled = !state.mainSettings.fallFallbacksEnabled;
         }
         break;
@@ -162,6 +162,9 @@ void cycleOptionsValue(AppState& state, int direction) {
             state.mainSettings = cycleMainSetting(state.mainSettings, 2, direction, static_cast<int>(state.gamepads.size()));
         } else if (row == 2) {
             state.mainSettings.fpsCapEnabled = !state.mainSettings.fpsCapEnabled;
+        } else if (row == 3) {
+            state.mainSettings.performanceHudMode =
+                cyclePerformanceHudMode(state.mainSettings.performanceHudMode, direction);
         }
         break;
     case OptionsMenuScreen::PlayerControls: {
@@ -210,17 +213,17 @@ void acceptOptionsSelection(AppState& state) {
         else backFromOptionsScreen(state);
         break;
     case OptionsMenuScreen::Gameplay:
-        if (row == 4) {
+        if (row == 6) {
             enterOptionsScreen(state, OptionsMenuScreen::Root);
-        } else if (row == 1 || row == 2) {
-            createMainProfileForSetting(state, row == 1 ? kMainSettingP1ProfileOption : kMainSettingP2ProfileOption);
+        } else if (row == 2 || row == 4) {
+            createMainProfileForSetting(state, row == 2 ? kMainSettingP1ProfileOption : kMainSettingP2ProfileOption);
             syncControlsWithProfiles(state);
         } else {
             cycleOptionsValue(state, 1);
         }
         break;
     case OptionsMenuScreen::Video:
-        if (row == 3) {
+        if (row == kOptionsVideoCount - 1) {
             enterOptionsScreen(state, OptionsMenuScreen::Root);
         } else {
             cycleOptionsValue(state, 1);
@@ -322,6 +325,8 @@ void handleOptionsKey(AppState& state, SDL_Keycode key) {
         const SDL_Scancode scancode = SDL_GetScancodeFromKey(key, nullptr);
         state.mainSettings.controlStatusMessage =
             scancode == SDL_SCANCODE_UNKNOWN ? "UNKNOWN KEY" : "KEY " + physicalInputLabel(keyBinding(scancode));
+        playMenuCursorDoneSound(state);
+        return;
     }
 
     const auto frontendKeyFromOptionsKey = [](SDL_Keycode keycode) {
@@ -394,6 +399,11 @@ void handleOptionsGamepadButton(AppState& state, SDL_GamepadButton button) {
     }
 
     if (state.mainSettings.optionsScreen == OptionsMenuScreen::InputTest) {
+        if (button == SDL_GAMEPAD_BUTTON_EAST || button == SDL_GAMEPAD_BUTTON_BACK) {
+            enterOptionsScreen(state, OptionsMenuScreen::Controls);
+            playMenuCancelSound(state);
+            return;
+        }
         state.mainSettings.controlStatusMessage =
             "PAD " + physicalInputLabel(gamepadButtonBinding(button), effectiveGamepadPromptStyle(state, 0));
     }
