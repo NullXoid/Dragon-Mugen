@@ -1,0 +1,21 @@
+; Definition file for A.Ben
+
+[Info]
+name = "A.Ben"
+displayname = "A.Ben"
+versiondate = 06,22,2026
+mugenversion = 04,14,2001
+author = "NullXoid"
+pal.defaults = 1
+
+[Files]
+cmd      = A.Ben.cmd
+cns      = A.Ben.cns
+st       = A.Ben.cns
+stcommon = common1.cns
+sprite   = A.Ben.sff
+anim     = A.Ben.air
+
+[Arcade]
+intro.storyboard =
+ending.storyboard =
