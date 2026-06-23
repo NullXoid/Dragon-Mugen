@@ -6,7 +6,7 @@ This file tracks original Dragon MUGEN benchmark characters. These are project-o
 
 Reserved folders may exist under `game/chars/` without appearing on the character select screen. A benchmark character becomes selectable only when it has a real M.U.G.E.N-compatible fileset and an explicit entry in `game/data/select.def`.
 
-Do not list these characters in `select.def` while they are README-only placeholders. The architecture guard enforces this.
+Do not list these characters in `select.def` while they are README-only placeholders or while their runtime sprite archive is still pending. The architecture guard enforces this.
 
 Minimum selectable files:
 
@@ -23,8 +23,8 @@ Minimum selectable files:
 | Folder | Purpose | First Complete Version |
 | --- | --- | --- |
 | `DragonBench` | Deterministic regression fighter for engine audits. | Idle, walk, crouch, jump, six buttons, one guardable hit, one fall hit, one projectile, one helper, one super, and one throw/custom-state path. |
-| `A.Ben` | Basic AI benchmark opponent. | Uses simple readable AI gates, forward/back dash, normals, one special, guard decisions, and round-safe behavior. |
-| `I.Chie` | Advanced AI and compatibility stress character. | Exercises variables, helpers, projectiles, target controllers, superpause, explods, palette effects, and richer AI decision logic. |
+| `A.Ben` | Basic AI benchmark opponent. | Uses simple readable AI gates, forward/back dash, normals, one special, guard decisions, and round-safe behavior. Text foundation exists; runtime SFF is still gated. |
+| `I.Chie` | Advanced AI and compatibility stress character. | Exercises variables, helpers, projectiles, target controllers, superpause, explods, palette effects, and richer decision logic. Text foundation exists; runtime SFF is still gated. |
 
 ## Work Order
 
