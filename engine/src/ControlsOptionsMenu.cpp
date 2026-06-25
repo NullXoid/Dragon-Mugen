@@ -72,9 +72,9 @@ std::vector<OptionsMenuRowView> buildGameplayRows(const ControlsOptionsContext& 
     return {
         row("MATCH TIMER", matchTimerSettingText(context.settings), selected == 0, true),
         row("P1 PROFILE", compact(context.playerProfileNames[0], 18), selected == 1, true),
-        row("NEW P1 PROFILE", "CREATE", selected == 2),
+        row("CREATE P1 PROFILE", "ENTER", selected == 2),
         row("P2 PROFILE", compact(context.playerProfileNames[1], 18), selected == 3, true),
-        row("NEW P2 PROFILE", "CREATE", selected == 4),
+        row("CREATE P2 PROFILE", "ENTER", selected == 4),
         row("FALL FALLBACKS", context.settings.fallFallbacksEnabled ? "ON" : "OFF", selected == 5, true),
         row("BACK", "", selected == 6),
     };
@@ -156,8 +156,7 @@ std::vector<OptionsMenuRowView> buildControllerRows(const ControlsOptionsContext
 
 std::vector<OptionsMenuRowView> buildInputTestRows(const ControlsOptionsContext& context, int selected) {
     return {
-        row("PRESS INPUT", context.settings.controlStatusMessage.empty() ? "WAITING" : compact(context.settings.controlStatusMessage, 22), selected == 0, false),
-        row("BACK", "", selected == 1),
+        row("PRESS INPUT", context.settings.controlStatusMessage.empty() ? "WAITING" : compact(context.settings.controlStatusMessage, 28), selected == 0, false),
     };
 }
 
@@ -318,15 +317,15 @@ std::string optionsScreenTitle(OptionsMenuScreen screen) {
 
 std::string optionsFooterText(const MainSettings& settings) {
     if (settings.awaitingControlBinding) {
-        return "PRESS A KEY/BUTTON  ESC CANCEL";
+        return "KEY/BUTTON  ESC CANCEL";
     }
     if (settings.optionsScreen == OptionsMenuScreen::InputTest) {
-        return "PRESS ANY INPUT  ESC BACK";
+        return "ANY INPUT  ESC BACK";
     }
     if (settings.optionsScreen == OptionsMenuScreen::PlayerControls) {
-        return "UP/DOWN  ENTER BIND  L/R CHANGE  ESC";
+        return "UP/DN  ENT BIND  L/R  ESC";
     }
-    return "UP/DOWN  L/R CHANGE  ENTER  ESC";
+    return "UP/DN MOVE  L/R CHANGE  ENT  ESC";
 }
 
 std::vector<OptionsMenuRowView> buildControlsOptionsRows(const ControlsOptionsContext& context) {

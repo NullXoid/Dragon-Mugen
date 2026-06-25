@@ -57,6 +57,7 @@ int runClassicFightCombat(RuntimeProbe& runtime, std::ostream& out);
 int runRosterCompatibilitySmoke(RuntimeProbe& runtime, std::ostream& out);
 int runDragonProgressionLevelItems(RuntimeProbe& runtime, std::ostream& out);
 int runDragonProgressionPlayerProfiles(RuntimeProbe& runtime, std::ostream& out);
+int runDragonProgressionEnemyReward(RuntimeProbe& runtime, std::ostream& out);
 int runKfmDownHitProfile(RuntimeProbe& runtime, std::ostream& out);
 int runKfmGuardRecovery(RuntimeProbe& runtime, std::ostream& out);
 int runKfmSpecialsSupers(RuntimeProbe& runtime, std::ostream& out);
@@ -87,6 +88,7 @@ int runStoryEnemyTargeting(RuntimeProbe& runtime, std::ostream& out);
 int runStoryStageClear(RuntimeProbe& runtime, std::ostream& out);
 int runStoryPlayerDefeat(RuntimeProbe& runtime, std::ostream& out);
 int runStoryProgressionAward(RuntimeProbe& runtime, std::ostream& out);
+int runStoryRewardFeedback(RuntimeProbe& runtime, std::ostream& out);
 int runStoryEvilRyuSuperRecovery(RuntimeProbe& runtime, std::ostream& out);
 int runVsLoadingProgressBar(RuntimeProbe& runtime, std::ostream& out);
 int runSffV2PngDecode(RuntimeProbe& runtime, std::ostream& out);
@@ -98,6 +100,14 @@ int runRuntimePerformanceMetrics(RuntimeProbe& runtime, std::ostream& out);
 int runStoryWave3Performance(RuntimeProbe& runtime, std::ostream& out);
 int runArenaOpenBor4FighterPerformance(RuntimeProbe& runtime, std::ostream& out);
 int runRenderCullingPreservesRuntime(RuntimeProbe& runtime, std::ostream& out);
+int runShopRouteEntry(RuntimeProbe& runtime, std::ostream& out);
+int runShopRoomActorProjection(RuntimeProbe& runtime, std::ostream& out);
+int runShopRoomMovementCollision(RuntimeProbe& runtime, std::ostream& out);
+int runShopBuySellPersistence(RuntimeProbe& runtime, std::ostream& out);
+int runShopEquipProfileScope(RuntimeProbe& runtime, std::ostream& out);
+int runShopGuestNoSave(RuntimeProbe& runtime, std::ostream& out);
+int runShopControllerKeyboardNavigation(RuntimeProbe& runtime, std::ostream& out);
+int runShopPanelTextFit(RuntimeProbe& runtime, std::ostream& out);
 int runOptionsCategoryNavigation(RuntimeProbe& runtime, std::ostream& out);
 int runControlsPlayerOneToFourNavigation(RuntimeProbe& runtime, std::ostream& out);
 int runControlsGuidedSetup(RuntimeProbe& runtime, std::ostream& out);
@@ -178,16 +188,16 @@ int runShopDemoRoomHook(RuntimeProbe& runtime, std::ostream& out) {
         "shop_npc_not_selectable_roster",
         "selectable_count=" + std::to_string(characters.size()));
 
-    constexpr float roomWidth = 840.0f;
-    constexpr float playerWalkWidth = 695.0f;
-    constexpr float shopkeeperScale = 0.62f;
-    recordCheck(roomWidth > static_cast<float>(kDefaultLogicalWidth) * 1.75f,
+    constexpr float roomWidth = 2240.0f;
+    constexpr float playerWalkWidth = 2080.0f;
+    constexpr float shopkeeperScale = 0.56f;
+    recordCheck(roomWidth > static_cast<float>(kDefaultLogicalWidth) * 2.25f,
         "shop_room_has_scroll_space",
         "room_width=" + std::to_string(roomWidth));
-    recordCheck(playerWalkWidth > static_cast<float>(kDefaultLogicalWidth),
+    recordCheck(playerWalkWidth > static_cast<float>(kDefaultLogicalWidth) * 2.0f,
         "shop_room_has_walk_space",
         "walk_width=" + std::to_string(playerWalkWidth));
-    recordCheck(shopkeeperScale < 0.75f,
+    recordCheck(shopkeeperScale < 0.65f,
         "shop_characters_scaled_down",
         "shopkeeper_scale=" + std::to_string(shopkeeperScale));
 
@@ -196,6 +206,14 @@ int runShopDemoRoomHook(RuntimeProbe& runtime, std::ostream& out) {
 }
 
 int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::ostream& out) {
+    if (scenarioName == "shop-route-entry") return runShopRouteEntry(runtime, out);
+    if (scenarioName == "shop-room-actor-projection") return runShopRoomActorProjection(runtime, out);
+    if (scenarioName == "shop-room-movement-collision") return runShopRoomMovementCollision(runtime, out);
+    if (scenarioName == "shop-buy-sell-persistence") return runShopBuySellPersistence(runtime, out);
+    if (scenarioName == "shop-equip-profile-scope") return runShopEquipProfileScope(runtime, out);
+    if (scenarioName == "shop-guest-no-save") return runShopGuestNoSave(runtime, out);
+    if (scenarioName == "shop-controller-keyboard-navigation") return runShopControllerKeyboardNavigation(runtime, out);
+    if (scenarioName == "shop-panel-text-fit") return runShopPanelTextFit(runtime, out);
     if (scenarioName == "shop-demo-room-hook") return runShopDemoRoomHook(runtime, out);
     if (scenarioName == "runtime-performance-metrics") return runRuntimePerformanceMetrics(runtime, out);
     if (scenarioName == "story-wave3-performance") return runStoryWave3Performance(runtime, out);
@@ -274,6 +292,7 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
     if (scenarioName == "roster-compatibility-smoke") return runRosterCompatibilitySmoke(runtime, out);
     if (scenarioName == "dragon-progression-level-items") return runDragonProgressionLevelItems(runtime, out);
     if (scenarioName == "dragon-progression-player-profiles") return runDragonProgressionPlayerProfiles(runtime, out);
+    if (scenarioName == "dragon-progression-enemy-reward") return runDragonProgressionEnemyReward(runtime, out);
     if (scenarioName == "vs-p2-runtime") return runVsP2Runtime(runtime, out);
     if (scenarioName == "arena-cpu-1") return runArenaSmoke(runtime, out, 1);
     if (scenarioName == "arena-cpu-2") return runArenaSmoke(runtime, out, 2);
@@ -303,6 +322,7 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
     if (scenarioName == "story-stage-clear") return runStoryStageClear(runtime, out);
     if (scenarioName == "story-player-defeat") return runStoryPlayerDefeat(runtime, out);
     if (scenarioName == "story-progression-award") return runStoryProgressionAward(runtime, out);
+    if (scenarioName == "story-reward-feedback") return runStoryRewardFeedback(runtime, out);
     if (scenarioName == "story-evilryu-super-recovery") return runStoryEvilRyuSuperRecovery(runtime, out);
     if (scenarioName == "vs-loading-progress-bar") return runVsLoadingProgressBar(runtime, out);
     if (scenarioName == "sff-v2-png-decode") return runSffV2PngDecode(runtime, out);
@@ -314,7 +334,7 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
 
     out << "VERIFY " << scenarioName << "\n"
         << "BLOCKED unknown_scenario\n"
-        << "  supported: shop-demo-room-hook, compatibility-profile-resolver, options-category-navigation, controls-player-1-4-navigation, controls-guided-setup, controls-manual-edit-conflicts, controls-presets, controls-profile-persistence, controls-input-test-live, controls-glyph-device-detection, controls-pause-taunt-separation, training-options-menu-geometry, training-move-list-geometry, training-command-hud-layout, training-pause-help-legend, training-command-list-tabs, training-command-icon-atlas, training-command-side-switch-highlight, training-command-facing-aware-display, training-command-physical-direction-guide, training-command-start-button-guide, training-command-complete-blink, training-command-filtered-complete, training-palette-slot-separation, training-show-select-hold, training-show-controller-shortcut, training-command-held-button-prompt, character-auto-fit-scale, lili-smoke, lili-changeanim2-fallback, lili-kuuch-state-fallback, lili-hien-houou-kyaku-demo, lili-training-demo-all, kfm-baseline, kfm-throw, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-guard-recovery, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-power-charge-helper, evilken-air-special-contact-landing, evilken-training-demo-hit, evilken-training-command-practice-advance, evilryu-specials-supers, evilryu-shin-shoryuken-stun, evilryu-super-stress, evilryu-air-special-contact-landing, evilryu-power-charge-helper, evilryu-throw-bind, evilryu-training-throw-demo, evilken-smoke, evilken-trip-grounding, evilken-overhead-trip-chain, evilken-overhead-trip-chain-stress, evilken-trip-jump-buffer, evilken-attack-jump-buffer-release, evilken-throw, evilken-corner-visual-bounds, evilken-kuuchuu-shakunetsu, evilken-training-demo-all, evilken-shinryuken-recovery, evilken-shun-goku-satsu, evilken-shouki-hatsudou-spacing, cpu-baseline, classic-fight-outcomes, classic-fight-routing, classic-fight-combat, roster-compatibility-smoke, dragon-progression-level-items, dragon-progression-player-profiles, vs-p2-runtime, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-camera-rotation-toggle, arena-camera-rotation-projection, arena-camera-rotation-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-evilken-forward-dash-bounds, arena-per-fighter-runtime, arena-openbor-scroll-stage, arena-tmnt-openbor-stage, arena-evilryu-air-special-contact-landing, story-mode-menu-route, story-stage-select-map, story-difficulty-enemy-scaling, story-openbor-stage-default, story-stage-board-expansion, story-wave-spawn-scroll, story-enemy-targeting, story-stage-clear, story-player-defeat, story-progression-award, story-evilryu-super-recovery, vs-loading-progress-bar, sff-v2-png-decode, ikemen-select-slot-parsing, stage-music-codec-decode, external-stage-mount, story-scott-tram-rooftop, evilryu-dash\n"
+        << "  supported: shop-route-entry, shop-room-actor-projection, shop-room-movement-collision, shop-buy-sell-persistence, shop-equip-profile-scope, shop-guest-no-save, shop-controller-keyboard-navigation, shop-panel-text-fit, shop-demo-room-hook, compatibility-profile-resolver, options-category-navigation, controls-player-1-4-navigation, controls-guided-setup, controls-manual-edit-conflicts, controls-presets, controls-profile-persistence, controls-input-test-live, controls-glyph-device-detection, controls-pause-taunt-separation, training-options-menu-geometry, training-move-list-geometry, training-command-hud-layout, training-pause-help-legend, training-command-list-tabs, training-command-icon-atlas, training-command-side-switch-highlight, training-command-facing-aware-display, training-command-physical-direction-guide, training-command-start-button-guide, training-command-complete-blink, training-command-filtered-complete, training-palette-slot-separation, training-show-select-hold, training-show-controller-shortcut, training-command-held-button-prompt, character-auto-fit-scale, lili-smoke, lili-changeanim2-fallback, lili-kuuch-state-fallback, lili-hien-houou-kyaku-demo, lili-training-demo-all, kfm-baseline, kfm-throw, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-guard-recovery, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-power-charge-helper, evilken-air-special-contact-landing, evilken-training-demo-hit, evilken-training-command-practice-advance, evilryu-specials-supers, evilryu-shin-shoryuken-stun, evilryu-super-stress, evilryu-air-special-contact-landing, evilryu-power-charge-helper, evilryu-throw-bind, evilryu-training-throw-demo, evilken-smoke, evilken-trip-grounding, evilken-overhead-trip-chain, evilken-overhead-trip-chain-stress, evilken-trip-jump-buffer, evilken-attack-jump-buffer-release, evilken-throw, evilken-corner-visual-bounds, evilken-kuuchuu-shakunetsu, evilken-training-demo-all, evilken-shinryuken-recovery, evilken-shun-goku-satsu, evilken-shouki-hatsudou-spacing, cpu-baseline, classic-fight-outcomes, classic-fight-routing, classic-fight-combat, roster-compatibility-smoke, dragon-progression-level-items, dragon-progression-player-profiles, dragon-progression-enemy-reward, vs-p2-runtime, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-camera-rotation-toggle, arena-camera-rotation-projection, arena-camera-rotation-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-evilken-forward-dash-bounds, arena-per-fighter-runtime, arena-openbor-scroll-stage, arena-tmnt-openbor-stage, arena-evilryu-air-special-contact-landing, story-mode-menu-route, story-stage-select-map, story-difficulty-enemy-scaling, story-openbor-stage-default, story-stage-board-expansion, story-wave-spawn-scroll, story-enemy-targeting, story-stage-clear, story-player-defeat, story-progression-award, story-reward-feedback, story-evilryu-super-recovery, vs-loading-progress-bar, sff-v2-png-decode, ikemen-select-slot-parsing, stage-music-codec-decode, external-stage-mount, story-scott-tram-rooftop, evilryu-dash\n"
         << "SUMMARY pass=0 partial=0 fail=0 blocked=1\n";
     return 2;
 }

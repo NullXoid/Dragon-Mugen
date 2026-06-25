@@ -145,6 +145,8 @@ DragonItemDefinition parseItemDefinition(const MugenSection& section) {
     item.slot = propertyString(section, "slot", "accessory");
     item.description = propertyString(section, "description");
     item.requiredLevel = std::max(1, propertyInt(section, "level", item.requiredLevel));
+    item.price = std::max(0, propertyInt(section, "price", item.price));
+    item.sellPrice = std::max(0, propertyInt(section, "sell", item.price > 0 ? std::max(1, item.price / 2) : item.sellPrice));
     item.lifeBonus = propertyInt(section, "life", item.lifeBonus);
     item.powerBonus = propertyInt(section, "power", item.powerBonus);
     item.attackPermille = propertyInt(section, "attack", item.attackPermille);
@@ -157,8 +159,13 @@ DragonProgressionConfig parseConfig(const MugenDocument& doc) {
     if (const auto* section = findSection(doc, "Dragon.Progression")) {
         config.enabled = propertyBool(*section, "enabled", config.enabled);
         config.winXp = std::max(0, propertyInt(*section, "win.xp", config.winXp));
+        config.winGold = std::max(0, propertyInt(*section, "win.gold", config.winGold));
         config.lossXp = std::max(0, propertyInt(*section, "loss.xp", config.lossXp));
+        config.lossGold = std::max(0, propertyInt(*section, "loss.gold", config.lossGold));
         config.arenaWinXp = std::max(0, propertyInt(*section, "arena.win.xp", config.arenaWinXp));
+        config.arenaWinGold = std::max(0, propertyInt(*section, "arena.win.gold", config.arenaWinGold));
+        config.enemyDefeatXp = std::max(0, propertyInt(*section, "enemy.defeat.xp", config.enemyDefeatXp));
+        config.enemyDefeatGold = std::max(0, propertyInt(*section, "enemy.defeat.gold", config.enemyDefeatGold));
         config.defaultMaxLevel = std::max(1, propertyInt(*section, "default.maxlevel", config.defaultMaxLevel));
         config.defaultBaseXp = std::max(1, propertyInt(*section, "default.xp.base", config.defaultBaseXp));
         config.defaultXpGrowth = std::max(0, propertyInt(*section, "default.xp.growth", config.defaultXpGrowth));
@@ -317,6 +324,7 @@ DragonProgressionSave loadDragonProgressionSave(const std::filesystem::path& pat
                 profileId,
                 propertyString(section, "name", profileId));
             if (subSection.empty()) {
+                profile.gold = std::max(0, propertyInt(section, "gold", profile.gold));
                 continue;
             }
             if (startsWithNoCase(subSection, "Character ")) {
@@ -386,7 +394,8 @@ void saveDragonProgressionSave(const std::filesystem::path& path, const DragonPr
         }
         const std::string displayName = trim(profile.displayName).empty() ? profileId : trim(profile.displayName);
         output << "[Profile " << profileId << "]\n";
-        output << "name = " << displayName << "\n\n";
+        output << "name = " << displayName << "\n";
+        output << "gold = " << std::max(0, profile.gold) << "\n\n";
         for (const auto& character : profile.characters) {
             if (character.id.empty()) {
                 continue;
@@ -489,6 +498,42 @@ std::optional<DragonInventoryEntry> inventoryEntryForProfile(
     return std::nullopt;
 }
 
+int dragonProgressionGoldForProfile(
+    const DragonProgressionSave& save,
+    std::string_view profileId) {
+    if (isDragonProgressionGuestProfile(profileId)) {
+        return 0;
+    }
+    const DragonProgressionProfile* profile = findDragonProgressionProfile(save, profileId);
+    return profile ? std::max(0, profile->gold) : 0;
+}
+
+void addDragonProgressionGoldForProfile(
+    DragonProgressionSave& save,
+    std::string_view profileId,
+    int amount) {
+    if (amount <= 0 || isDragonProgressionGuestProfile(profileId)) {
+        return;
+    }
+    auto& profile = ensureDragonProgressionProfile(save, profileId);
+    profile.gold = std::max(0, profile.gold + amount);
+}
+
+bool spendDragonProgressionGoldForProfile(
+    DragonProgressionSave& save,
+    std::string_view profileId,
+    int amount) {
+    if (amount < 0 || isDragonProgressionGuestProfile(profileId)) {
+        return false;
+    }
+    auto& profile = ensureDragonProgressionProfile(save, profileId);
+    if (profile.gold < amount) {
+        return false;
+    }
+    profile.gold -= amount;
+    return true;
+}
+
 void grantDragonProgressionItem(
     DragonProgressionSave& save,
     std::string_view itemId,
@@ -515,6 +560,36 @@ void grantDragonProgressionItemForProfile(
         }
     }
     profile.inventory.push_back(DragonInventoryEntry{ std::string(itemId), quantity });
+}
+
+bool removeDragonProgressionItemForProfile(
+    DragonProgressionSave& save,
+    std::string_view profileId,
+    std::string_view itemId,
+    int quantity) {
+    if (itemId.empty() || quantity <= 0 || isDragonProgressionGuestProfile(profileId)) {
+        return false;
+    }
+    const std::string normalizedProfileId = normalizeDragonProgressionProfileId(profileId);
+    auto profileIt = std::find_if(save.profiles.begin(), save.profiles.end(), [&](const auto& profile) {
+        return equalsNoCase(profile.id, normalizedProfileId);
+    });
+    if (profileIt == save.profiles.end()) return false;
+    auto& profile = *profileIt;
+    for (auto it = profile.inventory.begin(); it != profile.inventory.end(); ++it) {
+        if (!equalsNoCase(it->itemId, itemId)) {
+            continue;
+        }
+        if (it->quantity < quantity) {
+            return false;
+        }
+        it->quantity -= quantity;
+        if (it->quantity <= 0) {
+            profile.inventory.erase(it);
+        }
+        return true;
+    }
+    return false;
 }
 
 bool equipDragonProgressionItem(
@@ -579,6 +654,46 @@ bool equipDragonProgressionItemForProfile(
     return true;
 }
 
+bool unequipDragonProgressionItemForProfile(
+    DragonProgressionSave& save,
+    std::string_view profileId,
+    std::string_view characterId,
+    std::string_view itemId) {
+    if (isDragonProgressionGuestProfile(profileId)) {
+        return false;
+    }
+    auto& character = ensureCharacterProgressionForProfile(save, profileId, characterId);
+    const auto before = character.equippedItems.size();
+    character.equippedItems.erase(
+        std::remove_if(
+            character.equippedItems.begin(),
+            character.equippedItems.end(),
+            [&](const std::string& equippedId) { return equalsNoCase(equippedId, itemId); }),
+        character.equippedItems.end());
+    return character.equippedItems.size() != before;
+}
+
+bool isDragonProgressionItemEquippedForProfile(
+    const DragonProgressionSave& save,
+    std::string_view profileId,
+    std::string_view characterId,
+    std::string_view itemId) {
+    if (isDragonProgressionGuestProfile(profileId)) {
+        return false;
+    }
+    const DragonProgressionProfile* profile = findDragonProgressionProfile(save, profileId);
+    if (!profile) {
+        return false;
+    }
+    const DragonCharacterProgressionState* character = findCharacterState(profile->characters, characterId);
+    if (!character) {
+        return false;
+    }
+    return std::any_of(character->equippedItems.begin(), character->equippedItems.end(), [&](const auto& equippedId) {
+        return equalsNoCase(equippedId, itemId);
+    });
+}
+
 DragonProgressionAwardResult recordDragonProgressionMatch(
     const DragonProgressionData& data,
     DragonProgressionSave& save,
@@ -621,6 +736,7 @@ DragonProgressionAwardResult recordDragonProgressionMatchForProfile(
     result.characterId = std::string(characterId);
     result.characterName = characterName.empty() ? std::string(characterId) : std::string(characterName);
     result.xpGained = won ? (arenaMode ? data.config.arenaWinXp : data.config.winXp) : data.config.lossXp;
+    result.goldGained = won ? (arenaMode ? data.config.arenaWinGold : data.config.winGold) : data.config.lossGold;
 
     if (won) {
         ++character.victories;
@@ -645,6 +761,62 @@ DragonProgressionAwardResult recordDragonProgressionMatchForProfile(
     result.newLevel = character.level;
     result.xp = character.xp;
     result.xpForNextLevel = dragonXpForNextLevel(definition, character.level);
+    if (result.goldGained > 0) {
+        addDragonProgressionGoldForProfile(save, profileId, result.goldGained);
+    }
+    return result;
+}
+
+DragonProgressionAwardResult recordDragonProgressionRewardForProfile(
+    const DragonProgressionData& data,
+    DragonProgressionSave& save,
+    std::string_view profileId,
+    std::string_view characterId,
+    std::string_view characterName,
+    int xp,
+    int gold) {
+    DragonProgressionAwardResult result;
+    const int clampedXp = std::max(0, xp);
+    const int clampedGold = std::max(0, gold);
+    if (!data.config.enabled
+        || characterId.empty()
+        || isDragonProgressionGuestProfile(profileId)
+        || (clampedXp <= 0 && clampedGold <= 0)) {
+        return result;
+    }
+
+    auto& character = ensureCharacterProgressionForProfile(save, profileId, characterId);
+    const auto& definition = resolveCharacterProgressionDefinition(data, characterId);
+    const int maxLevel = std::max(1, definition.maxLevel);
+    character.level = std::clamp(character.level, 1, maxLevel);
+    character.xp = std::max(0, character.xp);
+
+    result.applied = true;
+    result.oldLevel = character.level;
+    result.characterId = std::string(characterId);
+    result.characterName = characterName.empty() ? std::string(characterId) : std::string(characterName);
+    result.xpGained = clampedXp;
+    result.goldGained = clampedGold;
+
+    character.xp += clampedXp;
+    while (character.level < maxLevel) {
+        const int needed = dragonXpForNextLevel(definition, character.level);
+        if (needed <= 0 || character.xp < needed) {
+            break;
+        }
+        character.xp -= needed;
+        ++character.level;
+    }
+    if (character.level >= maxLevel) {
+        character.level = maxLevel;
+        character.xp = 0;
+    }
+    result.newLevel = character.level;
+    result.xp = character.xp;
+    result.xpForNextLevel = dragonXpForNextLevel(definition, character.level);
+    if (clampedGold > 0) {
+        addDragonProgressionGoldForProfile(save, profileId, clampedGold);
+    }
     return result;
 }
 
@@ -710,6 +882,11 @@ std::string dragonProgressionAwardSummary(const DragonProgressionAwardResult& re
     summary += " +";
     summary += std::to_string(result.xpGained);
     summary += " XP";
+    if (result.goldGained > 0) {
+        summary += " +";
+        summary += std::to_string(result.goldGained);
+        summary += "G";
+    }
     if (result.newLevel > result.oldLevel) {
         summary += " LV ";
         summary += std::to_string(result.oldLevel);
@@ -727,6 +904,19 @@ std::string dragonProgressionAwardSummary(const DragonProgressionAwardResult& re
             summary += " MAX";
         }
     }
+    return summary;
+}
+
+std::string dragonProgressionAwardSummaryWithGoldBalance(
+    const DragonProgressionAwardResult& result,
+    int goldBalance) {
+    std::string summary = dragonProgressionAwardSummary(result);
+    if (summary.empty()) {
+        return {};
+    }
+    summary += " BAL ";
+    summary += std::to_string(std::max(0, goldBalance));
+    summary += "G";
     return summary;
 }
 

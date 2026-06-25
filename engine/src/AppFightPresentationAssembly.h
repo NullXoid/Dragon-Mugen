@@ -403,6 +403,7 @@ void drawFightViewFrame(SDL_Renderer* renderer, const AppState& state, bool pres
     {
         FramePerfScope scope(state.framePerf, FramePerfSection::ActorDraw);
         drawWorldActors(renderer, state, stage);
+        drawStoryRewardFeedback(renderer, state, stage);
     }
     if (hasStageBackground && !hideForeground) {
         FramePerfScope scope(state.framePerf, FramePerfSection::StageDraw);

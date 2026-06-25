@@ -761,6 +761,12 @@ public:
         out.arenaCameraRotationActive = arenaCameraRotationActive(state_);
         out.lastHitText = state_.messages.lastHitText;
         out.progressionAwardText = state_.progression.lastAwardText;
+        out.storyRewardPopups = static_cast<int>(state_.story.rewardPopups.size());
+        out.storyRewardCoins = static_cast<int>(state_.story.rewardCoins.size());
+        if (state_.progression.loaded && state_.progression.data.config.enabled) {
+            const std::string p1ProfileId = dragonProgressionPlayerProfileId(state_.progression.save, 0);
+            out.progressionGoldBalance = dragonProgressionGoldForProfile(state_.progression.save, p1ProfileId);
+        }
         const auto& trainingEntries = activeDisplayableMoveListEntries(state_);
         if (!trainingEntries.empty()) {
             const int selected = std::clamp(

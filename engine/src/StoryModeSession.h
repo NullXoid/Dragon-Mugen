@@ -61,6 +61,7 @@ void resetStoryFighterCommon(AppState& state, FighterState& fighter, size_t figh
 void startStoryWave(AppState& state, const StageSlot& stage, bool resetPlayer) {
     state.story.activeWaveEnemyCount = storyWaveEnemyCount(state.story.waveIndex);
     state.story.waveTransitionTicks = 0;
+    state.story.enemyRewarded = {};
     const float halfWidth = logicalWidthF(state) * 0.5f;
     const float minCamera = storyScrollMinCamera(stage);
     const float maxCamera = storyWaveCameraGate(state, stage);
@@ -119,6 +120,9 @@ void resetStoryFightRound(AppState& state) {
     state.story.waveTransitionTicks = 0;
     state.story.stageClear = false;
     state.story.stageFailed = false;
+    state.story.enemyRewarded = {};
+    state.story.rewardPopups.clear();
+    state.story.rewardCoins.clear();
 
     state.messages.lastHitText.clear();
     state.messages.lastHitTextTicks = 0;

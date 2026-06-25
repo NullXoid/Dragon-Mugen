@@ -43,11 +43,88 @@ void updateStoryFighterFacing(AppState& state) {
     }
 }
 
+int storyEnemyRewardPermille(const AppState& state) {
+    switch (state.story.difficulty) {
+    case StoryDifficulty::Easy:
+        return 850;
+    case StoryDifficulty::Hard:
+        return 1250;
+    case StoryDifficulty::Medium:
+    default:
+        return 1000;
+    }
+}
+
+std::string storyEnemyRewardText(const DragonProgressionAwardResult& award, int goldBalance) {
+    if (!award.applied) {
+        return {};
+    }
+    std::ostringstream out;
+    out << "ENEMY +" << award.xpGained << " XP";
+    if (award.goldGained > 0) {
+        out << " +" << award.goldGained << "G";
+    }
+    out << " LV " << award.newLevel;
+    out << " BAL " << std::max(0, goldBalance) << "G";
+    return out.str();
+}
+
+void awardStoryEnemyDefeat(AppState& state, const FighterState& defeatedEnemy) {
+    if (!state.progression.loaded) {
+        loadProgressionState(state);
+    }
+    if (!state.progression.data.config.enabled) {
+        return;
+    }
+    const CharacterSlot* p1 = sessionP1CharacterSlot(state.selection);
+    if (!p1) {
+        return;
+    }
+    const std::string profileId = dragonProgressionPlayerProfileId(state.progression.save, 0);
+    if (isDragonProgressionGuestProfile(profileId)) {
+        return;
+    }
+    const int permille = storyEnemyRewardPermille(state);
+    const int xp = std::max(0, (state.progression.data.config.enemyDefeatXp * permille + 500) / 1000);
+    const int gold = std::max(0, (state.progression.data.config.enemyDefeatGold * permille + 500) / 1000);
+    const auto award = recordDragonProgressionRewardForProfile(
+        state.progression.data,
+        state.progression.save,
+        profileId,
+        p1->id,
+        p1->displayName,
+        xp,
+        gold);
+    if (!award.applied) {
+        return;
+    }
+    const int goldBalance = dragonProgressionGoldForProfile(state.progression.save, profileId);
+    state.progression.lastAwardText = storyEnemyRewardText(award, goldBalance);
+    state.messages.lastHitText = state.progression.lastAwardText;
+    state.messages.lastHitTextTicks = std::max(state.messages.lastHitTextTicks, 60);
+    spawnStoryRewardFeedback(state, defeatedEnemy, award);
+    try {
+        saveDragonProgressionSave(
+            state.progression.savePath.empty() ? dragonProgressionSavePath(state.gameRoot) : state.progression.savePath,
+            state.progression.save);
+    } catch (const std::exception& ex) {
+        SDL_Log("Dragon story enemy reward save failed: %s", ex.what());
+    }
+}
+
 void markStoryDefeatedEnemies(AppState& state) {
+    const int active = std::clamp(state.story.activeWaveEnemyCount, 0, kStoryMaxEnemies);
     for (size_t i = 1; i < state.fighters.size(); ++i) {
         auto& fighter = state.fighters[i];
         if (fighter.life > 0) {
             continue;
+        }
+        const size_t enemySlot = i - 1;
+        if (static_cast<int>(i) <= active
+            && enemySlot < state.story.enemyRewarded.size()
+            && !state.story.enemyRewarded[enemySlot]) {
+            state.story.enemyRewarded[enemySlot] = true;
+            awardStoryEnemyDefeat(state, fighter);
         }
         fighter.life = 0;
         fighter.ctrl = false;
@@ -282,6 +359,7 @@ void updateStoryFight(AppState& state) {
     const StageSlot& stage = selectedStageSlot(state.selection) ? *selectedStageSlot(state.selection) : fallbackStage;
 
     updateRuntimeEffects(state);
+    updateStoryRewardFeedback(state);
     clearFightAssertSpecialFlags(state);
     updateFightAssertSpecialControllers(state, stage);
     resetFighterOneTickBounds(state);

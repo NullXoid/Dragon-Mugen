@@ -729,7 +729,17 @@ void destroyVisualAssets(AppState& state) {
     destroySystemScreenAssets(state.systemScreens);
     destroyCommandInputIconAtlas(state.commandInputIcons);
     destroyTextureSprite(state.commandCompleteCheck);
+    destroyTextureSprite(state.shopDemo.shopBackdrop);
+    destroyTextureSprite(state.shopDemo.shopCounterBack);
+    destroyTextureSprite(state.shopDemo.shopCounterFront);
     destroyTextureSprite(state.shopDemo.shopkeeperPose);
+    destroyTextureSprite(state.shopDemo.shopPlayerPose);
+    for (auto& frame : state.shopDemo.shopPlayerWalkFrames) {
+        destroyTextureSprite(frame);
+    }
+    destroyTextureSprite(state.shopDemo.trainingWeightIcon);
+    destroyTextureSprite(state.shopDemo.guardCharmIcon);
+    destroyTextureSprite(state.shopDemo.dragonSashIcon);
     state.shopDemo.assetsLoaded = false;
     destroyTextureSprite(state.characterLargePortrait);
     for (auto& sprite : state.characterIconSprites) {

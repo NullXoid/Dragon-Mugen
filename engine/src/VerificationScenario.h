@@ -178,6 +178,9 @@ struct RuntimeSnapshot {
     std::string p2CompatibilityProfile;
     std::string lastHitText;
     std::string progressionAwardText;
+    int progressionGoldBalance = 0;
+    int storyRewardPopups = 0;
+    int storyRewardCoins = 0;
     std::string loadingProgressPhase;
     std::string p1Commands;
     std::string p2Commands;

@@ -14,8 +14,13 @@ inline constexpr int kDragonProgressionPlayerCount = 2;
 struct DragonProgressionConfig {
     bool enabled = false;
     int winXp = 75;
+    int winGold = 30;
     int lossXp = 10;
+    int lossGold = 0;
     int arenaWinXp = 100;
+    int arenaWinGold = 50;
+    int enemyDefeatXp = 18;
+    int enemyDefeatGold = 20;
     int defaultMaxLevel = 20;
     int defaultBaseXp = 100;
     int defaultXpGrowth = 50;
@@ -41,6 +46,8 @@ struct DragonItemDefinition {
     std::string slot;
     std::string description;
     int requiredLevel = 1;
+    int price = 100;
+    int sellPrice = 50;
     int lifeBonus = 0;
     int powerBonus = 0;
     int attackPermille = 0;
@@ -70,6 +77,7 @@ struct DragonCharacterProgressionState {
 struct DragonProgressionProfile {
     std::string id;
     std::string displayName;
+    int gold = 500;
     std::vector<DragonCharacterProgressionState> characters;
     std::vector<DragonInventoryEntry> inventory;
 };
@@ -84,6 +92,7 @@ struct DragonProgressionAwardResult {
     bool applied = false;
     bool won = false;
     int xpGained = 0;
+    int goldGained = 0;
     int oldLevel = 1;
     int newLevel = 1;
     int xp = 0;
@@ -172,11 +181,27 @@ std::optional<DragonInventoryEntry> inventoryEntryForProfile(
     std::string_view profileId,
     std::string_view itemId);
 
+int dragonProgressionGoldForProfile(
+    const DragonProgressionSave& save,
+    std::string_view profileId);
+void addDragonProgressionGoldForProfile(
+    DragonProgressionSave& save,
+    std::string_view profileId,
+    int amount);
+bool spendDragonProgressionGoldForProfile(
+    DragonProgressionSave& save,
+    std::string_view profileId,
+    int amount);
 void grantDragonProgressionItem(
     DragonProgressionSave& save,
     std::string_view itemId,
     int quantity = 1);
 void grantDragonProgressionItemForProfile(
+    DragonProgressionSave& save,
+    std::string_view profileId,
+    std::string_view itemId,
+    int quantity = 1);
+bool removeDragonProgressionItemForProfile(
     DragonProgressionSave& save,
     std::string_view profileId,
     std::string_view itemId,
@@ -194,6 +219,16 @@ bool equipDragonProgressionItemForProfile(
     std::string_view characterId,
     std::string_view itemId,
     std::string* reason = nullptr);
+bool unequipDragonProgressionItemForProfile(
+    DragonProgressionSave& save,
+    std::string_view profileId,
+    std::string_view characterId,
+    std::string_view itemId);
+bool isDragonProgressionItemEquippedForProfile(
+    const DragonProgressionSave& save,
+    std::string_view profileId,
+    std::string_view characterId,
+    std::string_view itemId);
 
 DragonProgressionAwardResult recordDragonProgressionMatch(
     const DragonProgressionData& data,
@@ -210,6 +245,14 @@ DragonProgressionAwardResult recordDragonProgressionMatchForProfile(
     std::string_view characterName,
     bool won,
     bool arenaMode);
+DragonProgressionAwardResult recordDragonProgressionRewardForProfile(
+    const DragonProgressionData& data,
+    DragonProgressionSave& save,
+    std::string_view profileId,
+    std::string_view characterId,
+    std::string_view characterName,
+    int xp,
+    int gold);
 DragonEffectiveProgressionStats effectiveDragonProgressionStats(
     const DragonProgressionData& data,
     const DragonProgressionSave& save,
@@ -220,6 +263,9 @@ DragonEffectiveProgressionStats effectiveDragonProgressionStatsForProfile(
     std::string_view profileId,
     std::string_view characterId);
 std::string dragonProgressionAwardSummary(const DragonProgressionAwardResult& result);
+std::string dragonProgressionAwardSummaryWithGoldBalance(
+    const DragonProgressionAwardResult& result,
+    int goldBalance);
 std::string dragonProgressionStatsSummary(const DragonEffectiveProgressionStats& stats);
 std::string dragonProgressionCharacterSummary(
     const DragonProgressionData& data,

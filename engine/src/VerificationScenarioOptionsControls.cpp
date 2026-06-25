@@ -48,9 +48,9 @@ int runOptionsCategoryNavigation(RuntimeProbe&, std::ostream& out) {
         gameplayRows.size() == kOptionsGameplayCount
             && gameplayRows[0].label == "MATCH TIMER"
             && gameplayRows[1].label == "P1 PROFILE"
-            && gameplayRows[2].label == "NEW P1 PROFILE"
+            && gameplayRows[2].label == "CREATE P1 PROFILE"
             && gameplayRows[3].label == "P2 PROFILE"
-            && gameplayRows[4].label == "NEW P2 PROFILE" ? Status::Pass : Status::Fail,
+            && gameplayRows[4].label == "CREATE P2 PROFILE" ? Status::Pass : Status::Fail,
         "gameplay_rows",
         "rows=" + std::to_string(gameplayRows.size()));
 
@@ -189,6 +189,29 @@ int runControlsProfilePersistence(RuntimeProbe&, std::ostream& out) {
 int runControlsInputTestLive(RuntimeProbe&, std::ostream& out) {
     Counts counts;
     out << "VERIFY controls-input-test-live\n";
+    MainSettings inputTestSettings;
+    inputTestSettings.optionsScreen = OptionsMenuScreen::InputTest;
+    inputTestSettings.selectedInputTestOption = 0;
+    const auto inputRows = buildControlsOptionsRows(defaultControlsOptionsContext(inputTestSettings));
+    record(out, counts,
+        inputRows.size() == kOptionsInputTestCount
+            && inputRows.size() == 1
+            && inputRows.front().label == "PRESS INPUT" ? Status::Pass : Status::Fail,
+        "input_test_capture_only_row",
+        "rows=" + std::to_string(inputRows.size()));
+    setCurrentOptionsSelection(
+        inputTestSettings,
+        moveCurrentOptionsSelection(inputTestSettings, FrontendKey::Down));
+    const bool downStayedCaptured = currentOptionsSelection(inputTestSettings) == 0;
+    setCurrentOptionsSelection(
+        inputTestSettings,
+        moveCurrentOptionsSelection(inputTestSettings, FrontendKey::Up));
+    const bool upStayedCaptured = currentOptionsSelection(inputTestSettings) == 0;
+    record(out, counts,
+        downStayedCaptured && upStayedCaptured ? Status::Pass : Status::Fail,
+        "input_test_direction_keys_do_not_navigate",
+        "selection=" + std::to_string(currentOptionsSelection(inputTestSettings)));
+
     ControlProfileBinding profile = makeDefaultControlProfile("player1", 0);
     std::array<bool, SDL_SCANCODE_COUNT> keys{};
     keys[SDL_SCANCODE_A] = true;

@@ -886,6 +886,15 @@ std::optional<SDL_Keycode> gamepadMenuKeyForButton(const AppState& state, SDL_Ga
         }
     }
 
+    if (state.frontend.screen == Screen::ShopDemo) {
+        if (button == SDL_GAMEPAD_BUTTON_LEFT_SHOULDER) {
+            return SDLK_Q;
+        }
+        if (button == SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER) {
+            return SDLK_E;
+        }
+    }
+
     switch (button) {
     case SDL_GAMEPAD_BUTTON_DPAD_UP:
         return SDLK_UP;

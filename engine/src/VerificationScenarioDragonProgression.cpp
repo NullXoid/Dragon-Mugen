@@ -334,4 +334,92 @@ int runDragonProgressionPlayerProfiles(RuntimeProbe& runtime, std::ostream& out)
     return exitCode(counts);
 }
 
+int runDragonProgressionEnemyReward(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY dragon-progression-enemy-reward\n";
+    out << "root: " << runtime.rootText() << "\n";
+
+    DragonProgressionData data;
+    try {
+        data = loadDragonProgressionData(std::filesystem::path(runtime.rootText()));
+    } catch (const std::exception& ex) {
+        record(out, counts, Status::Blocked, "load_progression_data", ex.what());
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    record(out, counts,
+        data.config.enemyDefeatXp > 0
+            && data.config.enemyDefeatGold > 0
+            && data.config.winGold > 0
+            && data.config.arenaWinGold > 0
+            ? Status::Pass : Status::Fail,
+        "enemy_reward_config_loaded",
+        "xp=" + std::to_string(data.config.enemyDefeatXp)
+            + " gold=" + std::to_string(data.config.enemyDefeatGold)
+            + " winGold=" + std::to_string(data.config.winGold)
+            + " arenaGold=" + std::to_string(data.config.arenaWinGold));
+
+    DragonProgressionSave save;
+    setDragonProgressionPlayerProfile(save, 0, "Enemy Reward Verifier");
+    const std::string profileId = dragonProgressionPlayerProfileId(save, 0);
+    const int startGold = dragonProgressionGoldForProfile(save, profileId);
+    const auto award = recordDragonProgressionRewardForProfile(
+        data,
+        save,
+        profileId,
+        "kfm",
+        "Kung Fu Man",
+        data.config.enemyDefeatXp,
+        data.config.enemyDefeatGold);
+    const auto stats = effectiveDragonProgressionStatsForProfile(data, save, profileId, "kfm");
+    record(out, counts,
+        award.applied
+            && award.xpGained == data.config.enemyDefeatXp
+            && award.goldGained == data.config.enemyDefeatGold
+            && dragonProgressionGoldForProfile(save, profileId) == startGold + data.config.enemyDefeatGold
+            && stats.xp == award.xp
+            ? Status::Pass : Status::Fail,
+        "enemy_defeat_adds_xp_and_gold",
+        dragonProgressionAwardSummaryWithGoldBalance(award, dragonProgressionGoldForProfile(save, profileId)));
+
+    const int beforeMatchGold = dragonProgressionGoldForProfile(save, profileId);
+    const auto matchAward = recordDragonProgressionMatchForProfile(
+        data,
+        save,
+        profileId,
+        "kfm",
+        "Kung Fu Man",
+        true,
+        false);
+    const int afterMatchGold = dragonProgressionGoldForProfile(save, profileId);
+    const std::string matchSummary = dragonProgressionAwardSummaryWithGoldBalance(matchAward, afterMatchGold);
+    record(out, counts,
+        matchAward.applied
+            && matchAward.goldGained == data.config.winGold
+            && afterMatchGold == beforeMatchGold + data.config.winGold
+            && matchSummary.find("BAL") != std::string::npos
+            ? Status::Pass : Status::Fail,
+        "match_win_adds_gold_and_balance_text",
+        matchSummary);
+
+    const auto guestAward = recordDragonProgressionRewardForProfile(
+        data,
+        save,
+        dragonProgressionGuestProfileId(),
+        "kfm",
+        "Kung Fu Man",
+        data.config.enemyDefeatXp,
+        data.config.enemyDefeatGold);
+    record(out, counts,
+        !guestAward.applied
+            && findDragonProgressionProfile(save, dragonProgressionGuestProfileId()) == nullptr
+            ? Status::Pass : Status::Fail,
+        "guest_enemy_reward_not_saved",
+        dragonProgressionAwardSummary(guestAward));
+
+    summary(out, counts);
+    return exitCode(counts);
+}
+
 } // namespace dragon::verification

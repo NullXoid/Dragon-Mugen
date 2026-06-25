@@ -332,9 +332,16 @@ bool isCommonDizzyStateNo(int stateNo) {
 
 void updateCommonDizzyState(const AppState& state, FighterState& fighter) {
     const bool dizzyLike = isCommonDizzyStateNo(fighter.stateNo) || isCommonDizzyAction(fighter.action);
-    if (!dizzyLike
-        || fighter.customHitState
-        || fighter.moveType == 'H') {
+    if (!dizzyLike) {
+        return;
+    }
+
+    fighter.notHitByTicks = 0;
+    fighter.notHitByValue.clear();
+    fighter.hitByTicks = 0;
+    fighter.hitByValue.clear();
+
+    if (fighter.customHitState || (fighter.moveType == 'H' && fighter.stateTime < 12)) {
         return;
     }
 
@@ -347,11 +354,6 @@ void updateCommonDizzyState(const AppState& state, FighterState& fighter) {
     fighter.y = 0.0f;
     fighter.vx = 0.0f;
     fighter.vy = 0.0f;
-    fighter.notHitByTicks = 0;
-    fighter.notHitByValue.clear();
-    fighter.hitByTicks = 0;
-    fighter.hitByValue.clear();
-
     if (fighter.stateTime >= 200) {
         clearFighterHitRuntime(fighter);
         enterState(state, fighter, 0);

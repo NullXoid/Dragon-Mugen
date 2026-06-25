@@ -139,6 +139,7 @@ add_library(dragon_core
     engine/src/VerificationScenarioPerformance.cpp
     engine/src/VerificationScenarioRosterCompatibility.cpp
     engine/src/VerificationScenarioScottCompatibility.cpp
+    engine/src/VerificationScenarioShop.cpp
     engine/src/VerificationScenarioStoryMode.cpp
     engine/src/VerificationScenarioSpecials.cpp
     engine/src/VerificationScenarioTrainingSpecials.cpp

@@ -28,6 +28,8 @@
 #include "PauseMenuOverlay.h"
 #include "ProgressionState.h"
 #include "SelectionState.h"
+#include "ShopCatalog.h"
+#include "ShopDemoCollision.h"
 #include "StageSelectOverlay.h"
 #include "StoryStageSelectOverlay.h"
 #include "TrainingState.h"
@@ -97,6 +99,7 @@ namespace {
 #include "AppProjectileHelperRuntime.h"
 
 #include "AppCommandRecoveryRuntime.h"
+#include "StoryRewardFeedbackRuntime.h"
 #include "AppRoundProgressionRuntime.h"
 
 #include "AppFightUpdateAssembly.h"

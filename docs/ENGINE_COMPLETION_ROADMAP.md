@@ -24,7 +24,7 @@ These rules apply before planning or implementing any new engine feature:
 Non-goals before the core engine is stable:
 
 - No networking.
-- No tournament or equipment-management mode as active work beyond the accepted Dragon progression and Story foundations. Shop work is tracked as a Dragon-only future feature spec and should start only as a complete Arena-style hub slice.
+- No tournament or broad equipment-management/campaign economy mode as active work beyond the accepted Dragon progression, Story foundation, and first Arena-style shop hub. Future shop/economy expansion should still land as complete feature slices.
 - No editor runtime pivot.
 - No hardcoded fixes for individual downloaded characters.
 - No JSON character/stage runtime sidecars replacing `.dragon.def`.
@@ -40,7 +40,7 @@ The engine already has a working local play loop:
 - Training includes command HUD, input history, command list, Show Me, pause/capture controls, controller prompts, palette separation, and command completion feedback.
 - Options now uses Gameplay, Video, and Controls categories. Controls provide Player 1-4 setup, keyboard/controller setup, live input test, restore defaults, action presets, conflict/missing-action warnings, per-profile persistence, and canonical action mapping into the existing `FighterInputState`.
 - Arena includes FFA CPU counts, per-fighter runtimes, Z-axis movement, sidestep, depth-aware hit/push/draw order, camera yaw, and a simple OpenBOR-style scroll-stage pass. OpenBOR Stage Compatibility v2 remains the active broader conversion/import feature spec; shared VS/Arena/Story loading progress and the first 4-fighter performance diagnostics/culling gate are implemented.
-- Story Mode has a first playable OpenBOR-style side-scrolling foundation: one local player, a Story-only map-style stage select with six board entries, `EASY`/`MEDIUM`/`HARD` enemy difficulty selection, three reusable enemy runtime slots, three waves, forward scrolling gates, enemy targeting against P1, stage clear/fail result presentation, Dragon progression XP award on clear, Story-specific enemy scaling that does not reuse player level data, Evil Ryu Story super recovery coverage, and stage BGM support for WAV/MP3/OGG through SDL_mixer.
+- Story Mode has a first playable OpenBOR-style side-scrolling foundation: one local player, a Story-only map-style stage select with six board entries, `EASY`/`MEDIUM`/`HARD` enemy difficulty selection, three reusable enemy runtime slots, three waves, forward scrolling gates, enemy targeting against P1, stage clear/fail result presentation, Dragon progression XP/gold awards with live reward feedback, Story-specific enemy scaling that does not reuse player level data, Evil Ryu Story super recovery coverage, and stage BGM support for WAV/MP3/OGG through SDL_mixer.
 - A local-only external content registry can mount private third-party test packages outside `game/`; the first proof mounts Scott Pilgrim Versus `Tram_Rooftop` as a Story-compatible board with SFF v2 PNG/palette animated backgrounds and MP3 stage music when the local package exists.
 - Single Player and VS have round/match presentation, pause, result, rematch, local P2 runtime support, and a Dragon-only progression foundation with P1/P2 local profile slots, Guest P2 support, per-profile character/item ownership, P1-only Single Player/Arena awards, and VS awards for both non-Guest local players without changing base M.U.G.E.N character files.
 - A modular performance diagnostics layer tracks frame timing, fixed-step pressure, workload counts, pause/hitpause/superpause separation, PERF/FPS/OFF HUD modes, optional local perf logs under `artifacts/perf/`, and safe render-only culling for stage/actor/effect drawing.
@@ -198,25 +198,24 @@ Completed feature specs:
 - [FEATURE_SPECS/0006_dragon_profile_progression_display.md](FEATURE_SPECS/0006_dragon_profile_progression_display.md)
 - [FEATURE_SPECS/0007_local_player_profiles_vs_progression.md](FEATURE_SPECS/0007_local_player_profiles_vs_progression.md)
 - [FEATURE_SPECS/0009_story_mode_openbor_side_scroller.md](FEATURE_SPECS/0009_story_mode_openbor_side_scroller.md)
-
-Planned feature specs:
-
 - [FEATURE_SPECS/0011_arena_shop_hub.md](FEATURE_SPECS/0011_arena_shop_hub.md)
+- [FEATURE_SPECS/0012_reward_feedback.md](FEATURE_SPECS/0012_reward_feedback.md)
 
 Accepted foundation work:
 
 - Dragon progression data/save support for character XP, levels, item inventory, equipment slots, and computed stat bonuses.
 - Profile-owned local player XP with legacy flat-save migration.
 - P1/P2 local profile slots with Guest as the default non-persistent P2 profile and duplicate real-profile prevention.
-- Match-result XP feedback for the local P1 character in Single Player/Arena and both local non-Guest profiles in VS, plus character-select and fight-HUD LV/XP display.
+- Match-result XP/gold feedback for the local P1 character in Single Player/Arena/Story and both local non-Guest profiles in VS, plus current gold balance in result summaries, character-select LV/XP, and fight-HUD LV/XP display.
 - No default application of progression bonuses to live M.U.G.E.N combat constants until a future Dragon mode explicitly opts in.
 - Story Mode foundation route with converted OpenBOR-style stage scrolling, one-player enemy waves, stage clear/fail results, and P1 progression award on clear.
-- Arena-style shop direction: a Dragon-only non-combat hub inspired by Flying Dragon, using Arena projection/actor presentation for player/NPC/shopkeeper movement while Dragon progression owns profile currency, item inventory, purchases, and equipment. This is planned work, not current runtime behavior.
+- Arena-style shop hub route: a Dragon-only non-combat hub inspired by Flying Dragon, using Arena-style 2.5D player/NPC/counter presentation. The local player can hold movement through an expanded shop room, use tuned Shift/left-trigger run, stand in front of the counter, route through the top/back aisle and side lanes to the other side, and is blocked from walking through the solid counter body. The player can interact with I.Chie at the item counter, browse buy/sell/equip tabs with keyboard or shoulder/trigger controls, choose an equip target character, confirm/cancel transactions with clear feedback, read compact icon/name/value item rows plus selected-item effects, wrapped details, ownership, target, and balance-aware confirmation text in the shop panel overlay, and persist profile-owned gold, inventory, and equipment through `DragonProgression`; Guest can browse but cannot save transactions. The room renderer now has a richer built-in fallback composition with shelf bays, I.Chie neon branding, dragon accents, layered wall bands, a deeper counter face, and optional prompt-driven PNG layer hooks for a generated shop backdrop, counter back, and counter front under `game/data/shop/`.
+- Story enemy defeats now grant configurable per-enemy XP/gold into the same named-profile economy used by the shop, display floating `+XP +G` feedback plus coin bursts, show live Story gold balance, and keep Guest non-persistent.
 
 Blocked until earlier phases are stable:
 
 - Tournament/campaign shell.
-- Full shop/equipment-management UI and campaign progression flow beyond the current Dragon progression foundation, except for the accepted Arena-style shop hub spec when it is implemented as one complete feature slice.
+- Campaign economy expansion beyond the first Arena-style shop hub: multiple shops, crafting, branching inventories, item pickups, and story-gated shop stock.
 - External editor.
 - Original benchmark characters as real playable fixtures.
 

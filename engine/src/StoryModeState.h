@@ -163,6 +163,17 @@ int livingStoryEnemyCount(const AppState& state) {
     return living;
 }
 
+std::string storyPlayerGoldStatusSuffix(const AppState& state) {
+    if (!state.progression.loaded || !state.progression.data.config.enabled) {
+        return {};
+    }
+    const std::string profileId = dragonProgressionPlayerProfileId(state.progression.save, 0);
+    if (isDragonProgressionGuestProfile(profileId)) {
+        return {};
+    }
+    return "  G " + std::to_string(dragonProgressionGoldForProfile(state.progression.save, profileId));
+}
+
 int storyNearestLivingEnemyIndex(const AppState& state, int ownerIndex) {
     if (!isStoryMode(state) || ownerIndex < 0 || ownerIndex >= static_cast<int>(state.fighters.size())) {
         return -1;
@@ -206,10 +217,11 @@ std::string storyStatusLine(const AppState& state) {
         return "Stage clear  Enemies: "
             + std::to_string(state.story.totalEnemies)
             + "/"
-            + std::to_string(state.story.totalEnemies);
+            + std::to_string(state.story.totalEnemies)
+            + storyPlayerGoldStatusSuffix(state);
     }
     if (state.story.stageFailed) {
-        return "Mission failed";
+        return "Mission failed" + storyPlayerGoldStatusSuffix(state);
     }
     return "Wave "
         + std::to_string(std::clamp(state.story.waveIndex + 1, 1, kStoryWaveCount))
@@ -222,5 +234,6 @@ std::string storyStatusLine(const AppState& state) {
         + "/"
         + std::to_string(std::max(1, state.story.totalEnemies))
         + "  Living: "
-        + std::to_string(livingStoryEnemyCount(state));
+        + std::to_string(livingStoryEnemyCount(state))
+        + storyPlayerGoldStatusSuffix(state);
 }

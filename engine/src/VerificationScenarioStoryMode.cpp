@@ -484,11 +484,41 @@ int runStoryProgressionAward(RuntimeProbe& runtime, std::ostream& out) {
     clearCurrentWave(runtime);
     const bool resultReady = waitForMatchResult(runtime, 360);
     const auto snapshot = runtime.snapshot();
-    record(out, counts, resultReady && snapshot.matchWinner == 1 && !snapshot.progressionAwardText.empty()
+    const bool includesGoldBalance = snapshot.progressionAwardText.find("G") != std::string::npos
+        && snapshot.progressionAwardText.find("BAL") != std::string::npos;
+    record(out, counts, resultReady && snapshot.matchWinner == 1 && !snapshot.progressionAwardText.empty() && includesGoldBalance
             ? Status::Pass
             : Status::Fail,
         "story_progression_awarded",
         "winner=" + std::to_string(snapshot.matchWinner)
+        + " award=\"" + snapshot.progressionAwardText + "\"");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runStoryRewardFeedback(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!setupStory(runtime, out, counts, "story-reward-feedback", "TMNT OpenBOR Street")) {
+        return exitCode(counts);
+    }
+    const auto before = runtime.snapshot();
+    runtime.setFighterLife(1, 0);
+    runtime.step({}, 6);
+    const auto snapshot = runtime.snapshot();
+    const bool sawGoldText = snapshot.progressionAwardText.find("G") != std::string::npos
+        && snapshot.progressionAwardText.find("BAL") != std::string::npos;
+    record(out, counts,
+        snapshot.storyRewardPopups > 0
+            && snapshot.storyRewardCoins > 0
+            && snapshot.progressionGoldBalance > before.progressionGoldBalance
+            && sawGoldText
+            ? Status::Pass
+            : Status::Fail,
+        "story_enemy_defeat_shows_reward_feedback",
+        "popups=" + std::to_string(snapshot.storyRewardPopups)
+        + " coins=" + std::to_string(snapshot.storyRewardCoins)
+        + " goldBefore=" + std::to_string(before.progressionGoldBalance)
+        + " goldAfter=" + std::to_string(snapshot.progressionGoldBalance)
         + " award=\"" + snapshot.progressionAwardText + "\"");
     summary(out, counts);
     return exitCode(counts);

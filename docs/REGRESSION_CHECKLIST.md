@@ -85,6 +85,16 @@ build\dragon_mugen.exe --verify classic-fight-combat
 build\dragon_mugen.exe --verify roster-compatibility-smoke
 build\dragon_mugen.exe --verify dragon-progression-level-items
 build\dragon_mugen.exe --verify dragon-progression-player-profiles
+build\dragon_mugen.exe --verify shop-route-entry
+build\dragon_mugen.exe --verify shop-room-actor-projection
+build\dragon_mugen.exe --verify shop-room-movement-collision
+build\dragon_mugen.exe --verify shop-buy-sell-persistence
+build\dragon_mugen.exe --verify shop-equip-profile-scope
+build\dragon_mugen.exe --verify shop-guest-no-save
+build\dragon_mugen.exe --verify shop-controller-keyboard-navigation
+build\dragon_mugen.exe --verify shop-panel-text-fit
+build\dragon_mugen.exe --verify shop-demo-room-hook
+build\dragon_mugen.exe --verify dragon-progression-enemy-reward
 ```
 
 ## Manual Play Flow
@@ -102,10 +112,12 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Story Mode `Soundcheck Alley` starts its configured WAV background music through normal stage `[Music] bgmusic` metadata.
 - When `game/data/external_content.local.def` points at the local Scott Pilgrim Versus package, Story Mode Stage Select includes `Tram_Rooftop`, the stage loads through the shared VS/loading screen, SFF v2 PNG/palette stage art and first-pass animated BG elements render, and `Run Scott Run.mp3` starts through normal stage `[Music] bgmusic` metadata.
 - Story Mode spawns wave sizes `1`, `2`, then `3`, keeps inactive future-wave enemies invisible, scrolls forward only to the current wave gate, and has enemies chase P1 rather than each other.
-- Story Mode clears to `STAGE CLEAR` after all waves, fails to `MISSION FAILED` when P1 is defeated, returns through match-result options, and awards P1 profile-owned Dragon XP only on clear.
+- Story Mode clears to `STAGE CLEAR` after all waves, fails to `MISSION FAILED` when P1 is defeated, returns through match-result options, and awards P1 profile-owned Dragon XP/gold on clear with current balance in the result summary.
 - Evil Ryu Story supers briefly pause as authored, then recover to gameplay after helper/projectile hit runtime; Ryu must not remain stuck after the super.
 - Story/Arena HUD shows compact per-fighter power strips under each active health bar so super availability remains visible while retaining the same generic CMD/CNS power gates and power consumption.
 - Story/Arena wave stress should not spam per-hit terminal logs by default; enable `DRAGON_DEBUG_HIT_LOG=1` only when hit-event console traces are needed.
+- Shop route opens the Dragon-only shop hub, lets P1 hold movement through the wider room, use Shift/left-trigger run with the tuned Phase 2 speed, stand in front of the counter by default, route around the counter through the top/back aisle, blocks direct walking through the counter body, walk to I.Chie/counter, open buy/sell/equip tabs, switch tabs with Q/E, L1/R1, or L2/R2, select an Equip target with Left/Right, confirm/cancel transactions with clear balance-aware banner/audio feedback, keep Buy/Sell/Equip icon/name/value rows and item detail/effect text inside the panel, persist named-profile gold/inventory/equipment, and keep Guest browse-only. With no generated room art installed, the fallback room should show shelf bays, neon I.Chie branding, dragon accents, and layered counter/wall art rather than plain placeholder bars. Optional generated room art under `game/data/shop/` should replace the fallback backdrop/counter layers without changing collision, depth sorting, or panel behavior.
+- Story enemy defeats award configurable named-profile XP/gold once per defeated enemy, show floating `+XP +G` and coin-burst feedback, append current gold balance to Story reward/status text, and do not apply or persist those rewards to Guest.
 - Arena Setup can start 1, 2, and 3 CPU free-for-all matches.
 - Arena Setup can change CPU slots, stage, timer, Z Axis, and Camera Rotate without affecting Training, Single Player, or VS.
 - Character select moves with Up/Down/Left/Right only when a character exists in the destination cell.

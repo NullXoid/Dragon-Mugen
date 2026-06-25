@@ -357,12 +357,19 @@ void clearProgressionMatchAward(AppState& state) {
     state.progression.lastAwardText.clear();
 }
 
-std::string compactProgressionAwardText(std::string_view playerLabel, const DragonProgressionAwardResult& award) {
+std::string compactProgressionAwardText(
+    std::string_view playerLabel,
+    const DragonProgressionAwardResult& award,
+    int goldBalance) {
     if (!award.applied) {
         return {};
     }
     std::ostringstream out;
-    out << playerLabel << " +" << award.xpGained << " XP LV " << award.newLevel;
+    out << playerLabel << " +" << award.xpGained << " XP";
+    if (award.goldGained > 0) {
+        out << " +" << award.goldGained << "G";
+    }
+    out << " LV " << award.newLevel << " BAL " << std::max(0, goldBalance) << "G";
     return out.str();
 }
 
@@ -403,7 +410,8 @@ void awardProgressionForMatchIfNeeded(AppState& state) {
     bool anyAwardApplied = p1Award.applied;
     if (localVsMode) {
         std::vector<std::string> awardLines;
-        if (const auto text = compactProgressionAwardText("P1", p1Award); !text.empty()) {
+        const int p1GoldBalance = dragonProgressionGoldForProfile(state.progression.save, p1ProfileId);
+        if (const auto text = compactProgressionAwardText("P1", p1Award, p1GoldBalance); !text.empty()) {
             awardLines.push_back(text);
         }
 
@@ -420,10 +428,11 @@ void awardProgressionForMatchIfNeeded(AppState& state) {
                 p2Won,
                 false);
             anyAwardApplied = anyAwardApplied || p2Award.applied;
-            if (const auto text = compactProgressionAwardText("P2", p2Award); !text.empty()) {
+            const int p2GoldBalance = dragonProgressionGoldForProfile(state.progression.save, p2ProfileId);
+            if (const auto text = compactProgressionAwardText("P2", p2Award, p2GoldBalance); !text.empty()) {
                 awardLines.push_back(text);
             }
-        } else if (const auto text = compactProgressionAwardText("P1", p1Award); !text.empty()) {
+        } else if (const auto text = compactProgressionAwardText("P1", p1Award, p1GoldBalance); !text.empty()) {
             awardLines.push_back("P2 GUEST NO SAVE");
         }
 
@@ -440,7 +449,8 @@ void awardProgressionForMatchIfNeeded(AppState& state) {
             state.progression.lastAwardText.clear();
         }
     } else {
-        state.progression.lastAwardText = dragonProgressionAwardSummary(p1Award);
+        const int p1GoldBalance = dragonProgressionGoldForProfile(state.progression.save, p1ProfileId);
+        state.progression.lastAwardText = dragonProgressionAwardSummaryWithGoldBalance(p1Award, p1GoldBalance);
     }
 
     if (anyAwardApplied) {

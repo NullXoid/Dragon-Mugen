@@ -1,6 +1,6 @@
 ; A.Ben animation file.
-; Single-sprite foundation SFF. All animations intentionally reuse sprite 0,0
-; until a proper frame-by-frame sheet replaces it.
+; Walk/run actions use the extracted 8-frame walk cycle in sprite group 20.
+; Placeholder attacks and common states still reuse sprite 0,0.
 
 [Begin Action 0]
 Clsn2Default: 2
@@ -38,15 +38,27 @@ Clsn2Default: 2
 Clsn2Default: 2
  Clsn2[0] = -15, 0, 15, -82
  Clsn2[1] = -7, -82, 7, -100
-0,0, 0,0, 4
-0,0, 0,0, 4
+20,0, 0,0, 4
+20,1, 0,0, 4
+20,2, 0,0, 4
+20,3, 0,0, 4
+20,4, 0,0, 4
+20,5, 0,0, 4
+20,6, 0,0, 4
+20,7, 0,0, 4
 
 [Begin Action 21]
 Clsn2Default: 2
  Clsn2[0] = -15, 0, 15, -82
  Clsn2[1] = -7, -82, 7, -100
-0,0, 0,0, 4
-0,0, 0,0, 4
+20,7, 0,0, 4
+20,6, 0,0, 4
+20,5, 0,0, 4
+20,4, 0,0, 4
+20,3, 0,0, 4
+20,2, 0,0, 4
+20,1, 0,0, 4
+20,0, 0,0, 4
 
 [Begin Action 40]
 Clsn2Default: 2
@@ -88,15 +100,27 @@ Clsn2Default: 2
 Clsn2Default: 2
  Clsn2[0] = -15, 0, 15, -82
  Clsn2[1] = -7, -82, 7, -100
-0,0, 0,0, 3
-0,0, 0,0, 3
+20,0, 0,0, 2
+20,1, 0,0, 2
+20,2, 0,0, 2
+20,3, 0,0, 2
+20,4, 0,0, 2
+20,5, 0,0, 2
+20,6, 0,0, 2
+20,7, 0,0, 2
 
 [Begin Action 105]
 Clsn2Default: 2
  Clsn2[0] = -15, 0, 15, -82
  Clsn2[1] = -7, -82, 7, -100
-0,0, 0,0, 3
-0,0, 0,0, 3
+20,7, 0,0, 2
+20,6, 0,0, 2
+20,5, 0,0, 2
+20,4, 0,0, 2
+20,3, 0,0, 2
+20,2, 0,0, 2
+20,1, 0,0, 2
+20,0, 0,0, 2
 
 [Begin Action 170]
 0,0, 0,0, 10
