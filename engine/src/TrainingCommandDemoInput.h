@@ -137,6 +137,7 @@ FighterInputState trainingDemoInputForEntry(const CommandStateEntry& entry, int 
     applyRequired("a");
     applyRequired("b");
     applyRequired("c");
+    applyRequired("s");
     for (const auto& optionGroup : entry.commandOptionGroups) {
         for (const auto& option : optionGroup) {
             if (!holdTrainingCommandToken(option) && !simpleTrainingCommandToken(option)) {

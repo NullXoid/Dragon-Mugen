@@ -216,6 +216,7 @@ Blocked until earlier phases are stable:
 
 - Tournament/campaign shell.
 - Campaign economy expansion beyond the first Arena-style shop hub: multiple shops, crafting, branching inventories, item pickups, and story-gated shop stock.
+- Shopkeeper challenge encounter: allow I.Chie or another shopkeeper NPC to leave the counter, transition the shop hub into a fight/challenge state, and return to shop mode afterward with clear rules for consent, rewards, persistence, and character ownership. This must be a Dragon-mode feature slice with its own spec and verifiers, not hardcoded into the basic shop transaction flow.
 - External editor.
 - Original benchmark characters as real playable fixtures.
 

@@ -123,14 +123,15 @@ void drawShopDemoItemIcon(
     float x,
     float y,
     const ShopCatalogEntry& entry,
-    bool selected) {
+    bool selected,
+    float iconSize = 10.0f) {
     if (const TextureSprite* sprite = shopDemoItemIconSprite(state, entry.itemId);
         sprite && sprite->texture && sprite->width > 0 && sprite->height > 0) {
-        const float scale = std::min(10.0f / static_cast<float>(sprite->width), 10.0f / static_cast<float>(sprite->height));
-        SDL_FRect dst{ x, y - 3.0f, static_cast<float>(sprite->width) * scale, static_cast<float>(sprite->height) * scale };
+        const float scale = std::min(iconSize / static_cast<float>(sprite->width), iconSize / static_cast<float>(sprite->height));
+        SDL_FRect dst{ x, y - iconSize * 0.25f, static_cast<float>(sprite->width) * scale, static_cast<float>(sprite->height) * scale };
         SDL_RenderTexture(renderer, sprite->texture, nullptr, &dst);
         setColor(renderer, selected ? 8 : 184, selected ? 18 : 194, selected ? 24 : 204, 210);
-        drawRect(renderer, x - 1.0f, y - 4.0f, 11.0f, 11.0f);
+        drawRect(renderer, x - 1.0f, y - iconSize * 0.30f, iconSize + 1.0f, iconSize + 1.0f);
         return;
     }
 
@@ -141,9 +142,9 @@ void drawShopDemoItemIcon(
     } else {
         setColor(renderer, selected ? 218 : 170, selected ? 176 : 126, selected ? 84 : 58, selected ? 235 : 210);
     }
-    fillRect(renderer, x, y, 7.0f, 7.0f);
+    fillRect(renderer, x, y, iconSize * 0.70f, iconSize * 0.70f);
     setColor(renderer, selected ? 12 : 184, selected ? 18 : 194, selected ? 24 : 204, 220);
-    drawRect(renderer, x, y, 7.0f, 7.0f);
+    drawRect(renderer, x, y, iconSize * 0.70f, iconSize * 0.70f);
 }
 
 std::string shopDemoConfirmDetail(const AppState& state, const ShopCatalogEntry& entry) {
@@ -162,25 +163,160 @@ std::string shopDemoConfirmDetail(const AppState& state, const ShopCatalogEntry&
     }
 }
 
-void drawShopDemoTabs(SDL_Renderer* renderer, float x, float y, float panelW, const AppState& state) {
+void drawShopDemoTabs(SDL_Renderer* renderer, float x, float y, float panelW, const AppState& state, float tabH = 12.0f, float textScale = kShopPanelTextScale) {
     constexpr std::array<ShopPanelMode, 3> kModes{ ShopPanelMode::Buy, ShopPanelMode::Sell, ShopPanelMode::Equip };
     const float tabW = (panelW - 24.0f) / 3.0f;
+    const auto& tokens = dragonUiTokens();
     for (int i = 0; i < 3; ++i) {
         const float tx = x + 8.0f + static_cast<float>(i) * tabW;
         const bool active = state.shopDemo.panelMode == kModes[static_cast<size_t>(i)];
-        setColor(renderer, active ? 78 : 28, active ? 180 : 42, active ? 142 : 56, active ? 220 : 190);
-        fillRect(renderer, tx, y, tabW - 3.0f, 12.0f);
-        setColor(renderer, active ? 8 : 184, active ? 13 : 194, active ? 18 : 204);
-        shopDemoPanelTextCentered(renderer, tx + (tabW - 3.0f) * 0.5f, y + 3.0f, shopDemoPanelLabel(kModes[static_cast<size_t>(i)]));
+        setColor(renderer, active ? tokens.primaryTeal : tokens.secondaryPanel, active ? 225 : 210);
+        fillRect(renderer, tx, y, tabW - 3.0f, tabH);
+        setColor(renderer, active ? tokens.panelBase : tokens.primaryText);
+        shopDemoPanelTextCentered(renderer, tx + (tabW - 3.0f) * 0.5f, y + (tabH - 7.0f * textScale) * 0.5f, shopDemoPanelLabel(kModes[static_cast<size_t>(i)]), textScale);
     }
 }
 
-size_t shopDemoFitChars(float availablePx) {
-    return static_cast<size_t>(std::max(1.0f, std::floor((availablePx - 2.0f) / 8.0f)));
+enum class ShopPanelLayoutMode {
+    FullClassic,
+    RightCompact,
+    RightWide,
+    StandardDefinition,
+    HighDefinition,
+};
+
+struct DragonCurrencyView {
+    std::string label;
+    int amount = 0;
+};
+
+struct ShopItemDetailView {
+    std::string displayName;
+    std::string description;
+    std::string typeLabel;
+    std::string targetName;
+    std::string effectSummary;
+    int buyPrice = 0;
+    int sellPrice = 0;
+    int ownedCount = 0;
+    int requiredLevel = 0;
+    int targetLevel = 0;
+    int goldShortfall = 0;
+    bool affordable = false;
+    bool levelAllowed = false;
+    bool equipped = false;
+};
+
+struct ShopPanelLayout {
+    ShopPanelLayoutMode mode = ShopPanelLayoutMode::RightCompact;
+    float x = 0.0f;
+    float y = 0.0f;
+    float w = 0.0f;
+    float h = 0.0f;
+    float scale = 1.0f;
+    float textScale = kShopPanelTextScale;
+    float metaScale = kShopPanelMetaTextScale;
+    float pad = 8.0f;
+    float rowH = 14.0f;
+    float icon = 10.0f;
+    float tabH = 12.0f;
+    float footerH = 16.0f;
+    int visibleRows = 3;
+    bool fullClassic = false;
+};
+
+ShopPanelLayout shopDemoPanelLayout(const AppState& state) {
+    const int width = logicalWidth(state);
+    const int height = logicalHeight(state);
+    const DragonLayoutClass layoutClass = layoutClassForDimensions(CanvasDimensions{ width, height });
+    const DragonUiMetrics metrics = dragonUiMetricsForCanvas(CanvasDimensions{ width, height }, uiScale(state));
+    const ShopDemoLayoutRects rects = shopDemoLayoutRects(state);
+    ShopPanelLayout layout;
+    layout.scale = metrics.pixelScale;
+    layout.textScale = kShopPanelTextScale * layout.scale;
+    layout.metaScale = kShopPanelMetaTextScale * layout.scale;
+    layout.pad = 8.0f * layout.scale;
+    layout.rowH = 16.0f * layout.scale;
+    layout.icon = metrics.itemIcon;
+    layout.tabH = 14.0f * layout.scale;
+    layout.footerH = 17.0f * layout.scale;
+    layout.y = rects.topBar.h + 8.0f * layout.scale;
+
+    switch (layoutClass) {
+    case DragonLayoutClass::Classic:
+        layout.mode = ShopPanelLayoutMode::FullClassic;
+        layout.fullClassic = true;
+        layout.w = std::min(310.0f, static_cast<float>(width) - 12.0f);
+        layout.h = static_cast<float>(height) - rects.topBar.h - rects.helpBar.h - 10.0f;
+        layout.x = (static_cast<float>(width) - layout.w) * 0.5f;
+        layout.y = rects.topBar.h + 5.0f;
+        layout.visibleRows = 3;
+        break;
+    case DragonLayoutClass::ExtraLowRes:
+        layout.mode = ShopPanelLayoutMode::RightWide;
+        layout.w = std::min(190.0f, static_cast<float>(width) - 16.0f);
+        layout.h = std::min(174.0f, static_cast<float>(height) - rects.topBar.h - rects.helpBar.h - 12.0f);
+        layout.x = static_cast<float>(width) - layout.w - 8.0f;
+        layout.visibleRows = 3;
+        break;
+    case DragonLayoutClass::StandardDefinition:
+        layout.mode = ShopPanelLayoutMode::StandardDefinition;
+        layout.w = std::clamp(static_cast<float>(width) * 0.38f, 320.0f, 335.0f);
+        layout.h = std::clamp(static_cast<float>(height) * 0.73f, 338.0f, 350.0f);
+        layout.x = static_cast<float>(width) - layout.w - static_cast<float>(width) * 0.025f;
+        layout.visibleRows = 3;
+        break;
+    case DragonLayoutClass::HighDefinition:
+        layout.mode = ShopPanelLayoutMode::HighDefinition;
+        layout.w = std::clamp(static_cast<float>(width) * 0.37f, 470.0f, 486.0f);
+        layout.h = std::clamp(static_cast<float>(height) * 0.73f, 506.0f, 526.0f);
+        layout.x = static_cast<float>(width) - layout.w - static_cast<float>(width) * 0.015f;
+        layout.visibleRows = 3;
+        break;
+    case DragonLayoutClass::WideLowRes:
+    default:
+        layout.mode = ShopPanelLayoutMode::RightCompact;
+        layout.w = std::min(168.0f, static_cast<float>(width) - 16.0f);
+        layout.h = std::min(172.0f, static_cast<float>(height) - rects.topBar.h - rects.helpBar.h - 12.0f);
+        layout.x = static_cast<float>(width) - layout.w - 8.0f;
+        layout.visibleRows = 3;
+        break;
+    }
+    return layout;
 }
 
-std::string shopDemoFitText(const std::string& text, float availablePx) {
-    return fitDebugText(text, shopDemoFitChars(availablePx));
+DragonCurrencyView shopDemoCurrencyView(const AppState& state) {
+    return {
+        "GOLD",
+        dragonProgressionGoldForProfile(state.progression.save, shopDemoProfileId(state)),
+    };
+}
+
+ShopItemDetailView shopDemoItemDetailView(const AppState& state, const ShopCatalogEntry& entry) {
+    const std::string profileId = shopDemoProfileId(state);
+    const std::string targetId = shopDemoTargetCharacterId(state);
+    const auto stats = effectiveDragonProgressionStatsForProfile(
+        state.progression.data,
+        state.progression.save,
+        profileId,
+        targetId);
+    const int gold = dragonProgressionGoldForProfile(state.progression.save, profileId);
+    ShopItemDetailView view;
+    view.displayName = entry.name;
+    view.description = entry.description;
+    view.typeLabel = uppercaseCopy(entry.slot);
+    view.targetName = uppercaseCopy(shopDemoTargetCharacterName(state));
+    view.effectSummary = shopDemoEffectSummary(entry);
+    view.buyPrice = entry.price;
+    view.sellPrice = entry.sellPrice;
+    view.ownedCount = shopDemoOwnedQuantity(state, entry.itemId);
+    view.requiredLevel = entry.requiredLevel;
+    view.targetLevel = stats.level;
+    view.goldShortfall = std::max(0, entry.price - gold);
+    view.levelAllowed = stats.level >= entry.requiredLevel;
+    view.affordable = view.levelAllowed && view.goldShortfall == 0;
+    view.equipped = shopDemoItemEquipped(state, entry.itemId);
+    return view;
 }
 
 void drawShopDemoItemPanel(SDL_Renderer* renderer, AppState& state) {
@@ -188,163 +324,214 @@ void drawShopDemoItemPanel(SDL_Renderer* renderer, AppState& state) {
     const auto catalog = shopDemoCatalog(state);
     shopDemoClampSelection(state);
 
-    const float width = logicalWidthF(state);
-    const float panelW = std::min(312.0f, width - 20.0f);
-    const float x = width - panelW - 10.0f;
-    const float y = 39.0f;
-    const float panelH = 162.0f;
-    const float panelRight = x + panelW - 12.0f;
-    setColor(renderer, 5, 8, 13, 228);
-    fillRect(renderer, x, y, panelW, panelH);
-    setColor(renderer, 76, 98, 128);
-    drawRect(renderer, x, y, panelW, panelH);
-    setColor(renderer, 158, 64, 58);
-    fillRect(renderer, x + 8, y + 18, panelW - 16, 1);
-    setColor(renderer, 230, 220, 172);
-    shopDemoPanelText(renderer, x + 12, y + 7, "I.CHIE SHOP");
-
-    const std::string profileLine = shopDemoPanelFitText(shopDemoProfileName(state), 70.0f);
-    const std::string goldLine = "GOLD " + std::to_string(dragonProgressionGoldForProfile(state.progression.save, shopDemoProfileId(state)));
-    setColor(renderer, 108, 244, 156);
-    shopDemoPanelText(renderer, x + 104.0f, y + 7, profileLine);
-    setColor(renderer, 255, 238, 120);
-    shopDemoPanelTextRight(renderer, panelRight, y + 7, goldLine);
-
-    drawShopDemoTabs(renderer, x, y + 24.0f, panelW, state);
-
+    const auto& tokens = dragonUiTokens();
+    const ShopPanelLayout layout = shopDemoPanelLayout(state);
+    const DragonCurrencyView currency = shopDemoCurrencyView(state);
+    const float x = layout.x;
+    const float y = layout.y;
+    const float panelW = layout.w;
+    const float panelH = layout.h;
+    const float panelRight = x + panelW - layout.pad;
     const bool showingEquip = state.shopDemo.panelMode == ShopPanelMode::Equip;
-    const float rowStartY = showingEquip ? y + 57.0f : y + 44.0f;
-    const float detailY = showingEquip ? y + 95.0f : y + 83.0f;
-    const float detailH = showingEquip ? 54.0f : 64.0f;
-    if (showingEquip) {
-        setColor(renderer, 14, 20, 28, 205);
-        fillRect(renderer, x + 10.0f, y + 39.0f, panelW - 20.0f, 13.0f);
-        setColor(renderer, 124, 208, 246);
-        shopDemoPanelText(renderer, x + 16.0f, y + 42.0f, "TARGET");
-        setColor(renderer, 255, 238, 120);
-        shopDemoPanelText(
-            renderer,
-            x + 72.0f,
-            y + 42.0f,
-            "< " + shopDemoPanelFitText(uppercaseCopy(shopDemoTargetCharacterName(state)), panelRight - (x + 92.0f)) + " >");
+    const bool compact = layout.mode == ShopPanelLayoutMode::RightCompact;
+    const int visibleRows = showingEquip && (layout.fullClassic
+        || layout.mode == ShopPanelLayoutMode::RightCompact
+        || layout.mode == ShopPanelLayoutMode::RightWide)
+            ? std::max(2, layout.visibleRows - 1)
+            : layout.visibleRows;
+
+    if (layout.fullClassic) {
+        const ShopDemoLayoutRects rects = shopDemoLayoutRects(state);
+        setColor(renderer, 0, 0, 0, 132);
+        fillRect(renderer, rects.world.x, rects.world.y, rects.world.w, rects.world.h);
     }
 
+    setColor(renderer, tokens.panelBase, 246);
+    fillRect(renderer, x, y, panelW, panelH);
+    setColor(renderer, tokens.primaryTeal, 180);
+    drawRect(renderer, x, y, panelW, panelH);
+    setColor(renderer, tokens.secondaryPanel, 245);
+    fillRect(renderer, x + layout.scale, y + layout.scale, panelW - 2.0f * layout.scale, 20.0f * layout.scale);
+    setColor(renderer, tokens.separatorRed);
+    fillRect(renderer, x + layout.pad, y + 21.0f * layout.scale, panelW - 2.0f * layout.pad, std::max(1.0f, layout.scale));
+    setColor(renderer, tokens.mutedGold);
+    shopDemoPanelText(renderer, x + layout.pad, y + 7.0f * layout.scale, "I.CHIE SHOP", layout.textScale);
+
+    const std::string goldLine = currency.label + " " + std::to_string(currency.amount);
+    setColor(renderer, tokens.mutedGold);
+    shopDemoPanelTextRight(renderer, panelRight, y + 7.0f * layout.scale, goldLine, layout.textScale);
+    setColor(renderer, tokens.mutedText);
+    shopDemoPanelText(renderer, x + layout.pad, y + 23.0f * layout.scale, "PROFILE: " + shopDemoPanelFitText(uppercaseCopy(shopDemoProfileName(state)), panelW - 92.0f * layout.scale, layout.metaScale), layout.metaScale);
+
+    const float tabsY = y + 35.0f * layout.scale;
+    drawShopDemoTabs(renderer, x, tabsY, panelW, state, layout.tabH, layout.textScale);
+
+    float targetRowY = tabsY + layout.tabH + 5.0f * layout.scale;
+    if (showingEquip) {
+        setColor(renderer, tokens.secondaryPanel, 218);
+        fillRect(renderer, x + layout.pad, targetRowY, panelW - 2.0f * layout.pad, 15.0f * layout.scale);
+        setColor(renderer, tokens.primaryTeal);
+        shopDemoPanelText(renderer, x + layout.pad + 4.0f * layout.scale, targetRowY + 4.0f * layout.scale, "TARGET", layout.metaScale);
+        setColor(renderer, tokens.mutedGold);
+        const std::string targetValue = "< " + shopDemoPanelFitText(uppercaseCopy(shopDemoTargetCharacterName(state)), panelRight - (x + 74.0f * layout.scale), layout.metaScale) + " >";
+        shopDemoPanelTextRight(renderer, panelRight - 4.0f * layout.scale, targetRowY + 4.0f * layout.scale, targetValue, layout.metaScale);
+        targetRowY += 19.0f * layout.scale;
+    }
+
+    const float rowStartY = targetRowY + 3.0f * layout.scale;
+    const float detailY = rowStartY + static_cast<float>(visibleRows) * layout.rowH + 8.0f * layout.scale;
+    const float footerY = y + panelH - layout.footerH - 2.0f * layout.scale;
+    const float detailH = std::max(20.0f * layout.scale, footerY - detailY - 5.0f * layout.scale);
+
     if (catalog.empty()) {
-        setColor(renderer, 196, 204, 214);
-        shopDemoPanelText(renderer, x + 16.0f, rowStartY + 5.0f, "NO STOCK");
+        setColor(renderer, tokens.primaryText);
+        shopDemoPanelText(renderer, x + layout.pad, rowStartY + 5.0f * layout.scale, "NO STOCK", layout.textScale);
         return;
     }
 
-    const int first = std::max(0, std::min(state.shopDemo.selectedItem - 1, std::max(0, static_cast<int>(catalog.size()) - 3)));
-    for (int visible = 0; visible < 3; ++visible) {
+    const int first = std::max(0, std::min(state.shopDemo.selectedItem - 1, std::max(0, static_cast<int>(catalog.size()) - visibleRows)));
+    for (int visible = 0; visible < visibleRows; ++visible) {
         const int index = first + visible;
         if (index >= static_cast<int>(catalog.size())) break;
         const auto& entry = catalog[static_cast<size_t>(index)];
-        const float rowY = rowStartY + static_cast<float>(visible) * 14.0f;
+        const ShopItemDetailView item = shopDemoItemDetailView(state, entry);
+        const float rowY = rowStartY + static_cast<float>(visible) * layout.rowH;
         const bool selected = index == state.shopDemo.selectedItem;
         if (selected) {
-            setColor(renderer, 72, 176, 138, 215);
-            fillRect(renderer, x + 10.0f, rowY - 3.0f, panelW - 20.0f, 13.0f);
+            setColor(renderer, tokens.primaryTeal, 224);
+            fillRect(renderer, x + layout.pad, rowY - 2.0f * layout.scale, panelW - 2.0f * layout.pad, layout.rowH - 1.0f * layout.scale);
+            setColor(renderer, tokens.primaryTeal);
+            drawRect(renderer, x + layout.pad, rowY - 2.0f * layout.scale, panelW - 2.0f * layout.pad, layout.rowH - 1.0f * layout.scale);
+        } else {
+            setColor(renderer, tokens.secondaryPanel, state.shopDemo.panelMode == ShopPanelMode::Equip && item.ownedCount <= 0 ? 120 : 190);
+            fillRect(renderer, x + layout.pad, rowY - 2.0f * layout.scale, panelW - 2.0f * layout.pad, layout.rowH - 1.0f * layout.scale);
         }
-        setColor(renderer, selected ? 8 : 196, selected ? 12 : 204, selected ? 16 : 214);
-        const int owned = shopDemoOwnedQuantity(state, entry.itemId);
         std::string rowValue;
         if (state.shopDemo.panelMode == ShopPanelMode::Buy) {
-            rowValue = "G " + std::to_string(entry.price);
+            rowValue = item.affordable
+                ? "G" + std::to_string(entry.price)
+                : (item.levelAllowed ? "NEED G" + std::to_string(item.goldShortfall) : "LV " + std::to_string(item.requiredLevel));
         } else if (state.shopDemo.panelMode == ShopPanelMode::Sell) {
-            rowValue = "x" + std::to_string(owned) + "  G " + std::to_string(entry.sellPrice);
+            rowValue = "x" + std::to_string(item.ownedCount) + "  G" + std::to_string(entry.sellPrice);
         } else {
-            rowValue = shopDemoItemEquipped(state, entry.itemId) ? "*EQ" : "x" + std::to_string(owned);
+            rowValue = item.equipped ? "EQUIPPED" : "x" + std::to_string(item.ownedCount);
         }
-        const float rowValueW = shopDemoPanelTextWidth(rowValue);
-        drawShopDemoItemIcon(renderer, state, x + 14.0f, rowY - 1.0f, entry, selected);
+        const float rowValueW = shopDemoPanelTextWidth(rowValue, layout.metaScale);
+        drawShopDemoItemIcon(renderer, state, x + layout.pad + 4.0f * layout.scale, rowY + 1.0f * layout.scale, entry, selected, layout.icon);
+        setColor(renderer, selected ? tokens.panelBase : tokens.primaryText);
         shopDemoPanelText(
             renderer,
-            x + 30.0f,
-            rowY,
-            shopDemoPanelFitText(entry.name, panelRight - rowValueW - (x + 38.0f)));
-        shopDemoPanelTextRight(renderer, panelRight, rowY, rowValue);
+            x + layout.pad + layout.icon + 10.0f * layout.scale,
+            rowY + 3.0f * layout.scale,
+            shopDemoPanelFitText(entry.name, panelRight - rowValueW - (x + layout.pad + layout.icon + 15.0f * layout.scale), layout.textScale),
+            layout.textScale);
+        setColor(renderer, selected ? tokens.panelBase : (item.affordable || state.shopDemo.panelMode != ShopPanelMode::Buy ? tokens.mutedGold : tokens.separatorRed));
+        shopDemoPanelTextRight(renderer, panelRight - 2.0f * layout.scale, rowY + 3.0f * layout.scale, rowValue, layout.metaScale);
     }
 
     const auto selectedEntry = shopDemoSelectedEntry(state);
     if (selectedEntry) {
-        const auto stats = effectiveDragonProgressionStatsForProfile(
-            state.progression.data,
-            state.progression.save,
-            shopDemoProfileId(state),
-            shopDemoTargetCharacterId(state));
+        const ShopItemDetailView item = shopDemoItemDetailView(state, *selectedEntry);
         const float detailRight = panelRight - 2.0f;
-        setColor(renderer, 2, 5, 9, 178);
-        fillRect(renderer, x + 10.0f, detailY, panelW - 20.0f, detailH);
-        setColor(renderer, 34, 42, 50, 150);
-        fillRect(renderer, x + 10.0f, detailY, panelW - 20.0f, 1.0f);
-        setColor(renderer, 124, 208, 246);
+        setColor(renderer, tokens.panelBase, 225);
+        fillRect(renderer, x + layout.pad, detailY, panelW - 2.0f * layout.pad, detailH);
+        setColor(renderer, tokens.primaryTeal, 110);
+        drawRect(renderer, x + layout.pad, detailY, panelW - 2.0f * layout.pad, detailH);
+        setColor(renderer, tokens.primaryTeal);
         shopDemoPanelText(
             renderer,
-            x + 12.0f,
-            detailY + 5.0f,
-            shopDemoPanelFitText(selectedEntry->name, detailRight - (x + 92.0f), kShopPanelMetaTextScale),
-            kShopPanelMetaTextScale);
-        setColor(renderer, 255, 238, 120);
+            x + layout.pad + 4.0f * layout.scale,
+            detailY + 5.0f * layout.scale,
+            shopDemoPanelFitText(item.displayName, detailRight - (x + 92.0f * layout.scale), layout.textScale),
+            layout.textScale);
+        setColor(renderer, tokens.mutedGold);
         std::string modeValue = state.shopDemo.panelMode == ShopPanelMode::Buy
-            ? "COST G" + std::to_string(selectedEntry->price)
+            ? "COST G" + std::to_string(item.buyPrice)
             : state.shopDemo.panelMode == ShopPanelMode::Sell
-                ? "VALUE G" + std::to_string(selectedEntry->sellPrice)
-                : (shopDemoItemEquipped(state, selectedEntry->itemId) ? "EQUIPPED" : "OWN " + std::to_string(shopDemoOwnedQuantity(state, selectedEntry->itemId)));
-        shopDemoPanelTextRight(renderer, detailRight, detailY + 5.0f, modeValue, kShopPanelMetaTextScale);
+                ? "VALUE G" + std::to_string(item.sellPrice)
+                : (item.equipped ? "EQUIPPED" : "OWNED " + std::to_string(item.ownedCount));
+        shopDemoPanelTextRight(renderer, detailRight, detailY + 5.0f * layout.scale, modeValue, layout.metaScale);
 
-        setColor(renderer, 150, 156, 166);
-        const auto descriptionLines = shopDemoPanelWrapText(selectedEntry->description, detailRight - (x + 12.0f));
-        shopDemoPanelText(renderer, x + 12.0f, detailY + 17.0f, descriptionLines[0], kShopPanelMetaTextScale);
+        setColor(renderer, tokens.primaryText);
+        const auto descriptionLines = shopDemoPanelWrapText(item.description, detailRight - (x + layout.pad + 4.0f * layout.scale), layout.metaScale);
+        const float descY = detailY + 16.0f * layout.scale;
+        shopDemoPanelText(renderer, x + layout.pad + 4.0f * layout.scale, descY, descriptionLines[0], layout.metaScale);
         if (!descriptionLines[1].empty()) {
-            shopDemoPanelText(renderer, x + 12.0f, detailY + 27.0f, descriptionLines[1], kShopPanelMetaTextScale);
+            shopDemoPanelText(renderer, x + layout.pad + 4.0f * layout.scale, descY + 8.0f * layout.scale, descriptionLines[1], layout.metaScale);
         }
-        setColor(renderer, 108, 244, 156);
+        const float effectsY = descY + (descriptionLines[1].empty() ? 8.0f : 16.0f) * layout.scale;
+        setColor(renderer, tokens.primaryTeal);
+        shopDemoPanelText(renderer, x + layout.pad + 4.0f * layout.scale, effectsY, "EFFECTS", layout.metaScale);
         shopDemoPanelText(
             renderer,
-            x + 12.0f,
-            detailY + (descriptionLines[1].empty() ? 29.0f : 38.0f),
-            shopDemoPanelFitText(shopDemoEffectSummary(*selectedEntry), detailRight - (x + 12.0f), kShopPanelMetaTextScale),
-            kShopPanelMetaTextScale);
-        const std::string requirement = "REQ LV " + std::to_string(selectedEntry->requiredLevel)
-            + "  TYPE " + uppercaseCopy(selectedEntry->slot);
-        const std::string ownership = "OWN " + std::to_string(shopDemoOwnedQuantity(state, selectedEntry->itemId))
-            + "  TARGET " + uppercaseCopy(shopDemoTargetCharacterName(state))
-            + " LV " + std::to_string(stats.level);
-        setColor(renderer, 255, 218, 106);
-        shopDemoPanelText(renderer, x + 12.0f, detailY + detailH - 10.0f, shopDemoPanelFitText(requirement, (detailRight - (x + 12.0f)) * 0.48f, kShopPanelMetaTextScale), kShopPanelMetaTextScale);
-        shopDemoPanelTextRight(renderer, detailRight, detailY + detailH - 10.0f, shopDemoPanelFitText(ownership, (detailRight - (x + 12.0f)) * 0.52f, kShopPanelMetaTextScale), kShopPanelMetaTextScale);
+            x + (compact ? 56.0f : 72.0f) * layout.scale,
+            effectsY,
+            shopDemoPanelFitText(item.effectSummary, detailRight - (x + 76.0f * layout.scale), layout.metaScale),
+            layout.metaScale);
+
+        const float metaStep = 7.0f * layout.scale;
+        const float metaBlockH = metaStep * 3.0f + 7.0f * layout.metaScale;
+        float metaY = effectsY + 8.0f * layout.scale;
+        const float latestMetaY = detailY + detailH - metaBlockH - 3.0f * layout.scale;
+        if (metaY > latestMetaY) {
+            metaY = latestMetaY;
+        }
+        metaY = std::max(metaY, effectsY + 4.0f * layout.scale);
+        const float valueX = x + (compact ? 65.0f : 102.0f) * layout.scale;
+        auto drawMeta = [&](float yy, const std::string& label, const std::string& value) {
+            setColor(renderer, tokens.mutedText);
+            shopDemoPanelText(renderer, x + layout.pad + 4.0f * layout.scale, yy, label, layout.metaScale);
+            setColor(renderer, tokens.primaryText);
+            shopDemoPanelText(renderer, valueX, yy, shopDemoPanelFitText(value, detailRight - valueX, layout.metaScale), layout.metaScale);
+        };
+        drawMeta(metaY, compact ? "REQ LV" : "REQUIRED LEVEL", std::to_string(item.requiredLevel));
+        drawMeta(metaY + metaStep, "TYPE", item.typeLabel);
+        drawMeta(metaY + metaStep * 2.0f, compact ? "OWN" : "OWNED", std::to_string(item.ownedCount));
+        drawMeta(metaY + metaStep * 3.0f, "TARGET", item.targetName + " LV " + std::to_string(item.targetLevel));
+        if (state.shopDemo.panelMode == ShopPanelMode::Buy && !item.affordable) {
+            setColor(renderer, tokens.separatorRed);
+            const std::string need = item.levelAllowed
+                ? "NEED G" + std::to_string(item.goldShortfall) + " MORE"
+                : "REQUIRED LEVEL " + std::to_string(item.requiredLevel);
+            shopDemoPanelTextRight(renderer, detailRight, effectsY + 8.0f * layout.scale, shopDemoPanelFitText(need, detailRight - (x + layout.pad), layout.metaScale), layout.metaScale);
+        }
     }
 
     if (state.shopDemo.confirmOpen) {
-        setColor(renderer, 14, 18, 24, 238);
-        fillRect(renderer, x + 14.0f, detailY - 4.0f, panelW - 28.0f, 52.0f);
-        setColor(renderer, 225, 202, 112);
-        drawRect(renderer, x + 14.0f, detailY - 4.0f, panelW - 28.0f, 52.0f);
+        const float modalH = std::min(58.0f * layout.scale, panelH - 28.0f * layout.scale);
+        const float modalY = std::max(y + 46.0f * layout.scale, detailY + 4.0f * layout.scale);
+        setColor(renderer, tokens.panelBase, 246);
+        fillRect(renderer, x + layout.pad + 4.0f * layout.scale, modalY, panelW - 2.0f * layout.pad - 8.0f * layout.scale, modalH);
+        setColor(renderer, tokens.mutedGold);
+        drawRect(renderer, x + layout.pad + 4.0f * layout.scale, modalY, panelW - 2.0f * layout.pad - 8.0f * layout.scale, modalH);
         if (selectedEntry) {
-            setColor(renderer, 255, 238, 120);
+            setColor(renderer, tokens.primaryTeal);
             shopDemoPanelTextCentered(
                 renderer,
                 x + panelW * 0.5f,
-                detailY + 2.0f,
-                shopDemoPanelFitText(shopDemoActionLabel(state.shopDemo.pendingAction) + " " + selectedEntry->name, panelW - 46.0f));
-            setColor(renderer, 108, 244, 156);
+                modalY + 8.0f * layout.scale,
+                shopDemoPanelFitText(shopDemoActionLabel(state.shopDemo.pendingAction) + " " + selectedEntry->name + "?", panelW - 46.0f * layout.scale, layout.textScale),
+                layout.textScale);
+            setColor(renderer, tokens.primaryText);
             shopDemoPanelTextCentered(
                 renderer,
                 x + panelW * 0.5f,
-                detailY + 15.0f,
-                shopDemoPanelFitText(shopDemoConfirmDetail(state, *selectedEntry), panelW - 46.0f));
+                modalY + 23.0f * layout.scale,
+                shopDemoPanelFitText(shopDemoConfirmDetail(state, *selectedEntry), panelW - 46.0f * layout.scale, layout.metaScale),
+                layout.metaScale);
         }
-        setColor(renderer, 196, 204, 214);
-        shopDemoPanelTextCentered(renderer, x + panelW * 0.5f, detailY + 31.0f, "ENTER CONFIRM");
-        setColor(renderer, 178, 188, 202);
-        shopDemoPanelTextCentered(renderer, x + panelW * 0.5f, detailY + 42.0f, "ESC CANCEL", kShopPanelMetaTextScale);
+        setColor(renderer, tokens.primaryText);
+        shopDemoPanelTextCentered(renderer, x + panelW * 0.5f, modalY + 39.0f * layout.scale, "ENTER CONFIRM", layout.metaScale);
+        setColor(renderer, tokens.mutedText);
+        shopDemoPanelTextCentered(renderer, x + panelW * 0.5f, modalY + 49.0f * layout.scale, "ESC CANCEL", layout.metaScale);
     } else {
-        setColor(renderer, 150, 156, 166);
+        setColor(renderer, tokens.secondaryPanel, 232);
+        fillRect(renderer, x + layout.scale, footerY, panelW - 2.0f * layout.scale, layout.footerH);
+        setColor(renderer, tokens.mutedText);
         const char* footer = showingEquip
-            ? "Q/E TAB  L/R TARGET  ENT"
-            : "Q/E TAB  UP/DN ITEM  ENT";
-        shopDemoPanelText(renderer, x + 12.0f, y + 151.0f, shopDemoPanelFitText(footer, panelRight - (x + 12.0f)));
+            ? "Q/E LB/RB TAB  L/R TARGET  ENTER ACTION  ESC BACK"
+            : "Q/E LB/RB TAB  UP/DOWN ITEM  ENTER ACTION  ESC BACK";
+        shopDemoPanelText(renderer, x + layout.pad, footerY + 5.0f * layout.scale, shopDemoPanelFitText(footer, panelRight - (x + layout.pad), layout.metaScale), layout.metaScale);
     }
 }
 
@@ -353,23 +540,27 @@ void drawShopDemoTransactionBanner(SDL_Renderer* renderer, const AppState& state
         return;
     }
     const float width = logicalWidthF(state);
-    const float bannerW = std::min(300.0f, width - 32.0f);
+    const DragonUiMetrics metrics = dragonUiMetricsForCanvas(CanvasDimensions{ logicalWidth(state), logicalHeight(state) }, uiScale(state));
+    const ShopDemoLayoutRects rects = shopDemoLayoutRects(state);
+    const auto& tokens = dragonUiTokens();
+    const float s = metrics.pixelScale;
+    const float bannerW = std::min(300.0f * s, width - 32.0f * s);
     const float x = (width - bannerW) * 0.5f;
-    const float y = 171.0f;
+    const float y = rects.helpBar.y - 44.0f * s;
     const int alpha = std::clamp(state.shopDemo.transactionTicks * 4, 96, 235);
-    setColor(renderer, 4, 10, 8, static_cast<Uint8>(alpha));
-    fillRect(renderer, x, y, bannerW, 35.0f);
-    setColor(renderer, 74, 214, 154, static_cast<Uint8>(std::min(alpha + 20, 255)));
-    drawRect(renderer, x, y, bannerW, 35.0f);
-    setColor(renderer, 108, 244, 156);
-    shopDemoPanelTextCentered(renderer, x + bannerW * 0.5f, y + 7.0f, shopDemoPanelFitText(state.shopDemo.transactionTitle, bannerW - 18.0f));
+    setColor(renderer, tokens.panelBase, static_cast<Uint8>(alpha));
+    fillRect(renderer, x, y, bannerW, 35.0f * s);
+    setColor(renderer, tokens.primaryTeal, static_cast<Uint8>(std::min(alpha + 20, 255)));
+    drawRect(renderer, x, y, bannerW, 35.0f * s);
+    setColor(renderer, tokens.primaryTeal);
+    shopDemoPanelTextCentered(renderer, x + bannerW * 0.5f, y + 7.0f * s, shopDemoPanelFitText(state.shopDemo.transactionTitle, bannerW - 18.0f * s, kShopPanelTextScale * s), kShopPanelTextScale * s);
     if (!state.shopDemo.transactionDetail.empty()) {
-        setColor(renderer, 255, 238, 120);
+        setColor(renderer, tokens.mutedGold);
         shopDemoPanelTextCentered(
             renderer,
             x + bannerW * 0.5f,
-            y + 21.0f,
-            shopDemoPanelFitText(state.shopDemo.transactionDetail, bannerW - 18.0f),
-            kShopPanelMetaTextScale);
+            y + 21.0f * s,
+            shopDemoPanelFitText(state.shopDemo.transactionDetail, bannerW - 18.0f * s, kShopPanelMetaTextScale * s),
+            kShopPanelMetaTextScale * s);
     }
 }

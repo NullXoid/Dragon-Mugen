@@ -12,6 +12,8 @@
 namespace dragon {
 
 void setColor(SDL_Renderer* renderer, Uint8 r, Uint8 g, Uint8 b, Uint8 a = 255);
+void setColor(SDL_Renderer* renderer, SDL_Color color);
+void setColor(SDL_Renderer* renderer, SDL_Color color, Uint8 alpha);
 void fillRect(SDL_Renderer* renderer, float x, float y, float w, float h);
 void drawRect(SDL_Renderer* renderer, float x, float y, float w, float h);
 

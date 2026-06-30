@@ -14,7 +14,7 @@ bool renderRectVisible(const AppState& state, const SDL_FRect& rect, float pad =
         return true;
     }
     const float right = static_cast<float>(logicalWidth(state)) + pad;
-    const float bottom = static_cast<float>(kLogicalHeight) + pad;
+    const float bottom = logicalHeightF(state) + pad;
     return rect.x + rect.w >= -pad
         && rect.x <= right
         && rect.y + rect.h >= -pad
@@ -109,7 +109,7 @@ void drawStageLayer(SDL_Renderer* renderer, const AppState& state, int layerNo) 
         if (element.tileY && sprite->height > 0) {
             constexpr float pad = 72.0f;
             startTy = std::clamp(static_cast<int>(std::floor((-pad - firstY) / static_cast<float>(sprite->height))), 0, repeatY - 1);
-            endTy = std::clamp(static_cast<int>(std::ceil((static_cast<float>(kLogicalHeight) + pad - firstY) / static_cast<float>(sprite->height))) + 1, startTy + 1, repeatY);
+            endTy = std::clamp(static_cast<int>(std::ceil((logicalHeightF(state) + pad - firstY) / static_cast<float>(sprite->height))) + 1, startTy + 1, repeatY);
         }
 
         for (int ty = startTy; ty < endTy; ++ty) {
@@ -242,7 +242,7 @@ void drawPaletteOverlay(SDL_Renderer* renderer, const AppState& state, const Act
         static_cast<Uint8>(std::clamp(std::max(0, add[1]), 0, 255)),
         static_cast<Uint8>(std::clamp(std::max(0, add[2]), 0, 255)),
         static_cast<Uint8>(alpha));
-    fillRect(renderer, 0, 0, logicalWidthF(state), static_cast<float>(kLogicalHeight));
+    fillRect(renderer, 0, 0, logicalWidthF(state), logicalHeightF(state));
 }
 
 struct ActorVisualFrame {

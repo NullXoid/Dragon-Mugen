@@ -1,5 +1,6 @@
 #include "OptionsMenuOverlay.h"
 
+#include "DragonUi.h"
 #include "UiMenuList.h"
 #include "UiRenderPrimitives.h"
 
@@ -13,11 +14,19 @@ namespace dragon {
 void drawOptionsMenuOverlay(const UiRenderContext& ui, const OptionsMenuView& view) {
     SDL_Renderer* renderer = ui.renderer;
     const float centerX = static_cast<float>(ui.logicalWidth) * 0.5f;
+    const DragonUiMetrics metrics = dragonUiMetricsForContext(ui);
+    const auto& tokens = dragonUiTokens();
+    const float s = metrics.pixelScale;
 
-    setColor(renderer, 238, 238, 244);
-    debugTextCentered(renderer, centerX, 28, "DRAGON MUGEN CORE");
-    setColor(renderer, 246, 214, 92);
-    debugTextCentered(renderer, centerX, 46, view.title.empty() ? "OPTIONS" : view.title);
+    setColor(renderer, tokens.panelBase, 226);
+    fillRect(renderer, 0.0f, 0.0f, static_cast<float>(ui.logicalWidth), metrics.topBarH);
+    setColor(renderer, tokens.separatorRed);
+    fillRect(renderer, 0.0f, metrics.topBarH - metrics.border, static_cast<float>(ui.logicalWidth), metrics.border);
+    setColor(renderer, tokens.mutedGold);
+    scaledDebugText(renderer, s, 10.0f * s, 8.0f * s, "DRAGON MUGEN CORE");
+    setColor(renderer, tokens.primaryTeal);
+    const std::string title = view.title.empty() ? "OPTIONS" : view.title;
+    scaledDebugText(renderer, s, centerX - static_cast<float>(title.size()) * 4.0f * s, 8.0f * s, title);
 
     std::vector<UiMenuListRowView> rows;
     rows.reserve(view.rows.size());
@@ -43,11 +52,12 @@ void drawOptionsMenuOverlay(const UiRenderContext& ui, const OptionsMenuView& vi
             view.footer,
         },
         UiMenuListStyle{
-            64.0f,
-            320.0f,
-            430.0f,
-            12.0f,
+            metrics.topBarH + 16.0f * s,
+            300.0f * s,
+            std::min(static_cast<float>(ui.logicalWidth) - 20.0f * s, 430.0f * s),
+            metrics.rowH,
             true,
+            s,
         });
 }
 

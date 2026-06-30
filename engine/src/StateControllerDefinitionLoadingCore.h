@@ -133,6 +133,38 @@
             continue;
         }
 
+        if (startsWithNoCase(controllerType, "SndPan")) {
+            const auto* channel = findProperty(section, "channel");
+            if (!channel
+                || (hasTriggerProperties && !controllerTrigger)
+                || (!controllerTrigger && triggerTime < 0 && triggerAnimElem < 0)) {
+                continue;
+            }
+
+            const int parsedChannel = parseIntValue(channel->value, -1);
+            if (parsedChannel < 0) {
+                continue;
+            }
+
+            auto& state = states[static_cast<size_t>(currentStateIndex)];
+            StateSoundPanController soundPan;
+            soundPan.id = nextRuntimeControllerId++;
+            soundPan.trigger = controllerTrigger ? *controllerTrigger : controllerOptions;
+            soundPan.triggerTime = triggerTime;
+            soundPan.triggerAnimElem = triggerAnimElem;
+            soundPan.channel = parsedChannel;
+            if (const auto* pan = findProperty(section, "pan")) {
+                soundPan.pan = parseIntValue(pan->value, 0);
+                soundPan.panExpression = trim(pan->value);
+            }
+            state.soundPans.push_back(std::move(soundPan));
+            state.audioControllers.push_back(StateAudioControllerRef{
+                StateAudioControllerKind::SndPan,
+                state.soundPans.size() - 1,
+            });
+            continue;
+        }
+
         if (startsWithNoCase(controllerType, "CtrlSet")) {
             const auto* value = findProperty(section, "value");
             if (!value || (!controllerTrigger && triggerTime < 0 && triggerAnimElem < 0)) {

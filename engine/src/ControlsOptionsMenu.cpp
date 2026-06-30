@@ -82,7 +82,7 @@ std::vector<OptionsMenuRowView> buildGameplayRows(const ControlsOptionsContext& 
 
 std::vector<OptionsMenuRowView> buildVideoRows(const ControlsOptionsContext& context, int selected) {
     return {
-        row("CANVAS SIZE", canvasSizeSettingText(context.settings), selected == 0, true),
+        row("RESOLUTION", canvasSizeSettingText(context.settings), selected == 0, true),
         row("UI SCALE", uiScaleSettingText(context.settings), selected == 1, true),
         row("FPS CAP", context.settings.fpsCapEnabled ? "60" : "OFF", selected == 2, true),
         row("PERFORMANCE HUD", performanceHudModeText(context.settings.performanceHudMode), selected == 3, true),

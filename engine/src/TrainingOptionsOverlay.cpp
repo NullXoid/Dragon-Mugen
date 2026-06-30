@@ -570,11 +570,12 @@ void drawTrainingOptionsMenu(const UiRenderContext& ui, const TrainingOptionsMen
             kOptionsFooter,
         },
         UiMenuListStyle{
-            30.0f,
-            320.0f,
-            380.0f,
-            12.0f,
+            30.0f * ui.scale,
+            320.0f * ui.scale,
+            380.0f * ui.scale,
+            12.0f * ui.scale,
             true,
+            ui.scale,
         });
 }
 

@@ -146,9 +146,20 @@ struct StateStopSoundController {
     int channel = -1;
 };
 
+struct StateSoundPanController {
+    int id = 0;
+    StateControllerTrigger trigger;
+    int triggerTime = -1;
+    int triggerAnimElem = -1;
+    int channel = -1;
+    int pan = 0;
+    std::string panExpression = "0";
+};
+
 enum class StateAudioControllerKind {
     PlaySnd,
     StopSnd,
+    SndPan,
 };
 
 struct StateAudioControllerRef {
@@ -244,6 +255,32 @@ struct StateParentVarAddController {
     StateControllerTrigger trigger;
     MugenVariableRef target;
     std::string valueExpression = "0";
+};
+
+struct StateParentVarSetController {
+    int id = 0;
+    StateControllerTrigger trigger;
+    MugenVariableRef target;
+    std::string valueExpression = "0";
+};
+
+struct StateGravityController {
+    int id = 0;
+    StateControllerTrigger trigger;
+};
+
+struct StateReversalDefController {
+    int id = 0;
+    StateControllerTrigger trigger;
+    std::string attr;
+    int p1StateNo = -1;
+    int p2StateNo = -1;
+    int pauseTimeP1 = 0;
+    int pauseTimeP2 = 0;
+    int sparkNo = -1;
+    int hitSoundGroup = -1;
+    int hitSoundIndex = -1;
+    bool hitSoundForceCommon = false;
 };
 
 struct StateVarRangeSetController {
@@ -743,6 +780,7 @@ struct StateDefinition {
     int sprPriority = 0;
     std::vector<StateSoundController> sounds;
     std::vector<StateStopSoundController> stopSounds;
+    std::vector<StateSoundPanController> soundPans;
     std::vector<StateAudioControllerRef> audioControllers;
     std::vector<StateCtrlController> ctrlSets;
     std::vector<StateVariableController> variableControllers;
@@ -753,6 +791,9 @@ struct StateDefinition {
     std::vector<StateBindToParentController> bindToParents;
     std::vector<StateBindToRootController> bindToRoots;
     std::vector<StateParentVarAddController> parentVarAdds;
+    std::vector<StateParentVarSetController> parentVarSets;
+    std::vector<StateGravityController> gravities;
+    std::vector<StateReversalDefController> reversalDefs;
     std::vector<StateVarRangeSetController> varRangeSets;
     std::vector<StatePowerAddController> powerAdds;
     std::vector<StateLifeAddController> lifeAdds;

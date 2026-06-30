@@ -55,6 +55,7 @@ Out of scope:
 - Online/cloud profiles.
 - Full campaign economy balancing.
 - Multiple shopkeepers, branching shop inventories, crafting, gacha, or tournament/shop hybrid flows.
+- Shopkeeper challenge/fight behavior where I.Chie leaves the counter and battles the player. That is a future Dragon-mode combat transition feature and needs its own spec, state machine, consent prompt, reward rules, and verifiers.
 - Replacing Story or Arena result routing.
 
 ## Feature Slice

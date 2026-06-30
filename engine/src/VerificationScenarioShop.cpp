@@ -1,8 +1,8 @@
 #include "VerificationScenarioCommon.h"
 
 #include "dragon/DragonProgression.h"
-
 #include "ControlMapping.h"
+#include "DragonUi.h"
 #include "FrontendMenu.h"
 #include "ShopCatalog.h"
 #include "ShopDemoCollision.h"
@@ -11,7 +11,6 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
-
 namespace dragon::verification {
 namespace {
 
@@ -48,12 +47,19 @@ constexpr float kShopVerifyPlayerMinX = -1040.0f;
 constexpr float kShopVerifyPlayerMaxX = 1040.0f;
 constexpr float kShopVerifyPlayerMinDepth = -82.0f;
 constexpr float kShopVerifyPlayerMaxDepth = 118.0f;
-constexpr float kShopVerifyCounterX = -126.0f;
-constexpr float kShopVerifyCounterW = 660.0f;
-constexpr float kShopVerifyCounterSolidLeft = kShopVerifyCounterX - 34.0f;
-constexpr float kShopVerifyCounterSolidRight = kShopVerifyCounterX + kShopVerifyCounterW + 34.0f;
+constexpr float kShopVerifyCounterVisualCenterX = 238.0f;
+constexpr float kShopVerifyCounterSolidHalfWidth = 112.0f;
+constexpr float kShopVerifyCounterServiceHalfWidth = 126.0f;
+constexpr float kShopVerifyShopkeeperX = 238.0f;
+constexpr float kShopVerifyShopkeeperTalkHalfWidth = 64.0f;
+constexpr float kShopVerifyCounterSolidLeft = kShopVerifyCounterVisualCenterX - kShopVerifyCounterSolidHalfWidth;
+constexpr float kShopVerifyCounterSolidRight = kShopVerifyCounterVisualCenterX + kShopVerifyCounterSolidHalfWidth;
 constexpr float kShopVerifyCounterSolidBackDepth = -18.0f;
 constexpr float kShopVerifyCounterSolidFrontDepth = 70.0f;
+constexpr float kShopVerifyCounterInteractMinDepth = kShopVerifyCounterSolidFrontDepth + 0.5f;
+constexpr float kShopVerifyCounterInteractMaxDepth = kShopVerifyCounterSolidFrontDepth + 36.0f;
+constexpr float kShopVerifyShopkeeperTalkMinDepth = kShopVerifyPlayerMinDepth;
+constexpr float kShopVerifyShopkeeperTalkMaxDepth = kShopVerifyCounterInteractMaxDepth;
 constexpr float kShopVerifyCollisionEpsilon = 0.5f;
 constexpr float kShopVerifyWalkSpeed = 3.105f;
 constexpr float kShopVerifyDepthSpeed = 2.115f;
@@ -71,6 +77,24 @@ dragon::shop_demo::ShopCounterCollisionBounds shopVerifierCounterBounds() {
         kShopVerifyCounterSolidBackDepth,
         kShopVerifyCounterSolidFrontDepth,
         kShopVerifyCollisionEpsilon,
+    };
+}
+
+dragon::shop_demo::ShopInteractionVolume shopVerifierCounterServiceVolume() {
+    return {
+        kShopVerifyCounterVisualCenterX - kShopVerifyCounterServiceHalfWidth,
+        kShopVerifyCounterVisualCenterX + kShopVerifyCounterServiceHalfWidth,
+        kShopVerifyCounterInteractMinDepth,
+        kShopVerifyCounterInteractMaxDepth,
+    };
+}
+
+dragon::shop_demo::ShopInteractionVolume shopVerifierShopkeeperTalkVolume() {
+    return {
+        kShopVerifyShopkeeperX - kShopVerifyShopkeeperTalkHalfWidth,
+        kShopVerifyShopkeeperX + kShopVerifyShopkeeperTalkHalfWidth,
+        kShopVerifyShopkeeperTalkMinDepth,
+        kShopVerifyShopkeeperTalkMaxDepth,
     };
 }
 
@@ -167,6 +191,7 @@ int runShopRoomActorProjection(RuntimeProbe& runtime, std::ostream& out) {
 
     const auto repoRoot = root.filename() == "game" ? root.parent_path() : root;
     const std::string runtimeText = readTextFile(repoRoot / "engine" / "src" / "ShopDemoRuntime.h");
+    const std::string sceneText = readTextFile(repoRoot / "engine" / "src" / "ShopHubScene.h");
     const std::string collisionText = readTextFile(repoRoot / "engine" / "src" / "ShopDemoCollision.h");
     record(out, counts,
         runtimeText.find("collectMappedFighterInput") != std::string::npos
@@ -175,15 +200,26 @@ int runShopRoomActorProjection(RuntimeProbe& runtime, std::ostream& out) {
         "shop_movement_uses_held_input",
         "continuous mapped input drives room walking");
     record(out, counts,
+        runtimeText.find("shopDemoCounterCameraX") != std::string::npos
+            && runtimeText.find("shopDemoVisiblePlayerMinX") != std::string::npos
+            && runtimeText.find("shopDemoVisiblePlayerMaxX") != std::string::npos
+            && runtimeText.find("shopDemoWorldZoomTarget") != std::string::npos
+            && runtimeText.find("shopDemoWorldFocusTargetX") != std::string::npos
+            && runtimeText.find("const float targetCamera = shopDemoClampCamera(state, shopDemoWorldFocusTargetX(state))") != std::string::npos
+            && runtimeText.find("shopDemoUpdateCamera(state)") != std::string::npos
+            ? Status::Pass : Status::Fail,
+        "shop_camera_composes_counter_and_shop_open_zoom",
+        "closed shop camera keeps counter composition; greeting/open states focus and zoom the world shot");
+    record(out, counts,
         runtimeText.find("kShopCounterFrontDepth") != std::string::npos
             && runtimeText.find("drawShopDemoCounterFront(renderer, state)") != std::string::npos
             ? Status::Pass : Status::Fail,
         "shop_counter_depth_layering_present",
         "player can stand in front while counter space remains reachable");
     record(out, counts,
-        runtimeText.find("drawShopDemoFallbackShelfBay") != std::string::npos
-            && runtimeText.find("drawShopDemoFallbackDragonMark") != std::string::npos
-            && runtimeText.find("shopDemoWorldTextCentered") != std::string::npos
+        sceneText.find("drawShopDemoFallbackShelfBay") != std::string::npos
+            && sceneText.find("drawShopDemoFallbackDragonMark") != std::string::npos
+            && sceneText.find("shopDemoWorldTextCentered") != std::string::npos
             ? Status::Pass : Status::Fail,
         "shop_fallback_room_art_pass",
         "code-drawn fallback shop has shelf bays, neon branding, and layered room props");
@@ -213,19 +249,26 @@ int runShopRoomActorProjection(RuntimeProbe& runtime, std::ostream& out) {
     const std::string shopPromptText = readTextFile(shopPromptReadme);
     const bool shopArtHooksPresent =
         runtimeText.find("i_chie_shop_backdrop.png") != std::string::npos
-        && runtimeText.find("i_chie_shop_counter_back.png") != std::string::npos
+        && runtimeText.find("i_chie_shop_counter_back.png") == std::string::npos
         && runtimeText.find("i_chie_shop_counter_front.png") != std::string::npos
-        && runtimeText.find("drawShopDemoCounterBackArt") != std::string::npos;
+        && runtimeText.find("drawShopDemoCounterBackArt") == std::string::npos
+        && runtimeText.find("kShopCounterVisualCenterX") != std::string::npos
+        && runtimeText.find("kShopCounterVisualDefaultAspect") != std::string::npos
+        && sceneText.find("frontH * counterAspect()") != std::string::npos
+        && sceneText.find("shopDemoCounterVisualBottomY(state)") != std::string::npos
+        && sceneText.find("frontBottomY - frontH") != std::string::npos
+        && runtimeText.find("kShopCounterW + 80.0f") == std::string::npos
+        && sceneText.find("void drawShopTextureCoverVerticalAligned") != std::string::npos;
     const bool shopPromptPackPresent =
         shopPromptText.find("i_chie_shop_backdrop.png") != std::string::npos
-        && shopPromptText.find("i_chie_shop_counter_back.png") != std::string::npos
+        && shopPromptText.find("i_chie_shop_counter_back.png") == std::string::npos
         && shopPromptText.find("i_chie_shop_counter_front.png") != std::string::npos
         && shopPromptText.find("no UI panels") != std::string::npos
         && shopPromptText.find("transparent PNG") != std::string::npos;
     record(out, counts,
         shopArtHooksPresent ? Status::Pass : Status::Fail,
         "shop_optional_art_layer_hooks",
-        "runtime supports backdrop, counter back, and counter front drop-in PNGs");
+        "runtime supports backdrop and one placed front counter prop without drawing a second rear desk");
     record(out, counts,
         shopPromptPackPresent ? Status::Pass : Status::Fail,
         "shop_art_prompt_pack",
@@ -249,7 +292,7 @@ int runShopRoomMovementCollision(RuntimeProbe&, std::ostream& out) {
             + " depth=" + std::to_string(kShopVerifyPlayerMinDepth)
             + ".." + std::to_string(kShopVerifyPlayerMaxDepth));
 
-    float directX = kShopVerifyCounterX + kShopVerifyCounterW * 0.5f;
+    float directX = kShopVerifyCounterVisualCenterX;
     float directDepth = kShopVerifyCounterSolidFrontDepth + 18.0f;
     for (int i = 0; i < 90; ++i) {
         stepShopVerifierPlayer(directX, directDepth, 0.0f, -kShopVerifyDepthSpeed * kShopVerifyRunMultiplier);
@@ -304,6 +347,35 @@ int runShopRoomMovementCollision(RuntimeProbe&, std::ostream& out) {
         runStep >= walkStep * 1.6f ? Status::Pass : Status::Fail,
         "run_speed_is_faster_than_walk",
         "walk=" + std::to_string(walkStep) + " run=" + std::to_string(runStep));
+
+    const auto serviceVolume = shopVerifierCounterServiceVolume();
+    const auto talkVolume = shopVerifierShopkeeperTalkVolume();
+    const bool serviceContainsFrontCounter = dragon::shop_demo::shopDemoInsideInteractionVolume(
+        serviceVolume,
+        kShopVerifyCounterVisualCenterX,
+        kShopVerifyCounterSolidFrontDepth + 18.0f);
+    const bool serviceSkipsBehindCounter = !dragon::shop_demo::shopDemoInsideInteractionVolume(
+        serviceVolume,
+        kShopVerifyCounterVisualCenterX,
+        kShopVerifyCounterSolidBackDepth - 24.0f);
+    record(out, counts,
+        serviceContainsFrontCounter
+            && serviceSkipsBehindCounter
+            ? Status::Pass : Status::Fail,
+        "counter_service_hitbox_available",
+        "counter x=" + std::to_string(kShopVerifyCounterVisualCenterX) + " wins on the customer-side overlap");
+    record(out, counts,
+        dragon::shop_demo::shopDemoInsideInteractionVolume(
+            talkVolume,
+            kShopVerifyShopkeeperX,
+            kShopVerifyCounterSolidFrontDepth + 18.0f)
+            && dragon::shop_demo::shopDemoInsideInteractionVolume(
+                talkVolume,
+                kShopVerifyShopkeeperX,
+                kShopVerifyCounterSolidBackDepth - 24.0f)
+            ? Status::Pass : Status::Fail,
+        "shopkeeper_talk_hitbox_available",
+        "shopkeeper x=" + std::to_string(kShopVerifyShopkeeperX) + " supports front and behind-counter talk");
 
     summary(out, counts);
     return exitCode(counts);
@@ -532,9 +604,9 @@ int runShopPanelTextFit(RuntimeProbe&, std::ostream& out) {
     const std::string shopText = runtimeText + "\n" + panelText;
     record(out, counts,
         shopText.find("ShopDemoPanelOverlay.h") != std::string::npos
-            && panelText.find("shopDemoFitChars") != std::string::npos
-            && panelText.find("shopDemoFitText") != std::string::npos
             && panelText.find("shopDemoPanelFitText") != std::string::npos
+            && panelText.find("shopDemoPanelFitChars") != std::string::npos
+            && panelText.find("shopDemoPanelWrapText") != std::string::npos
             && panelText.find("shopDemoPanelTextRight") != std::string::npos
             && panelText.find("panelRight") != std::string::npos
             ? Status::Pass : Status::Fail,
@@ -543,9 +615,10 @@ int runShopPanelTextFit(RuntimeProbe&, std::ostream& out) {
 
     record(out, counts,
         panelText.find("shopDemoPanelWrapText") != std::string::npos
-            && panelText.find("const std::string requirement = \"REQ LV \"") != std::string::npos
-            && panelText.find("const std::string ownership = \"OWN \"") != std::string::npos
-            && panelText.find("\"  TARGET \"") != std::string::npos
+            && panelText.find("\"REQUIRED LEVEL\"") != std::string::npos
+            && panelText.find("\"OWNED\"") != std::string::npos
+            && panelText.find("\"TARGET\"") != std::string::npos
+            && panelText.find("drawMeta") != std::string::npos
             && panelText.find("shopDemoEffectSummary") != std::string::npos
             && panelText.find("shopDemoPanelText(renderer, x + 92.0f") == std::string::npos
             ? Status::Pass : Status::Fail,
@@ -553,33 +626,373 @@ int runShopPanelTextFit(RuntimeProbe&, std::ostream& out) {
         "description, effect summary, requirement, owned count, and target data have separate readable lines");
 
     record(out, counts,
-        panelText.find("rowValue = \"G \"") != std::string::npos
-            && panelText.find("rowValue = \"x\" + std::to_string(owned)") != std::string::npos
+        panelText.find("rowValue = item.affordable") != std::string::npos
+            && panelText.find("\"x\" + std::to_string(item.ownedCount)") != std::string::npos
             && panelText.find("drawShopDemoItemIcon") != std::string::npos
-            && panelText.find("shopDemoPanelTextRight(renderer, panelRight, rowY, rowValue)") != std::string::npos
+            && panelText.find("shopDemoPanelTextRight(renderer, panelRight - 2.0f * layout.scale, rowY + 3.0f * layout.scale, rowValue") != std::string::npos
             ? Status::Pass : Status::Fail,
         "shop_rows_use_name_value_columns",
         "item names, item icons, and prices/owned counts are drawn as columns instead of one clipped string");
 
     record(out, counts,
-        panelText.find("Q/E TAB  L/R TARGET  ENT") != std::string::npos
-            && panelText.find("Q/E TAB  UP/DN ITEM  ENT") != std::string::npos
+        panelText.find("Q/E LB/RB TAB  L/R TARGET") != std::string::npos
+            && panelText.find("Q/E LB/RB TAB  UP/DOWN ITEM") != std::string::npos
             && panelText.find("LEFT/RIGHT TARGET  ENT") == std::string::npos
             ? Status::Pass : Status::Fail,
         "shop_footer_uses_short_labels",
         "footer commands fit the shop panel");
 
     record(out, counts,
-        panelText.find("std::min(312.0f, width - 20.0f)") != std::string::npos
-            && panelText.find("const float panelH = 162.0f") != std::string::npos
+        panelText.find("ShopPanelLayoutMode") != std::string::npos
+            && panelText.find("FullClassic") != std::string::npos
+            && panelText.find("RightCompact") != std::string::npos
+            && panelText.find("StandardDefinition") != std::string::npos
+            && panelText.find("HighDefinition") != std::string::npos
             && panelText.find("const float detailY") != std::string::npos
             && panelText.find("COST G") != std::string::npos
             && panelText.find("BAL G") != std::string::npos
-            && panelText.find("GOLD ") != std::string::npos
+            && panelText.find("DragonCurrencyView") != std::string::npos
             ? Status::Pass : Status::Fail,
-        "shop_panel_width_allows_item_text",
-        "panel uses compact text scale, compact detail geometry, and balance-aware confirmation text");
+        "shop_panel_responsive_layouts",
+        "panel has classic/right/SD/HD layouts, compact detail geometry, and balance-aware confirmation text");
 
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runDragonUiThemeTokenConsistency(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY dragon-ui-theme-token-consistency\n";
+    const auto& tokens = dragonUiTokens();
+    record(out, counts,
+        tokens.panelBase.r == 0x07 && tokens.panelBase.g == 0x10 && tokens.panelBase.b == 0x19
+            && tokens.secondaryPanel.r == 0x10 && tokens.secondaryPanel.g == 0x1A && tokens.secondaryPanel.b == 0x27
+            && tokens.primaryTeal.r == 0x51 && tokens.primaryTeal.g == 0xD2 && tokens.primaryTeal.b == 0xC6
+            && tokens.mutedGold.r == 0xE7 && tokens.mutedGold.g == 0xC3 && tokens.mutedGold.b == 0x5A
+            && tokens.characterPurple.r == 0x7A && tokens.characterPurple.g == 0x4D && tokens.characterPurple.b == 0xD8
+            && tokens.separatorRed.r == 0xC6 && tokens.separatorRed.g == 0x4F && tokens.separatorRed.b == 0x55
+            && tokens.primaryText.r == 0xE9 && tokens.primaryText.g == 0xED && tokens.primaryText.b == 0xF3
+            && tokens.mutedText.r == 0x89 && tokens.mutedText.g == 0x96 && tokens.mutedText.b == 0xA7
+            ? Status::Pass : Status::Fail,
+        "locked_palette_values",
+        "Dragon UI tokens match art-direction lock");
+    record(out, counts,
+        dragonTextColor(DragonTypographyRole::PanelTitle).r == tokens.mutedGold.r
+            && dragonTextColor(DragonTypographyRole::MetadataValue).g == tokens.primaryTeal.g
+            && dragonTextColor(DragonTypographyRole::HelpText).b == tokens.mutedText.b
+            ? Status::Pass : Status::Fail,
+        "typography_roles_mapped",
+        "display/panel/currency, metadata, and help roles use shared colors");
+    summary(out, counts);
+    return exitCode(counts);
+}
+int runShopOverlayResponsiveLayout(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY shop-overlay-responsive-layout\n";
+    const auto root = std::filesystem::path(".").lexically_normal();
+    const std::string panelText = readTextFile(root / "engine" / "src" / "ShopDemoPanelOverlay.h");
+    record(out, counts,
+        panelText.find("ShopPanelLayoutMode") != std::string::npos
+            && panelText.find("RightCompact") != std::string::npos
+            && panelText.find("RightWide") != std::string::npos
+            && panelText.find("StandardDefinition") != std::string::npos
+            && panelText.find("HighDefinition") != std::string::npos
+            ? Status::Pass : Status::Fail,
+        "responsive_layout_modes_declared",
+        "shop overlay has low-res, SD, and HD modes");
+    record(out, counts,
+        dimensionsForPreset(CanvasPreset::Classic320x240).width == 320
+            && dimensionsForPreset(CanvasPreset::Wide426x240).width == 426
+            && dimensionsForPreset(CanvasPreset::Extra480x240).width == 480
+            && dimensionsForPreset(CanvasPreset::Sd854x480).height == 480
+            && dimensionsForPreset(CanvasPreset::Hd1280x720).height == 720
+            ? Status::Pass : Status::Fail,
+        "canvas_dimensions_available",
+        "all five canvas presets resolve to width/height pairs");
+    summary(out, counts);
+    return exitCode(counts);
+}
+int runShopOverlayClassicFullLayout(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY shop-overlay-classic-full-layout\n";
+    const auto root = std::filesystem::path(".").lexically_normal();
+    const std::string panelText = readTextFile(root / "engine" / "src" / "ShopDemoPanelOverlay.h");
+    record(out, counts,
+        panelText.find("FullClassic") != std::string::npos
+            && panelText.find("layout.w = std::min(310.0f") != std::string::npos
+            && panelText.find("fillRect(renderer, rects.world.x") != std::string::npos
+            ? Status::Pass : Status::Fail,
+        "classic_full_panel_with_world_dim",
+        "320x240 uses near-full panel and dims the world");
+    summary(out, counts);
+    return exitCode(counts);
+}
+int runShopOverlaySdLayout(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY shop-overlay-sd-layout\n";
+    const auto root = std::filesystem::path(".").lexically_normal();
+    const std::string panelText = readTextFile(root / "engine" / "src" / "ShopDemoPanelOverlay.h");
+    const DragonUiMetrics metrics = dragonUiMetricsForPreset(CanvasPreset::Sd854x480);
+    record(out, counts,
+        metrics.pixelScale == 1.0f
+            && metrics.topBarH == 24.0f
+            && panelText.find("320.0f, 335.0f") != std::string::npos
+            ? Status::Pass : Status::Fail,
+        "sd_panel_and_stable_density",
+        "854x480 is an output preset; Dragon UI keeps the stable presentation grid");
+    summary(out, counts);
+    return exitCode(counts);
+}
+int runShopOverlayHdLayout(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY shop-overlay-hd-layout\n";
+    const auto root = std::filesystem::path(".").lexically_normal();
+    const std::string panelText = readTextFile(root / "engine" / "src" / "ShopDemoPanelOverlay.h");
+    const DragonUiMetrics metrics = dragonUiMetricsForPreset(CanvasPreset::Hd1280x720);
+    record(out, counts,
+        metrics.pixelScale == 1.0f
+            && metrics.topBarH == 24.0f
+            && panelText.find("470.0f, 486.0f") != std::string::npos
+            ? Status::Pass : Status::Fail,
+        "hd_panel_and_stable_density",
+        "1280x720 is an output preset; Dragon UI keeps the stable presentation grid");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runShopCharacterDepthOrder(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY shop-character-depth-order\n";
+    const auto root = std::filesystem::path(".").lexically_normal();
+    const std::string runtimeText = readTextFile(root / "engine" / "src" / "ShopDemoRuntime.h");
+    const std::string sceneText = readTextFile(root / "engine" / "src" / "ShopHubScene.h");
+    const std::string shopText = runtimeText + "\n" + sceneText;
+    const size_t shopkeeperShadow = runtimeText.find("drawShopDemoShopkeeperShadow(renderer, state);");
+    const size_t shopkeeperBody = runtimeText.find("drawShopDemoShopkeeper(renderer, state);");
+    const size_t behindBranch = runtimeText.find("if (playerBehindCounter)");
+    const size_t playerBehindShadow = runtimeText.find("drawShopDemoPlayerShadow(renderer, state);", behindBranch);
+    const size_t playerBehindBody = runtimeText.find("drawShopDemoPlayer(renderer, state);", playerBehindShadow);
+    const size_t counterFront = runtimeText.find("drawShopDemoCounterFront(renderer, state);", playerBehindBody);
+    const size_t frontBranch = runtimeText.find("if (!playerBehindCounter)", counterFront);
+    const size_t playerFrontShadow = runtimeText.find("drawShopDemoPlayerShadow(renderer, state);", frontBranch);
+    const size_t playerFrontBody = runtimeText.find("drawShopDemoPlayer(renderer, state);", playerFrontShadow);
+    const bool found = shopkeeperShadow != std::string::npos
+        && shopkeeperBody != std::string::npos
+        && behindBranch != std::string::npos
+        && playerBehindShadow != std::string::npos
+        && playerBehindBody != std::string::npos
+        && counterFront != std::string::npos
+        && frontBranch != std::string::npos
+        && playerFrontShadow != std::string::npos
+        && playerFrontBody != std::string::npos
+        && shopkeeperShadow < shopkeeperBody
+        && shopkeeperBody < behindBranch
+        && behindBranch < playerBehindShadow
+        && playerBehindBody < counterFront
+        && counterFront < frontBranch
+        && frontBranch < playerFrontShadow
+        && playerFrontShadow < playerFrontBody;
+    record(out, counts, found ? Status::Pass : Status::Fail,
+        "depth_aware_shop_world_render_order",
+        "back-lane player draws before the counter face; front-floor player draws after it");
+    record(out, counts,
+        shopText.find("drawShopDemoContactShadow") != std::string::npos
+            && shopText.find("shopDemoPlayerTargetHeight") != std::string::npos
+            && shopText.find("shopDemoShopkeeperTargetHeight") != std::string::npos
+            && shopText.find("shopDemoShopkeeperVisualY") != std::string::npos
+            && shopText.find("shopDemoPlayerBehindCounter") != std::string::npos
+            && shopText.find("shopDemoWorldZoomTarget") != std::string::npos
+            && shopText.find("SDL_SetRenderClipRect(renderer, &worldClip)") != std::string::npos
+            ? Status::Pass : Status::Fail,
+        "character_scale_shadows_and_depth",
+        "characters scale from world viewport, render shadows, switch occlusion by player depth, and stay clipped to the world camera");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runShopPresentationDebugLabelVisibility(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY shop-presentation-debug-label-visibility\n";
+    const auto root = std::filesystem::path(".").lexically_normal();
+    const std::string runtimeText = readTextFile(root / "engine" / "src" / "ShopDemoRuntime.h");
+    const std::string appText = readTextFile(root / "engine" / "src" / "App.cpp");
+    const std::string mainText = readTextFile(root / "engine" / "src" / "main.cpp");
+    const std::string stateText = readTextFile(root / "engine" / "src" / "ShopDemoState.h");
+    const std::string flowText = readTextFile(root / "engine" / "src" / "FrontendFlow.h");
+    record(out, counts,
+        runtimeText.find("\"P1\"") == std::string::npos
+            && runtimeText.find("interactionPromptTicks") == std::string::npos
+            && runtimeText.find("ENTER  TALK / SHOP") != std::string::npos
+            && runtimeText.find("ENTER  BUY / SELL") != std::string::npos
+            && runtimeText.find("shopDemoOpenShopPrompt(state)") != std::string::npos
+            && runtimeText.find("ShopInteractionKind::ShopkeeperTalk") != std::string::npos
+            && runtimeText.find("shopDemoCounterServiceVolume") != std::string::npos
+            && runtimeText.find("shopDemoShopkeeperTalkVolume") != std::string::npos
+            && runtimeText.find("shopDemoSetTransaction(state, \"I.CHIE\", shopDemoGreetingText(state)") != std::string::npos
+            && runtimeText.find("shopDemoOpenServicePanelAfterGreeting") != std::string::npos
+            && runtimeText.find("shopDemoShopActionKeyPressed") != std::string::npos
+            && runtimeText.find("InputAction::LK") != std::string::npos
+            && runtimeText.find("state.shopDemo.shopOpen = true") > runtimeText.find("ShopInteractionKind::CounterService")
+            && stateText.find("shopkeeperGreetingReady") != std::string::npos
+            && flowText.find("handleShopDemoShopActionButton") != std::string::npos
+            && flowText.find("gamepadButtonMatchesControlAction(state, shopPlayerIndex, button, InputAction::LK)") != std::string::npos
+            && appText.find("options.hasShopPlayerDepth") != std::string::npos
+            && mainText.find("--shop-player-depth") != std::string::npos
+            ? Status::Pass : Status::Fail,
+        "normal_shop_hides_p1_marker",
+        "shop uses one footer prompt; I.Chie greeting continues to shop through LK / PlayStation X");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runShopLiveProfileCurrencyView(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY shop-live-profile-currency-view\n";
+    const auto root = std::filesystem::path(".").lexically_normal();
+    const std::string panelText = readTextFile(root / "engine" / "src" / "ShopDemoPanelOverlay.h");
+    const std::string runtimeText = readTextFile(root / "engine" / "src" / "ShopDemoRuntime.h");
+    record(out, counts,
+        panelText.find("DragonCurrencyView") != std::string::npos
+            && panelText.find("ShopItemDetailView") != std::string::npos
+            && panelText.find("shopDemoCurrencyView") != std::string::npos
+            && panelText.find("shopDemoItemDetailView") != std::string::npos
+            && runtimeText.find("dragonProgressionGoldForProfile") != std::string::npos
+            ? Status::Pass : Status::Fail,
+        "live_view_data_structs",
+        "profile, currency, target, owned count, and equipment data are prepared before rendering");
+    record(out, counts,
+        panelText.find("KASOM") == std::string::npos
+            && panelText.find("KUNG FU MAN") == std::string::npos
+            && runtimeText.find("KASOM") == std::string::npos
+            ? Status::Pass : Status::Fail,
+        "example_values_not_hardcoded",
+        "renderer uses live values, not spec examples");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runWorldTextureFilterSelection(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY world-texture-filter-selection\n";
+    const auto root = std::filesystem::path(".").lexically_normal();
+    const std::string runtimeText = readTextFile(root / "engine" / "src" / "ShopDemoRuntime.h");
+    const std::string hubText = readTextFile(root / "engine" / "src" / "ShopHubScene.h");
+    record(out, counts,
+        hubText.find("TextureFilter filter = TextureFilter::Linear") != std::string::npos
+            && runtimeText.find("TextureFilter::Nearest") != std::string::npos
+            && runtimeText.find("training_weight.png\", TextureFilter::Nearest") != std::string::npos
+            ? Status::Pass : Status::Fail,
+        "shop_filter_intent",
+        "HD shop cutouts default linear while item icons are nearest");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runUiNearestFilterSelection(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY ui-nearest-filter-selection\n";
+    const auto root = std::filesystem::path(".").lexically_normal();
+    const std::string appText = readTextFile(root / "engine" / "src" / "AppUiProjectionAssembly.h");
+    const std::string loadingText = readTextFile(root / "engine" / "src" / "RuntimeLoading.h");
+    record(out, counts,
+        appText.find("TextureFilter::Nearest") != std::string::npos
+            && appText.find("SDL_SCALEMODE_NEAREST") != std::string::npos
+            && loadingText.find("TextureFilter filter = TextureFilter::Nearest") != std::string::npos && loadingText.find("setTextureSpriteFilterIntent(sprite, filter)") != std::string::npos
+            ? Status::Pass : Status::Fail,
+        "default_decoded_and_ui_sprites_nearest",
+        "SFF/MUGEN and pixel UI assets are not globally blurred");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runVideoCanvasSd854x480(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY video-canvas-sd-854x480\n";
+    MainSettings settings;
+    settings.canvasPreset = CanvasPreset::Sd854x480;
+    const CanvasDimensions dims = dimensionsForPreset(settings.canvasPreset);
+    record(out, counts,
+        dims.width == 854 && dims.height == 480
+            && canvasSizeSettingText(settings) == "854x480 SD 480P"
+            && layoutClassForPreset(settings.canvasPreset) == DragonLayoutClass::StandardDefinition
+            ? Status::Pass : Status::Fail,
+        "sd_canvas_preset",
+        canvasSizeSettingText(settings));
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runVideoCanvasHd1280x720(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY video-canvas-hd-1280x720\n";
+    MainSettings settings;
+    settings.canvasPreset = CanvasPreset::Hd1280x720;
+    const CanvasDimensions dims = dimensionsForPreset(settings.canvasPreset);
+    record(out, counts,
+        dims.width == 1280 && dims.height == 720
+            && canvasSizeSettingText(settings) == "1280x720 HD 720P"
+            && layoutClassForPreset(settings.canvasPreset) == DragonLayoutClass::HighDefinition
+            ? Status::Pass : Status::Fail,
+        "hd_canvas_preset",
+        canvasSizeSettingText(settings));
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runDragonUiSdTwoXScaling(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY dragon-ui-sd-two-x-scaling\n";
+    const DragonUiMetrics metrics = dragonUiMetricsForPreset(CanvasPreset::Sd854x480);
+    const SDL_FRect safe = dragonPixelUiSafeArea(dimensionsForPreset(CanvasPreset::Sd854x480));
+    record(out, counts,
+        metrics.pixelScale == 1.0f
+            && metrics.rowH == 18.0f
+            && safe.x == 0.0f && safe.w == 854.0f && safe.h == 480.0f
+            ? Status::Pass : Status::Fail,
+        "sd_output_preset_keeps_stable_ui_density",
+        "safe=" + std::to_string(static_cast<int>(safe.w)) + "x" + std::to_string(static_cast<int>(safe.h)));
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runDragonUiHdThreeXScaling(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY dragon-ui-hd-three-x-scaling\n";
+    const DragonUiMetrics metrics = dragonUiMetricsForPreset(CanvasPreset::Hd1280x720);
+    const SDL_FRect safe = dragonPixelUiSafeArea(dimensionsForPreset(CanvasPreset::Hd1280x720));
+    record(out, counts,
+        metrics.pixelScale == 1.0f
+            && metrics.rowH == 18.0f
+            && safe.x == 0.0f && safe.w == 1280.0f && safe.h == 720.0f
+            ? Status::Pass : Status::Fail,
+        "hd_output_preset_keeps_stable_ui_density",
+        "safe=" + std::to_string(static_cast<int>(safe.w)) + "x" + std::to_string(static_cast<int>(safe.h)));
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runWorldViewportSdHdLayout(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY world-viewport-sd-hd-layout\n";
+    const auto root = std::filesystem::path(".").lexically_normal();
+    const std::string hubText = readTextFile(root / "engine" / "src" / "ShopHubScene.h");
+    record(out, counts,
+        hubText.find("ShopDemoLayoutRects") != std::string::npos
+            && hubText.find("topBar") != std::string::npos
+            && hubText.find("world") != std::string::npos
+            && hubText.find("helpBar") != std::string::npos
+            && hubText.find("shopDemoSceneY(state, 124.8f)") != std::string::npos
+            && hubText.find("shopDemoSceneY(state, 182.4f)") != std::string::npos
+            && hubText.find("shopDemoWorldFocusY240") != std::string::npos
+            ? Status::Pass : Status::Fail,
+        "world_viewport_rects",
+        "counter placement is relative to the zoomable world viewport with a thick concept-style front face");
+    record(out, counts,
+        hubText.find("shopDemoLayoutRects(state).world.h * 0.33f") != std::string::npos
+            && hubText.find("shopDemoLayoutRects(state).world.h * 0.27f") != std::string::npos
+            ? Status::Pass : Status::Fail,
+        "character_percent_heights",
+        "A.Ben and I.Chie scale from world viewport height");
     summary(out, counts);
     return exitCode(counts);
 }

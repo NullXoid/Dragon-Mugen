@@ -108,7 +108,23 @@ int runShopEquipProfileScope(RuntimeProbe& runtime, std::ostream& out);
 int runShopGuestNoSave(RuntimeProbe& runtime, std::ostream& out);
 int runShopControllerKeyboardNavigation(RuntimeProbe& runtime, std::ostream& out);
 int runShopPanelTextFit(RuntimeProbe& runtime, std::ostream& out);
+int runDragonUiThemeTokenConsistency(RuntimeProbe& runtime, std::ostream& out);
+int runShopOverlayResponsiveLayout(RuntimeProbe& runtime, std::ostream& out);
+int runShopOverlayClassicFullLayout(RuntimeProbe& runtime, std::ostream& out);
+int runShopOverlaySdLayout(RuntimeProbe& runtime, std::ostream& out);
+int runShopOverlayHdLayout(RuntimeProbe& runtime, std::ostream& out);
+int runShopCharacterDepthOrder(RuntimeProbe& runtime, std::ostream& out);
+int runShopPresentationDebugLabelVisibility(RuntimeProbe& runtime, std::ostream& out);
+int runShopLiveProfileCurrencyView(RuntimeProbe& runtime, std::ostream& out);
+int runWorldTextureFilterSelection(RuntimeProbe& runtime, std::ostream& out);
+int runUiNearestFilterSelection(RuntimeProbe& runtime, std::ostream& out);
+int runVideoCanvasSd854x480(RuntimeProbe& runtime, std::ostream& out);
+int runVideoCanvasHd1280x720(RuntimeProbe& runtime, std::ostream& out);
+int runDragonUiSdTwoXScaling(RuntimeProbe& runtime, std::ostream& out);
+int runDragonUiHdThreeXScaling(RuntimeProbe& runtime, std::ostream& out);
+int runWorldViewportSdHdLayout(RuntimeProbe& runtime, std::ostream& out);
 int runOptionsCategoryNavigation(RuntimeProbe& runtime, std::ostream& out);
+int runMainMenuResponsiveLayout(RuntimeProbe& runtime, std::ostream& out);
 int runControlsPlayerOneToFourNavigation(RuntimeProbe& runtime, std::ostream& out);
 int runControlsGuidedSetup(RuntimeProbe& runtime, std::ostream& out);
 int runControlsManualEditConflicts(RuntimeProbe& runtime, std::ostream& out);
@@ -214,11 +230,27 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
     if (scenarioName == "shop-guest-no-save") return runShopGuestNoSave(runtime, out);
     if (scenarioName == "shop-controller-keyboard-navigation") return runShopControllerKeyboardNavigation(runtime, out);
     if (scenarioName == "shop-panel-text-fit") return runShopPanelTextFit(runtime, out);
+    if (scenarioName == "dragon-ui-theme-token-consistency") return runDragonUiThemeTokenConsistency(runtime, out);
+    if (scenarioName == "shop-overlay-responsive-layout") return runShopOverlayResponsiveLayout(runtime, out);
+    if (scenarioName == "shop-overlay-classic-full-layout") return runShopOverlayClassicFullLayout(runtime, out);
+    if (scenarioName == "shop-overlay-sd-layout") return runShopOverlaySdLayout(runtime, out);
+    if (scenarioName == "shop-overlay-hd-layout") return runShopOverlayHdLayout(runtime, out);
+    if (scenarioName == "shop-character-depth-order") return runShopCharacterDepthOrder(runtime, out);
+    if (scenarioName == "shop-presentation-debug-label-visibility") return runShopPresentationDebugLabelVisibility(runtime, out);
+    if (scenarioName == "shop-live-profile-currency-view") return runShopLiveProfileCurrencyView(runtime, out);
+    if (scenarioName == "world-texture-filter-selection") return runWorldTextureFilterSelection(runtime, out);
+    if (scenarioName == "ui-nearest-filter-selection") return runUiNearestFilterSelection(runtime, out);
+    if (scenarioName == "video-canvas-sd-854x480") return runVideoCanvasSd854x480(runtime, out);
+    if (scenarioName == "video-canvas-hd-1280x720") return runVideoCanvasHd1280x720(runtime, out);
+    if (scenarioName == "dragon-ui-sd-two-x-scaling") return runDragonUiSdTwoXScaling(runtime, out);
+    if (scenarioName == "dragon-ui-hd-three-x-scaling") return runDragonUiHdThreeXScaling(runtime, out);
+    if (scenarioName == "world-viewport-sd-hd-layout") return runWorldViewportSdHdLayout(runtime, out);
     if (scenarioName == "shop-demo-room-hook") return runShopDemoRoomHook(runtime, out);
     if (scenarioName == "runtime-performance-metrics") return runRuntimePerformanceMetrics(runtime, out);
     if (scenarioName == "story-wave3-performance") return runStoryWave3Performance(runtime, out);
     if (scenarioName == "arena-openbor-4fighter-performance") return runArenaOpenBor4FighterPerformance(runtime, out);
     if (scenarioName == "render-culling-preserves-runtime") return runRenderCullingPreservesRuntime(runtime, out);
+    if (scenarioName == "main-menu-responsive-layout") return runMainMenuResponsiveLayout(runtime, out);
     if (scenarioName == "options-category-navigation") return runOptionsCategoryNavigation(runtime, out);
     if (scenarioName == "controls-player-1-4-navigation") return runControlsPlayerOneToFourNavigation(runtime, out);
     if (scenarioName == "controls-guided-setup") return runControlsGuidedSetup(runtime, out);
@@ -334,7 +366,7 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
 
     out << "VERIFY " << scenarioName << "\n"
         << "BLOCKED unknown_scenario\n"
-        << "  supported: shop-route-entry, shop-room-actor-projection, shop-room-movement-collision, shop-buy-sell-persistence, shop-equip-profile-scope, shop-guest-no-save, shop-controller-keyboard-navigation, shop-panel-text-fit, shop-demo-room-hook, compatibility-profile-resolver, options-category-navigation, controls-player-1-4-navigation, controls-guided-setup, controls-manual-edit-conflicts, controls-presets, controls-profile-persistence, controls-input-test-live, controls-glyph-device-detection, controls-pause-taunt-separation, training-options-menu-geometry, training-move-list-geometry, training-command-hud-layout, training-pause-help-legend, training-command-list-tabs, training-command-icon-atlas, training-command-side-switch-highlight, training-command-facing-aware-display, training-command-physical-direction-guide, training-command-start-button-guide, training-command-complete-blink, training-command-filtered-complete, training-palette-slot-separation, training-show-select-hold, training-show-controller-shortcut, training-command-held-button-prompt, character-auto-fit-scale, lili-smoke, lili-changeanim2-fallback, lili-kuuch-state-fallback, lili-hien-houou-kyaku-demo, lili-training-demo-all, kfm-baseline, kfm-throw, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-guard-recovery, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-power-charge-helper, evilken-air-special-contact-landing, evilken-training-demo-hit, evilken-training-command-practice-advance, evilryu-specials-supers, evilryu-shin-shoryuken-stun, evilryu-super-stress, evilryu-air-special-contact-landing, evilryu-power-charge-helper, evilryu-throw-bind, evilryu-training-throw-demo, evilken-smoke, evilken-trip-grounding, evilken-overhead-trip-chain, evilken-overhead-trip-chain-stress, evilken-trip-jump-buffer, evilken-attack-jump-buffer-release, evilken-throw, evilken-corner-visual-bounds, evilken-kuuchuu-shakunetsu, evilken-training-demo-all, evilken-shinryuken-recovery, evilken-shun-goku-satsu, evilken-shouki-hatsudou-spacing, cpu-baseline, classic-fight-outcomes, classic-fight-routing, classic-fight-combat, roster-compatibility-smoke, dragon-progression-level-items, dragon-progression-player-profiles, dragon-progression-enemy-reward, vs-p2-runtime, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-camera-rotation-toggle, arena-camera-rotation-projection, arena-camera-rotation-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-evilken-forward-dash-bounds, arena-per-fighter-runtime, arena-openbor-scroll-stage, arena-tmnt-openbor-stage, arena-evilryu-air-special-contact-landing, story-mode-menu-route, story-stage-select-map, story-difficulty-enemy-scaling, story-openbor-stage-default, story-stage-board-expansion, story-wave-spawn-scroll, story-enemy-targeting, story-stage-clear, story-player-defeat, story-progression-award, story-reward-feedback, story-evilryu-super-recovery, vs-loading-progress-bar, sff-v2-png-decode, ikemen-select-slot-parsing, stage-music-codec-decode, external-stage-mount, story-scott-tram-rooftop, evilryu-dash\n"
+        << "  supported: shop-route-entry, shop-room-actor-projection, shop-room-movement-collision, shop-buy-sell-persistence, shop-equip-profile-scope, shop-guest-no-save, shop-controller-keyboard-navigation, shop-panel-text-fit, dragon-ui-theme-token-consistency, shop-overlay-responsive-layout, shop-overlay-classic-full-layout, shop-overlay-sd-layout, shop-overlay-hd-layout, shop-character-depth-order, shop-presentation-debug-label-visibility, shop-live-profile-currency-view, world-texture-filter-selection, ui-nearest-filter-selection, video-canvas-sd-854x480, video-canvas-hd-1280x720, dragon-ui-sd-two-x-scaling, dragon-ui-hd-three-x-scaling, world-viewport-sd-hd-layout, shop-demo-room-hook, compatibility-profile-resolver, main-menu-responsive-layout, options-category-navigation, controls-player-1-4-navigation, controls-guided-setup, controls-manual-edit-conflicts, controls-presets, controls-profile-persistence, controls-input-test-live, controls-glyph-device-detection, controls-pause-taunt-separation, training-options-menu-geometry, training-move-list-geometry, training-command-hud-layout, training-pause-help-legend, training-command-list-tabs, training-command-icon-atlas, training-command-side-switch-highlight, training-command-facing-aware-display, training-command-physical-direction-guide, training-command-start-button-guide, training-command-complete-blink, training-command-filtered-complete, training-palette-slot-separation, training-show-select-hold, training-show-controller-shortcut, training-command-held-button-prompt, character-auto-fit-scale, lili-smoke, lili-changeanim2-fallback, lili-kuuch-state-fallback, lili-hien-houou-kyaku-demo, lili-training-demo-all, kfm-baseline, kfm-throw, kfm-air-state, kfm-movement-direction-audit, evilryu-high-jump, kfm-down-hit-profile, kfm-guard-recovery, kfm-specials-supers, evilken-specials-supers, evilken-helper-lifecycle, evilken-power-charge-helper, evilken-air-special-contact-landing, evilken-training-demo-hit, evilken-training-command-practice-advance, evilryu-specials-supers, evilryu-shin-shoryuken-stun, evilryu-super-stress, evilryu-air-special-contact-landing, evilryu-power-charge-helper, evilryu-throw-bind, evilryu-training-throw-demo, evilken-smoke, evilken-trip-grounding, evilken-overhead-trip-chain, evilken-overhead-trip-chain-stress, evilken-trip-jump-buffer, evilken-attack-jump-buffer-release, evilken-throw, evilken-corner-visual-bounds, evilken-kuuchuu-shakunetsu, evilken-training-demo-all, evilken-shinryuken-recovery, evilken-shun-goku-satsu, evilken-shouki-hatsudou-spacing, cpu-baseline, classic-fight-outcomes, classic-fight-routing, classic-fight-combat, roster-compatibility-smoke, dragon-progression-level-items, dragon-progression-player-profiles, dragon-progression-enemy-reward, vs-p2-runtime, arena-cpu-1, arena-cpu-2, arena-cpu-3, arena-z-keyboard-controls, arena-z-gamepad-controls, arena-z-hit-depth, arena-z-push-depth, arena-z-draw-order, arena-camera-rotation-toggle, arena-camera-rotation-projection, arena-camera-rotation-draw-order, arena-z-cpu-align, arena-z-modifier-sidestep, arena-evilken-forward-dash-bounds, arena-per-fighter-runtime, arena-openbor-scroll-stage, arena-tmnt-openbor-stage, arena-evilryu-air-special-contact-landing, story-mode-menu-route, story-stage-select-map, story-difficulty-enemy-scaling, story-openbor-stage-default, story-stage-board-expansion, story-wave-spawn-scroll, story-enemy-targeting, story-stage-clear, story-player-defeat, story-progression-award, story-reward-feedback, story-evilryu-super-recovery, vs-loading-progress-bar, sff-v2-png-decode, ikemen-select-slot-parsing, stage-music-codec-decode, external-stage-mount, story-scott-tram-rooftop, evilryu-dash\n"
         << "SUMMARY pass=0 partial=0 fail=0 blocked=1\n";
     return 2;
 }

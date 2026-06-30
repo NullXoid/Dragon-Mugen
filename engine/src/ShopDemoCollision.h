@@ -17,6 +17,20 @@ struct ShopCounterCollisionBounds {
     float epsilon = 0.5f;
 };
 
+struct ShopInteractionVolume {
+    float left = 0.0f;
+    float right = 0.0f;
+    float minDepth = 0.0f;
+    float maxDepth = 0.0f;
+};
+
+inline bool shopDemoInsideInteractionVolume(const ShopInteractionVolume& volume, float x, float depthZ) {
+    return x >= volume.left
+        && x <= volume.right
+        && depthZ >= volume.minDepth
+        && depthZ <= volume.maxDepth;
+}
+
 inline bool shopDemoInsideCounterSolid(const ShopCounterCollisionBounds& bounds, float x, float depthZ) {
     return x >= bounds.solidLeft
         && x <= bounds.solidRight

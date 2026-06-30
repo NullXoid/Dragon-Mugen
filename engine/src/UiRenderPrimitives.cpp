@@ -136,6 +136,14 @@ void setColor(SDL_Renderer* renderer, Uint8 r, Uint8 g, Uint8 b, Uint8 a) {
     SDL_SetRenderDrawColor(renderer, r, g, b, a);
 }
 
+void setColor(SDL_Renderer* renderer, SDL_Color color) {
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);
+}
+
+void setColor(SDL_Renderer* renderer, SDL_Color color, Uint8 alpha) {
+    SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, alpha);
+}
+
 void fillRect(SDL_Renderer* renderer, float x, float y, float w, float h) {
     SDL_FRect rect{ x, y, w, h };
     SDL_RenderFillRect(renderer, &rect);

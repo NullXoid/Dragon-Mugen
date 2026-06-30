@@ -866,7 +866,8 @@ private:
             out << "SDL_CreateRenderer failed: " << SDL_GetError() << "\n";
             return false;
         }
-        SDL_SetRenderLogicalPresentation(renderer_, kLogicalWidth, kLogicalHeight, SDL_LOGICAL_PRESENTATION_LETTERBOX);
+        const CanvasDimensions defaultCanvas = dimensionsForPreset(CanvasPreset::Wide426x240);
+        SDL_SetRenderLogicalPresentation(renderer_, defaultCanvas.width, defaultCanvas.height, SDL_LOGICAL_PRESENTATION_LETTERBOX);
         SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
         return true;
     }

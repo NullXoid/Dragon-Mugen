@@ -1,6 +1,15 @@
 ; Dragon project defaults. This file is not M.U.G.E.N content.
 ; Local player progression is saved under game/save/progression.def.
 
+[Dragon.MainMenu]
+; Edit this to change the Dragon main-menu background without recompiling.
+; Use "motif" for data/system.def + system.sff title art, "fallback" for the
+; code-drawn grid, "none" for a plain dark backdrop, or a PNG path under game/.
+background = motif
+background.pan.x = 0.5
+background.dim = 0
+fallback.grid = 1
+
 [Dragon.Progression]
 enabled = 1
 win.xp = 75

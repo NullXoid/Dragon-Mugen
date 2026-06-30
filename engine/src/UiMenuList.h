@@ -31,6 +31,7 @@ struct UiMenuListStyle {
     float maxPanelW = 430.0f;
     float rowH = 12.0f;
     bool redSelection = true;
+    float textScale = 1.0f;
 };
 
 struct UiMenuListGeometryReport {

@@ -11,6 +11,7 @@
 #include "AppTypes.h"
 #include "ControlsOptionsMenu.h"
 #include "ControlsStore.h"
+#include "DragonUi.h"
 #include "FightDisplayState.h"
 #include "FightDebugLog.h"
 #include "FightHudOverlay.h"
@@ -125,7 +126,113 @@ int runVerificationScenario(
     return runVerificationScenarioInternal(gameRoot, scenarioName, out);
 }
 
-int runApp(const std::filesystem::path& gameRoot) {
+std::string normalizedStartupToken(std::string_view value) {
+    std::string token;
+    token.reserve(value.size());
+    for (const unsigned char ch : value) {
+        if (std::isalnum(ch)) {
+            token.push_back(static_cast<char>(std::tolower(ch)));
+        }
+    }
+    return token;
+}
+
+std::optional<CanvasPreset> startupCanvasPreset(std::string_view value) {
+    const std::string token = normalizedStartupToken(value);
+    if (token.empty()) {
+        return std::nullopt;
+    }
+    if (token == "classic" || token == "classic320x240" || token == "320" || token == "320x240") {
+        return CanvasPreset::Classic320x240;
+    }
+    if (token == "wide" || token == "wide426x240" || token == "426" || token == "426x240") {
+        return CanvasPreset::Wide426x240;
+    }
+    if (token == "extra" || token == "extra480x240" || token == "480" || token == "480x240") {
+        return CanvasPreset::Extra480x240;
+    }
+    if (token == "sd" || token == "sd480p" || token == "854" || token == "854x480") {
+        return CanvasPreset::Sd854x480;
+    }
+    if (token == "hd" || token == "hd720p" || token == "1280" || token == "1280x720") {
+        return CanvasPreset::Hd1280x720;
+    }
+    return std::nullopt;
+}
+
+std::optional<OptionsMenuScreen> startupOptionsScreen(std::string_view value) {
+    const std::string token = normalizedStartupToken(value);
+    if (token.empty()) {
+        return std::nullopt;
+    }
+    if (token == "gameplay") return OptionsMenuScreen::Gameplay;
+    if (token == "video") return OptionsMenuScreen::Video;
+    if (token == "controls") return OptionsMenuScreen::Controls;
+    if (token == "playercontrols" || token == "players") return OptionsMenuScreen::PlayerControls;
+    if (token == "keyboard" || token == "keyboardsetup") return OptionsMenuScreen::KeyboardSetup;
+    if (token == "controller" || token == "controllersetup") return OptionsMenuScreen::ControllerSetup;
+    if (token == "input" || token == "inputtest") return OptionsMenuScreen::InputTest;
+    if (token == "restore" || token == "restoredefaults") return OptionsMenuScreen::RestoreDefaults;
+    if (token == "root" || token == "options") return OptionsMenuScreen::Root;
+    return std::nullopt;
+}
+
+std::optional<PerformanceHudMode> startupPerformanceHud(std::string_view value) {
+    const std::string token = normalizedStartupToken(value);
+    if (token.empty()) {
+        return std::nullopt;
+    }
+    if (token == "off" || token == "none") return PerformanceHudMode::Off;
+    if (token == "perf" || token == "performance") return PerformanceHudMode::Perf;
+    if (token == "fps") return PerformanceHudMode::Fps;
+    return std::nullopt;
+}
+
+void applyStartupOptions(SDL_Renderer* renderer, AppState& state, const AppStartupOptions& options) {
+    if (const auto preset = startupCanvasPreset(options.canvas)) {
+        state.mainSettings.canvasPreset = *preset;
+    }
+    if (options.uiScalePercent > 0) {
+        state.mainSettings.uiScalePercent = std::clamp(options.uiScalePercent, 60, 100);
+    }
+    if (const auto hudMode = startupPerformanceHud(options.performanceHud)) {
+        state.mainSettings.performanceHudMode = *hudMode;
+    }
+
+    const std::string screen = normalizedStartupToken(options.screen);
+    if (screen == "shop" || screen == "shopdemo" || screen == "shophub") {
+        enterShopDemo(renderer, state);
+        state.shopDemo.shopOpen = options.shopOpen;
+        if (options.hasShopPlayerX) {
+            state.shopDemo.playerX = std::clamp(
+                options.shopPlayerX,
+                shopDemoVisiblePlayerMinX(state),
+                shopDemoVisiblePlayerMaxX(state));
+        }
+        if (options.hasShopPlayerDepth) {
+            state.shopDemo.playerDepthZ = std::clamp(
+                options.shopPlayerDepth,
+                kShopPlayerMinDepth,
+                kShopPlayerMaxDepth);
+        }
+        shopDemoUpdateCamera(state, true);
+        return;
+    }
+
+    if (screen == "options" || screen == "settings" || !options.optionsScreen.empty()) {
+        state.frontend.screen = Screen::MainSettings;
+        state.mainSettings.optionsScreen = startupOptionsScreen(options.optionsScreen).value_or(OptionsMenuScreen::Root);
+        setCurrentOptionsSelection(state.mainSettings, currentOptionsSelection(state.mainSettings));
+        return;
+    }
+
+    if (screen == "main" || screen == "menu" || screen == "modeselect") {
+        state.frontend.screen = Screen::ModeSelect;
+        state.frontend.exitConfirmOpen = false;
+    }
+}
+
+int runApp(const std::filesystem::path& gameRoot, const AppStartupOptions& startupOptions) {
     if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMEPAD)) {
         SDL_Log("SDL_Init failed: %s", SDL_GetError());
         return 1;
@@ -146,7 +253,8 @@ int runApp(const std::filesystem::path& gameRoot) {
         return 1;
     }
 
-    SDL_SetRenderLogicalPresentation(renderer, kLogicalWidth, kLogicalHeight, SDL_LOGICAL_PRESENTATION_LETTERBOX);
+    const CanvasDimensions initialCanvas = presentationDimensions();
+    SDL_SetRenderLogicalPresentation(renderer, initialCanvas.width, initialCanvas.height, SDL_LOGICAL_PRESENTATION_LETTERBOX);
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
     AppState state;
@@ -162,6 +270,10 @@ int runApp(const std::filesystem::path& gameRoot) {
     selectPreferredStage(state);
     loadVisualAssets(renderer, state);
     openExistingGamepads(state);
+    applyStartupOptions(renderer, state, startupOptions);
+
+    const CanvasDimensions presentationCanvas = presentationDimensions();
+    SDL_SetRenderLogicalPresentation(renderer, presentationCanvas.width, presentationCanvas.height, SDL_LOGICAL_PRESENTATION_LETTERBOX);
 
     using clock = std::chrono::steady_clock;
     constexpr double fixedStep = 1.0 / 60.0;

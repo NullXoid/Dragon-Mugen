@@ -259,6 +259,18 @@ std::optional<MugenVariableRef> parseVariableControllerTarget(const MugenSection
     return std::nullopt;
 }
 
+std::optional<std::pair<MugenVariableRef, std::string>> parseVariableTargetValueAssignment(const MugenSection& section) {
+    if (const auto direct = parseDirectVariableAssignment(section)) {
+        return direct;
+    }
+    const auto target = parseVariableControllerTarget(section);
+    const auto* value = findProperty(section, "value");
+    if (!target || !value) {
+        return std::nullopt;
+    }
+    return std::pair<MugenVariableRef, std::string>{ *target, trim(value->value) };
+}
+
 bool isSupportedMoveType(char value) {
     value = static_cast<char>(SDL_toupper(static_cast<unsigned char>(value)));
     return value == 'I' || value == 'A' || value == 'H';

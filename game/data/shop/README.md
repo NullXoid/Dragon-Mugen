@@ -6,7 +6,6 @@ Save generated files here:
 
 ```text
 game/data/shop/i_chie_shop_backdrop.png
-game/data/shop/i_chie_shop_counter_back.png
 game/data/shop/i_chie_shop_counter_front.png
 ```
 
@@ -36,33 +35,7 @@ Color palette: black, dark brown, muted gold, teal/cyan, purple accents.
 Constraints: no people, no characters, no UI panels, no menus, no icons, no charts, no labels, no readable text, no watermark, no logo. Do not create an infographic. Do not create a poster. This is a game stage background only.
 ```
 
-## 2. Counter Back Layer
-
-Filename:
-
-```text
-i_chie_shop_counter_back.png
-```
-
-Recommended size: `1536x256`, transparent PNG preferred.
-
-Prompt:
-
-```text
-Create a transparent PNG game-layer asset for the back/top part of a futuristic martial-arts shop counter.
-
-Subject: the rear counter surface and shelf-side trim only, viewed from a side-view 2D game camera. Include dark wood, black metal, thin gold trim, and teal/cyan accent light. This is the layer that sits behind the player and in front of the shopkeeper.
-
-Style: anime action-RPG environment prop, clean readable shapes, matches a dark wood and neon purple/cyan shop interior.
-
-Composition: one long horizontal counter segment spanning nearly the full canvas width, with transparent background around it. Leave generous transparent padding.
-
-Constraints: transparent background, no people, no hands, no UI, no text, no labels, no watermark, no logo.
-
-If transparent output is unavailable, render the asset on a perfectly flat solid #00ff00 chroma-key background with no shadows, gradients, texture, reflections, or lighting changes in the green area. Do not use #00ff00 in the counter.
-```
-
-## 3. Counter Front Layer
+## 2. Counter Front Layer
 
 Filename:
 

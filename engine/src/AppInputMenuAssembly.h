@@ -192,12 +192,19 @@ std::string mainSettingsPadSummary(const AppState& state) {
 ControlsOptionsContext controlsOptionsContext(const AppState& state);
 
 void drawModeSelect(SDL_Renderer* renderer, const AppState& state) {
-    drawTitleBackground(renderer, state);
     const UiRenderContext ui = uiRenderContext(renderer, state);
-    const float centerX = screenCenterX(state);
 
+    if (state.systemScreens.mainMenu.backgroundMode == MainMenuBackgroundMode::Motif) {
+        drawTitleBackground(renderer, state);
+    } else {
+        drawDragonMainMenuBackdrop(ui, MainMenuBackdropView{
+            uiSpriteView(&state.systemScreens.mainMenuBackground),
+            state.systemScreens.mainMenu.fallbackGrid,
+            state.systemScreens.mainMenu.backgroundPanX,
+            state.systemScreens.mainMenu.backgroundDimAlpha,
+        });
+    }
     drawMainMenuTitleText(ui);
-    drawSpriteAtAxis(renderer, state.systemScreens.titleLogo, centerX, 40);
     drawMainMenuOverlay(ui, MainMenuView{
         state.frontend.selectedMode,
         state.frontend.screenFrame,

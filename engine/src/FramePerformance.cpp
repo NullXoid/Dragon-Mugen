@@ -46,6 +46,12 @@ double percentile(std::vector<double> values, double fraction) {
     return values[index];
 }
 
+std::string resolutionText(const UiRenderContext& ui) {
+    const int width = ui.outputWidth > 0 ? ui.outputWidth : ui.logicalWidth;
+    const int height = ui.outputHeight > 0 ? ui.outputHeight : ui.logicalHeight;
+    return std::to_string(width) + "x" + std::to_string(height);
+}
+
 } // namespace
 
 void FramePerfState::beginFrame(double externalElapsedSeconds) {
@@ -245,7 +251,7 @@ void drawFramePerformanceHud(const UiRenderContext& ui, const FramePerfState& pe
 
     const int fps = static_cast<int>(std::lround(std::max(0.0, perf.currentFps())));
     if (mode == PerformanceHudMode::Fps) {
-        const std::string text = "FPS " + std::to_string(fps);
+        const std::string text = "FPS " + std::to_string(fps) + "  " + resolutionText(ui);
         const float w = static_cast<float>(text.size()) * 8.0f + 8.0f;
         const float x = static_cast<float>(ui.logicalWidth) - w - 4.0f;
         constexpr float y = 4.0f;
@@ -263,7 +269,7 @@ void drawFramePerformanceHud(const UiRenderContext& ui, const FramePerfState& pe
     const FramePerfSummary summary = perf.summary(true);
     const FramePerfCounters& counters = summary.latestCounters;
     constexpr float w = 154.0f;
-    constexpr float h = 50.0f;
+    constexpr float h = 60.0f;
     const float x = std::max(4.0f, static_cast<float>(ui.logicalWidth) - w - 4.0f);
     constexpr float y = 4.0f;
     const Uint8 alert = summary.fpsEquivalent > 0.0 && summary.fpsEquivalent < 55.0 ? 222 : 118;
@@ -289,6 +295,8 @@ void drawFramePerformanceHud(const UiRenderContext& ui, const FramePerfState& pe
         + " FX" + std::to_string(counters.effects)
         + " D" + std::to_string(counters.drawCalls)
         + "/" + std::to_string(counters.skippedDraws));
+    setColor(ui.renderer, 224, 238, 242, 220);
+    debugText(ui.renderer, x + 4.0f, y + 44.0f, "RES " + resolutionText(ui));
 }
 
 void appendFramePerformanceLog(const std::filesystem::path& gameRoot, const FramePerfState& perf, int frameNumber) {

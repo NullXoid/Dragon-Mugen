@@ -344,6 +344,13 @@ void updateStateMovementControllers(
 
     updateStateVelocityControllersForDefinition(state, fighter, *stateDef, opponent, stage);
 
+    for (const auto& gravity : stateDef->gravities) {
+        if (fighter.posFreezeY || !shouldRunStateRuntimeController(state, fighter, gravity.id, gravity.trigger, opponent, stage)) {
+            continue;
+        }
+        fighter.vy += characterConstantsForActor(state, fighter).movementYAccel;
+    }
+
     updateStatePosSetControllersForDefinition(state, fighter, *stateDef, opponent, stage);
 
     for (const auto& screenBound : stateDef->screenBounds) {
@@ -654,6 +661,21 @@ void updateStateHelperControllers(AppState& state, FighterState& fighter, const 
             continue;
         }
         setFighterVariableValue(*owner, parentVarAdd.target, fighterVariableValue(*owner, parentVarAdd.target) + *value);
+    }
+
+    for (const auto& parentVarSet : stateDef.parentVarSets) {
+        if (!fighter.helper || !shouldRunStateRuntimeController(state, fighter, parentVarSet.id, parentVarSet.trigger, opponent, stage)) {
+            continue;
+        }
+        FighterState* owner = fighterOwner(state, fighter);
+        if (!owner) {
+            continue;
+        }
+        const auto value = evalMugenExpression(state, fighter, parentVarSet.valueExpression, opponent, stage);
+        if (!value) {
+            continue;
+        }
+        setFighterVariableValue(*owner, parentVarSet.target, *value);
     }
 
     for (const auto& destroySelf : stateDef.destroySelfs) {

@@ -1,5 +1,8 @@
 #include "VerificationScenarioCommon.h"
 
+#include "DragonUi.h"
+#include "MainMenuOverlay.h"
+
 namespace dragon::verification {
 
 ControlsOptionsContext defaultControlsOptionsContext(MainSettings settings = {}) {
@@ -58,7 +61,8 @@ int runOptionsCategoryNavigation(RuntimeProbe&, std::ostream& out) {
     auto videoRows = buildControlsOptionsRows(defaultControlsOptionsContext(settings));
     record(out, counts,
         videoRows.size() == kOptionsVideoCount
-            && videoRows[0].label == "CANVAS SIZE"
+            && videoRows[0].label == "RESOLUTION"
+            && videoRows[1].label == "UI SCALE"
             && videoRows[2].label == "FPS CAP"
             && videoRows[3].label == "PERFORMANCE HUD" ? Status::Pass : Status::Fail,
         "video_rows",
@@ -271,6 +275,66 @@ int runControlsPauseTauntSeparation(RuntimeProbe&, std::ostream& out) {
     record(out, counts, hasPauseStart ? Status::Pass : Status::Fail, "pause_defaults_to_start", "");
     record(out, counts, hasTauntTouchpad ? Status::Pass : Status::Fail, "taunt_defaults_to_touchpad", "");
     record(out, counts, separated ? Status::Pass : Status::Fail, "pause_and_taunt_separate", "");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runMainMenuResponsiveLayout(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY main-menu-responsive-layout\n";
+
+    struct Case {
+        CanvasPreset preset;
+        const char* name;
+    };
+    constexpr std::array<Case, 5> cases{ {
+        { CanvasPreset::Classic320x240, "classic_320x240" },
+        { CanvasPreset::Wide426x240, "wide_426x240" },
+        { CanvasPreset::Extra480x240, "extra_480x240" },
+        { CanvasPreset::Sd854x480, "sd_854x480" },
+        { CanvasPreset::Hd1280x720, "hd_1280x720" },
+    } };
+
+    for (const Case& item : cases) {
+        const CanvasDimensions dimensions = presentationDimensions();
+        const DragonUiMetrics metrics = dragonUiMetricsForCanvas(dimensions, 1.0f);
+        const UiRenderContext ui{
+            nullptr,
+            dimensions.width,
+            dimensions.height,
+            1.0f,
+            dimensionsForPreset(item.preset).width,
+            dimensionsForPreset(item.preset).height,
+        };
+        const SDL_FRect rect = dragon::mainMenuPanelRect(ui);
+        const bool inside =
+            rect.x >= -0.01f
+            && rect.y >= metrics.topBarH - 0.01f
+            && rect.x + rect.w <= static_cast<float>(dimensions.width) + 0.01f
+            && rect.y + rect.h <= static_cast<float>(dimensions.height) + 0.01f;
+        record(out, counts, inside ? Status::Pass : Status::Fail,
+            std::string(item.name) + "_panel_inside_canvas",
+            "x=" + std::to_string(rect.x)
+                + " y=" + std::to_string(rect.y)
+                + " w=" + std::to_string(rect.w)
+                + " h=" + std::to_string(rect.h));
+
+        const float availableH = static_cast<float>(dimensions.height) - metrics.topBarH;
+        const bool heightReasonable = rect.h <= availableH * 0.84f;
+        record(out, counts, heightReasonable ? Status::Pass : Status::Fail,
+            std::string(item.name) + "_panel_height_reasonable",
+            "height_ratio=" + std::to_string(rect.h / std::max(1.0f, availableH)));
+
+        const float expectedW = 176.0f * metrics.pixelScale;
+        const float expectedH = 110.0f * metrics.pixelScale;
+        const bool normalizedScale = std::fabs(rect.w - expectedW) <= 0.01f
+            && std::fabs(rect.h - expectedH) <= 0.01f;
+        record(out, counts, normalizedScale ? Status::Pass : Status::Fail,
+            std::string(item.name) + "_stable_presentation_grid_ui_size",
+            "expected=" + std::to_string(expectedW) + "x" + std::to_string(expectedH)
+                + " actual=" + std::to_string(rect.w) + "x" + std::to_string(rect.h));
+    }
+
     summary(out, counts);
     return exitCode(counts);
 }

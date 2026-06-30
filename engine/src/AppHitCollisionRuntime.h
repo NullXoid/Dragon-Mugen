@@ -698,6 +698,8 @@ bool shouldPlayFightSounds(const AppState& state) {
     return state.frontend.pendingMode != PendingMode::Training || state.training.options.playHitSounds;
 }
 
+#include "AppReversalDefRuntime.h"
+
 int effectiveGuardDistance(const AppState& state, const FighterState& attacker, const HitDefinition& hitDef) {
     if (attacker.attackDistanceOverride >= 0) {
         return attacker.attackDistanceOverride;
@@ -834,6 +836,11 @@ void applyHitBetween(AppState& state, size_t attackerIndex, size_t defenderIndex
         defender,
         selectedStageSlot(state.selection));
     hitDef = &resolvedHitDef;
+
+    if (const auto* reversal = activeReversalDefForDefender(state, defender, attacker, *hitDef, selectedStageSlot(state.selection))) {
+        applyReversalDef(state, attacker, defender, *hitDef, *reversal, defenderIndex, comboAttackerIndex);
+        return;
+    }
 
     const bool trainingDummy = useTrainingDummyOptions(state, defenderIndex);
     GuardStance guardStance = trainingDummy

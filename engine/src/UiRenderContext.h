@@ -9,6 +9,8 @@ struct UiRenderContext {
     int logicalWidth = 0;
     int logicalHeight = 0;
     float scale = 1.0f;
+    int outputWidth = 0;
+    int outputHeight = 0;
 };
 
 } // namespace dragon

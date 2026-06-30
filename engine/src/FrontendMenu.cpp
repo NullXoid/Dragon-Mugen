@@ -53,6 +53,20 @@ int cycleValue(int value, int direction, const int* begin, const int* end, int f
     return *(begin + index);
 }
 
+CanvasPreset cycleCanvasPreset(CanvasPreset preset, int direction) {
+    static constexpr std::array<CanvasPreset, 5> values{
+        CanvasPreset::Classic320x240,
+        CanvasPreset::Wide426x240,
+        CanvasPreset::Extra480x240,
+        CanvasPreset::Sd854x480,
+        CanvasPreset::Hd1280x720,
+    };
+    const auto current = std::find(values.begin(), values.end(), preset);
+    int index = current == values.end() ? 1 : static_cast<int>(std::distance(values.begin(), current));
+    index = (index + direction + static_cast<int>(values.size())) % static_cast<int>(values.size());
+    return values[static_cast<size_t>(index)];
+}
+
 } // namespace
 
 OpponentType defaultOpponentTypeForMode(PendingMode mode) {
@@ -165,17 +179,7 @@ MainSettings cycleMainSetting(MainSettings settings, int row, int direction, int
         break;
     }
     case 1: {
-        static constexpr std::array<int, 3> values{
-            kClassicLogicalWidth,
-            kDefaultLogicalWidth,
-            kExtraWideLogicalWidth,
-        };
-        settings.canvasWidth = cycleValue(
-            settings.canvasWidth,
-            direction,
-            values.data(),
-            values.data() + values.size(),
-            1);
+        settings.canvasPreset = cycleCanvasPreset(settings.canvasPreset, direction);
         break;
     }
     case 2: {
@@ -227,7 +231,7 @@ FrontendAction decideOptionsAction(const MainSettings& settings, FrontendKey key
 std::string_view mainSettingLabel(int option) {
     static constexpr std::array<std::string_view, kMainSettingsCount> labels{
         "MATCH TIMER",
-        "CANVAS SIZE",
+        "RESOLUTION",
         "UI SCALE",
         "FPS CAP",
         "P1 PROFILE",
@@ -249,12 +253,16 @@ std::string matchTimerSettingText(const MainSettings& settings) {
 }
 
 std::string canvasSizeSettingText(const MainSettings& settings) {
-    switch (settings.canvasWidth) {
-    case kClassicLogicalWidth:
+    switch (settings.canvasPreset) {
+    case CanvasPreset::Classic320x240:
         return "320x240 CLASSIC";
-    case kExtraWideLogicalWidth:
+    case CanvasPreset::Extra480x240:
         return "480x240 EXTRA";
-    case kDefaultLogicalWidth:
+    case CanvasPreset::Sd854x480:
+        return "854x480 SD 480P";
+    case CanvasPreset::Hd1280x720:
+        return "1280x720 HD 720P";
+    case CanvasPreset::Wide426x240:
     default:
         return "426x240 WIDE";
     }

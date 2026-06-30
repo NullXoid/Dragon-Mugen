@@ -114,7 +114,11 @@ ENGINE_CONTROLLER_SUBSET = {
     "appendtoclipboard",
     "forcefeedback",
     "gamemakeanim",
+    "gravity",
     "bindtoparent",
+    "parentvarset",
+    "reversaldef",
+    "sndpan",
 }
 
 IGNORED_TRIGGER_WORDS = {
@@ -686,7 +690,7 @@ def main() -> int:
         "Current engine subset: DEF/[Files], SFF v1 PCX, ACT, AIR frames/Clsn, SND WAV, Statedef metadata with expression-backed anim compatibility, "
         "ChangeState/SelfState, ChangeAnim/ChangeAnim2, Helper/DestroySelf/BindToParent/BindToRoot, Trans, AfterImage/AfterImageTime, PlaySnd, StopSnd, CtrlSet, PosAdd, PosSet, PosFreeze, ScreenBound, "
         "StateTypeSet, Width, PlayerPush, SprPriority, AngleSet/AngleAdd/AngleMul/AngleDraw, Offset, AttackDist, AttackMulSet, DefenceMulSet, Explod/ModifyExplod/RemoveExplod, MakeDust, EnvShake/FallEnvShake, PalFX/BGPalFX/EnvColor, AssertSpecial, Pause/SuperPause, VarSet, VarAdd, VarRandom, VarRangeSet, "
-        "HitVelSet, HitFallDamage/HitFallVel/HitFallSet, HitBy/NotHitBy, HitOverride, HitAdd, LifeAdd, PowerAdd, ForceFeedback, GameMakeAnim, DisplayToClipboard/AppendToClipboard, VictoryQuote, RemapPal state tracking, Projectile lifecycle/priority/bounds/movement/scale/shadow basics, ParentVarAdd, TargetBind/TargetDrop/TargetFacing/TargetLifeAdd/TargetPowerAdd/TargetState/TargetVelAdd/TargetVelSet, "
+        "HitVelSet, HitFallDamage/HitFallVel/HitFallSet, HitBy/NotHitBy, HitOverride, ReversalDef, HitAdd, LifeAdd, PowerAdd, ForceFeedback, GameMakeAnim, DisplayToClipboard/AppendToClipboard, VictoryQuote, RemapPal state tracking, Projectile lifecycle/priority/bounds/movement/scale/shadow basics, ParentVarAdd/ParentVarSet, SndPan, Gravity, TargetBind/TargetDrop/TargetFacing/TargetLifeAdd/TargetPowerAdd/TargetState/TargetVelAdd/TargetVelSet, "
         "Turn, Null, VelSet, VelAdd, VelMul, HitDef with expression-backed damage/pause/spark/sound/envshake/palfx/velocity/fall runtime resolution."
     )
     print(

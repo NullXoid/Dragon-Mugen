@@ -77,6 +77,68 @@ SystemScreenAssets loadSystemScreenAssets(SDL_Renderer* renderer, const std::fil
     return assets;
 }
 
+bool parseDragonBoolValue(const std::string& value, bool fallback) {
+    const std::string normalized = lowercaseCopy(trim(value));
+    if (normalized == "1" || normalized == "true" || normalized == "yes" || normalized == "on") {
+        return true;
+    }
+    if (normalized == "0" || normalized == "false" || normalized == "no" || normalized == "off") {
+        return false;
+    }
+    return fallback;
+}
+
+std::string dragonSectionValue(const MugenSection& section, std::string_view key, std::string fallback = {}) {
+    if (const auto* property = findProperty(section, key)) {
+        return unquote(trim(property->value));
+    }
+    return fallback;
+}
+
+MainMenuPresentationConfig loadMainMenuPresentationConfig(const std::filesystem::path& gameRoot) {
+    MainMenuPresentationConfig config;
+    const auto dragonDef = gameRoot / "data" / "dragon.def";
+    if (!std::filesystem::exists(dragonDef)) {
+        return config;
+    }
+
+    try {
+        const MugenDocument doc = parseMugenTextFile(dragonDef);
+        const MugenSection* section = findSection(doc, "Dragon.MainMenu");
+        if (!section) {
+            return config;
+        }
+
+        const std::string background = dragonSectionValue(*section, "background", "motif");
+        const std::string normalized = lowercaseCopy(background);
+        if (background.empty() || normalized == "motif" || normalized == "system") {
+            config.backgroundMode = MainMenuBackgroundMode::Motif;
+        } else if (normalized == "fallback" || normalized == "grid") {
+            config.backgroundMode = MainMenuBackgroundMode::Fallback;
+        } else if (normalized == "none" || normalized == "off") {
+            config.backgroundMode = MainMenuBackgroundMode::None;
+        } else {
+            config.backgroundMode = MainMenuBackgroundMode::Image;
+            config.backgroundPath = background;
+        }
+
+        config.fallbackGrid = parseDragonBoolValue(
+            dragonSectionValue(*section, "fallback.grid", config.fallbackGrid ? "1" : "0"),
+            config.fallbackGrid);
+        config.backgroundPanX = std::clamp(
+            parseFloatValue(dragonSectionValue(*section, "background.pan.x", "0.5"), 0.5f),
+            0.0f,
+            1.0f);
+        config.backgroundDimAlpha = std::clamp(
+            parseIntValue(dragonSectionValue(*section, "background.dim", "0"), 0),
+            0,
+            255);
+    } catch (const std::exception& ex) {
+        SDL_Log("Dragon main menu config load failed: %s", ex.what());
+    }
+    return config;
+}
+
 TextureSprite loadCharacterIconSprite(SDL_Renderer* renderer, const std::filesystem::path& gameRoot, const CharacterSlot& character) {
     try {
         const CharacterFiles files = resolveCharacterFiles(gameRoot, character);
@@ -97,7 +159,11 @@ TextureSprite loadCharacterFaceSprite(SDL_Renderer* renderer, const std::filesys
     }
 }
 
-TextureSprite loadUiPngSprite(SDL_Renderer* renderer, const std::filesystem::path& gameRoot, const std::filesystem::path& relativePath) {
+TextureSprite loadUiPngSprite(
+    SDL_Renderer* renderer,
+    const std::filesystem::path& gameRoot,
+    const std::filesystem::path& relativePath,
+    TextureFilter filter = TextureFilter::Nearest) {
     TextureSprite sprite;
     const auto path = gameRoot / relativePath;
     if (!std::filesystem::exists(path)) {
@@ -122,6 +188,7 @@ TextureSprite loadUiPngSprite(SDL_Renderer* renderer, const std::filesystem::pat
         return sprite;
     }
     SDL_SetTextureBlendMode(sprite.texture, SDL_BLENDMODE_BLEND);
+    setTextureSpriteFilterIntent(sprite, filter);
     return sprite;
 }
 
@@ -624,6 +691,7 @@ void unloadCharacterRuntime(AppState& state) {
 }
 
 void destroySystemScreenAssets(SystemScreenAssets& assets) {
+    destroyTextureSprite(assets.mainMenuBackground);
     destroyTextureSprite(assets.titleLogo);
     destroyTextureSprite(assets.titleTop);
     destroyTextureSprite(assets.titleFloor);
@@ -652,6 +720,19 @@ void loadVisualAssets(SDL_Renderer* renderer, AppState& state) {
     try {
         destroySystemScreenAssets(state.systemScreens);
         state.systemScreens = loadSystemScreenAssets(renderer, state.gameRoot);
+        state.systemScreens.mainMenu = loadMainMenuPresentationConfig(state.gameRoot);
+        if (state.systemScreens.mainMenu.backgroundMode == MainMenuBackgroundMode::Image) {
+            state.systemScreens.mainMenuBackground = loadUiPngSprite(
+                renderer,
+                state.gameRoot,
+                state.systemScreens.mainMenu.backgroundPath,
+                TextureFilter::Linear);
+            if (!state.systemScreens.mainMenuBackground.texture) {
+                state.systemScreens.mainMenu.backgroundMode = state.systemScreens.mainMenu.fallbackGrid
+                    ? MainMenuBackgroundMode::Fallback
+                    : MainMenuBackgroundMode::None;
+            }
+        }
         destroyCommandInputIconAtlas(state.commandInputIcons);
         state.commandInputIcons = loadCommandInputIconAtlas(renderer, state.gameRoot);
         destroyTextureSprite(state.commandCompleteCheck);
@@ -730,7 +811,6 @@ void destroyVisualAssets(AppState& state) {
     destroyCommandInputIconAtlas(state.commandInputIcons);
     destroyTextureSprite(state.commandCompleteCheck);
     destroyTextureSprite(state.shopDemo.shopBackdrop);
-    destroyTextureSprite(state.shopDemo.shopCounterBack);
     destroyTextureSprite(state.shopDemo.shopCounterFront);
     destroyTextureSprite(state.shopDemo.shopkeeperPose);
     destroyTextureSprite(state.shopDemo.shopPlayerPose);

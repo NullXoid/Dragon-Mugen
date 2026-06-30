@@ -142,7 +142,7 @@ void fixedUpdate(AppState& state) {
 }
 
 void applyLogicalPresentation(SDL_Renderer* renderer, const AppState& state) {
-    SDL_SetRenderLogicalPresentation(renderer, logicalWidth(state), kLogicalHeight, SDL_LOGICAL_PRESENTATION_LETTERBOX);
+    SDL_SetRenderLogicalPresentation(renderer, logicalWidth(state), logicalHeight(state), SDL_LOGICAL_PRESENTATION_LETTERBOX);
 }
 
 void clearPhysicalFrame(SDL_Renderer* renderer) {

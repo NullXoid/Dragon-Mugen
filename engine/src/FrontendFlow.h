@@ -808,6 +808,15 @@ void handleGamepadButton(
         return;
     }
 
+    if (state.frontend.screen == Screen::ShopDemo) {
+        const int shopPlayerIndex = playerIndex < 0 ? 0 : playerIndex;
+        if (gamepadButtonMatchesControlAction(state, shopPlayerIndex, button, InputAction::LK)
+            && handleShopDemoShopActionButton(state)) {
+            playMenuCursorDoneSound(state);
+            return;
+        }
+    }
+
     if (const auto key = gamepadMenuKeyForButton(state, button)) {
         handleKey(renderer, state, *key);
     }

@@ -95,7 +95,24 @@ struct StageBackgroundElement {
     bool animated = false;
 };
 
+enum class MainMenuBackgroundMode {
+    Motif,
+    Image,
+    Fallback,
+    None,
+};
+
+struct MainMenuPresentationConfig {
+    MainMenuBackgroundMode backgroundMode = MainMenuBackgroundMode::Motif;
+    std::filesystem::path backgroundPath;
+    bool fallbackGrid = true;
+    float backgroundPanX = 0.5f;
+    int backgroundDimAlpha = 0;
+};
+
 struct SystemScreenAssets {
+    MainMenuPresentationConfig mainMenu;
+    TextureSprite mainMenuBackground;
     TextureSprite titleLogo;
     TextureSprite titleTop;
     TextureSprite titleFloor;
@@ -147,6 +164,7 @@ struct ActiveSoundVoice {
     int startedFrame = 0;
     float gain = 1.0f;
     bool loop = false;
+    float pan = 0.0f;
 };
 
 struct AudioState {

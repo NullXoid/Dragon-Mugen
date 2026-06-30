@@ -13,8 +13,14 @@ inline constexpr int kWindowHeight = 540;
 inline constexpr int kClassicLogicalWidth = 320;
 inline constexpr int kDefaultLogicalWidth = 426;
 inline constexpr int kExtraWideLogicalWidth = 480;
+inline constexpr int kSdLogicalWidth = 854;
+inline constexpr int kHdLogicalWidth = 1280;
 inline constexpr int kLogicalHeight = 240;
+inline constexpr int kSdLogicalHeight = 480;
+inline constexpr int kHdLogicalHeight = 720;
 inline constexpr int kLogicalWidth = kDefaultLogicalWidth;
+inline constexpr int kPresentationLogicalWidth = kDefaultLogicalWidth;
+inline constexpr int kPresentationLogicalHeight = kLogicalHeight;
 inline constexpr int kTrainingOptionCount = 20;
 inline constexpr int kTrainingOptionRows = 10;
 inline constexpr int kTrainingMoveListRows = 10;
@@ -116,6 +122,79 @@ enum class GamepadPromptStyle {
     Playstation,
 };
 
+enum class CanvasPreset {
+    Classic320x240,
+    Wide426x240,
+    Extra480x240,
+    Sd854x480,
+    Hd1280x720,
+};
+
+struct CanvasDimensions {
+    int width = kDefaultLogicalWidth;
+    int height = kLogicalHeight;
+};
+
+inline CanvasDimensions dimensionsForPreset(CanvasPreset preset) {
+    switch (preset) {
+    case CanvasPreset::Classic320x240:
+        return { kClassicLogicalWidth, kLogicalHeight };
+    case CanvasPreset::Extra480x240:
+        return { kExtraWideLogicalWidth, kLogicalHeight };
+    case CanvasPreset::Sd854x480:
+        return { kSdLogicalWidth, kSdLogicalHeight };
+    case CanvasPreset::Hd1280x720:
+        return { kHdLogicalWidth, kHdLogicalHeight };
+    case CanvasPreset::Wide426x240:
+    default:
+        return { kDefaultLogicalWidth, kLogicalHeight };
+    }
+}
+
+inline CanvasDimensions presentationDimensions() {
+    return { kPresentationLogicalWidth, kPresentationLogicalHeight };
+}
+
+enum class DragonLayoutClass {
+    Classic,
+    WideLowRes,
+    ExtraLowRes,
+    StandardDefinition,
+    HighDefinition,
+};
+
+inline DragonLayoutClass layoutClassForPreset(CanvasPreset preset) {
+    switch (preset) {
+    case CanvasPreset::Classic320x240:
+        return DragonLayoutClass::Classic;
+    case CanvasPreset::Extra480x240:
+        return DragonLayoutClass::ExtraLowRes;
+    case CanvasPreset::Sd854x480:
+        return DragonLayoutClass::StandardDefinition;
+    case CanvasPreset::Hd1280x720:
+        return DragonLayoutClass::HighDefinition;
+    case CanvasPreset::Wide426x240:
+    default:
+        return DragonLayoutClass::WideLowRes;
+    }
+}
+
+inline DragonLayoutClass layoutClassForDimensions(CanvasDimensions dimensions) {
+    if (dimensions.width >= kHdLogicalWidth || dimensions.height >= kHdLogicalHeight) {
+        return DragonLayoutClass::HighDefinition;
+    }
+    if (dimensions.width >= kSdLogicalWidth || dimensions.height >= kSdLogicalHeight) {
+        return DragonLayoutClass::StandardDefinition;
+    }
+    if (dimensions.width <= kClassicLogicalWidth) {
+        return DragonLayoutClass::Classic;
+    }
+    if (dimensions.width <= kDefaultLogicalWidth) {
+        return DragonLayoutClass::WideLowRes;
+    }
+    return DragonLayoutClass::ExtraLowRes;
+}
+
 enum class OptionsMenuScreen {
     Root,
     Gameplay,
@@ -173,7 +252,7 @@ struct MainSettings {
     int controlBindingActionIndex = 0;
     std::string controlStatusMessage;
     int matchTimerSeconds = 99;
-    int canvasWidth = kDefaultLogicalWidth;
+    CanvasPreset canvasPreset = CanvasPreset::Wide426x240;
     int uiScalePercent = 80;
     bool fpsCapEnabled = true;
     PerformanceHudMode performanceHudMode = PerformanceHudMode::Fps;

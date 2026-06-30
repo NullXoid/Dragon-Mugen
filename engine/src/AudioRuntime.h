@@ -227,6 +227,22 @@ bool soundChannelActive(const AudioState& audio, int channel) {
     });
 }
 
+float normalizeMugenSoundPan(float pan) {
+    return std::clamp(pan / 255.0f, -1.0f, 1.0f);
+}
+
+void panSoundChannel(AudioState& audio, int channel, float pan) {
+    if (channel < 0) {
+        return;
+    }
+    const float normalized = std::clamp(pan, -1.0f, 1.0f);
+    for (auto& voice : audio.activeVoices) {
+        if (voice.channel == channel) {
+            voice.pan = normalized;
+        }
+    }
+}
+
 bool sameSoundTriggeredRecently(const AppState& state, int group, int index, int channel) {
     constexpr int kDuplicateSoundWindowFrames = 2;
     return std::any_of(state.audio.activeVoices.begin(), state.audio.activeVoices.end(), [&state, group, index, channel](const ActiveSoundVoice& voice) {
@@ -301,7 +317,8 @@ void playSound(
     bool lowPriority = false,
     float gain = 1.0f,
     bool loop = false,
-    int ownerIndex = -1) {
+    int ownerIndex = -1,
+    float pan = 0.0f) {
     if (!state.audio.stream || group < 0 || index < 0) {
         return;
     }
@@ -333,6 +350,7 @@ void playSound(
         state.frame,
         gain,
         loop,
+        std::clamp(pan, -1.0f, 1.0f),
     });
 }
 
@@ -411,8 +429,10 @@ void mixActiveSoundVoices(AppState& state, int framesToWrite) {
 
             const size_t source = static_cast<size_t>(voice.frameOffset * kChannels);
             const size_t dest = static_cast<size_t>(frame * kChannels);
-            state.audio.mixBuffer[dest] += voice.sample->audio[source] * voice.gain;
-            state.audio.mixBuffer[dest + 1] += voice.sample->audio[source + 1] * voice.gain;
+            const float leftPanGain = voice.pan <= 0.0f ? 1.0f : 1.0f - voice.pan;
+            const float rightPanGain = voice.pan >= 0.0f ? 1.0f : 1.0f + voice.pan;
+            state.audio.mixBuffer[dest] += voice.sample->audio[source] * voice.gain * leftPanGain;
+            state.audio.mixBuffer[dest + 1] += voice.sample->audio[source + 1] * voice.gain * rightPanGain;
             ++voice.frameOffset;
         }
 

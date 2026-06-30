@@ -9,20 +9,33 @@ void drawTitleBackground(SDL_Renderer* renderer, const AppState& state) {
     setColor(renderer, 0, 0, 0);
     SDL_RenderClear(renderer);
 
-    const int width = logicalWidth(state);
-    const float widthF = static_cast<float>(width);
-    const float centerX = screenCenterX(state);
-    const float motifX = motifOriginX(state);
     const auto& system = state.systemScreens;
     if (!system.titleTop.texture) {
         setColor(renderer, 14, 16, 20);
-        fillRect(renderer, 0, 0, widthF, static_cast<float>(kLogicalHeight));
+        fillRect(renderer, 0, 0, logicalWidthF(state), logicalHeightF(state));
         return;
     }
 
+    float oldScaleX = 1.0f;
+    float oldScaleY = 1.0f;
+    SDL_GetRenderScale(renderer, &oldScaleX, &oldScaleY);
+
+    const float backgroundScale = std::max(1.0f, std::floor(logicalHeightF(state) / static_cast<float>(kLogicalHeight) + 0.01f));
+    const int width = static_cast<int>(std::ceil(logicalWidthF(state) / backgroundScale));
+    const int height = static_cast<int>(std::ceil(logicalHeightF(state) / backgroundScale));
+    const float widthF = static_cast<float>(width);
+    const float heightF = static_cast<float>(height);
+    const float centerX = widthF * 0.5f;
+    const float motifX = (widthF - static_cast<float>(kClassicLogicalWidth)) * 0.5f;
+
+    SDL_SetRenderScale(renderer, oldScaleX * backgroundScale, oldScaleY * backgroundScale);
+
     const float topScroll = static_cast<float>(state.frame % std::max(1, system.titleTop.width));
     const float topX = centerX - static_cast<float>(system.titleTop.axisX) - topScroll;
-    drawTiledSpriteCoverX(renderer, system.titleTop, topX, 10, width, 2);
+    const int topRepeatY = system.titleTop.height > 0
+        ? std::max(2, (height / system.titleTop.height) + 2)
+        : 2;
+    drawTiledSpriteCoverX(renderer, system.titleTop, topX, 10, width, topRepeatY);
 
     if (system.titleFloor.texture) {
         drawParallaxFloorSprite(renderer, system.titleFloor, motifX, 145, 400.0f, 1200.0f, width, state.frame);
@@ -33,7 +46,9 @@ void drawTitleBackground(SDL_Renderer* renderer, const AppState& state) {
 
     setColor(renderer, 0, 0, 0);
     fillRect(renderer, 0, 0, widthF, 12);
-    fillRect(renderer, 0, 220, widthF, 20);
+    fillRect(renderer, 0, heightF - 20.0f, widthF, 20.0f);
+
+    SDL_SetRenderScale(renderer, oldScaleX, oldScaleY);
 }
 
 void drawSelectBackground(SDL_Renderer* renderer, const AppState& state) {
@@ -47,7 +62,7 @@ void drawSelectBackground(SDL_Renderer* renderer, const AppState& state) {
         drawTiledSprite(renderer, system.selectBackdrop, backdropOffset, 0, 3, 2);
     } else {
         setColor(renderer, 18, 22, 30);
-        fillRect(renderer, 0, 0, widthF, static_cast<float>(kLogicalHeight));
+        fillRect(renderer, 0, 0, widthF, logicalHeightF(state));
     }
 
     if (system.selectShadow.texture) {

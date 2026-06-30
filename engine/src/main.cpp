@@ -18,6 +18,7 @@ struct LaunchOptions {
     bool verify = false;
     bool hasRoot = false;
     std::string verifyScenario;
+    dragon::AppStartupOptions startup;
     std::filesystem::path root;
 };
 
@@ -77,6 +78,105 @@ LaunchOptions parseLaunchOptions(int argc, char** argv) {
             options.verifyScenario = argv[++index];
             if (options.verifyScenario.empty() || options.verifyScenario.starts_with("--")) {
                 throw std::runtime_error("--verify requires a scenario name");
+            }
+            continue;
+        }
+
+        if (arg == "--screen") {
+            if (index + 1 >= argc) {
+                throw std::runtime_error("--screen requires a value");
+            }
+            options.startup.screen = argv[++index];
+            if (options.startup.screen.empty() || options.startup.screen.starts_with("--")) {
+                throw std::runtime_error("--screen requires a value");
+            }
+            continue;
+        }
+
+        if (arg == "--canvas") {
+            if (index + 1 >= argc) {
+                throw std::runtime_error("--canvas requires a value");
+            }
+            options.startup.canvas = argv[++index];
+            if (options.startup.canvas.empty() || options.startup.canvas.starts_with("--")) {
+                throw std::runtime_error("--canvas requires a value");
+            }
+            continue;
+        }
+
+        if (arg == "--options-screen") {
+            if (index + 1 >= argc) {
+                throw std::runtime_error("--options-screen requires a value");
+            }
+            options.startup.optionsScreen = argv[++index];
+            if (options.startup.optionsScreen.empty() || options.startup.optionsScreen.starts_with("--")) {
+                throw std::runtime_error("--options-screen requires a value");
+            }
+            continue;
+        }
+
+        if (arg == "--ui-scale") {
+            if (index + 1 >= argc) {
+                throw std::runtime_error("--ui-scale requires a percentage");
+            }
+            std::string value = argv[++index];
+            if (value.empty() || value.starts_with("--")) {
+                throw std::runtime_error("--ui-scale requires a percentage");
+            }
+            try {
+                options.startup.uiScalePercent = std::stoi(value);
+            } catch (const std::exception&) {
+                throw std::runtime_error("--ui-scale must be an integer percentage");
+            }
+            continue;
+        }
+
+        if (arg == "--performance-hud") {
+            if (index + 1 >= argc) {
+                throw std::runtime_error("--performance-hud requires a value");
+            }
+            options.startup.performanceHud = argv[++index];
+            if (options.startup.performanceHud.empty() || options.startup.performanceHud.starts_with("--")) {
+                throw std::runtime_error("--performance-hud requires a value");
+            }
+            continue;
+        }
+
+        if (arg == "--shop-open") {
+            options.startup.shopOpen = true;
+            continue;
+        }
+
+        if (arg == "--shop-player-x") {
+            if (index + 1 >= argc) {
+                throw std::runtime_error("--shop-player-x requires a value");
+            }
+            std::string value = argv[++index];
+            if (value.empty() || value.starts_with("--")) {
+                throw std::runtime_error("--shop-player-x requires a value");
+            }
+            try {
+                options.startup.shopPlayerX = std::stof(value);
+                options.startup.hasShopPlayerX = true;
+            } catch (const std::exception&) {
+                throw std::runtime_error("--shop-player-x must be a number");
+            }
+            continue;
+        }
+
+        if (arg == "--shop-player-depth") {
+            if (index + 1 >= argc) {
+                throw std::runtime_error("--shop-player-depth requires a value");
+            }
+            std::string value = argv[++index];
+            if (value.empty() || value.starts_with("--")) {
+                throw std::runtime_error("--shop-player-depth requires a value");
+            }
+            try {
+                options.startup.shopPlayerDepth = std::stof(value);
+                options.startup.hasShopPlayerDepth = true;
+            } catch (const std::exception&) {
+                throw std::runtime_error("--shop-player-depth must be a number");
             }
             continue;
         }
@@ -171,7 +271,7 @@ int main(int argc, char** argv) {
         }
 
         if (!options.console) {
-            return dragon::runApp(root);
+            return dragon::runApp(root, options.startup);
         }
 
         std::cout << "Dragon MUGEN prototype\n";

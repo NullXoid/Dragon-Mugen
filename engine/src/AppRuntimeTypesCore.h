@@ -33,6 +33,11 @@ enum class MugenVariableBank {
     SysFVar,
 };
 
+enum class TextureFilter {
+    Nearest,
+    Linear,
+};
+
 struct MugenVariableRef {
     MugenVariableBank bank = MugenVariableBank::Var;
     int index = 0;
@@ -44,6 +49,7 @@ struct TextureSprite {
     int height = 0;
     int axisX = 0;
     int axisY = 0;
+    TextureFilter filter = TextureFilter::Nearest;
 };
 
 struct CollisionBox {

@@ -44,6 +44,31 @@ FightPowerGaugeView fightPowerGaugeView(const AppState& state, size_t fighterInd
     return view;
 }
 
+std::string singleFightStatusLine(const AppState& state) {
+    if (state.matchPhase == MatchPhase::RoundStart) {
+        return roundStartCalloutText(state);
+    }
+    if (state.matchPhase == MatchPhase::RoundFinish) {
+        if (state.matchPhaseTicks >= state.fightRoundSettings.winTime) {
+            return roundResultText(state);
+        }
+        return roundFinishCalloutText(state);
+    }
+    if (state.matchPhase == MatchPhase::RoundResult) {
+        return roundResultText(state);
+    }
+    if (state.matchPhase == MatchPhase::MatchResult) {
+        return "MATCH COMPLETE";
+    }
+    if (!state.gamepads.empty()) {
+        return "Pads " + gamepadActionLayoutText(state, 0) + "  Start pause";
+    }
+    if (state.frontend.pendingMode == PendingMode::SinglePlayer) {
+        return "P1 arrows A/S/D Z/X/C  CPU opponent";
+    }
+    return "P1 arrows A/S/D Z/X/C  P2 I/J/K/L U/O/P N/M/,";
+}
+
 FightHudView fightHudView(const AppState& state) {
     FightHudView view;
     view.p1.name = selectedCharacterName(state.selection);
@@ -314,7 +339,7 @@ void drawLightFightPauseOverlay(SDL_Renderer* renderer, const AppState& state) {
 
     const bool trainingMode = state.frontend.pendingMode == PendingMode::Training;
     setColor(renderer, 0, 0, 0, trainingMode ? 104 : 84);
-    fillRect(renderer, 0, 0, logicalWidthF(state), static_cast<float>(kLogicalHeight));
+    fillRect(renderer, 0, 0, logicalWidthF(state), logicalHeightF(state));
 
     if (trainingMode) {
         drawTrainingPauseHelpOverlay(uiRenderContext(renderer, state), TrainingPauseHelpView{ true });
@@ -384,7 +409,7 @@ void drawFightViewFrame(SDL_Renderer* renderer, const AppState& state, bool pres
     const int viewportOffsetX = impactShakeX;
     const int viewportOffsetY = shakeOffsetY + impactShakeY;
     if (viewportOffsetX != 0 || viewportOffsetY != 0) {
-        SDL_Rect shakeViewport{ viewportOffsetX, viewportOffsetY, logicalWidth(state), kLogicalHeight };
+        SDL_Rect shakeViewport{ viewportOffsetX, viewportOffsetY, logicalWidth(state), logicalHeight(state) };
         SDL_SetRenderViewport(renderer, &shakeViewport);
     }
 
@@ -426,7 +451,7 @@ void drawFightViewFrame(SDL_Renderer* renderer, const AppState& state, bool pres
             static_cast<Uint8>(state.envColor.g),
             static_cast<Uint8>(state.envColor.b),
             220);
-        fillRect(renderer, 0, 0, widthF, static_cast<float>(kLogicalHeight));
+        fillRect(renderer, 0, 0, widthF, logicalHeightF(state));
     }
 
     {

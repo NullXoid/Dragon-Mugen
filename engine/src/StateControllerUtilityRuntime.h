@@ -277,6 +277,44 @@ void executeStopSoundController(
     }
 }
 
+void executeSoundPanController(
+    AppState& state,
+    FighterState& fighter,
+    const StateSoundPanController& soundPan,
+    const FighterState* opponent = nullptr,
+    const StageSlot* stage = nullptr) {
+    bool triggerActive = false;
+    if (soundPan.trigger.hasTrigger) {
+        if (!shouldRunStateRuntimeController(state, fighter, soundPan.id, soundPan.trigger, opponent, stage)) {
+            return;
+        }
+        triggerActive = true;
+    } else {
+        if (!shouldRunSimpleStateRuntimeController(
+            state,
+            fighter,
+            soundPan.id,
+            soundPan.trigger,
+            soundPan.triggerTime,
+            soundPan.triggerAnimElem)) {
+            return;
+        }
+        triggerActive = true;
+    }
+
+    if (!triggerActive) {
+        return;
+    }
+
+    float pan = static_cast<float>(soundPan.pan);
+    if (!trim(soundPan.panExpression).empty()) {
+        if (const auto value = evalMugenExpression(state, fighter, soundPan.panExpression, opponent, stage)) {
+            pan = *value;
+        }
+    }
+    panSoundChannel(state.audio, soundPan.channel, normalizeMugenSoundPan(pan));
+}
+
 void executeStateAudioControllers(
     AppState& state,
     FighterState& fighter,
@@ -288,8 +326,10 @@ void executeStateAudioControllers(
             if (ref.index < stateDef.sounds.size()) {
                 executePlaySoundController(state, fighter, stateDef.sounds[ref.index]);
             }
-        } else if (ref.index < stateDef.stopSounds.size()) {
+        } else if (ref.kind == StateAudioControllerKind::StopSnd && ref.index < stateDef.stopSounds.size()) {
             executeStopSoundController(state, fighter, stateDef.stopSounds[ref.index], opponent, stage);
+        } else if (ref.kind == StateAudioControllerKind::SndPan && ref.index < stateDef.soundPans.size()) {
+            executeSoundPanController(state, fighter, stateDef.soundPans[ref.index], opponent, stage);
         }
     }
 }

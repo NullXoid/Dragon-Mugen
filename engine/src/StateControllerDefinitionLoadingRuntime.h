@@ -169,7 +169,7 @@
             if (!controllerTrigger) {
                 continue;
             }
-            const auto assignment = parseDirectVariableAssignment(section);
+            const auto assignment = parseVariableTargetValueAssignment(section);
             if (!assignment) {
                 continue;
             }
@@ -180,6 +180,74 @@
             parentVarAdd.target = assignment->first;
             parentVarAdd.valueExpression = assignment->second;
             state.parentVarAdds.push_back(std::move(parentVarAdd));
+            continue;
+        }
+
+        if (startsWithNoCase(controllerType, "ParentVarSet")) {
+            if (!controllerTrigger) {
+                continue;
+            }
+            const auto assignment = parseVariableTargetValueAssignment(section);
+            if (!assignment) {
+                continue;
+            }
+            auto& state = states[static_cast<size_t>(currentStateIndex)];
+            StateParentVarSetController parentVarSet;
+            parentVarSet.id = nextRuntimeControllerId++;
+            parentVarSet.trigger = *controllerTrigger;
+            parentVarSet.target = assignment->first;
+            parentVarSet.valueExpression = assignment->second;
+            state.parentVarSets.push_back(std::move(parentVarSet));
+            continue;
+        }
+
+        if (startsWithNoCase(controllerType, "Gravity")) {
+            if (!controllerTrigger) {
+                continue;
+            }
+            auto& state = states[static_cast<size_t>(currentStateIndex)];
+            StateGravityController gravity;
+            gravity.id = nextRuntimeControllerId++;
+            gravity.trigger = *controllerTrigger;
+            state.gravities.push_back(std::move(gravity));
+            continue;
+        }
+
+        if (startsWithNoCase(controllerType, "ReversalDef")) {
+            if (!controllerTrigger) {
+                continue;
+            }
+            const auto* attr = findProperty(section, "reversal.attr");
+            if (!attr) {
+                continue;
+            }
+            auto& state = states[static_cast<size_t>(currentStateIndex)];
+            StateReversalDefController reversal;
+            reversal.id = nextRuntimeControllerId++;
+            reversal.trigger = *controllerTrigger;
+            reversal.attr = trim(attr->value);
+            if (const auto* p1StateNo = findProperty(section, "p1stateno")) {
+                reversal.p1StateNo = parseIntValue(p1StateNo->value, reversal.p1StateNo);
+            }
+            if (const auto* p2StateNo = findProperty(section, "p2stateno")) {
+                reversal.p2StateNo = parseIntValue(p2StateNo->value, reversal.p2StateNo);
+            }
+            if (const auto* pauseTime = findProperty(section, "pausetime")) {
+                const auto values = parseIntPairValue(pauseTime->value);
+                reversal.pauseTimeP1 = values.first;
+                reversal.pauseTimeP2 = values.second;
+            }
+            if (const auto* sparkNo = findProperty(section, "sparkno")) {
+                reversal.sparkNo = parseIntValue(sparkNo->value, reversal.sparkNo);
+            }
+            if (const auto* hitSound = findProperty(section, "hitsound")) {
+                if (const auto values = parseSoundValue(hitSound->value)) {
+                    reversal.hitSoundGroup = values->group;
+                    reversal.hitSoundIndex = values->index;
+                    reversal.hitSoundForceCommon = values->forceCommon;
+                }
+            }
+            state.reversalDefs.push_back(std::move(reversal));
             continue;
         }
 

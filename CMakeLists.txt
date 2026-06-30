@@ -91,6 +91,7 @@ add_library(dragon_core
     engine/src/ControlsOptionsMenu.cpp
     engine/src/Compatibility.cpp
     engine/src/ControlsStore.cpp
+    engine/src/DragonUi.cpp
     engine/src/DragonProgression.cpp
     engine/src/DragonProgressionProfile.cpp
     engine/src/MugenText.cpp

@@ -436,5 +436,3 @@ void drawTrainingOptionsMenu(SDL_Renderer* renderer, const AppState& state) {
     const TrainingOptionsMenuView view = trainingOptionsMenuView(state, rows);
     dragon::drawTrainingOptionsMenu(uiRenderContext(renderer, state), view);
 }
-
-#include "FightPresentationShared.h"

@@ -33,6 +33,7 @@ CMakeUserPresets.json
 *.7z
 *.rar
 /content/research_mugen_chars/
+/game/chars/DragonClaw/
 
 # Local-only save/profile output
 /game/save/*.def
@@ -47,6 +48,13 @@ CMakeUserPresets.json
 /artifacts/screenshots/
 /artifacts/perf/
 /artifacts/character_proof/
+/artifacts/sff_sheets/
+/artifacts/simulations/*.gif
+/artifacts/simulations/*.html
+/artifacts/simulations/*.png
+/artifacts/simulations/__pycache__/
+__pycache__/
+*.pyc
 *.log
 *.tmp
 *.bak

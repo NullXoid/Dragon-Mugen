@@ -4,11 +4,21 @@
 // UI context, Arena projection, sprite drawing, and versus loading helpers.
 
 int logicalWidth(const AppState& state) {
-    return std::clamp(state.mainSettings.canvasWidth, kClassicLogicalWidth, kExtraWideLogicalWidth);
+    static_cast<void>(state);
+    return presentationDimensions().width;
+}
+
+int logicalHeight(const AppState& state) {
+    static_cast<void>(state);
+    return presentationDimensions().height;
 }
 
 float logicalWidthF(const AppState& state) {
     return static_cast<float>(logicalWidth(state));
+}
+
+float logicalHeightF(const AppState& state) {
+    return static_cast<float>(logicalHeight(state));
 }
 
 float screenCenterX(const AppState& state) {
@@ -24,11 +34,14 @@ float uiScale(const AppState& state) {
 }
 
 UiRenderContext uiRenderContext(SDL_Renderer* renderer, const AppState& state) {
+    const CanvasDimensions output = dimensionsForPreset(state.mainSettings.canvasPreset);
     return UiRenderContext{
         renderer,
         logicalWidth(state),
-        kLogicalHeight,
+        logicalHeight(state),
         uiScale(state),
+        output.width,
+        output.height,
     };
 }
 
@@ -454,7 +467,7 @@ void presentVersusLoadingProgress(SDL_Renderer* renderer, AppState& state) {
     SDL_SetRenderLogicalPresentation(
         renderer,
         logicalWidth(state),
-        kLogicalHeight,
+        logicalHeight(state),
         SDL_LOGICAL_PRESENTATION_LETTERBOX);
     drawVersusScreenOverlay(uiRenderContext(renderer, state), versusScreenView(state));
     drawFpsCounter(renderer, state);
@@ -472,8 +485,19 @@ SDL_Texture* createTexture(SDL_Renderer* renderer, const DecodedSprite& sprite) 
         return nullptr;
     }
     SDL_SetTextureBlendMode(texture, SDL_BLENDMODE_BLEND);
+    SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_NEAREST);
     SDL_UpdateTexture(texture, nullptr, sprite.rgba.data(), sprite.width * 4);
     return texture;
+}
+
+void setTextureSpriteFilterIntent(TextureSprite& sprite, TextureFilter filter) {
+    sprite.filter = filter;
+    if (!sprite.texture) {
+        return;
+    }
+    SDL_SetTextureScaleMode(
+        sprite.texture,
+        filter == TextureFilter::Linear ? SDL_SCALEMODE_LINEAR : SDL_SCALEMODE_NEAREST);
 }
 
 TextureSprite makeTextureSprite(SDL_Renderer* renderer, const DecodedSprite& sprite) {
@@ -483,5 +507,6 @@ TextureSprite makeTextureSprite(SDL_Renderer* renderer, const DecodedSprite& spr
     out.height = sprite.height;
     out.axisX = sprite.axisX;
     out.axisY = sprite.axisY;
+    setTextureSpriteFilterIntent(out, TextureFilter::Nearest);
     return out;
 }
