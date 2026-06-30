@@ -18,6 +18,13 @@ Run from a Visual Studio developer shell for build-level changes:
 python engine/tools/dev_check.py .
 ```
 
+Run a fresh configure/build from a Visual Studio developer shell after changing CMake targets or library types:
+
+```powershell
+cmake --fresh -S . -B build -G Ninja
+cmake --build build --target dragon_mugen --config Debug
+```
+
 Run these for Arena DLC fight-loop changes:
 
 ```powershell

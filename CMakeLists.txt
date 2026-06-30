@@ -84,7 +84,7 @@ add_custom_target(dragon_dev_check
     COMMENT "Running Dragon MUGEN development checks"
 )
 
-add_library(dragon_core
+add_library(dragon_core STATIC
     engine/src/ArenaConfig.cpp
     engine/src/ArenaSetupOverlay.cpp
     engine/src/ControlMapping.cpp
