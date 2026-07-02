@@ -336,11 +336,12 @@ shop_demo::ShopInteractionVolume shopDemoShopkeeperTalkVolume() {
 ShopInteractionKind shopDemoInteractionKind(const AppState& state) {
     const float playerX = state.shopDemo.playerX;
     const float playerDepth = state.shopDemo.playerDepthZ;
-    if (shop_demo::shopDemoInsideInteractionVolume(shopDemoCounterServiceVolume(), playerX, playerDepth)) {
-        return ShopInteractionKind::CounterService;
-    }
+    // Talk wins where the service and shopkeeper volumes overlap.
     if (shop_demo::shopDemoInsideInteractionVolume(shopDemoShopkeeperTalkVolume(), playerX, playerDepth)) {
         return ShopInteractionKind::ShopkeeperTalk;
+    }
+    if (shop_demo::shopDemoInsideInteractionVolume(shopDemoCounterServiceVolume(), playerX, playerDepth)) {
+        return ShopInteractionKind::CounterService;
     }
     return ShopInteractionKind::None;
 }
@@ -786,12 +787,10 @@ void handleShopDemoKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key)
     if (frontendKey == FrontendKey::Accept) {
         const ShopInteractionKind interaction = shopDemoInteractionKind(state);
         if (interaction == ShopInteractionKind::ShopkeeperTalk) {
-            if (state.shopDemo.shopkeeperGreetingReady) {
-                shopDemoOpenServicePanel(state);
-            } else {
+            if (!state.shopDemo.shopkeeperGreetingReady) {
                 shopDemoBeginShopkeeperGreeting(state);
+                playMenuCursorDoneSound(state);
             }
-            playMenuCursorDoneSound(state);
         } else if (interaction == ShopInteractionKind::CounterService) {
             shopDemoOpenServicePanel(state);
             playMenuCursorDoneSound(state);
