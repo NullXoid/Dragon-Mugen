@@ -28,8 +28,8 @@ default.attack.perlevel = 8
 default.defence.perlevel = 8
 
 [Dragon.Progression.Character]
-id = kfm
-name = Kung Fu Man
+id = A.Ben
+name = A.Ben
 maxlevel = 20
 xp.base = 90
 xp.growth = 45
@@ -38,34 +38,14 @@ attack.perlevel = 8
 defence.perlevel = 8
 
 [Dragon.Progression.Character]
-id = EvilKen
-name = Evil Ken
+id = I.Chie
+name = I.Chie
 maxlevel = 20
 xp.base = 110
 xp.growth = 55
 life.perlevel = 5
 attack.perlevel = 10
 defence.perlevel = 6
-
-[Dragon.Progression.Character]
-id = EvilRyu
-name = Evil Ryu
-maxlevel = 20
-xp.base = 110
-xp.growth = 55
-life.perlevel = 5
-attack.perlevel = 10
-defence.perlevel = 6
-
-[Dragon.Progression.Character]
-id = Dcat_Leo
-name = Leonardo
-maxlevel = 20
-xp.base = 100
-xp.growth = 50
-life.perlevel = 7
-attack.perlevel = 8
-defence.perlevel = 9
 
 [Dragon.Progression.Item]
 id = training_weight

@@ -301,7 +301,7 @@ These features are currently in the prototype and are not plain M.U.G.E.N behavi
 | Flying-Dragon-style match result menu | Implemented in app code | Runtime UI after M.U.G.E.N-compatible round scoring | `game/data/dragon.def`, `game/save/settings.def`, future tournament/shop/equipment files | Dragon-only post-match decision layer; must not change character, stage, or `fight.def` compatibility |
 | Dragon progression leveling/items | Implemented as Dragon progression foundation | Runtime progression data, local save data, and result-screen XP feedback | `game/data/dragon.def`, `game/save/progression.def` | Computes character levels, inventory, equipment, and stat bonuses but does not apply them to live M.U.G.E.N combat constants by default |
 | Main Settings screen | Implemented in app code | Runtime only | `game/data/dragon.def`, `game/save/settings.def` | Dragon project/user settings UI; M.U.G.E.N backend files stay authoritative |
-| Local Reu Evil Ryu/Evil Ken compatibility entries | Copied into `game/chars` and listed in `game/data/select.def` for local tests | M.U.G.E.N character content, not a Dragon feature | Not applicable | Used only to audit compatibility; public builds must remove or replace unlicensed third-party content |
+| Local Reu Evil Ryu/Evil Ken compatibility entries | Copied into `game/chars` and listed in `game/data/compatibility_select.def` for local verifier tests only | M.U.G.E.N character content, not a Dragon feature | Not applicable | Used only to audit compatibility; public builds must keep unowned third-party content out of `game/data/select.def` |
 
 ## Planned Dragon-Only Feature Registry
 
@@ -465,7 +465,7 @@ Compatibility rule:
 
 ## Character Compatibility Archives
 
-Research character archives live outside `game/` as source copies. For local compatibility tests, they may also be copied into `game/chars/` and activated through `game/data/select.def`.
+Research character archives live outside `game/` as source copies. For local compatibility tests, they may also be copied into `game/chars/` and activated through `game/data/compatibility_select.def`.
 
 Current research archive:
 
@@ -487,7 +487,7 @@ game/chars/EvilRyu/
 game/chars/EvilKen/
 ```
 
-Current active roster entries:
+Current verifier fixture entries:
 
 ```ini
 EvilRyu, stages/kfm.def
@@ -505,7 +505,7 @@ Compatibility rule:
 
 - Do not ship these in public builds unless the project has the rights to do so.
 - Use them only to inspect required parser/runtime features.
-- Keep activation through `game/data/select.def`; do not make every folder under `game/chars` selectable automatically.
+- Keep local compatibility activation through `game/data/compatibility_select.def`; do not make every folder under `game/chars` selectable automatically or add unowned fixtures to the player-facing `game/data/select.def`.
 - Any compatibility work discovered from them must still be implemented through M.U.G.E.N-compatible parsing where possible.
 
 ## Storyboards, Title Images, And Video

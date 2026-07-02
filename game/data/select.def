@@ -58,15 +58,12 @@
  ;this, put the word "randomselect" on a line of its own, with no
  ;extra parameters.
  ;
- ;Insert your characters below.
+;Insert your characters below.
+;Player-facing Dragon roster. Compatibility research fixtures are kept in
+;data/compatibility_select.def for local verifier coverage only.
 
-kfm, stages/kfm.def
-EvilRyu, stages/kfm.def
-EvilKen, stages/kfm.def
-Dcat_Leo/Dcat_Leo.def, stages/kfm.def
-CFJ_Lili, stages/kfm.def
-Lili_QYC_Custom/lili.def, stages/kfm.def
-Lili_QYC_Normal/lili.def, stages/kfm.def
+A.Ben, stages/kfm.def
+I.Chie, stages/kfm.def
 
 ;-----------------------
 [ExtraStages]

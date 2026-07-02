@@ -601,9 +601,10 @@ std::pair<float, float> parseCharacterFloatPairValue(const std::string& value, f
 
 } // namespace
 
-std::vector<CharacterSlot> loadCharacters(const std::filesystem::path& gameRoot) {
+std::vector<CharacterSlot> loadCharactersFromSelectFile(
+    const std::filesystem::path& gameRoot,
+    const std::filesystem::path& selectDef) {
     std::vector<CharacterSlot> characters;
-    const auto selectDef = gameRoot / "data" / "select.def";
     if (std::filesystem::exists(selectDef)) {
         try {
             const auto doc = parseMugenTextFile(selectDef);
@@ -623,17 +624,22 @@ std::vector<CharacterSlot> loadCharacters(const std::filesystem::path& gameRoot)
         } catch (const std::exception& ex) {
             SDL_Log("select.def character load failed: %s", ex.what());
         }
-        if (!characters.empty()) {
-            return characters;
-        }
     }
+    return characters;
+}
 
+std::vector<CharacterSlot> loadCharacters(const std::filesystem::path& gameRoot) {
+    std::vector<CharacterSlot> characters = loadCharactersFromSelectFile(gameRoot, gameRoot / "data" / "select.def");
+    if (!characters.empty()) {
+        return characters;
+    }
     return loadCharactersFromFolders(gameRoot);
 }
 
-std::vector<StageSlot> loadStages(const std::filesystem::path& gameRoot) {
+std::vector<StageSlot> loadStagesFromSelectFile(
+    const std::filesystem::path& gameRoot,
+    const std::filesystem::path& selectDef) {
     std::vector<StageSlot> stages;
-    const auto selectDef = gameRoot / "data" / "select.def";
     if (std::filesystem::exists(selectDef)) {
         try {
             const auto doc = parseMugenTextFile(selectDef);
@@ -670,11 +676,15 @@ std::vector<StageSlot> loadStages(const std::filesystem::path& gameRoot) {
         } catch (const std::exception& ex) {
             SDL_Log("select.def stage load failed: %s", ex.what());
         }
-        if (!stages.empty()) {
-            return stages;
-        }
     }
+    return stages;
+}
 
+std::vector<StageSlot> loadStages(const std::filesystem::path& gameRoot) {
+    std::vector<StageSlot> stages = loadStagesFromSelectFile(gameRoot, gameRoot / "data" / "select.def");
+    if (!stages.empty()) {
+        return stages;
+    }
     stages = loadStagesFromFolders(gameRoot);
     appendExternalStages(stages, gameRoot);
     return stages;

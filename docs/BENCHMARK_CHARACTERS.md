@@ -18,19 +18,24 @@ Minimum selectable files:
 
 `.snd`, `.act`, and `<character>.dragon.def` are allowed later, but the Dragon sidecar must not replace M.U.G.E.N combat files.
 
+## Active Owned Characters
+
+| Folder | Purpose | First Complete Version |
+| --- | --- | --- |
+| `A.Ben` | Basic AI benchmark opponent. | Uses simple readable AI gates, forward/back dash, normals, one special, guard decisions, and round-safe behavior. |
+| `I.Chie` | Advanced AI and compatibility stress character. | Exercises variables, helpers, projectiles, target controllers, superpause, explods, palette effects, and richer AI decision logic. |
+
 ## Planned Characters
 
 | Folder | Purpose | First Complete Version |
 | --- | --- | --- |
 | `DragonBench` | Deterministic regression fighter for engine audits. | Idle, walk, crouch, jump, six buttons, one guardable hit, one fall hit, one projectile, one helper, one super, and one throw/custom-state path. |
-| `A.Ben` | Basic AI benchmark opponent. | Uses simple readable AI gates, forward/back dash, normals, one special, guard decisions, and round-safe behavior. |
-| `I.Chie` | Advanced AI and compatibility stress character. | Exercises variables, helpers, projectiles, target controllers, superpause, explods, palette effects, and richer AI decision logic. |
 
 ## Work Order
 
-1. Build `DragonBench` first, because it should expose engine regressions without complex AI.
-2. Build `A.Ben` after the baseline character is playable, using conservative AI that is easy to debug.
-3. Build `I.Chie` after helper/projectile/target semantics are mature enough to stress them intentionally.
+1. Keep `A.Ben` and `I.Chie` as the player-facing owned roster.
+2. Build `DragonBench` as a deterministic regression fighter when engine-audit coverage needs a purpose-made fixture.
+3. Keep unowned local compatibility research out of `game/data/select.def`; use verifier-only fixture rosters instead.
 
 ## Content Rules
 

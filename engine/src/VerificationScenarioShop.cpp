@@ -165,11 +165,14 @@ int runShopRoomActorProjection(RuntimeProbe& runtime, std::ostream& out) {
         dragonDefTagged ? "shopkeeper action/state metadata present" : "missing shopkeeper metadata");
 
     const auto characters = runtime.selectableCharacters();
+    const bool aBenSelectable = std::any_of(characters.begin(), characters.end(), [](const RosterCharacterInfo& character) {
+        return character.id == "A.Ben" || character.displayName.find("A.Ben") != std::string::npos;
+    });
     const bool iChieSelectable = std::any_of(characters.begin(), characters.end(), [](const RosterCharacterInfo& character) {
         return character.id == "I.Chie" || character.displayName.find("I.Chie") != std::string::npos;
     });
-    record(out, counts, !iChieSelectable ? Status::Pass : Status::Fail,
-        "shop_npc_not_selectable_roster",
+    record(out, counts, aBenSelectable && iChieSelectable ? Status::Pass : Status::Fail,
+        "owned_roster_selectable",
         "selectable_count=" + std::to_string(characters.size()));
 
     const float roomWidth = kShopVerifyRoomRight - kShopVerifyRoomLeft;
@@ -487,24 +490,24 @@ int runShopEquipProfileScope(RuntimeProbe& runtime, std::ostream& out) {
     const std::string p2 = dragonProgressionPlayerProfileId(save, 1);
     grantDragonProgressionItemForProfile(save, p1, "training_weight", 1);
     std::string reason;
-    const bool p1Equipped = equipDragonProgressionItemForProfile(data, save, p1, "kfm", "training_weight", &reason);
+    const bool p1Equipped = equipDragonProgressionItemForProfile(data, save, p1, "A.Ben", "training_weight", &reason);
     record(out, counts,
-        p1Equipped && isDragonProgressionItemEquippedForProfile(save, p1, "kfm", "training_weight")
+        p1Equipped && isDragonProgressionItemEquippedForProfile(save, p1, "A.Ben", "training_weight")
             ? Status::Pass : Status::Fail,
         "p1_can_equip_owned_item",
         reason);
 
     std::string p2Reason;
-    const bool p2Equipped = equipDragonProgressionItemForProfile(data, save, p2, "kfm", "training_weight", &p2Reason);
+    const bool p2Equipped = equipDragonProgressionItemForProfile(data, save, p2, "A.Ben", "training_weight", &p2Reason);
     record(out, counts,
-        !p2Equipped && !isDragonProgressionItemEquippedForProfile(save, p2, "kfm", "training_weight")
+        !p2Equipped && !isDragonProgressionItemEquippedForProfile(save, p2, "A.Ben", "training_weight")
             ? Status::Pass : Status::Fail,
         "p2_cannot_equip_unowned_p1_item",
         p2Reason);
 
-    const bool unequipped = unequipDragonProgressionItemForProfile(save, p1, "kfm", "training_weight");
+    const bool unequipped = unequipDragonProgressionItemForProfile(save, p1, "A.Ben", "training_weight");
     record(out, counts,
-        unequipped && !isDragonProgressionItemEquippedForProfile(save, p1, "kfm", "training_weight")
+        unequipped && !isDragonProgressionItemEquippedForProfile(save, p1, "A.Ben", "training_weight")
             ? Status::Pass : Status::Fail,
         "unequip_removes_profile_character_item",
         "p1=" + p1 + " p2=" + p2);
@@ -533,7 +536,7 @@ int runShopGuestNoSave(RuntimeProbe& runtime, std::ostream& out) {
     const bool spent = spendDragonProgressionGoldForProfile(save, guest, 10);
     grantDragonProgressionItemForProfile(save, guest, "training_weight", 1);
     std::string reason;
-    const bool equipped = equipDragonProgressionItemForProfile(data, save, guest, "kfm", "training_weight", &reason);
+    const bool equipped = equipDragonProgressionItemForProfile(data, save, guest, "A.Ben", "training_weight", &reason);
     const bool removed = removeDragonProgressionItemForProfile(save, guest, "training_weight", 1);
     const bool guestCreated = findDragonProgressionProfile(save, guest) != nullptr;
     record(out, counts,

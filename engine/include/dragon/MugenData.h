@@ -137,6 +137,12 @@ inline const char* mugenRuntimeRootRequirementText() {
     return "data/select.def and data/system.def";
 }
 
+std::vector<CharacterSlot> loadCharactersFromSelectFile(
+    const std::filesystem::path& gameRoot,
+    const std::filesystem::path& selectDef);
+std::vector<StageSlot> loadStagesFromSelectFile(
+    const std::filesystem::path& gameRoot,
+    const std::filesystem::path& selectDef);
 std::vector<CharacterSlot> loadCharacters(const std::filesystem::path& gameRoot);
 std::vector<StageSlot> loadStages(const std::filesystem::path& gameRoot);
 CharacterFiles resolveCharacterFiles(const std::filesystem::path& gameRoot, const CharacterSlot& character);
