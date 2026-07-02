@@ -693,6 +693,14 @@ void consumeJumpInputBuffer(FighterState& fighter) {
     fighter.jumpInputConsumedWhileHeld = true;
 }
 
+bool shouldQueueHeldJumpRepeat(const FighterState& fighter, const FighterInputState& input,
+    bool attackButtonHeld, bool holdingDown, bool movementLocked) {
+    const bool canAct = fighter.onGround && fighter.ctrl && fighter.moveType == 'I'
+        && !fighter.guarding && fighter.hitPauseTicks <= 0;
+    return input.up && fighter.jumpInputConsumedWhileHeld && fighter.jumpInputBufferTicks <= 0
+        && canAct && !attackButtonHeld && !holdingDown && !movementLocked;
+}
+
 void updateControlledFighter(
     AppState& state,
     FighterState& fighter,
@@ -753,6 +761,10 @@ void updateControlledFighter(
     const bool holdingHorizontal = commandInput.left != commandInput.right;
     const bool holdingUp = commandInput.up;
     const bool movementLocked = fighterHasAssertSpecialFlag(fighter, "nowalk");
+    if (shouldQueueHeldJumpRepeat(fighter, commandInput, attackButtonHeld, holdingDown, movementLocked)) {
+        fighter.jumpInputBufferTicks = 1;
+        fighter.jumpInputConsumedWhileHeld = false;
+    }
     const int heldWalkAction = ((fighter.facing >= 0 && input.right) || (fighter.facing < 0 && input.left)) ? 20 : 21;
     const auto startFallbackJump = [&state, &fighter, &input]() {
         consumeJumpInputBuffer(fighter);

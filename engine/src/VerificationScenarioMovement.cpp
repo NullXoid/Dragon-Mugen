@@ -116,6 +116,54 @@ void recordBlockedReset(std::ostream& out, Counts& counts, std::string_view name
         + " ground=" + std::to_string(p1.onGround ? 1 : 0));
 }
 
+struct HeldJumpRepeatResult {
+    bool sawFirstAir = false;
+    bool sawLanding = false;
+    bool sawRepeat = false;
+    FighterSnapshot firstJump;
+    FighterSnapshot repeatJump;
+    FighterSnapshot finalFrame;
+    int repeatFrame = -1;
+};
+
+HeldJumpRepeatResult runHeldJumpRepeatProbe(RuntimeProbe& runtime, const SymbolicInput& input, int maxFrames) {
+    HeldJumpRepeatResult result;
+    runtime.step(input, 1);
+    result.firstJump = runtime.snapshot().p1;
+    result.sawFirstAir = !result.firstJump.onGround;
+    bool leftGround = result.sawFirstAir;
+    for (int frame = 0; frame < maxFrames; ++frame) {
+        const auto before = runtime.snapshot().p1;
+        leftGround = leftGround || !before.onGround;
+        if (leftGround && before.onGround && before.y >= -0.05f) {
+            result.sawLanding = true;
+        }
+        runtime.step(input, 1);
+        const auto after = runtime.snapshot().p1;
+        result.finalFrame = after;
+        if (result.sawLanding && !after.onGround && after.vy < -1.0f) {
+            result.sawRepeat = true;
+            result.repeatJump = after;
+            result.repeatFrame = frame;
+            break;
+        }
+    }
+    return result;
+}
+
+std::string heldJumpRepeatDetail(const HeldJumpRepeatResult& result) {
+    return "first_air=" + std::to_string(result.sawFirstAir ? 1 : 0)
+        + " landed=" + std::to_string(result.sawLanding ? 1 : 0)
+        + " repeat=" + std::to_string(result.sawRepeat ? 1 : 0)
+        + " repeat_frame=" + std::to_string(result.repeatFrame)
+        + " first_action=" + std::to_string(result.firstJump.action)
+        + " repeat_action=" + std::to_string(result.repeatJump.action)
+        + " repeat_vx=" + std::to_string(result.repeatJump.vx)
+        + " repeat_vy=" + std::to_string(result.repeatJump.vy)
+        + " final_state=" + std::to_string(result.finalFrame.stateNo)
+        + " final_ground=" + std::to_string(result.finalFrame.onGround ? 1 : 0);
+}
+
 } // namespace
 
 int runKfmMovementDirectionAudit(RuntimeProbe& runtime, std::ostream& out) {
@@ -281,6 +329,73 @@ int runKfmMovementDirectionAudit(RuntimeProbe& runtime, std::ostream& out) {
             + " buffered_vy=" + std::to_string(bufferedJumpFrame.vy)
             + " final_state=" + std::to_string(after.stateNo)
             + " final_ground=" + std::to_string(after.onGround ? 1 : 0));
+    }
+
+    if (!resetToIdle(runtime)) {
+        recordBlockedReset(out, counts, "held_up_repeat_reset", runtime);
+    } else {
+        const auto result = runHeldJumpRepeatProbe(runtime, direction(false, false, true, false), 240);
+        const bool ok = result.sawRepeat
+            && result.repeatJump.action == 41
+            && nearly(result.repeatJump.vx, 0.0f, 0.15f);
+        record(out, counts, ok ? Status::Pass : Status::Fail, "held_up_repeats_neutral_jump",
+            heldJumpRepeatDetail(result));
+    }
+
+    if (!resetToIdle(runtime)) {
+        recordBlockedReset(out, counts, "held_up_right_repeat_reset", runtime);
+    } else {
+        const auto result = runHeldJumpRepeatProbe(runtime, direction(false, true, true, false), 240);
+        const bool ok = result.sawRepeat
+            && result.repeatJump.action == 42
+            && result.repeatJump.vx > 1.5f;
+        record(out, counts, ok ? Status::Pass : Status::Fail, "held_up_right_repeats_forward_jump",
+            heldJumpRepeatDetail(result));
+    }
+
+    if (!resetToIdle(runtime)) {
+        recordBlockedReset(out, counts, "held_up_left_repeat_reset", runtime);
+    } else {
+        const auto result = runHeldJumpRepeatProbe(runtime, direction(true, false, true, false), 240);
+        const bool ok = result.sawRepeat
+            && result.repeatJump.action == 43
+            && result.repeatJump.vx < -1.5f;
+        record(out, counts, ok ? Status::Pass : Status::Fail, "held_up_left_repeats_back_jump",
+            heldJumpRepeatDetail(result));
+    }
+
+    if (!resetToIdle(runtime)) {
+        recordBlockedReset(out, counts, "released_up_no_repeat_reset", runtime);
+    } else {
+        runtime.step(direction(false, false, true, false), 1);
+        bool leftGround = !runtime.snapshot().p1.onGround;
+        bool landed = false;
+        bool repeatedAfterRelease = false;
+        FighterSnapshot repeatFrame;
+        FighterSnapshot finalFrame;
+        for (int i = 0; i < 240; ++i) {
+            const auto before = runtime.snapshot().p1;
+            leftGround = leftGround || !before.onGround;
+            if (leftGround && before.onGround && before.y >= -0.05f) {
+                landed = true;
+            }
+            runtime.step({}, 1);
+            const auto after = runtime.snapshot().p1;
+            finalFrame = after;
+            if (landed && !after.onGround && after.vy < -1.0f) {
+                repeatedAfterRelease = true;
+                repeatFrame = after;
+                break;
+            }
+        }
+        record(out, counts, !repeatedAfterRelease ? Status::Pass : Status::Fail, "released_up_does_not_repeat_jump",
+            "landed=" + std::to_string(landed ? 1 : 0)
+            + " repeated=" + std::to_string(repeatedAfterRelease ? 1 : 0)
+            + " repeat_state=" + std::to_string(repeatFrame.stateNo)
+            + " repeat_action=" + std::to_string(repeatFrame.action)
+            + " repeat_vy=" + std::to_string(repeatFrame.vy)
+            + " final_state=" + std::to_string(finalFrame.stateNo)
+            + " final_ground=" + std::to_string(finalFrame.onGround ? 1 : 0));
     }
 
     if (!resetToIdle(runtime)) {
