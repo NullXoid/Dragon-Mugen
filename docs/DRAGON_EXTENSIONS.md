@@ -422,7 +422,7 @@ The current main menu `OPTIONS` screen is Dragon-only and intentionally separate
 Current options:
 
 - `MATCH TIMER`: cycles through `30`, `60`, `90`, `99`, `120`, and `180` seconds.
-- `CANVAS SIZE`: cycles through `320x240 CLASSIC`, `426x240 WIDE`, and `480x240 EXTRA`.
+- `CANVAS SIZE`: cycles through `320x240 CLASSIC`, `426x240 WIDE`, `480x240 EXTRA`, `854x480 SD 480P`, and `1280x720 HD 720P`. The default is `1280x720 HD 720P`.
 - `UI SCALE`: cycles through `60%`, `70%`, `80%`, `90%`, and `100%` for Dragon floating panel and overlay density.
 - `FPS CAP`: cycles the 60 FPS render cap `ON` or `OFF`.
 - `PAD LABELS`: cycles through `AUTO`, `XBOX`, and `PLAYSTATION` display labels.
@@ -432,8 +432,9 @@ Current options:
 Current behavior:
 
 - The selected timer applies to Single Player and Single Fight rounds.
-- Canvas size changes the SDL logical presentation and fight camera width only. It does not move character, stage, fight, or system files out of the M.U.G.E.N-style backend folders.
-- UI scale changes Dragon-owned floating panels and callouts, including Main Settings content, Training options, the command-training page, command/input HUD, match pause, and round callout/result popups.
+- Dragon launches fullscreen by default at the standard `1280x720` output preset. `F11` or `Alt+Enter` toggles fullscreen/windowed mode; `Alt+M` minimizes the window. The windowed fallback size is `1280x720`.
+- Resolution presets describe output resolution/quality and diagnostics. They do not change the fixed virtual presentation grid, fight camera width, M.U.G.E.N character/stage placement, system/fight data paths, or the standard native window size.
+- UI scale changes Dragon-owned floating panels and callouts, including Main Settings content, Training options, the command-training page, command/input HUD, match pause, and round callout/result popups. It is a readability control, not a per-resolution layout patch.
 - Training is not affected by the match timer.
 - Best 2 out of 3 remains fixed in code for now.
 - Gamepad assignment layers on top of keyboard input and feeds the same M.U.G.E.N command names.
@@ -452,8 +453,9 @@ p1 = auto
 p2 = auto
 
 [Video]
-canvas = 426x240
+canvas = 1280x720
 ui.scale = 80
+fullscreen = 1
 ```
 
 Compatibility rule:

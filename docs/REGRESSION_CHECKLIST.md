@@ -138,6 +138,8 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - VS/Arena/Story loading shows actual load progress for character, stage, sprite/sound/runtime preparation, not only static `PLEASE WAIT` text.
 - Fight view fully repaints the window during hitpause, camera shake, and result overlays; no stale desktop/debug text should appear around the game viewport.
 - Video Options exposes Performance HUD `FPS`/`PERF`/`OFF`. `FPS` keeps the compact top-right counter visible by default; `PERF` shows frame-time/workload telemetry so live performance drops can be distinguished from gameplay hitpause, superpause, or state timing.
+- Video resolution presets are output presets, not alternate game-layout canvases. `video-resolution-stable-virtual-layout` must stay green so Classic, Wide, Extra, SD, and HD keep one stable virtual presentation grid across menus and options.
+- Dragon launches fullscreen with `1280x720 HD 720P` selected by default, keeps a `1280x720` windowed fallback, toggles fullscreen with `F11` or `Alt+Enter`, and minimizes with `Alt+M`. `video-hd-fullscreen-window-policy` must stay green.
 - Fight view `F3` toggles Freeze Watch. Normal play should show only a small status badge; expanded fighter/helper details should appear only for sustained runtime or pose stalls.
 - Fight view Start opens a lightweight pause/resume overlay. While this pause is open, Select/Back opens the full mode options menu.
 - In Training, the lightweight pause overlay exposes command Show and Next/Previous controls without requiring the large options menu.

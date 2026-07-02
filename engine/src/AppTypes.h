@@ -8,8 +8,8 @@
 
 namespace dragon {
 
-inline constexpr int kWindowWidth = 960;
-inline constexpr int kWindowHeight = 540;
+inline constexpr int kWindowWidth = 1280;
+inline constexpr int kWindowHeight = 720;
 inline constexpr int kClassicLogicalWidth = 320;
 inline constexpr int kDefaultLogicalWidth = 426;
 inline constexpr int kExtraWideLogicalWidth = 480;
@@ -19,8 +19,10 @@ inline constexpr int kLogicalHeight = 240;
 inline constexpr int kSdLogicalHeight = 480;
 inline constexpr int kHdLogicalHeight = 720;
 inline constexpr int kLogicalWidth = kDefaultLogicalWidth;
-inline constexpr int kPresentationLogicalWidth = kDefaultLogicalWidth;
-inline constexpr int kPresentationLogicalHeight = kLogicalHeight;
+inline constexpr int kDesignLogicalWidth = kDefaultLogicalWidth;
+inline constexpr int kDesignLogicalHeight = kLogicalHeight;
+inline constexpr int kPresentationLogicalWidth = kDesignLogicalWidth;
+inline constexpr int kPresentationLogicalHeight = kDesignLogicalHeight;
 inline constexpr int kTrainingOptionCount = 20;
 inline constexpr int kTrainingOptionRows = 10;
 inline constexpr int kTrainingMoveListRows = 10;
@@ -130,6 +132,8 @@ enum class CanvasPreset {
     Hd1280x720,
 };
 
+inline constexpr CanvasPreset kStandardCanvasPreset = CanvasPreset::Hd1280x720;
+
 struct CanvasDimensions {
     int width = kDefaultLogicalWidth;
     int height = kLogicalHeight;
@@ -151,8 +155,17 @@ inline CanvasDimensions dimensionsForPreset(CanvasPreset preset) {
     }
 }
 
+inline CanvasDimensions outputDimensionsForPreset(CanvasPreset preset) {
+    return dimensionsForPreset(preset);
+}
+
 inline CanvasDimensions presentationDimensions() {
     return { kPresentationLogicalWidth, kPresentationLogicalHeight };
+}
+
+inline bool canvasPresetChangesLayout(CanvasPreset preset) {
+    static_cast<void>(preset);
+    return false;
 }
 
 enum class DragonLayoutClass {
@@ -252,7 +265,7 @@ struct MainSettings {
     int controlBindingActionIndex = 0;
     std::string controlStatusMessage;
     int matchTimerSeconds = 99;
-    CanvasPreset canvasPreset = CanvasPreset::Wide426x240;
+    CanvasPreset canvasPreset = kStandardCanvasPreset;
     int uiScalePercent = 80;
     bool fpsCapEnabled = true;
     PerformanceHudMode performanceHudMode = PerformanceHudMode::Fps;
@@ -260,6 +273,10 @@ struct MainSettings {
     int p1GamepadAssignment = 0;
     int p2GamepadAssignment = 0;
     bool fallFallbacksEnabled = true;
+};
+
+struct WindowPresentationState {
+    bool fullscreen = true;
 };
 
 struct LoadedContentSummary {

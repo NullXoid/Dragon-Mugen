@@ -3,7 +3,53 @@
 // Internal App.cpp implementation shard.
 // Event pump, frame update, presentation helpers, and verification bridge include wiring.
 
-void pumpEvents(SDL_Renderer* renderer, AppState& state) {
+void applyWindowPresentation(SDL_Window* window, const AppState& state) {
+    if (!window) {
+        return;
+    }
+
+    if (!state.windowPresentation.fullscreen) {
+        if (!SDL_SetWindowFullscreen(window, false)) {
+            SDL_Log("SDL_SetWindowFullscreen(false) failed: %s", SDL_GetError());
+        }
+        SDL_SetWindowSize(window, kWindowWidth, kWindowHeight);
+        return;
+    }
+
+    SDL_SetWindowSize(window, kWindowWidth, kWindowHeight);
+    if (!SDL_SetWindowFullscreen(window, true)) {
+        SDL_Log("SDL_SetWindowFullscreen(true) failed: %s", SDL_GetError());
+    }
+}
+
+void setWindowFullscreen(SDL_Window* window, AppState& state, bool fullscreen) {
+    state.windowPresentation.fullscreen = fullscreen;
+    applyWindowPresentation(window, state);
+}
+
+bool handleWindowShortcut(SDL_Window* window, AppState& state, SDL_Keycode key) {
+    const SDL_Keymod modifiers = SDL_GetModState();
+    const bool altHeld = (modifiers & SDL_KMOD_ALT) != 0;
+
+    if (key == SDLK_F11 || (altHeld && key == SDLK_RETURN)) {
+        setWindowFullscreen(window, state, !state.windowPresentation.fullscreen);
+        return true;
+    }
+
+    if (altHeld && key == SDLK_M) {
+        if (state.windowPresentation.fullscreen) {
+            setWindowFullscreen(window, state, false);
+        }
+        if (!SDL_MinimizeWindow(window)) {
+            SDL_Log("SDL_MinimizeWindow failed: %s", SDL_GetError());
+        }
+        return true;
+    }
+
+    return false;
+}
+
+void pumpEvents(SDL_Window* window, SDL_Renderer* renderer, AppState& state) {
     SDL_Event event{};
     while (SDL_PollEvent(&event)) {
         switch (event.type) {
@@ -12,6 +58,9 @@ void pumpEvents(SDL_Renderer* renderer, AppState& state) {
             break;
         case SDL_EVENT_KEY_DOWN:
             if (!event.key.repeat) {
+                if (handleWindowShortcut(window, state, event.key.key)) {
+                    break;
+                }
                 handleKey(renderer, state, event.key.key);
             }
             break;

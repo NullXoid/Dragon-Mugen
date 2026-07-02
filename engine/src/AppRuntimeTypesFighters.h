@@ -264,6 +264,7 @@ struct AppState {
     bool suppressFpsCounter = false;
     bool suppressArenaCpu = false;
     int frame = 0;
+    WindowPresentationState windowPresentation;
     float cameraX = 0.0f;
     float cameraY = 0.0f;
     float arenaCameraYawDeg = 0.0f;

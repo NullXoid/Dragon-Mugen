@@ -93,14 +93,26 @@ LaunchOptions parseLaunchOptions(int argc, char** argv) {
             continue;
         }
 
-        if (arg == "--canvas") {
+        if (arg == "--canvas" || arg == "--resolution") {
             if (index + 1 >= argc) {
-                throw std::runtime_error("--canvas requires a value");
+                throw std::runtime_error(std::string(arg) + " requires a value");
             }
             options.startup.canvas = argv[++index];
             if (options.startup.canvas.empty() || options.startup.canvas.starts_with("--")) {
-                throw std::runtime_error("--canvas requires a value");
+                throw std::runtime_error(std::string(arg) + " requires a value");
             }
+            continue;
+        }
+
+        if (arg == "--fullscreen") {
+            options.startup.hasFullscreen = true;
+            options.startup.fullscreen = true;
+            continue;
+        }
+
+        if (arg == "--windowed") {
+            options.startup.hasFullscreen = true;
+            options.startup.fullscreen = false;
             continue;
         }
 

@@ -2,6 +2,11 @@
 
 #include "DragonUi.h"
 #include "MainMenuOverlay.h"
+#include "UiMenuList.h"
+
+#include <fstream>
+#include <iterator>
+#include <optional>
 
 namespace dragon::verification {
 
@@ -334,6 +339,175 @@ int runMainMenuResponsiveLayout(RuntimeProbe&, std::ostream& out) {
             "expected=" + std::to_string(expectedW) + "x" + std::to_string(expectedH)
                 + " actual=" + std::to_string(rect.w) + "x" + std::to_string(rect.h));
     }
+
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runVideoResolutionStableVirtualLayout(RuntimeProbe&, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY video-resolution-stable-virtual-layout\n";
+
+    const CanvasDimensions presentation = presentationDimensions();
+    record(out, counts,
+        presentation.width == kDesignLogicalWidth && presentation.height == kDesignLogicalHeight
+            ? Status::Pass : Status::Fail,
+        "presentation_uses_fixed_design_canvas",
+        std::to_string(presentation.width) + "x" + std::to_string(presentation.height));
+
+    struct Case {
+        CanvasPreset preset;
+        const char* name;
+    };
+    constexpr std::array<Case, 5> cases{ {
+        { CanvasPreset::Classic320x240, "classic_320x240" },
+        { CanvasPreset::Wide426x240, "wide_426x240" },
+        { CanvasPreset::Extra480x240, "extra_480x240" },
+        { CanvasPreset::Sd854x480, "sd_854x480" },
+        { CanvasPreset::Hd1280x720, "hd_1280x720" },
+    } };
+
+    std::optional<SDL_FRect> expectedMainMenuPanel;
+    std::optional<std::string> expectedOptionsGeometry;
+
+    for (const Case& item : cases) {
+        const CanvasDimensions output = outputDimensionsForPreset(item.preset);
+        const UiRenderContext ui{
+            nullptr,
+            presentation.width,
+            presentation.height,
+            1.0f,
+            output.width,
+            output.height,
+        };
+
+        record(out, counts,
+            !canvasPresetChangesLayout(item.preset) ? Status::Pass : Status::Fail,
+            std::string(item.name) + "_declares_output_only",
+            std::to_string(output.width) + "x" + std::to_string(output.height));
+
+        const SDL_FRect mainPanel = mainMenuPanelRect(ui);
+        if (!expectedMainMenuPanel) {
+            expectedMainMenuPanel = mainPanel;
+        }
+        const bool sameMainPanel =
+            std::fabs(mainPanel.x - expectedMainMenuPanel->x) <= 0.01f
+            && std::fabs(mainPanel.y - expectedMainMenuPanel->y) <= 0.01f
+            && std::fabs(mainPanel.w - expectedMainMenuPanel->w) <= 0.01f
+            && std::fabs(mainPanel.h - expectedMainMenuPanel->h) <= 0.01f;
+        record(out, counts,
+            sameMainPanel ? Status::Pass : Status::Fail,
+            std::string(item.name) + "_main_menu_panel_stable",
+            "panel=" + std::to_string(static_cast<int>(mainPanel.x)) + ","
+                + std::to_string(static_cast<int>(mainPanel.y)) + " "
+                + std::to_string(static_cast<int>(mainPanel.w)) + "x"
+                + std::to_string(static_cast<int>(mainPanel.h)));
+
+        MainSettings settings;
+        settings.canvasPreset = item.preset;
+        settings.optionsScreen = OptionsMenuScreen::Video;
+        settings.selectedVideoOption = 0;
+        auto rows = buildControlsOptionsRows(defaultControlsOptionsContext(settings));
+        const OptionsMenuView view = buildControlsOptionsView(defaultControlsOptionsContext(settings), rows);
+        std::vector<UiMenuListRowView> menuRows;
+        menuRows.reserve(rows.size());
+        for (const auto& row : rows) {
+            menuRows.push_back(UiMenuListRowView{
+                row.label,
+                row.value,
+                row.selected,
+                row.adjustable,
+                row.disabled,
+            });
+        }
+        const UiMenuListGeometryReport optionsGeometry = verifyUiMenuListGeometry(
+            UiMenuListView{
+                menuRows,
+                view.title,
+                view.pageLabel,
+                view.labelHeader.empty() ? "SETTING" : view.labelHeader,
+                view.valueHeader,
+                view.padSummary,
+                view.footer,
+            },
+            static_cast<float>(presentation.width),
+            UiMenuListStyle{
+                40.0f,
+                300.0f,
+                406.0f,
+                18.0f,
+                true,
+                1.0f,
+            });
+        if (!expectedOptionsGeometry) {
+            expectedOptionsGeometry = optionsGeometry.detail;
+        }
+        record(out, counts,
+            optionsGeometry.ok && optionsGeometry.detail == *expectedOptionsGeometry ? Status::Pass : Status::Fail,
+            std::string(item.name) + "_options_geometry_stable",
+            optionsGeometry.detail);
+    }
+
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runVideoHdFullscreenWindowPolicy(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY video-hd-fullscreen-window-policy\n";
+
+    const MainSettings settings;
+    record(out, counts,
+        settings.canvasPreset == kStandardCanvasPreset
+                && settings.canvasPreset == CanvasPreset::Hd1280x720
+            ? Status::Pass
+            : Status::Fail,
+        "default_canvas_preset_is_hd_720p",
+        canvasSizeSettingText(settings));
+
+    record(out, counts,
+        kWindowWidth == 1280 && kWindowHeight == 720 ? Status::Pass : Status::Fail,
+        "standard_window_size_is_1280x720",
+        std::to_string(kWindowWidth) + "x" + std::to_string(kWindowHeight));
+
+    record(out, counts,
+        WindowPresentationState{}.fullscreen ? Status::Pass : Status::Fail,
+        "default_window_mode_is_fullscreen",
+        "fullscreen=true");
+
+    const auto repoRoot = std::filesystem::path(runtime.rootText()).parent_path();
+    const auto loopPath = repoRoot / "engine" / "src" / "AppMainLoopAssembly.h";
+    std::string loopText;
+    if (std::ifstream in(loopPath); in) {
+        loopText.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+    }
+
+    record(out, counts,
+        loopText.find("SDL_SetWindowFullscreen") != std::string::npos ? Status::Pass : Status::Fail,
+        "fullscreen_toggle_uses_sdl_window_fullscreen",
+        loopPath.string());
+
+    record(out, counts,
+        loopText.find("SDL_MinimizeWindow") != std::string::npos ? Status::Pass : Status::Fail,
+        "minimize_shortcut_uses_sdl_minimize",
+        loopPath.string());
+
+    record(out, counts,
+        loopText.find("SDLK_F11") != std::string::npos
+                && loopText.find("SDLK_RETURN") != std::string::npos
+                && loopText.find("SDL_KMOD_ALT") != std::string::npos
+            ? Status::Pass
+            : Status::Fail,
+        "fullscreen_shortcuts_registered",
+        "F11 and Alt+Enter");
+
+    record(out, counts,
+        loopText.find("SDLK_M") != std::string::npos
+                && loopText.find("SDL_MinimizeWindow") != std::string::npos
+            ? Status::Pass
+            : Status::Fail,
+        "minimize_shortcut_registered",
+        "Alt+M");
 
     summary(out, counts);
     return exitCode(counts);

@@ -192,6 +192,9 @@ void applyStartupOptions(SDL_Renderer* renderer, AppState& state, const AppStart
     if (const auto preset = startupCanvasPreset(options.canvas)) {
         state.mainSettings.canvasPreset = *preset;
     }
+    if (options.hasFullscreen) {
+        state.windowPresentation.fullscreen = options.fullscreen;
+    }
     if (options.uiScalePercent > 0) {
         state.mainSettings.uiScalePercent = std::clamp(options.uiScalePercent, 60, 100);
     }
@@ -271,6 +274,7 @@ int runApp(const std::filesystem::path& gameRoot, const AppStartupOptions& start
     loadVisualAssets(renderer, state);
     openExistingGamepads(state);
     applyStartupOptions(renderer, state, startupOptions);
+    applyWindowPresentation(window, state);
 
     const CanvasDimensions presentationCanvas = presentationDimensions();
     SDL_SetRenderLogicalPresentation(renderer, presentationCanvas.width, presentationCanvas.height, SDL_LOGICAL_PRESENTATION_LETTERBOX);
@@ -291,7 +295,7 @@ int runApp(const std::filesystem::path& gameRoot, const AppStartupOptions& start
 
         {
             FramePerfScope scope(state.framePerf, FramePerfSection::EventPump);
-            pumpEvents(renderer, state);
+            pumpEvents(window, renderer, state);
         }
         int fixedStepsThisFrame = 0;
         while (state.accumulator >= fixedStep && fixedStepsThisFrame < 5) {

@@ -13,6 +13,8 @@ struct AppStartupOptions {
     std::string optionsScreen;
     std::string performanceHud;
     int uiScalePercent = 0;
+    bool hasFullscreen = false;
+    bool fullscreen = true;
     bool hasShopPlayerX = false;
     float shopPlayerX = 0.0f;
     bool hasShopPlayerDepth = false;

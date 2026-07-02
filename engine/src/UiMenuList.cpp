@@ -74,10 +74,8 @@ struct MenuListLayout {
 MenuListLayout menuListLayout(const UiMenuListView& view, float frameW, float frameH, const UiMenuListStyle& style) {
     const float textScale = std::clamp(style.textScale, 0.60f, 1.0f);
     float maxLabelW = debugTextWidth(view.labelHeader.empty() ? "SETTING" : view.labelHeader, textScale);
-    float maxValueW = debugTextWidth(view.valueHeader.empty() ? "VALUE" : view.valueHeader, textScale);
     for (const auto& row : view.rows) {
         maxLabelW = std::max(maxLabelW, debugTextWidth(row.label, textScale));
-        maxValueW = std::max(maxValueW, debugTextWidth(displayValue(row), textScale));
     }
 
     MenuListLayout layout;
@@ -87,7 +85,7 @@ MenuListLayout menuListLayout(const UiMenuListView& view, float frameW, float fr
     const float edgePad = 10.0f * textScale;
     const float availableMaxW = std::clamp(frameW - edgePad * 2.0f, 260.0f * textScale, style.maxPanelW);
     const float minW = std::min(style.minPanelW, availableMaxW);
-    const float valueCellW = std::clamp(maxValueW + 18.0f * textScale, 76.0f * textScale, std::min(190.0f * textScale, availableMaxW * 0.48f));
+    const float valueCellW = std::min(190.0f * textScale, std::max(76.0f * textScale, availableMaxW * 0.48f));
     const float headerW = 10.0f * textScale + debugTextWidth(view.title, textScale) + 18.0f * textScale + debugTextWidth(view.pageLabel, textScale) + 10.0f * textScale;
     const float footerW = view.footer.empty() ? 0.0f : 20.0f * textScale + debugTextWidth(view.footer, textScale) + 8.0f * textScale;
     const float statusW = view.statusLine.empty() ? 0.0f : 20.0f * textScale + debugTextWidth(view.statusLine, textScale) + 8.0f * textScale;
