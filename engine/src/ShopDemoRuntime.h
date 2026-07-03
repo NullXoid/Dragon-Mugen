@@ -134,14 +134,14 @@ std::string shopDemoCharacterId(const AppState& state) {
     if (const CharacterSlot* slot = shopDemoSelectedCharacter(state)) {
         return slot->id;
     }
-    return "kfm";
+    return "A.Ben";
 }
 
 std::string shopDemoCharacterName(const AppState& state) {
     if (const CharacterSlot* slot = shopDemoSelectedCharacter(state)) {
         return slot->displayName.empty() ? slot->id : slot->displayName;
     }
-    return "Kung Fu Man";
+    return "A.Ben";
 }
 
 int shopDemoCharacterCount(const AppState& state) {

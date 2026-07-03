@@ -209,6 +209,20 @@ int runShopDemoRoomHook(RuntimeProbe& runtime, std::ostream& out) {
         "owned_roster_selectable",
         "selectable_count=" + std::to_string(characters.size()));
 
+    const auto repoRoot = root.filename() == "game" ? root.parent_path() : root;
+    const auto shopRuntimePath = repoRoot / "engine" / "src" / "ShopDemoRuntime.h";
+    std::string shopRuntimeText;
+    if (std::ifstream in(shopRuntimePath); in) {
+        shopRuntimeText.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+    }
+    const bool ownedFallback =
+        shopRuntimeText.find("return \"A.Ben\";") != std::string::npos
+        && shopRuntimeText.find("return \"kfm\";") == std::string::npos
+        && shopRuntimeText.find("return \"Kung Fu Man\";") == std::string::npos;
+    recordCheck(ownedFallback,
+        "shop_fallback_target_owned_character",
+        ownedFallback ? "fallback=A.Ben" : "shop fallback still references unowned KFM data");
+
     constexpr float roomWidth = 2240.0f;
     constexpr float playerWalkWidth = 2080.0f;
     constexpr float shopkeeperScale = 0.56f;

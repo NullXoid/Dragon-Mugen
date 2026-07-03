@@ -82,11 +82,11 @@ void chooseStoryEnemyCharacters(AppState& state) {
     picked.reserve(kStoryMaxEnemies);
 
     static constexpr std::array<std::string_view, 5> preferredEnemies{
-        "kfm",
-        "evilryu",
-        "evilken",
-        "dcat_leo",
-        "lili",
+        "I.Chie",
+        "A.Ben",
+        "ichie",
+        "aben",
+        "shopkeeper",
     };
     for (std::string_view preferred : preferredEnemies) {
         if (static_cast<int>(picked.size()) >= kStoryMaxEnemies) {

@@ -201,6 +201,13 @@ int runShopRoomActorProjection(RuntimeProbe& runtime, std::ostream& out) {
             ? Status::Pass : Status::Fail,
         "shop_movement_uses_held_input",
         "continuous mapped input drives room walking");
+    const bool ownedFallback =
+        runtimeText.find("return \"A.Ben\";") != std::string::npos
+        && runtimeText.find("return \"kfm\";") == std::string::npos
+        && runtimeText.find("return \"Kung Fu Man\";") == std::string::npos;
+    record(out, counts, ownedFallback ? Status::Pass : Status::Fail,
+        "shop_fallback_target_owned_character",
+        ownedFallback ? "fallback=A.Ben" : "shop fallback still references unowned KFM data");
     record(out, counts,
         runtimeText.find("shopDemoCounterCameraX") != std::string::npos
             && runtimeText.find("shopDemoVisiblePlayerMinX") != std::string::npos

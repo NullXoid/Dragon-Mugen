@@ -11,6 +11,8 @@
 #include <cmath>
 #include <exception>
 #include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <optional>
 #include <ostream>
 #include <string>
@@ -142,6 +144,14 @@ void clearCurrentWave(RuntimeProbe& runtime) {
     runtime.step({}, 70);
 }
 
+std::string readTextFile(const std::filesystem::path& path) {
+    std::ifstream in(path);
+    if (!in) {
+        return {};
+    }
+    return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+}
+
 } // namespace
 
 int runStoryModeMenuRoute(RuntimeProbe& runtime, std::ostream& out) {
@@ -162,6 +172,18 @@ int runStoryModeMenuRoute(RuntimeProbe& runtime, std::ostream& out) {
         "wave=" + std::to_string(snapshot.storyWaveIndex)
         + " active=" + std::to_string(snapshot.storyActiveEnemies)
         + " total=" + std::to_string(snapshot.storyTotalEnemies));
+    const auto root = std::filesystem::path(runtime.rootText());
+    const auto repoRoot = root.filename() == "game" ? root.parent_path() : root;
+    const std::string storyStateText = readTextFile(repoRoot / "engine" / "src" / "StoryModeState.h");
+    record(out, counts,
+        storyStateText.find("\"I.Chie\"") != std::string::npos
+            && storyStateText.find("\"A.Ben\"") != std::string::npos
+            && storyStateText.find("\"kfm\"") == std::string::npos
+            && storyStateText.find("\"evilken\"") == std::string::npos
+            && storyStateText.find("\"evilryu\"") == std::string::npos
+            ? Status::Pass : Status::Fail,
+        "story_preferred_enemies_owned_first",
+        "runtime story preferences should not point at unowned public characters");
     summary(out, counts);
     return exitCode(counts);
 }
