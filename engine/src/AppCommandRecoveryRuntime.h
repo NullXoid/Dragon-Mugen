@@ -710,20 +710,25 @@ void updateControlledFighter(
     }
     const int heldWalkAction = ((fighter.facing >= 0 && input.right) || (fighter.facing < 0 && input.left)) ? 20 : 21;
     const auto startFallbackJump = [&state, &fighter, &input]() {
+        const int sourceStateNo = fighter.stateNo;
         consumeJumpInputBuffer(fighter);
         const CharacterConstants& constants = characterConstantsForActor(state, fighter);
         const bool holdingForward = (fighter.facing >= 0 && input.right) || (fighter.facing < 0 && input.left);
         const bool holdingBack = (fighter.facing >= 0 && input.left) || (fighter.facing < 0 && input.right);
         const int localDirection = holdingForward == holdingBack ? 0 : (holdingForward ? 1 : -1);
-        const float localVelocityX = localDirection == 0
-            ? constants.velocityJumpNeuX
-            : (localDirection > 0 ? constants.velocityJumpFwdX : constants.velocityJumpBackX);
+        const bool forwardRunJump = sourceStateNo == 100 && localDirection > 0;
+        const float localVelocityX = forwardRunJump
+            ? constants.velocityRunJumpFwdX
+            : (localDirection == 0
+                ? constants.velocityJumpNeuX
+                : (localDirection > 0 ? constants.velocityJumpFwdX : constants.velocityJumpBackX));
+        const float velocityY = forwardRunJump ? constants.velocityRunJumpFwdY : constants.velocityJumpY;
         fighter.vx = localVelocityX * static_cast<float>(fighter.facing);
-        fighter.vy = constants.velocityJumpY;
+        fighter.vy = velocityY;
         if (findStateDefinitionForActor(state, fighter, 50)) {
             enterState(state, fighter, 50);
             fighter.vx = localVelocityX * static_cast<float>(fighter.facing);
-            fighter.vy = constants.velocityJumpY;
+            fighter.vy = velocityY;
         }
         fighter.onGround = false;
         fighter.stateType = 'A';
@@ -795,6 +800,18 @@ void updateControlledFighter(
         applyControlledAirSteer(state, fighter, input, attackButtonHeld, movementLocked);
     }
 
+    const bool runStateCanFallbackJump = fighter.stateNo == 100 && !attackButtonHeld;
+    if ((!changedStateFromCommand || runStateCanFallbackJump)
+        && canStartFallbackJumpFromState(fighter)
+        && (!movementLocked || fighter.stateNo == 100)
+        && !holdingDown
+        && fighter.ctrl
+        && !attackButtonHeld
+        && fighter.jumpInputBufferTicks > 0
+        && fighter.onGround) {
+        startFallbackJump();
+    }
+
     if (fighter.stateNo == 0) {
         if (fighter.onGround) {
             fighter.vx = 0.0f;
@@ -815,15 +832,6 @@ void updateControlledFighter(
                     fighter.vx = localVelocity * static_cast<float>(fighter.facing);
                 }
             }
-        }
-        if (!changedStateFromCommand
-            && !movementLocked
-            && !holdingDown
-            && fighter.ctrl
-            && !attackButtonHeld
-            && fighter.jumpInputBufferTicks > 0
-            && fighter.onGround) {
-            startFallbackJump();
         }
     }
 }

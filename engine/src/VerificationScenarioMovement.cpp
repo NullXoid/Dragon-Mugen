@@ -456,6 +456,38 @@ int runKfmMovementDirectionAudit(RuntimeProbe& runtime, std::ostream& out) {
     }
 
     if (!resetToIdle(runtime)) {
+        recordBlockedReset(out, counts, "run_jump_reset", runtime);
+    } else {
+        const auto before = runtime.snapshot().p1;
+        const auto forward = direction(false, true, false, false);
+        runtime.step(forward, 1);
+        runtime.step({}, 1);
+        runtime.step(forward, 1);
+        bool sawRun = false;
+        FighterSnapshot runFrame = runtime.snapshot().p1;
+        for (int i = 0; i < 12; ++i) {
+            runFrame = runtime.snapshot().p1;
+            if (runFrame.stateNo == 100) {
+                sawRun = true;
+                break;
+            }
+            runtime.step(forward, 1);
+        }
+        runtime.step(direction(false, true, true, false), 1);
+        const auto jumped = runtime.snapshot().p1;
+        constexpr float kKfmRunJumpYAfterOnePhysicsTick = -8.1f + 0.44f;
+        const bool ok = sawRun
+            && !jumped.onGround
+            && jumped.action == 42
+            && jumped.vx > 3.7f
+            && nearly(jumped.vy, kKfmRunJumpYAfterOnePhysicsTick, 0.2f)
+            && jumped.x > before.x + 8.0f;
+        record(out, counts, ok ? Status::Pass : Status::Fail, "forward_run_jump_uses_runjump_velocity",
+            "run=" + movementDetail(before, runFrame) + " jump=" + movementDetail(runFrame, jumped)
+            + " saw_run=" + std::to_string(sawRun ? 1 : 0));
+    }
+
+    if (!resetToIdle(runtime)) {
         recordBlockedReset(out, counts, "bb_reset", runtime);
     } else {
         const auto before = runtime.snapshot().p1;

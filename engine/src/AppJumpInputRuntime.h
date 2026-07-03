@@ -64,6 +64,10 @@ bool shouldQueueHeldJumpRepeat(const FighterState& fighter, const FighterInputSt
         && canAct && !attackButtonHeld && !holdingDown && !movementLocked;
 }
 
+bool canStartFallbackJumpFromState(const FighterState& fighter) {
+    return fighter.stateNo == 0 || fighter.stateNo == 20 || fighter.stateNo == 100;
+}
+
 float approachAirVelocity(float current, float target, float step) {
     if (current < target) {
         return std::min(current + step, target);
@@ -99,7 +103,13 @@ void applyControlledAirSteer(
     }
 
     const CharacterConstants& constants = characterConstantsForActor(state, fighter);
-    const float targetLocalVelocity = holdingForward ? constants.velocityJumpFwdX : constants.velocityJumpBackX;
+    const float currentLocalVelocity = fighter.vx * static_cast<float>(fighter.facing);
+    float targetLocalVelocity = holdingForward ? constants.velocityJumpFwdX : constants.velocityJumpBackX;
+    if (holdingForward && currentLocalVelocity > targetLocalVelocity) {
+        targetLocalVelocity = currentLocalVelocity;
+    } else if (holdingBack && currentLocalVelocity < targetLocalVelocity) {
+        targetLocalVelocity = currentLocalVelocity;
+    }
     const float targetVelocity = targetLocalVelocity * static_cast<float>(fighter.facing);
     constexpr float kAirSteerStep = 0.18f;
     fighter.vx = approachAirVelocity(fighter.vx, targetVelocity, kAirSteerStep);
