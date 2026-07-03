@@ -280,6 +280,40 @@ int runKfmMovementDirectionAudit(RuntimeProbe& runtime, std::ostream& out) {
     }
 
     if (!resetToIdle(runtime)) {
+        recordBlockedReset(out, counts, "air_steer_right_reset", runtime);
+    } else {
+        const auto before = runtime.snapshot().p1;
+        runtime.step(direction(false, false, true, false), 1);
+        const auto launched = runtime.snapshot().p1;
+        runtime.step(direction(false, true, false, false), 20);
+        const auto after = runtime.snapshot().p1;
+        const bool ok = !launched.onGround
+            && !after.onGround
+            && after.action == 42
+            && after.vx > 1.0f
+            && after.x > before.x + 8.0f;
+        record(out, counts, ok ? Status::Pass : Status::Fail, "neutral_jump_air_steers_right",
+            "launch=" + movementDetail(before, launched) + " after=" + movementDetail(launched, after));
+    }
+
+    if (!resetToIdle(runtime)) {
+        recordBlockedReset(out, counts, "air_reverse_left_reset", runtime);
+    } else {
+        const auto before = runtime.snapshot().p1;
+        runtime.step(direction(false, true, true, false), 1);
+        const auto launched = runtime.snapshot().p1;
+        runtime.step(direction(true, false, false, false), 20);
+        const auto after = runtime.snapshot().p1;
+        const bool ok = !launched.onGround
+            && !after.onGround
+            && after.action == 43
+            && after.vx < -0.5f
+            && after.x > before.x;
+        record(out, counts, ok ? Status::Pass : Status::Fail, "forward_jump_air_reverses_left",
+            "launch=" + movementDetail(before, launched) + " after=" + movementDetail(launched, after));
+    }
+
+    if (!resetToIdle(runtime)) {
         recordBlockedReset(out, counts, "buffered_jump_reset", runtime);
     } else {
         const auto before = runtime.snapshot().p1;

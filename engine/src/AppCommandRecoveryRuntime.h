@@ -642,64 +642,7 @@ void updateGroundGuardState(const AppState& state, FighterState& target) {
     }
 }
 
-constexpr int kJumpInputBufferTicks = 18;
-
-void updateJumpInputBuffer(
-    FighterState& fighter,
-    const FighterInputState& input,
-    bool jumpPressedThisFrame,
-    bool commandButtonHeld) {
-    if (fighter.guarding || fighter.moveType == 'H') {
-        fighter.jumpInputBufferTicks = 0;
-        if (!input.up) {
-            fighter.jumpInputConsumedWhileHeld = false;
-        }
-        return;
-    }
-
-    if (!input.up) {
-        fighter.jumpInputConsumedWhileHeld = false;
-        if (fighter.jumpInputBufferTicks > 0) {
-            --fighter.jumpInputBufferTicks;
-        }
-        return;
-    }
-
-    if (jumpPressedThisFrame) {
-        fighter.jumpInputBufferTicks = kJumpInputBufferTicks;
-        fighter.jumpInputConsumedWhileHeld = false;
-        return;
-    }
-
-    const bool waitingForActionableGround =
-        !fighter.ctrl
-        || !fighter.onGround
-        || fighter.moveType != 'I'
-        || fighter.stateNo != 0
-        || fighter.hitPauseTicks > 0
-        || fighter.guarding;
-    if (!fighter.jumpInputConsumedWhileHeld && (waitingForActionableGround || commandButtonHeld)) {
-        fighter.jumpInputBufferTicks = kJumpInputBufferTicks;
-        return;
-    }
-
-    if (fighter.jumpInputBufferTicks > 0) {
-        --fighter.jumpInputBufferTicks;
-    }
-}
-
-void consumeJumpInputBuffer(FighterState& fighter) {
-    fighter.jumpInputBufferTicks = 0;
-    fighter.jumpInputConsumedWhileHeld = true;
-}
-
-bool shouldQueueHeldJumpRepeat(const FighterState& fighter, const FighterInputState& input,
-    bool attackButtonHeld, bool holdingDown, bool movementLocked) {
-    const bool canAct = fighter.onGround && fighter.ctrl && fighter.moveType == 'I'
-        && !fighter.guarding && fighter.hitPauseTicks <= 0;
-    return input.up && fighter.jumpInputConsumedWhileHeld && fighter.jumpInputBufferTicks <= 0
-        && canAct && !attackButtonHeld && !holdingDown && !movementLocked;
-}
+#include "AppJumpInputRuntime.h"
 
 void updateControlledFighter(
     AppState& state,
@@ -846,6 +789,10 @@ void updateControlledFighter(
         if (findExactClipForActor(state, fighter, heldWalkAction)) {
             setFighterAction(fighter, heldWalkAction);
         }
+    }
+
+    if (!changedStateFromCommand) {
+        applyControlledAirSteer(state, fighter, input, attackButtonHeld, movementLocked);
     }
 
     if (fighter.stateNo == 0) {
