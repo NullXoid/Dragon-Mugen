@@ -22,24 +22,25 @@ Compatibility fixture characters such as KFM and the compatibility roster are st
 
 ## A.Ben Status
 
-A.Ben is loadable and has a usable prototype control foundation, but he is not ready for final visual combat testing.
+A.Ben is loadable and now has a usable prototype control and action-sprite foundation, but he is not ready for final visual combat testing.
 
 Verified content:
 
 - AIR actions: 54
-- Unique AIR sprite references: 9
+- Unique AIR sprite references: 77
 - Missing AIR sprite references: 0
-- SFF sprite records: 27
-- Unique SFF group/index pairs used by the current AIR: `0,0` and walk group `20,0` through `20,7`
-- Non-placeholder movement actions: `20`, `21`, `100`, `105`
+- SFF sprite records reported by the compatibility audit: 79
+- Original walk group: `20,0` through `20,7`
+- Derived prototype action groups: `40`, `41`, `42`, `47`, `50`, `52`, `100`, `105`, `200`, `210`, `220`, `230`, `240`, `250`, `1000`, `1010`, `1020`, `1100`, `1110`, `1120`, and `3000`
 
 Important readiness gaps:
 
-- Idle, crouch, jump, landing, hit, guard, recover, intro, taunt, win, attacks, specials, and super all still reuse placeholder sprite `0,0`.
-- Attack states and hitboxes exist, but their visuals are not authored yet.
-- The current walk/run cycle is the only meaningful authored movement animation.
+- Idle, crouch, guard, get-hit, recover, intro, taunt, and win still reuse placeholder sprite `0,0`.
+- Dash, jump, punch, kick, special, and super states now use derived prototype action sprites rather than the old front-facing placeholder.
+- Attack states and hitboxes exist, but the action sprites are derived bridge art, not final authored animation.
+- The accepted walk cycle remains the strongest authored movement animation.
 - SFF contains repeated `0,0` records, which should be cleaned when the character art pipeline is finalized.
-- Combat testing should use A.Ben only for control and state-flow checks until his frame set is expanded.
+- Combat testing should still treat A.Ben as prototype content until his final frame set is expanded and approved.
 
 ## I.Chie Status
 
@@ -66,7 +67,7 @@ Important readiness gaps:
 Use owned characters for:
 
 - Shop presentation and interaction checks.
-- A.Ben walk/run movement checks.
+- A.Ben walk/run, dash, jump, punch, and kick smoke checks.
 - Basic load and state-flow smoke checks.
 - Verifying no missing AIR sprite references.
 
@@ -75,14 +76,14 @@ Do not use owned characters yet for:
 - Final combat feel.
 - Final hit reaction quality.
 - Animation timing polish.
-- Visual proof of attack/special/super quality.
+- Visual proof of final attack/special/super quality.
 - Judging the fight renderer against finished-content expectations.
 
 Use compatibility fixtures for engine behavior until A.Ben and I.Chie have complete authored frame sets.
 
 ## Recommended Next Character Work
 
-1. Build A.Ben's minimum playable animation set:
+1. Replace A.Ben's derived prototype action sprites with final authored animation:
    - idle
    - turn
    - crouch start/hold/end
@@ -96,4 +97,3 @@ Use compatibility fixtures for engine behavior until A.Ben and I.Chie have compl
 3. Keep I.Chie in shopkeeper/NPC use until combat frames exist.
 4. Add an owned-character visual readiness verifier that reports placeholder AIR actions without failing normal engine verification.
 5. Promote owned characters to full combat regression coverage only after their animation sets are authored.
-
