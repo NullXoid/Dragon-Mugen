@@ -151,6 +151,37 @@ HeldJumpRepeatResult runHeldJumpRepeatProbe(RuntimeProbe& runtime, const Symboli
     return result;
 }
 
+HeldJumpRepeatResult runHeldJumpRepeatDirectionChangeProbe(
+    RuntimeProbe& runtime,
+    const SymbolicInput& firstJumpInput,
+    const SymbolicInput& repeatJumpInput,
+    int switchFrame,
+    int maxFrames) {
+    HeldJumpRepeatResult result;
+    runtime.step(firstJumpInput, 1);
+    result.firstJump = runtime.snapshot().p1;
+    result.sawFirstAir = !result.firstJump.onGround;
+    bool leftGround = result.sawFirstAir;
+    for (int frame = 0; frame < maxFrames; ++frame) {
+        const auto input = frame >= switchFrame ? repeatJumpInput : firstJumpInput;
+        const auto before = runtime.snapshot().p1;
+        leftGround = leftGround || !before.onGround;
+        if (leftGround && before.onGround && before.y >= -0.05f) {
+            result.sawLanding = true;
+        }
+        runtime.step(input, 1);
+        const auto after = runtime.snapshot().p1;
+        result.finalFrame = after;
+        if (result.sawLanding && !after.onGround && after.vy < -1.0f) {
+            result.sawRepeat = true;
+            result.repeatJump = after;
+            result.repeatFrame = frame;
+            break;
+        }
+    }
+    return result;
+}
+
 std::string heldJumpRepeatDetail(const HeldJumpRepeatResult& result) {
     return "first_air=" + std::to_string(result.sawFirstAir ? 1 : 0)
         + " landed=" + std::to_string(result.sawLanding ? 1 : 0)
@@ -395,6 +426,22 @@ int runKfmMovementDirectionAudit(RuntimeProbe& runtime, std::ostream& out) {
             && result.repeatJump.action == 43
             && result.repeatJump.vx < -1.5f;
         record(out, counts, ok ? Status::Pass : Status::Fail, "held_up_left_repeats_back_jump",
+            heldJumpRepeatDetail(result));
+    }
+
+    if (!resetToIdle(runtime)) {
+        recordBlockedReset(out, counts, "held_up_direction_change_repeat_reset", runtime);
+    } else {
+        const auto result = runHeldJumpRepeatDirectionChangeProbe(
+            runtime,
+            direction(false, true, true, false),
+            direction(true, false, true, false),
+            28,
+            240);
+        const bool ok = result.sawRepeat
+            && result.repeatJump.action == 43
+            && result.repeatJump.vx < -1.5f;
+        record(out, counts, ok ? Status::Pass : Status::Fail, "held_up_direction_change_uses_live_input",
             heldJumpRepeatDetail(result));
     }
 
