@@ -557,6 +557,58 @@ int runKfmMovementDirectionAudit(RuntimeProbe& runtime, std::ostream& out) {
             + " saw_hop_velocity=" + std::to_string(sawHopVelocity ? 1 : 0));
     }
 
+    if (!resetToIdle(runtime)) {
+        recordBlockedReset(out, counts, "back_hop_recovery_reset", runtime);
+    } else {
+        const auto before = runtime.snapshot().p1;
+        const auto back = direction(true, false, false, false);
+        runtime.step(back, 1);
+        runtime.step({}, 1);
+        runtime.step(back, 1);
+        bool sawHop = false;
+        bool sawLanding = false;
+        bool recoveredIdle = false;
+        FighterSnapshot hopFrame;
+        FighterSnapshot landingFrame;
+        FighterSnapshot recoveryFrame;
+        FighterSnapshot idleFrame;
+        for (int i = 0; i < 120; ++i) {
+            const auto p1 = runtime.snapshot().p1;
+            if (!sawHop && p1.stateNo == 105) {
+                sawHop = true;
+                hopFrame = p1;
+            }
+            if (!sawLanding && p1.stateNo == 106 && p1.onGround) {
+                sawLanding = true;
+                landingFrame = p1;
+            }
+            if (sawLanding && p1.stateNo == 0 && p1.ctrl && p1.onGround) {
+                recoveredIdle = true;
+                recoveryFrame = p1;
+                runtime.step({}, 1);
+                idleFrame = runtime.snapshot().p1;
+                break;
+            }
+            runtime.step({}, 1);
+        }
+        const bool ok = sawHop
+            && sawLanding
+            && recoveredIdle
+            && idleFrame.x < before.x - 20.0f
+            && idleFrame.stateNo == 0
+            && idleFrame.onGround
+            && nearly(idleFrame.vx, 0.0f, 0.05f)
+            && nearly(idleFrame.x, recoveryFrame.x, 0.05f);
+        record(out, counts, ok ? Status::Pass : Status::Fail, "back_back_hop_lands_and_recovers_idle",
+            "hop=" + movementDetail(before, hopFrame)
+            + " landing=" + movementDetail(hopFrame, landingFrame)
+            + " recovery=" + movementDetail(landingFrame, recoveryFrame)
+            + " idle=" + movementDetail(recoveryFrame, idleFrame)
+            + " saw_hop=" + std::to_string(sawHop ? 1 : 0)
+            + " saw_landing=" + std::to_string(sawLanding ? 1 : 0)
+            + " recovered_idle=" + std::to_string(recoveredIdle ? 1 : 0));
+    }
+
     summary(out, counts);
     return exitCode(counts);
 }
