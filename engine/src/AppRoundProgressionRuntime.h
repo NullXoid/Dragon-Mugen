@@ -625,15 +625,31 @@ void updateSingleFightRoundFinishWorld(AppState& state, const StageSlot& stage) 
     updateCommonAirRecoveryState(state, p2);
     updateCommonDizzyState(state, p1);
     updateCommonDizzyState(state, p2);
-    if (p1CanUpdate && !p1ChangedBeforePhysics && updateStateChangeStateControllers(state, p1, &p2, &stage) && p1.y >= 0.0f && p1.stateType != 'A') {
+    const bool p1ChangedAfterPhysics = p1CanUpdate && !p1ChangedBeforePhysics && updateStateChangeStateControllers(state, p1, &p2, &stage);
+    const bool p2ChangedAfterPhysics = p2CanUpdate && !p2ChangedBeforePhysics && updateStateChangeStateControllers(state, p2, &p1, &stage);
+    if (p1ChangedAfterPhysics && p1.y >= 0.0f && p1.stateType != 'A') {
         p1.y = 0.0f;
         p1.vy = 0.0f;
         p1.onGround = true;
     }
-    if (p2CanUpdate && !p2ChangedBeforePhysics && updateStateChangeStateControllers(state, p2, &p1, &stage) && p2.y >= 0.0f && p2.stateType != 'A') {
+    if (p2ChangedAfterPhysics && p2.y >= 0.0f && p2.stateType != 'A') {
         p2.y = 0.0f;
         p2.vy = 0.0f;
         p2.onGround = true;
+    }
+    if (p1CanUpdate
+        && !p1ChangedAfterPhysics
+        && shouldDeferCommonLandingToAuthoredAirChangeState(state, p1)
+        && p1.y >= 0.0f
+        && p1.vy >= 0.0f) {
+        enterCommonLandingState(state, p1);
+    }
+    if (p2CanUpdate
+        && !p2ChangedAfterPhysics
+        && shouldDeferCommonLandingToAuthoredAirChangeState(state, p2)
+        && p2.y >= 0.0f
+        && p2.vy >= 0.0f) {
+        enterCommonLandingState(state, p2);
     }
     if (p1CanUpdate) {
         updateNeutralAirLandingFallback(state, p1);

@@ -272,6 +272,17 @@ void updateArenaFighterFacing(AppState& state) {
     }
 }
 
+bool shouldDeferCommonLandingToAuthoredAirChangeState(const AppState& state, const FighterState& fighter) {
+    if (fighter.helper
+        || fighter.stateType != 'A'
+        || fighter.physics != 'A'
+        || fighter.moveType == 'H') {
+        return false;
+    }
+    const StateDefinition* stateDef = findStateDefinitionForActor(state, fighter, fighter.stateNo);
+    return stateDef && !stateDef->changeStates.empty();
+}
+
 void updateFighterPhysics(const AppState& state, FighterState& fighter, const StageSlot& stage) {
     if (!fighter.posFreezeX) {
         fighter.x = std::clamp(fighter.x + fighter.vx, stage.leftbound, stage.rightbound);
@@ -299,7 +310,8 @@ void updateFighterPhysics(const AppState& state, FighterState& fighter, const St
         fighter.stateType == 'A'
         && fighter.physics != 'A'
         && fighter.moveType != 'H';
-    if (fighter.physics != 'N' && fighter.y >= 0.0f && !authoredAirStateHandlesFloor) {
+    const bool deferCommonLanding = shouldDeferCommonLandingToAuthoredAirChangeState(state, fighter);
+    if (fighter.physics != 'N' && fighter.y >= 0.0f && !authoredAirStateHandlesFloor && !deferCommonLanding) {
         const bool shouldUseCommonLanding =
             !fighter.helper
             && fighter.stateType == 'A'

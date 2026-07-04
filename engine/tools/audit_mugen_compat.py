@@ -311,6 +311,8 @@ def resolve_character_files(root: Path, char_def: Path) -> tuple[list[Section], 
             if prop.key.lower().startswith("pal"):
                 palettes.append(resolve_content_path(char_root, prop.value))
 
+    sound_value = property_value(files, "sound") if files else ""
+
     return doc, CharacterFiles(
         root=char_root,
         definition=char_def,
@@ -318,7 +320,7 @@ def resolve_character_files(root: Path, char_def: Path) -> tuple[list[Section], 
         states=unique_paths(state_paths),
         sprite=file_prop("sprite", f"{char_id}.sff"),
         anim=file_prop("anim", f"{char_id}.air"),
-        sound=file_prop("sound", f"{char_id}.snd"),
+        sound=resolve_content_path(char_root, sound_value) if sound_value else None,
         palettes=unique_paths(palettes),
     )
 
@@ -604,12 +606,16 @@ def audit_character(root: Path, entry: str, char_def: Path, stage_def: Path | No
         ("cmd", files.cmd),
         ("anim", files.anim),
         ("sprite", files.sprite),
-        ("sound", files.sound),
     ]
     missing = [label for label, path in required_paths if path is None or not path.exists()]
     missing.extend(f"state:{path.name}" for path in files.states if not path.exists())
     if missing:
         print(f"missing files: {', '.join(missing)}")
+    missing_optional = []
+    if files.sound is not None and not files.sound.exists():
+        missing_optional.append("sound")
+    if missing_optional:
+        print(f"missing optional files: {', '.join(missing_optional)}")
 
     actions, air_refs = air_sprite_refs(files.anim)
     sff_info, sff_pairs = parse_sff_v1(files.sprite)

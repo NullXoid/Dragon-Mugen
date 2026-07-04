@@ -151,6 +151,37 @@ HeldJumpRepeatResult runHeldJumpRepeatProbe(RuntimeProbe& runtime, const Symboli
     return result;
 }
 
+HeldJumpRepeatResult runHeldJumpRepeatDirectionChangeProbe(
+    RuntimeProbe& runtime,
+    const SymbolicInput& firstJumpInput,
+    const SymbolicInput& repeatJumpInput,
+    int switchFrame,
+    int maxFrames) {
+    HeldJumpRepeatResult result;
+    runtime.step(firstJumpInput, 1);
+    result.firstJump = runtime.snapshot().p1;
+    result.sawFirstAir = !result.firstJump.onGround;
+    bool leftGround = result.sawFirstAir;
+    for (int frame = 0; frame < maxFrames; ++frame) {
+        const auto input = frame >= switchFrame ? repeatJumpInput : firstJumpInput;
+        const auto before = runtime.snapshot().p1;
+        leftGround = leftGround || !before.onGround;
+        if (leftGround && before.onGround && before.y >= -0.05f) {
+            result.sawLanding = true;
+        }
+        runtime.step(input, 1);
+        const auto after = runtime.snapshot().p1;
+        result.finalFrame = after;
+        if (result.sawLanding && !after.onGround && after.vy < -1.0f) {
+            result.sawRepeat = true;
+            result.repeatJump = after;
+            result.repeatFrame = frame;
+            break;
+        }
+    }
+    return result;
+}
+
 std::string heldJumpRepeatDetail(const HeldJumpRepeatResult& result) {
     return "first_air=" + std::to_string(result.sawFirstAir ? 1 : 0)
         + " landed=" + std::to_string(result.sawLanding ? 1 : 0)
@@ -280,6 +311,40 @@ int runKfmMovementDirectionAudit(RuntimeProbe& runtime, std::ostream& out) {
     }
 
     if (!resetToIdle(runtime)) {
+        recordBlockedReset(out, counts, "air_steer_right_reset", runtime);
+    } else {
+        const auto before = runtime.snapshot().p1;
+        runtime.step(direction(false, false, true, false), 1);
+        const auto launched = runtime.snapshot().p1;
+        runtime.step(direction(false, true, false, false), 20);
+        const auto after = runtime.snapshot().p1;
+        const bool ok = !launched.onGround
+            && !after.onGround
+            && after.action == 42
+            && after.vx > 1.0f
+            && after.x > before.x + 8.0f;
+        record(out, counts, ok ? Status::Pass : Status::Fail, "neutral_jump_air_steers_right",
+            "launch=" + movementDetail(before, launched) + " after=" + movementDetail(launched, after));
+    }
+
+    if (!resetToIdle(runtime)) {
+        recordBlockedReset(out, counts, "air_reverse_left_reset", runtime);
+    } else {
+        const auto before = runtime.snapshot().p1;
+        runtime.step(direction(false, true, true, false), 1);
+        const auto launched = runtime.snapshot().p1;
+        runtime.step(direction(true, false, false, false), 20);
+        const auto after = runtime.snapshot().p1;
+        const bool ok = !launched.onGround
+            && !after.onGround
+            && after.action == 43
+            && after.vx < -0.5f
+            && after.x > before.x;
+        record(out, counts, ok ? Status::Pass : Status::Fail, "forward_jump_air_reverses_left",
+            "launch=" + movementDetail(before, launched) + " after=" + movementDetail(launched, after));
+    }
+
+    if (!resetToIdle(runtime)) {
         recordBlockedReset(out, counts, "buffered_jump_reset", runtime);
     } else {
         const auto before = runtime.snapshot().p1;
@@ -365,6 +430,22 @@ int runKfmMovementDirectionAudit(RuntimeProbe& runtime, std::ostream& out) {
     }
 
     if (!resetToIdle(runtime)) {
+        recordBlockedReset(out, counts, "held_up_direction_change_repeat_reset", runtime);
+    } else {
+        const auto result = runHeldJumpRepeatDirectionChangeProbe(
+            runtime,
+            direction(false, true, true, false),
+            direction(true, false, true, false),
+            28,
+            240);
+        const bool ok = result.sawRepeat
+            && result.repeatJump.action == 43
+            && result.repeatJump.vx < -1.5f;
+        record(out, counts, ok ? Status::Pass : Status::Fail, "held_up_direction_change_uses_live_input",
+            heldJumpRepeatDetail(result));
+    }
+
+    if (!resetToIdle(runtime)) {
         recordBlockedReset(out, counts, "released_up_no_repeat_reset", runtime);
     } else {
         runtime.step(direction(false, false, true, false), 1);
@@ -422,6 +503,38 @@ int runKfmMovementDirectionAudit(RuntimeProbe& runtime, std::ostream& out) {
     }
 
     if (!resetToIdle(runtime)) {
+        recordBlockedReset(out, counts, "run_jump_reset", runtime);
+    } else {
+        const auto before = runtime.snapshot().p1;
+        const auto forward = direction(false, true, false, false);
+        runtime.step(forward, 1);
+        runtime.step({}, 1);
+        runtime.step(forward, 1);
+        bool sawRun = false;
+        FighterSnapshot runFrame = runtime.snapshot().p1;
+        for (int i = 0; i < 12; ++i) {
+            runFrame = runtime.snapshot().p1;
+            if (runFrame.stateNo == 100) {
+                sawRun = true;
+                break;
+            }
+            runtime.step(forward, 1);
+        }
+        runtime.step(direction(false, true, true, false), 1);
+        const auto jumped = runtime.snapshot().p1;
+        constexpr float kKfmRunJumpYAfterOnePhysicsTick = -8.1f + 0.44f;
+        const bool ok = sawRun
+            && !jumped.onGround
+            && jumped.action == 42
+            && jumped.vx > 3.7f
+            && nearly(jumped.vy, kKfmRunJumpYAfterOnePhysicsTick, 0.2f)
+            && jumped.x > before.x + 8.0f;
+        record(out, counts, ok ? Status::Pass : Status::Fail, "forward_run_jump_uses_runjump_velocity",
+            "run=" + movementDetail(before, runFrame) + " jump=" + movementDetail(runFrame, jumped)
+            + " saw_run=" + std::to_string(sawRun ? 1 : 0));
+    }
+
+    if (!resetToIdle(runtime)) {
         recordBlockedReset(out, counts, "bb_reset", runtime);
     } else {
         const auto before = runtime.snapshot().p1;
@@ -442,6 +555,58 @@ int runKfmMovementDirectionAudit(RuntimeProbe& runtime, std::ostream& out) {
         record(out, counts, ok ? Status::Pass : Status::Fail, "back_back_hop_matches_common",
             movementDetail(before, after) + " saw_hop=" + std::to_string(sawHop ? 1 : 0)
             + " saw_hop_velocity=" + std::to_string(sawHopVelocity ? 1 : 0));
+    }
+
+    if (!resetToIdle(runtime)) {
+        recordBlockedReset(out, counts, "back_hop_recovery_reset", runtime);
+    } else {
+        const auto before = runtime.snapshot().p1;
+        const auto back = direction(true, false, false, false);
+        runtime.step(back, 1);
+        runtime.step({}, 1);
+        runtime.step(back, 1);
+        bool sawHop = false;
+        bool sawLanding = false;
+        bool recoveredIdle = false;
+        FighterSnapshot hopFrame;
+        FighterSnapshot landingFrame;
+        FighterSnapshot recoveryFrame;
+        FighterSnapshot idleFrame;
+        for (int i = 0; i < 120; ++i) {
+            const auto p1 = runtime.snapshot().p1;
+            if (!sawHop && p1.stateNo == 105) {
+                sawHop = true;
+                hopFrame = p1;
+            }
+            if (!sawLanding && p1.stateNo == 106 && p1.onGround) {
+                sawLanding = true;
+                landingFrame = p1;
+            }
+            if (sawLanding && p1.stateNo == 0 && p1.ctrl && p1.onGround) {
+                recoveredIdle = true;
+                recoveryFrame = p1;
+                runtime.step({}, 1);
+                idleFrame = runtime.snapshot().p1;
+                break;
+            }
+            runtime.step({}, 1);
+        }
+        const bool ok = sawHop
+            && sawLanding
+            && recoveredIdle
+            && idleFrame.x < before.x - 20.0f
+            && idleFrame.stateNo == 0
+            && idleFrame.onGround
+            && nearly(idleFrame.vx, 0.0f, 0.05f)
+            && nearly(idleFrame.x, recoveryFrame.x, 0.05f);
+        record(out, counts, ok ? Status::Pass : Status::Fail, "back_back_hop_lands_and_recovers_idle",
+            "hop=" + movementDetail(before, hopFrame)
+            + " landing=" + movementDetail(hopFrame, landingFrame)
+            + " recovery=" + movementDetail(landingFrame, recoveryFrame)
+            + " idle=" + movementDetail(recoveryFrame, idleFrame)
+            + " saw_hop=" + std::to_string(sawHop ? 1 : 0)
+            + " saw_landing=" + std::to_string(sawLanding ? 1 : 0)
+            + " recovered_idle=" + std::to_string(recoveredIdle ? 1 : 0));
     }
 
     summary(out, counts);

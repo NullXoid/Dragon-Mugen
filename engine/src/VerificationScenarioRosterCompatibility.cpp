@@ -1,5 +1,8 @@
 #include "VerificationScenario.h"
 
+#include "dragon/Compatibility.h"
+#include "dragon/MugenData.h"
+
 #include "AppTypes.h"
 
 #include <array>
@@ -439,6 +442,26 @@ void verifyCharacter(RuntimeProbe& runtime, std::ostream& out, Counts& counts, c
             + "} p2{" + fighterDetail(contactSnap.p2) + "} text=\"" + contactSnap.lastHitText + "\"");
 }
 
+std::vector<RosterCharacterInfo> compatibilitySmokeRoster(RuntimeProbe& runtime) {
+    std::vector<RosterCharacterInfo> out = runtime.selectableCharacters();
+    const std::filesystem::path gameRoot(runtime.rootText());
+    const auto fixtures = loadCharactersFromSelectFile(gameRoot, gameRoot / "data" / "compatibility_select.def");
+    for (const auto& character : fixtures) {
+        const auto duplicate = std::any_of(out.begin(), out.end(), [&](const RosterCharacterInfo& existing) {
+            return existing.id == character.id || existing.defPath == character.defPath.string();
+        });
+        if (!duplicate) {
+            out.push_back(RosterCharacterInfo{
+                character.id,
+                character.displayName,
+                character.defPath.string(),
+                compatibilityProfileName(character.compatibilityProfile),
+            });
+        }
+    }
+    return out;
+}
+
 } // namespace
 
 int runRosterCompatibilitySmoke(RuntimeProbe& runtime, std::ostream& out) {
@@ -446,7 +469,7 @@ int runRosterCompatibilitySmoke(RuntimeProbe& runtime, std::ostream& out) {
     out << "VERIFY roster-compatibility-smoke\n"
         << "root: " << runtime.rootText() << "\n";
 
-    const auto characters = runtime.selectableCharacters();
+    const auto characters = compatibilitySmokeRoster(runtime);
     record(out, counts, characters.empty() ? Status::Blocked : Status::Pass,
         "selectable_roster_loaded",
         "count=" + std::to_string(characters.size()));

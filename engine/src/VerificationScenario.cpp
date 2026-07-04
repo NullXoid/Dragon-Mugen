@@ -199,12 +199,29 @@ int runShopDemoRoomHook(RuntimeProbe& runtime, std::ostream& out) {
         "options_index=6 exit_index=7");
 
     const auto characters = runtime.selectableCharacters();
+    const bool aBenSelectable = std::any_of(characters.begin(), characters.end(), [](const RosterCharacterInfo& character) {
+        return character.id == "A.Ben" || character.displayName.find("A.Ben") != std::string::npos;
+    });
     const bool iChieSelectable = std::any_of(characters.begin(), characters.end(), [](const RosterCharacterInfo& character) {
         return character.id == "I.Chie" || character.displayName.find("I.Chie") != std::string::npos;
     });
-    recordCheck(!iChieSelectable,
-        "shop_npc_not_selectable_roster",
+    recordCheck(aBenSelectable && iChieSelectable,
+        "owned_roster_selectable",
         "selectable_count=" + std::to_string(characters.size()));
+
+    const auto repoRoot = root.filename() == "game" ? root.parent_path() : root;
+    const auto shopRuntimePath = repoRoot / "engine" / "src" / "ShopDemoRuntime.h";
+    std::string shopRuntimeText;
+    if (std::ifstream in(shopRuntimePath); in) {
+        shopRuntimeText.assign(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+    }
+    const bool ownedFallback =
+        shopRuntimeText.find("return \"A.Ben\";") != std::string::npos
+        && shopRuntimeText.find("return \"kfm\";") == std::string::npos
+        && shopRuntimeText.find("return \"Kung Fu Man\";") == std::string::npos;
+    recordCheck(ownedFallback,
+        "shop_fallback_target_owned_character",
+        ownedFallback ? "fallback=A.Ben" : "shop fallback still references unowned KFM data");
 
     constexpr float roomWidth = 2240.0f;
     constexpr float playerWalkWidth = 2080.0f;

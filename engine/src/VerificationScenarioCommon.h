@@ -384,6 +384,27 @@ AirLandingObservation holdInputUntilLanding(RuntimeProbe& runtime, const Symboli
     return observation;
 }
 
+AirLandingObservation launchInputUntilLanding(RuntimeProbe& runtime, const SymbolicInput& input, int maxFrames) {
+    AirLandingObservation observation;
+    observation.yMin = runtime.snapshot().p1.y;
+    runtime.step(input, 1);
+    for (int i = 0; i < maxFrames; ++i) {
+        runtime.step({}, 1);
+        const auto p1 = runtime.snapshot().p1;
+        observation.yMin = std::min(observation.yMin, p1.y);
+        if (snapshotIsAirborne(p1)) {
+            if (observation.landed) {
+                observation.reenteredAirAfterLanding = true;
+            }
+            observation.sawAir = true;
+        } else if (observation.sawAir && p1.onGround) {
+            observation.landed = true;
+        }
+        observation.final = p1;
+    }
+    return observation;
+}
+
 std::string airLandingDetail(const AirLandingObservation& observation) {
     return "saw_air=" + std::to_string(observation.sawAir ? 1 : 0)
         + " landed=" + std::to_string(observation.landed ? 1 : 0)

@@ -86,30 +86,30 @@ int runDragonProgressionLevelItems(RuntimeProbe& runtime, std::ostream& out) {
         "default_profile_available",
         defaultProfileName);
 
-    auto firstAward = recordDragonProgressionMatch(data, save, "kfm", "Kung Fu Man", true, false);
+    auto firstAward = recordDragonProgressionMatch(data, save, "A.Ben", "A.Ben", true, false);
     record(out, counts, firstAward.applied && firstAward.xpGained == data.config.winXp ? Status::Pass : Status::Fail,
         "win_xp_awarded",
         dragonProgressionAwardSummary(firstAward));
 
-    auto secondAward = recordDragonProgressionMatch(data, save, "kfm", "Kung Fu Man", true, false);
+    auto secondAward = recordDragonProgressionMatch(data, save, "A.Ben", "A.Ben", true, false);
     record(out, counts, secondAward.newLevel > firstAward.newLevel ? Status::Pass : Status::Fail,
         "level_up_after_enough_xp",
         dragonProgressionAwardSummary(secondAward));
 
     grantDragonProgressionItem(save, "training_weight", 1);
     std::string equipReason;
-    const bool equippedTrainingWeight = equipDragonProgressionItem(data, save, "kfm", "training_weight", &equipReason);
+    const bool equippedTrainingWeight = equipDragonProgressionItem(data, save, "A.Ben", "training_weight", &equipReason);
     record(out, counts, equippedTrainingWeight ? Status::Pass : Status::Fail,
         "equip_owned_level_one_item",
         equipReason);
 
     grantDragonProgressionItem(save, "guard_charm", 1);
-    const bool equippedGuardCharm = equipDragonProgressionItem(data, save, "kfm", "guard_charm", &equipReason);
+    const bool equippedGuardCharm = equipDragonProgressionItem(data, save, "A.Ben", "guard_charm", &equipReason);
     record(out, counts, equippedGuardCharm ? Status::Pass : Status::Fail,
         "equip_level_gated_item_after_level_up",
         equipReason);
 
-    const auto stats = effectiveDragonProgressionStats(data, save, "kfm");
+    const auto stats = effectiveDragonProgressionStats(data, save, "A.Ben");
     const bool statsIncludeLevelsAndItem =
         stats.level >= 2
         && stats.lifeBonus > 0
@@ -125,7 +125,7 @@ int runDragonProgressionLevelItems(RuntimeProbe& runtime, std::ostream& out) {
     const DragonProgressionProfile& activeProfile = activeDragonProgressionProfile(save);
     const std::string firstProfileId = activeProfile.id;
     setActiveDragonProgressionProfile(save, "Verifier Two");
-    const auto isolatedStats = effectiveDragonProgressionStats(data, save, "kfm");
+    const auto isolatedStats = effectiveDragonProgressionStats(data, save, "A.Ben");
     record(out, counts,
         isolatedStats.level == 1 && isolatedStats.xp == 0 && !firstProfileId.empty()
             ? Status::Pass
@@ -133,8 +133,8 @@ int runDragonProgressionLevelItems(RuntimeProbe& runtime, std::ostream& out) {
         "profile_switch_isolates_character_xp",
         dragonProgressionStatsSummary(isolatedStats));
 
-    const auto secondProfileAward = recordDragonProgressionMatch(data, save, "kfm", "Kung Fu Man", false, false);
-    const auto secondProfileStats = effectiveDragonProgressionStats(data, save, "kfm");
+    const auto secondProfileAward = recordDragonProgressionMatch(data, save, "A.Ben", "A.Ben", false, false);
+    const auto secondProfileStats = effectiveDragonProgressionStats(data, save, "A.Ben");
     record(out, counts,
         secondProfileAward.applied
             && secondProfileStats.level == 1
@@ -145,7 +145,7 @@ int runDragonProgressionLevelItems(RuntimeProbe& runtime, std::ostream& out) {
         dragonProgressionAwardSummary(secondProfileAward));
 
     setActiveDragonProgressionProfile(save, firstProfileId);
-    const auto restoredStats = effectiveDragonProgressionStats(data, save, "kfm");
+    const auto restoredStats = effectiveDragonProgressionStats(data, save, "A.Ben");
     record(out, counts,
         restoredStats.level == stats.level
             && restoredStats.xp == stats.xp
@@ -156,17 +156,17 @@ int runDragonProgressionLevelItems(RuntimeProbe& runtime, std::ostream& out) {
         dragonProgressionStatsSummary(restoredStats));
 
     record(out, counts,
-        dragonProgressionCharacterSummary(data, save, "kfm").find("LV ") != std::string::npos
+        dragonProgressionCharacterSummary(data, save, "A.Ben").find("LV ") != std::string::npos
             ? Status::Pass
             : Status::Fail,
         "character_progression_display_summary",
-        dragonProgressionCharacterSummary(data, save, "kfm"));
+        dragonProgressionCharacterSummary(data, save, "A.Ben"));
 
     const auto tempPath = std::filesystem::temp_directory_path() / "dragon_mugen_progression_verify.def";
     try {
         saveDragonProgressionSave(tempPath, save);
         const auto loaded = loadDragonProgressionSave(tempPath);
-        const auto loadedStats = effectiveDragonProgressionStats(data, loaded, "kfm");
+        const auto loadedStats = effectiveDragonProgressionStats(data, loaded, "A.Ben");
         record(out, counts,
             loadedStats.level == stats.level
                 && loadedStats.attackPermille == stats.attackPermille
@@ -260,20 +260,20 @@ int runDragonProgressionPlayerProfiles(RuntimeProbe& runtime, std::ostream& out)
         data,
         save,
         dragonProgressionPlayerProfileId(save, 0),
-        "kfm",
-        "Kung Fu Man",
+        "A.Ben",
+        "A.Ben",
         true,
         false);
     const auto p2Award = recordDragonProgressionMatchForProfile(
         data,
         save,
         dragonProgressionPlayerProfileId(save, 1),
-        "kfm",
-        "Kung Fu Man",
+        "A.Ben",
+        "A.Ben",
         false,
         false);
-    const auto p1Stats = effectiveDragonProgressionStatsForProfile(data, save, p1Id, "kfm");
-    const auto p2Stats = effectiveDragonProgressionStatsForProfile(data, save, p2Id, "kfm");
+    const auto p1Stats = effectiveDragonProgressionStatsForProfile(data, save, p1Id, "A.Ben");
+    const auto p2Stats = effectiveDragonProgressionStatsForProfile(data, save, p2Id, "A.Ben");
     record(out, counts,
         p1Award.applied
             && p2Award.applied
@@ -290,8 +290,8 @@ int runDragonProgressionPlayerProfiles(RuntimeProbe& runtime, std::ostream& out)
         data,
         save,
         dragonProgressionGuestProfileId(),
-        "kfm",
-        "Kung Fu Man",
+        "A.Ben",
+        "A.Ben",
         true,
         false);
     record(out, counts,
@@ -314,8 +314,8 @@ int runDragonProgressionPlayerProfiles(RuntimeProbe& runtime, std::ostream& out)
     try {
         saveDragonProgressionSave(tempPath, save);
         const auto loaded = loadDragonProgressionSave(tempPath);
-        const auto loadedP1Stats = effectiveDragonProgressionStatsForProfile(data, loaded, p1Id, "kfm");
-        const auto loadedP2Stats = effectiveDragonProgressionStatsForProfile(data, loaded, p2Id, "kfm");
+        const auto loadedP1Stats = effectiveDragonProgressionStatsForProfile(data, loaded, p1Id, "A.Ben");
+        const auto loadedP2Stats = effectiveDragonProgressionStatsForProfile(data, loaded, p2Id, "A.Ben");
         record(out, counts,
             dragonProgressionPlayerProfileId(loaded, 0) == p1Id
                 && dragonProgressionPlayerProfileId(loaded, 1) == p2Id
@@ -368,11 +368,11 @@ int runDragonProgressionEnemyReward(RuntimeProbe& runtime, std::ostream& out) {
         data,
         save,
         profileId,
-        "kfm",
-        "Kung Fu Man",
+        "A.Ben",
+        "A.Ben",
         data.config.enemyDefeatXp,
         data.config.enemyDefeatGold);
-    const auto stats = effectiveDragonProgressionStatsForProfile(data, save, profileId, "kfm");
+    const auto stats = effectiveDragonProgressionStatsForProfile(data, save, profileId, "A.Ben");
     record(out, counts,
         award.applied
             && award.xpGained == data.config.enemyDefeatXp
@@ -388,8 +388,8 @@ int runDragonProgressionEnemyReward(RuntimeProbe& runtime, std::ostream& out) {
         data,
         save,
         profileId,
-        "kfm",
-        "Kung Fu Man",
+        "A.Ben",
+        "A.Ben",
         true,
         false);
     const int afterMatchGold = dragonProgressionGoldForProfile(save, profileId);
@@ -407,8 +407,8 @@ int runDragonProgressionEnemyReward(RuntimeProbe& runtime, std::ostream& out) {
         data,
         save,
         dragonProgressionGuestProfileId(),
-        "kfm",
-        "Kung Fu Man",
+        "A.Ben",
+        "A.Ben",
         data.config.enemyDefeatXp,
         data.config.enemyDefeatGold);
     record(out, counts,

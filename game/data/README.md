@@ -48,6 +48,7 @@ Supported current entry forms:
 
 ```ini
 A.Ben, stages/kfm.def
+I.Chie, stages/kfm.def
 SomeFolder/alternate.def, stages/kfm.def
 ```
 
@@ -67,3 +68,5 @@ Current parser behavior:
 - Reads `[ExtraStages]` as additional stage-select entries.
 
 Folder scanning is only a fallback when `select.def` is missing or has no valid character/stage entries.
+
+`compatibility_select.def` is a verifier-only roster for local compatibility research fixtures. It is not used by the player-facing character select screen.

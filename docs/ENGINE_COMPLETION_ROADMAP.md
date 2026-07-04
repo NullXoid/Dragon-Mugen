@@ -230,7 +230,7 @@ High priority:
 
 - Classic fight outcome, routing, and active-roster guard/fall/KO behavior now have scripted coverage; current manual GUI smoke for those same routes is still due.
 - Broader CMD/runtime compatibility remains partial for air-only specials, throws, alpha counters, custom combo, full super catalogs, and non-roster characters.
-- Newly added or non-selectable characters remain unproven until they are added to `game/data/select.def` and pass `roster-compatibility-smoke`.
+- Newly added public characters remain unproven until they are added to `game/data/select.def` and pass `roster-compatibility-smoke`; unowned/local compatibility fixtures must use `game/data/compatibility_select.def` instead of the player-facing roster.
 - Four-fighter Arena and Story wave 3 now have scripted performance telemetry/culling coverage; a current manual live retest is still needed after major runtime or renderer changes before OpenBOR Stage Compatibility v2 can be called complete.
 - Story Mode has scripted coverage for routing, map-style Stage Select, OpenBOR-stage defaulting, wave spawning, scrolling, targeting, clear/fail, and progression award. A current manual GUI pass is still due before calling the first Story foundation live-verified.
 - Scott `Tram_Rooftop` is a local external stage proof only. Full Scott character compatibility, broader Scott stage coverage such as `Movie_Set` and `Cherry_Garden`, and direct OpenBOR `.pak` compatibility remain separate future work.

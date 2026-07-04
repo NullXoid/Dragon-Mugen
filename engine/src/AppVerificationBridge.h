@@ -880,11 +880,36 @@ private:
         state_.fightRoundSettings = loadFightRoundSettings(gameRoot_);
         state_.selection.characters = loadCharacters(gameRoot_);
         state_.selection.stages = loadStages(gameRoot_);
+        const auto compatibilitySelect = gameRoot_ / "data" / "compatibility_select.def";
+        appendUniqueCharacters(state_.selection.characters, loadCharactersFromSelectFile(gameRoot_, compatibilitySelect));
+        appendUniqueStages(state_.selection.stages, loadStagesFromSelectFile(gameRoot_, compatibilitySelect));
         if (state_.selection.characters.empty() || state_.selection.stages.empty()) {
             out << "runtime content missing characters or stages\n";
             return false;
         }
         return true;
+    }
+
+    static void appendUniqueCharacters(std::vector<CharacterSlot>& target, std::vector<CharacterSlot> source) {
+        for (auto& character : source) {
+            const auto duplicate = std::any_of(target.begin(), target.end(), [&](const CharacterSlot& existing) {
+                return existing.id == character.id || existing.defPath == character.defPath;
+            });
+            if (!duplicate) {
+                target.push_back(std::move(character));
+            }
+        }
+    }
+
+    static void appendUniqueStages(std::vector<StageSlot>& target, std::vector<StageSlot> source) {
+        for (auto& stage : source) {
+            const auto duplicate = std::any_of(target.begin(), target.end(), [&](const StageSlot& existing) {
+                return existing.defPath == stage.defPath;
+            });
+            if (!duplicate) {
+                target.push_back(std::move(stage));
+            }
+        }
     }
 
     void applyProjectedSnapshot(const StageSlot& stage, const FighterState& fighter, verification::FighterSnapshot& snapshot) const {

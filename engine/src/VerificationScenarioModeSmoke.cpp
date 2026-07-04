@@ -304,7 +304,11 @@ int runCompatibilityProfileResolver(RuntimeProbe& runtime, std::ostream& out) {
             + " height=" + std::to_string(parsedLocalCoord.height));
 
     const std::filesystem::path gameRoot(runtime.rootText());
-    const auto characters = loadCharacters(gameRoot);
+    const auto compatibilitySelect = gameRoot / "data" / "compatibility_select.def";
+    auto characters = loadCharactersFromSelectFile(gameRoot, compatibilitySelect);
+    if (characters.empty()) {
+        characters = loadCharacters(gameRoot);
+    }
     const CharacterSlot* kfm = findCharacterById(characters, "kfm");
     const CharacterSlot* evilRyu = findCharacterById(characters, "EvilRyu");
     const CharacterSlot* evilKen = findCharacterById(characters, "EvilKen");
@@ -335,7 +339,10 @@ int runCompatibilityProfileResolver(RuntimeProbe& runtime, std::ostream& out) {
                 + "," + std::to_string(evilKen->localCoord.height)
                 : "missing");
 
-    const auto stages = loadStages(gameRoot);
+    auto stages = loadStagesFromSelectFile(gameRoot, compatibilitySelect);
+    if (stages.empty()) {
+        stages = loadStages(gameRoot);
+    }
     const StageSlot* openBorStage = findLegacyOpenBorStage(stages);
     record(out, counts, openBorStage ? Status::Pass : Status::Fail, "legacy_openbor_stage_bridge",
         openBorStage ? "stage=" + openBorStage->displayName : "missing");
