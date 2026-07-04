@@ -17,9 +17,6 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 CHAR_DIR = REPO_ROOT / "game" / "chars" / "A.Ben"
 DEFAULT_SOURCE_DIRS = (
     CHAR_DIR / "source_art" / "curated_game_sprites" / "frames" / "walk",
-    Path(r"C:\Users\kasom\Desktop\New folder\a-ben\ltx_action_revisions\curated_game_sprites\frames\walk"),
-    Path(r"C:\Users\kasom\Desktop\New folder\a-ben\aben_walk_assets\frames_8"),
-    Path(r"C:\Users\kasom\projects\aben-walk-animation\aben_walk_assets\frames_8"),
 )
 TARGET_WALK_HEIGHT = 122
 IDLE_GROUP = 0
@@ -34,7 +31,6 @@ ACTION_GROUPS = {
 }
 DEFAULT_ACTION_SOURCE_ROOTS = (
     CHAR_DIR / "source_art" / "curated_game_sprites" / "frames",
-    Path(r"C:\Users\kasom\Desktop\New folder\a-ben\ltx_action_revisions\curated_game_sprites\frames"),
 )
 DEFAULT_SHOP_FRAME_DIR = CHAR_DIR / "shop" / "walk"
 IDLE_FRAME_SEQUENCE = (

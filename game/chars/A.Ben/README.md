@@ -10,7 +10,6 @@ This owned prototype bundle includes:
 - curated source art under `source_art/curated_game_sprites`
 - source videos under `source_videos`
 - shop-facing A.Ben assets under `shop`
-- older derived prototype action PNGs under `generated_actions`
 
 The curated LTX/Comfy post-processing path is the forward asset workflow. `engine/tools/ltx_sprite_pipeline.py` prepares exported videos into contact sheets, preview GIFs, manifests, and promoted `384x672` action frames. `engine/tools/build_aben_walk_sff.py` rebuilds the active A.Ben SFF from those curated action folders.
 
@@ -27,7 +26,7 @@ Current curated action targets:
 
 The current diagonal jump frames are derived from the curated neutral jump source and stored in `source_art/curated_game_sprites/frames/jump_forward` and `source_art/curated_game_sprites/frames/jump_back`.
 
-The `generated_actions/` bridge frames and `engine/tools/build_aben_action_sff.py` remain prototype reference material from the earlier action-sprite pass. Replace or retire them once the curated source-video pipeline covers each combat action cleanly.
+The old derived bridge-frame prototype path has been retired. New action revisions should come through source videos, `engine/tools/ltx_sprite_pipeline.py`, and the curated `source_art/curated_game_sprites` folders.
 
 Useful checks:
 

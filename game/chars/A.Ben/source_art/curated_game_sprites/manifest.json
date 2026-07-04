@@ -1,5 +1,5 @@
 {
-  "source": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_runs\\2026-07-04_aben_idle_from_punch_v01\\frames_raw",
+  "source": "ltx_runs",
   "description": "Curated selected-frame sheets from LTX 6-second A.Ben action revisions.",
   "cell_full": {
     "width": 384,
@@ -21,15 +21,17 @@
       ],
       "preview_fps": 14,
       "notes": "Includes idle, anticipation, low dash, recovery. Some AI pose drift remains in middle frames.",
-      "full_sheet": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\sheets\\dash_selected_384x672.png",
-      "cropped_sheet": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\sheets\\dash_selected_cropped_384x668.png",
-      "contact": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\contacts\\dash_selected_contact.png",
-      "gif_preview": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\previews\\dash_selected_preview.gif",
+      "full_sheet": "curated_game_sprites/sheets/dash_selected_384x672.png",
+      "cropped_sheet": "curated_game_sprites/sheets/dash_selected_cropped_384x668.png",
+      "contact": "curated_game_sprites/contacts/dash_selected_contact.png",
+      "gif_preview": "curated_game_sprites/previews/dash_selected_preview.gif",
       "cropped_cell": {
         "width": 384,
         "height": 668
       },
-      "revision_note": "Tightened selection to avoid visible LTX drift frames."
+      "revision_note": "Tightened selection to avoid visible LTX drift frames.",
+      "run_manifest": "ltx_runs/dash/manifest.json",
+      "source_frame_dir": "ltx_runs/dash/frames_clean"
     },
     "jump": {
       "selected_source_frames": [
@@ -46,15 +48,17 @@
       ],
       "preview_fps": 12,
       "notes": "Includes idle, crouch, lift, airborne, landing. Still roughest action; use as candidate source.",
-      "full_sheet": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\sheets\\jump_selected_384x672.png",
-      "cropped_sheet": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\sheets\\jump_selected_cropped_374x672.png",
-      "contact": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\contacts\\jump_selected_contact.png",
-      "gif_preview": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\previews\\jump_selected_preview.gif",
+      "full_sheet": "curated_game_sprites/sheets/jump_selected_384x672.png",
+      "cropped_sheet": "curated_game_sprites/sheets/jump_selected_cropped_374x672.png",
+      "contact": "curated_game_sprites/contacts/jump_selected_contact.png",
+      "gif_preview": "curated_game_sprites/previews/jump_selected_preview.gif",
       "cropped_cell": {
         "width": 374,
         "height": 672
       },
-      "revision_note": "Tightened selection to avoid visible LTX drift frames."
+      "revision_note": "Tightened selection to avoid visible LTX drift frames.",
+      "run_manifest": "ltx_runs/jump/manifest.json",
+      "source_frame_dir": "ltx_runs/jump/frames_clean"
     },
     "punch": {
       "selected_source_frames": [
@@ -71,14 +75,16 @@
       ],
       "preview_fps": 14,
       "notes": "Strongest action source. Avoided front-facing recovery frames where possible.",
-      "full_sheet": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\sheets\\punch_selected_384x672.png",
-      "cropped_sheet": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\sheets\\punch_selected_cropped_384x668.png",
-      "contact": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\contacts\\punch_selected_contact.png",
-      "gif_preview": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\previews\\punch_selected_preview.gif",
+      "full_sheet": "curated_game_sprites/sheets/punch_selected_384x672.png",
+      "cropped_sheet": "curated_game_sprites/sheets/punch_selected_cropped_384x668.png",
+      "contact": "curated_game_sprites/contacts/punch_selected_contact.png",
+      "gif_preview": "curated_game_sprites/previews/punch_selected_preview.gif",
       "cropped_cell": {
         "width": 384,
         "height": 668
-      }
+      },
+      "run_manifest": "ltx_runs/punch/manifest.json",
+      "source_frame_dir": "ltx_runs/punch/frames_clean"
     },
     "kick": {
       "selected_source_frames": [
@@ -95,14 +101,16 @@
       ],
       "preview_fps": 14,
       "notes": "Strong source with clear knee lift and extended kick.",
-      "full_sheet": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\sheets\\kick_selected_384x672.png",
-      "cropped_sheet": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\sheets\\kick_selected_cropped_384x672.png",
-      "contact": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\contacts\\kick_selected_contact.png",
-      "gif_preview": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\previews\\kick_selected_preview.gif",
+      "full_sheet": "curated_game_sprites/sheets/kick_selected_384x672.png",
+      "cropped_sheet": "curated_game_sprites/sheets/kick_selected_cropped_384x672.png",
+      "contact": "curated_game_sprites/contacts/kick_selected_contact.png",
+      "gif_preview": "curated_game_sprites/previews/kick_selected_preview.gif",
       "cropped_cell": {
         "width": 384,
         "height": 672
-      }
+      },
+      "run_manifest": "ltx_runs/kick/manifest.json",
+      "source_frame_dir": "ltx_runs/kick/frames_clean"
     },
     "walk": {
       "selected_source_frames": [
@@ -117,21 +125,21 @@
       ],
       "preview_fps": 24.0,
       "notes": "",
-      "run_manifest": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_runs\\2026-07-04_aben_walk_game_v01\\manifest.json",
-      "source_frame_dir": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_runs\\2026-07-04_aben_walk_game_v01\\frames_raw",
-      "full_sheet": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\sheets\\walk_selected_384x672.png",
-      "cropped_sheet": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\sheets\\walk_selected_cropped_384x672.png",
-      "contact": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\contacts\\walk_selected_contact.png",
-      "gif_preview": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\previews\\walk_selected_preview.gif",
+      "run_manifest": "ltx_runs/walk/manifest.json",
+      "source_frame_dir": "ltx_runs/walk/frames_clean",
+      "full_sheet": "curated_game_sprites/sheets/walk_selected_384x672.png",
+      "cropped_sheet": "curated_game_sprites/sheets/walk_selected_cropped_384x672.png",
+      "contact": "curated_game_sprites/contacts/walk_selected_contact.png",
+      "gif_preview": "curated_game_sprites/previews/walk_selected_preview.gif",
       "promoted_frames": [
-        "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\frames\\walk\\walk_00_src060_384x672.png",
-        "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\frames\\walk\\walk_01_src066_384x672.png",
-        "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\frames\\walk\\walk_02_src072_384x672.png",
-        "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\frames\\walk\\walk_03_src084_384x672.png",
-        "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\frames\\walk\\walk_04_src090_384x672.png",
-        "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\frames\\walk\\walk_05_src096_384x672.png",
-        "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\frames\\walk\\walk_06_src102_384x672.png",
-        "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\frames\\walk\\walk_07_src114_384x672.png"
+        "curated_game_sprites/frames/walk/walk_00_src060_384x672.png",
+        "curated_game_sprites/frames/walk/walk_01_src066_384x672.png",
+        "curated_game_sprites/frames/walk/walk_02_src072_384x672.png",
+        "curated_game_sprites/frames/walk/walk_03_src084_384x672.png",
+        "curated_game_sprites/frames/walk/walk_04_src090_384x672.png",
+        "curated_game_sprites/frames/walk/walk_05_src096_384x672.png",
+        "curated_game_sprites/frames/walk/walk_06_src102_384x672.png",
+        "curated_game_sprites/frames/walk/walk_07_src114_384x672.png"
       ],
       "cropped_cell": {
         "width": 370,
@@ -149,19 +157,19 @@
       ],
       "preview_fps": 12.0,
       "notes": "",
-      "run_manifest": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_runs\\2026-07-04_aben_idle_from_punch_v01\\manifest.json",
-      "source_frame_dir": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_runs\\2026-07-04_aben_idle_from_punch_v01\\frames_raw",
-      "full_sheet": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\sheets\\idle_selected_384x672.png",
-      "cropped_sheet": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\sheets\\idle_selected_cropped_384x672.png",
-      "contact": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\contacts\\idle_selected_contact.png",
-      "gif_preview": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\previews\\idle_selected_preview.gif",
+      "run_manifest": "ltx_runs/idle/manifest.json",
+      "source_frame_dir": "ltx_runs/idle/frames_clean",
+      "full_sheet": "curated_game_sprites/sheets/idle_selected_384x672.png",
+      "cropped_sheet": "curated_game_sprites/sheets/idle_selected_cropped_384x672.png",
+      "contact": "curated_game_sprites/contacts/idle_selected_contact.png",
+      "gif_preview": "curated_game_sprites/previews/idle_selected_preview.gif",
       "promoted_frames": [
-        "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\frames\\idle\\idle_00_src000_384x672.png",
-        "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\frames\\idle\\idle_01_src001_384x672.png",
-        "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\frames\\idle\\idle_02_src002_384x672.png",
-        "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\frames\\idle\\idle_03_src001_384x672.png",
-        "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\frames\\idle\\idle_04_src000_384x672.png",
-        "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites\\frames\\idle\\idle_05_src001_384x672.png"
+        "curated_game_sprites/frames/idle/idle_00_src000_384x672.png",
+        "curated_game_sprites/frames/idle/idle_01_src001_384x672.png",
+        "curated_game_sprites/frames/idle/idle_02_src002_384x672.png",
+        "curated_game_sprites/frames/idle/idle_03_src001_384x672.png",
+        "curated_game_sprites/frames/idle/idle_04_src000_384x672.png",
+        "curated_game_sprites/frames/idle/idle_05_src001_384x672.png"
       ],
       "cropped_cell": {
         "width": 384,

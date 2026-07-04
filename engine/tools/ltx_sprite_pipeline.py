@@ -23,13 +23,21 @@ from PIL import Image, ImageDraw, ImageOps
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CHARACTER_ROOT = REPO_ROOT / "game" / "chars"
-SUPPORTED_ACTIONS = {"idle", "walk", "dash", "jump", "punch", "kick"}
+SUPPORTED_ACTIONS = {"idle", "walk", "dash", "jump", "jump_forward", "jump_back", "punch", "kick"}
 DEFAULT_CELL_WIDTH = 384
 DEFAULT_CELL_HEIGHT = 672
 
 
 def _abs(path: Path | None) -> str | None:
     return str(path.resolve()) if path is not None else None
+
+
+def _portable_path(path: Path, base: Path) -> str:
+    resolved = path.resolve()
+    try:
+        return resolved.relative_to(base.resolve()).as_posix()
+    except ValueError:
+        return str(resolved)
 
 
 def _character_folder_name(character: str) -> str:
@@ -448,9 +456,10 @@ def promote(args: argparse.Namespace) -> int:
     _write_preview_gif(preview, normalized_frames, manifest.get("sample_fps") or 12.0)
 
     curated_manifest_path = curated_root / "manifest.json"
+    manifest_base = curated_root.parent
     curated_manifest = _load_json(curated_manifest_path)
     curated_manifest.setdefault("description", "Curated selected-frame sheets from Comfy/LTX action revisions.")
-    curated_manifest["source"] = str(source_dir.resolve())
+    curated_manifest["source"] = _portable_path(source_dir, manifest_base)
     curated_manifest["cell_full"] = {"width": cell_width, "height": cell_height}
     actions = curated_manifest.setdefault("actions", {})
     existing_notes = actions.get(action, {}).get("notes", "")
@@ -458,13 +467,13 @@ def promote(args: argparse.Namespace) -> int:
         "selected_source_frames": selected,
         "preview_fps": manifest.get("sample_fps") or 12.0,
         "notes": existing_notes,
-        "run_manifest": str(manifest_path.resolve()),
-        "source_frame_dir": str(source_dir.resolve()),
-        "full_sheet": str(full_sheet.resolve()),
-        "cropped_sheet": str(cropped_sheet.resolve()),
-        "contact": str(contact.resolve()),
-        "gif_preview": str(preview.resolve()),
-        "promoted_frames": [str(path.resolve()) for path in selected_paths],
+        "run_manifest": _portable_path(manifest_path, manifest_base),
+        "source_frame_dir": _portable_path(source_dir, manifest_base),
+        "full_sheet": _portable_path(full_sheet, manifest_base),
+        "cropped_sheet": _portable_path(cropped_sheet, manifest_base),
+        "contact": _portable_path(contact, manifest_base),
+        "gif_preview": _portable_path(preview, manifest_base),
+        "promoted_frames": [_portable_path(path, manifest_base) for path in selected_paths],
         "cropped_cell": {"width": cropped_width, "height": cropped_height},
     }
     _write_json(curated_manifest_path, curated_manifest)
@@ -475,11 +484,11 @@ def promote(args: argparse.Namespace) -> int:
     manifest.setdefault("paths", {})
     manifest["paths"].update(
         {
-            "full_sheet": str(full_sheet.resolve()),
-            "cropped_sheet": str(cropped_sheet.resolve()),
-            "contact": str(contact.resolve()),
-            "preview": str(preview.resolve()),
-            "promoted_frames": [str(path.resolve()) for path in selected_paths],
+            "full_sheet": _portable_path(full_sheet, manifest_base),
+            "cropped_sheet": _portable_path(cropped_sheet, manifest_base),
+            "contact": _portable_path(contact, manifest_base),
+            "preview": _portable_path(preview, manifest_base),
+            "promoted_frames": [_portable_path(path, manifest_base) for path in selected_paths],
         }
     )
     _write_json(manifest_path, manifest)
