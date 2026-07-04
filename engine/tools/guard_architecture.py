@@ -48,13 +48,6 @@ REQUIRED_PROCESS_FILES = [
 ]
 
 RESERVED_BENCHMARK_CHARACTERS = {
-    "DragonBench": [
-        Path("game/chars/DragonBench/DragonBench.def"),
-        Path("game/chars/DragonBench/DragonBench.cmd"),
-        Path("game/chars/DragonBench/DragonBench.cns"),
-        Path("game/chars/DragonBench/DragonBench.air"),
-        Path("game/chars/DragonBench/DragonBench.sff"),
-    ],
     "A.Ben": [
         Path("game/chars/A.Ben/A.Ben.def"),
         Path("game/chars/A.Ben/A.Ben.cmd"),

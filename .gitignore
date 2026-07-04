@@ -33,7 +33,18 @@ CMakeUserPresets.json
 *.7z
 *.rar
 /content/research_mugen_chars/
+
+# Local-only reference/blueprint compatibility characters.
+# Keep these available on the developer machine without shipping them in repo.
+/game/chars/CFJ_Lili/
+/game/chars/Dcat_Leo/
+/game/chars/DragonBench/
 /game/chars/DragonClaw/
+/game/chars/EvilKen/
+/game/chars/EvilRyu/
+/game/chars/kfm/
+/game/chars/Lili_QYC_Custom/
+/game/chars/Lili_QYC_Normal/
 
 # Local-only save/profile output
 /game/save/*.def
@@ -47,7 +58,10 @@ CMakeUserPresets.json
 /work/
 /artifacts/screenshots/
 /artifacts/perf/
+/artifacts/aben_*
+/artifacts/aben_*/
 /artifacts/character_proof/
+/artifacts/ltx_video_audit/
 /artifacts/sff_sheets/
 /artifacts/simulations/*.gif
 /artifacts/simulations/*.html

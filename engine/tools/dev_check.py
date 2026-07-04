@@ -52,10 +52,9 @@ def main() -> int:
         checks.append(("console roster check", [str(exe), "game", "--console"]))
         checks.extend(
             [
-                ("verify kfm-baseline", [str(exe), "--verify", "kfm-baseline"]),
-                ("verify evilken-smoke", [str(exe), "--verify", "evilken-smoke"]),
-                ("verify kfm-air-state", [str(exe), "--verify", "kfm-air-state"]),
+                ("verify roster-compatibility-smoke", [str(exe), "--verify", "roster-compatibility-smoke"]),
                 ("verify cpu-baseline", [str(exe), "--verify", "cpu-baseline"]),
+                ("verify arena-cpu-1", [str(exe), "--verify", "arena-cpu-1"]),
             ]
         )
 

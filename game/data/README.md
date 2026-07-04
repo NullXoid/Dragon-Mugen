@@ -47,10 +47,11 @@ Use Dragon files only for Dragon-only concepts:
 Supported current entry forms:
 
 ```ini
-kfm, stages/kfm.def
-EvilRyu, stages/kfm.def
+A.Ben, stages/kfm.def
 SomeFolder/alternate.def, stages/kfm.def
 ```
+
+Only project-owned or explicitly licensed characters should be committed in `select.def`. Third-party/reference characters may be installed locally for compatibility work, but they are ignored under `game/chars/` and should stay out of the clean roster.
 
 Current parser behavior:
 

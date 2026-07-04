@@ -60,13 +60,16 @@
  ;
  ;Insert your characters below.
 
-kfm, stages/kfm.def
-EvilRyu, stages/kfm.def
-EvilKen, stages/kfm.def
-Dcat_Leo/Dcat_Leo.def, stages/kfm.def
-CFJ_Lili, stages/kfm.def
-Lili_QYC_Custom/lili.def, stages/kfm.def
-Lili_QYC_Normal/lili.def, stages/kfm.def
+A.Ben, stages/kfm.def
+
+; Compatibility/reference characters are intentionally inactive in the owned-character build.
+; kfm, stages/kfm.def
+; EvilRyu, stages/kfm.def
+; EvilKen, stages/kfm.def
+; Dcat_Leo/Dcat_Leo.def, stages/kfm.def
+; CFJ_Lili, stages/kfm.def
+; Lili_QYC_Custom/lili.def, stages/kfm.def
+; Lili_QYC_Normal/lili.def, stages/kfm.def
 
 ;-----------------------
 [ExtraStages]

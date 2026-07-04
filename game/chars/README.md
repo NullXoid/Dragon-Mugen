@@ -4,18 +4,15 @@ Each character lives in its own folder:
 
 ```text
 chars/
-  kfm/
-    kfm.def
-    kfm.air
-    kfm.cmd
-    kfm.cns
-    kfm.sff
-    kfm.snd
-    kfm.act
-  EvilRyu/
-    EvilRyu.def
-  EvilKen/
-    EvilKen.def
+  A.Ben/
+    A.Ben.def
+    A.Ben.air
+    A.Ben.cmd
+    A.Ben.cns
+    A.Ben.sff
+    A.Ben.snd
+  I.Chie/
+    I.Chie.def
 ```
 
 ## Important Files
@@ -47,11 +44,11 @@ SomeFolder/alternate.def, stages/kfm.def
 
 ## Current Characters
 
-`kfm/` is Kung Fu Man from the 2001 DOS M.U.G.E.N release. It is the first compatibility target for this engine.
+`A.Ben/` and `I.Chie/` are the repo-owned Dragon MUGEN characters.
 
-`EvilRyu/` and `EvilKen/` are local compatibility stress-test characters. They are listed in `game/data/select.def` so the current runtime can prove it resolves selected character DEF `[Files]` entries instead of hardcoding KFM. They should not be shipped in a public build unless the project has the rights to do so.
+Other character folders such as `kfm/`, `EvilRyu/`, `EvilKen/`, `CFJ_Lili/`, `Dcat_Leo/`, and `DragonClaw/` are local-only compatibility references, blueprint ideas, or third-party tests. They can exist on a developer machine, but they are ignored by Git and should not be committed to the clean repo.
 
-`DragonBench/`, `A.Ben/`, and `I.Chie/` are reserved original benchmark character folders. They are intentionally not selectable yet because they do not have real M.U.G.E.N DEF/CMD/CNS/AIR/SFF files. Their plan is tracked in `docs/BENCHMARK_CHARACTERS.md`.
+The active checked-in roster should only list characters the project owns or is allowed to ship. Local-only reference characters may be listed temporarily in a private working tree for compatibility testing, but should not be pushed.
 
 For a new character, copy the folder shape and keep the main `.def` file name aligned with the folder name.
 
