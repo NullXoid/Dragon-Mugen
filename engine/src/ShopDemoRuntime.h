@@ -241,17 +241,43 @@ void ensureShopDemoAssets(SDL_Renderer* renderer, AppState& state) {
         setShopSpriteRenderStyle(sprite, filter);
         return sprite;
     };
+    const auto loadOptionalShopSpriteFirst = [&](std::initializer_list<std::filesystem::path> relativePaths, TextureFilter filter = TextureFilter::Linear) {
+        for (const auto& relativePath : relativePaths) {
+            if (std::filesystem::exists(state.gameRoot / relativePath)) {
+                TextureSprite sprite = loadUiPngSprite(renderer, state.gameRoot, relativePath);
+                setShopSpriteRenderStyle(sprite, filter);
+                return sprite;
+            }
+        }
+        TextureSprite sprite{};
+        setShopSpriteRenderStyle(sprite, filter);
+        return sprite;
+    };
     state.shopDemo.shopBackdrop = loadOptionalShopSprite("data/shop/i_chie_shop_backdrop.png");
     state.shopDemo.shopCounterFront = loadOptionalShopSprite("data/shop/i_chie_shop_counter_front.png");
-    state.shopDemo.shopkeeperPose =
-        loadUiPngSprite(renderer, state.gameRoot, "chars/I.Chie/I.Chie_shopkeeper_pose.png");
-    setShopSpriteRenderStyle(state.shopDemo.shopkeeperPose);
+    state.shopDemo.shopkeeperPose = loadOptionalShopSpriteFirst({
+        "chars/I.Chie/shop/shopkeeper_pose.png",
+        "chars/I.Chie/I.Chie_shopkeeper_pose.png",
+    });
     state.shopDemo.shopkeeperPose.axisX = state.shopDemo.shopkeeperPose.width / 2;
     state.shopDemo.shopkeeperPose.axisY = std::max(0, state.shopDemo.shopkeeperPose.height - 2);
-    state.shopDemo.shopPlayerPose = loadOptionalShopSprite("data/shop/shop_player_back_pose.png");
+    state.shopDemo.shopPlayerPose = loadOptionalShopSpriteFirst({
+        "chars/A.Ben/shop/shop_player_back_pose.png",
+        "data/shop/shop_player_back_pose.png",
+    });
     state.shopDemo.shopPlayerPose.axisX = state.shopDemo.shopPlayerPose.width / 2;
     state.shopDemo.shopPlayerPose.axisY = std::max(0, state.shopDemo.shopPlayerPose.height - 2);
     const char* walkFramePaths[] = {
+        "chars/A.Ben/shop/walk/shop_player_walk_0.png",
+        "chars/A.Ben/shop/walk/shop_player_walk_1.png",
+        "chars/A.Ben/shop/walk/shop_player_walk_2.png",
+        "chars/A.Ben/shop/walk/shop_player_walk_3.png",
+        "chars/A.Ben/shop/walk/shop_player_walk_4.png",
+        "chars/A.Ben/shop/walk/shop_player_walk_5.png",
+        "chars/A.Ben/shop/walk/shop_player_walk_6.png",
+        "chars/A.Ben/shop/walk/shop_player_walk_7.png",
+    };
+    const char* legacyWalkFramePaths[] = {
         "data/shop/shop_player_walk_0.png",
         "data/shop/shop_player_walk_1.png",
         "data/shop/shop_player_walk_2.png",
@@ -263,7 +289,10 @@ void ensureShopDemoAssets(SDL_Renderer* renderer, AppState& state) {
     };
     for (std::size_t i = 0; i < state.shopDemo.shopPlayerWalkFrames.size(); ++i) {
         TextureSprite& frame = state.shopDemo.shopPlayerWalkFrames[i];
-        frame = loadOptionalShopSprite(walkFramePaths[i]);
+        frame = loadOptionalShopSpriteFirst({
+            walkFramePaths[i],
+            legacyWalkFramePaths[i],
+        });
         frame.axisX = frame.width / 2;
         frame.axisY = std::max(0, frame.height - 2);
     }

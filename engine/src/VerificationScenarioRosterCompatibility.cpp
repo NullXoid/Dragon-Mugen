@@ -185,14 +185,38 @@ bool detectJump(RuntimeProbe& runtime, RuntimeSnapshot& observed) {
         runtime.step(i < 3 ? SymbolicInput{ .up = true } : SymbolicInput{}, 1);
         observed = runtime.snapshot();
         if (!observed.p1.onGround || observed.p1.stateType == 'A' || std::abs(observed.p1.y) > 0.01f) {
+            runtime.step({}, 8);
+            observed = runtime.snapshot();
             return true;
         }
     }
     return false;
 }
 
+bool detectDirectionalJump(RuntimeProbe& runtime, const SymbolicInput& jumpInput, int expectedAction, RuntimeSnapshot& observed) {
+    runtime.positionFighters(-100.0f, 170.0f);
+    runtime.forceFighterState(0, 0);
+    runtime.setFighterControl(0, true);
+    runtime.step({}, 3);
+    if (!waitForP1Idle(runtime, 120)) {
+        observed = runtime.snapshot();
+        return false;
+    }
+
+    for (int i = 0; i < 90; ++i) {
+        runtime.step(i < 3 ? jumpInput : SymbolicInput{}, 1);
+        observed = runtime.snapshot();
+        if (!observed.p1.onGround || observed.p1.stateType == 'A' || std::abs(observed.p1.y) > 0.01f) {
+            runtime.step({}, 8);
+            observed = runtime.snapshot();
+            return observed.p1.action == expectedAction;
+        }
+    }
+    return false;
+}
+
 bool detectMovement(RuntimeProbe& runtime, RuntimeSnapshot& before, RuntimeSnapshot& after) {
-    runtime.positionFighters(-80.0f, 80.0f);
+    runtime.positionFighters(-100.0f, 170.0f);
     runtime.forceFighterState(0, 0);
     runtime.setFighterControl(0, true);
     runtime.step({}, 3);
@@ -229,6 +253,28 @@ bool detectSimpleAttack(RuntimeProbe& runtime, AttackProbe& matched, RuntimeSnap
                 matched = probe;
                 return true;
             }
+        }
+    }
+    return false;
+}
+
+bool detectSpecificAttack(RuntimeProbe& runtime, const AttackProbe& attack, int expectedState, RuntimeSnapshot& observed) {
+    runtime.positionFighters(-55.0f, 55.0f);
+    runtime.forceFighterState(0, 0);
+    runtime.setFighterControl(0, true);
+    runtime.step({}, 3);
+    if (!waitForP1Idle(runtime, 120)) {
+        observed = runtime.snapshot();
+        return false;
+    }
+
+    for (int i = 0; i < 60; ++i) {
+        runtime.step(i < 3 ? attack.input : SymbolicInput{}, 1);
+        observed = runtime.snapshot();
+        if (observed.p1.stateNo == expectedState || observed.p1.action == expectedState) {
+            runtime.step({}, 4);
+            observed = runtime.snapshot();
+            return true;
         }
     }
     return false;
@@ -322,6 +368,35 @@ void verifyCharacter(RuntimeProbe& runtime, std::ostream& out, Counts& counts, c
     record(out, counts, jumped ? Status::Pass : Status::Partial,
         prefix + "_jump_response",
         "p1{" + fighterDetail(jumpSnap.p1) + "}");
+    if (jumped) {
+        captureRosterProofFrame(runtime, out, counts, prefix, "jump");
+    }
+
+    RuntimeSnapshot forwardJumpSnap;
+    const bool forwardJumped = detectDirectionalJump(
+        runtime,
+        SymbolicInput{ .right = true, .up = true },
+        42,
+        forwardJumpSnap);
+    record(out, counts, forwardJumped ? Status::Pass : Status::Partial,
+        prefix + "_jump_forward_response",
+        "p1{" + fighterDetail(forwardJumpSnap.p1) + "}");
+    if (forwardJumped) {
+        captureRosterProofFrame(runtime, out, counts, prefix, "jump_forward");
+    }
+
+    RuntimeSnapshot backJumpSnap;
+    const bool backJumped = detectDirectionalJump(
+        runtime,
+        SymbolicInput{ .left = true, .up = true },
+        43,
+        backJumpSnap);
+    record(out, counts, backJumped ? Status::Pass : Status::Partial,
+        prefix + "_jump_back_response",
+        "p1{" + fighterDetail(backJumpSnap.p1) + "}");
+    if (backJumped) {
+        captureRosterProofFrame(runtime, out, counts, prefix, "jump_back");
+    }
 
     AttackProbe matchedAttack{};
     RuntimeSnapshot attackSnap;
@@ -331,6 +406,26 @@ void verifyCharacter(RuntimeProbe& runtime, std::ostream& out, Counts& counts, c
         attacked
             ? "button=" + std::string(matchedAttack.name) + " p1{" + fighterDetail(attackSnap.p1) + "}"
             : "no x/y/z/a/b/c attack transition detected p1{" + fighterDetail(attackSnap.p1) + "}");
+
+    RuntimeSnapshot punchSnap;
+    const AttackProbe punchProbe{ "x", SymbolicInput{ .x = true } };
+    const bool punched = detectSpecificAttack(runtime, punchProbe, 200, punchSnap);
+    record(out, counts, punched ? Status::Pass : Status::Partial,
+        prefix + "_punch_pose_response",
+        "button=x p1{" + fighterDetail(punchSnap.p1) + "}");
+    if (punched) {
+        captureRosterProofFrame(runtime, out, counts, prefix, "punch");
+    }
+
+    RuntimeSnapshot kickSnap;
+    const AttackProbe kickProbe{ "a", SymbolicInput{ .a = true } };
+    const bool kicked = detectSpecificAttack(runtime, kickProbe, 230, kickSnap);
+    record(out, counts, kicked ? Status::Pass : Status::Partial,
+        prefix + "_kick_pose_response",
+        "button=a p1{" + fighterDetail(kickSnap.p1) + "}");
+    if (kicked) {
+        captureRosterProofFrame(runtime, out, counts, prefix, "kick");
+    }
 
     if (!attacked) {
         return;

@@ -1,0 +1,41 @@
+{
+  "character": "A.Ben",
+  "purpose": "Source videos used by the Comfy/LTX sprite post-processing pipeline.",
+  "videos": {
+    "idle": {
+      "file": "idle_from_punch_Aben-punch-6s-v02_00001_.mp4",
+      "source": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\final_raw_videos\\punch_Aben-punch-6s-v02_00001_.mp4",
+      "run": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_runs\\2026-07-04_aben_idle_from_punch_v01",
+      "selected_source_frames": [0, 1, 2, 1, 0, 1],
+      "notes": "Stable fighting-stance frames used as the first proper idle loop."
+    },
+    "walk": {
+      "file": "walk_LTX-2_00068_.mp4",
+      "source": "C:\\Users\\kasom\\Downloads\\LTX-2_00068_.mp4",
+      "run": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_runs\\2026-07-04_aben_walk_game_v01",
+      "selected_source_frames": [60, 66, 72, 84, 90, 96, 102, 114],
+      "notes": "Cleanest available side-view green-screen walk cycle."
+    },
+    "jump": {
+      "file": "jump_Aben-jump-6s-v04-gray_00001_.mp4",
+      "source": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\final_raw_videos\\jump_Aben-jump-6s-v04-gray_00001_.mp4",
+      "run": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites",
+      "selected_source_frames": [0, 12, 18, 30, 48, 54, 60, 66, 18, 0],
+      "notes": "First functioning jump candidate. Motion is usable for runtime verification but still marked for later art cleanup."
+    },
+    "punch": {
+      "file": "punch_Aben-punch-6s-v02_00001_.mp4",
+      "source": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\final_raw_videos\\punch_Aben-punch-6s-v02_00001_.mp4",
+      "run": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites",
+      "selected_source_frames": [0, 6, 12, 18, 24, 30, 36, 42, 60, 72],
+      "notes": "Current strongest attack source; used for light punch and related punch actions."
+    },
+    "kick": {
+      "file": "kick_Aben-kick-6s-v02_00001_.mp4",
+      "source": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\final_raw_videos\\kick_Aben-kick-6s-v02_00001_.mp4",
+      "run": "C:\\Users\\kasom\\Desktop\\New folder\\a-ben\\ltx_action_revisions\\curated_game_sprites",
+      "selected_source_frames": [0, 6, 12, 18, 24, 36, 48, 60, 66, 72],
+      "notes": "First kick candidate; extended frames still show LTX color drift."
+    }
+  }
+}

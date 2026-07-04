@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build A.Ben's SFF and shop walk PNGs from the extracted 8-frame cycle."""
+"""Build A.Ben's SFF and shop walk PNGs from curated source frames."""
 
 from __future__ import annotations
 
@@ -16,11 +16,35 @@ from PIL import Image
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CHAR_DIR = REPO_ROOT / "game" / "chars" / "A.Ben"
 DEFAULT_SOURCE_DIRS = (
+    CHAR_DIR / "source_art" / "curated_game_sprites" / "frames" / "walk",
+    Path(r"C:\Users\kasom\Desktop\New folder\a-ben\ltx_action_revisions\curated_game_sprites\frames\walk"),
     Path(r"C:\Users\kasom\Desktop\New folder\a-ben\aben_walk_assets\frames_8"),
     Path(r"C:\Users\kasom\projects\aben-walk-animation\aben_walk_assets\frames_8"),
 )
 TARGET_WALK_HEIGHT = 122
+IDLE_GROUP = 0
 WALK_GROUP = 20
+ACTION_GROUPS = {
+    "dash": 100,
+    "jump": 40,
+    "jump_forward": 42,
+    "jump_back": 43,
+    "punch": 200,
+    "kick": 230,
+}
+DEFAULT_ACTION_SOURCE_ROOTS = (
+    CHAR_DIR / "source_art" / "curated_game_sprites" / "frames",
+    Path(r"C:\Users\kasom\Desktop\New folder\a-ben\ltx_action_revisions\curated_game_sprites\frames"),
+)
+DEFAULT_SHOP_FRAME_DIR = CHAR_DIR / "shop" / "walk"
+IDLE_FRAME_SEQUENCE = (
+    ("punch", 0),
+    ("punch", 1),
+    ("punch", 9),
+    ("punch", 9),
+    ("punch", 1),
+    ("punch", 0),
+)
 
 
 @dataclass
@@ -123,8 +147,10 @@ def _remove_green_fringe(image: Image.Image) -> Image.Image:
 
 def _load_walk_frames(source_dir: Path) -> tuple[list[Sprite], list[Image.Image]]:
     frame_paths = sorted(source_dir.glob("aben_walk_f*.png"))
+    if not frame_paths:
+        frame_paths = sorted(source_dir.glob("walk_*.png"))
     if len(frame_paths) < 8:
-        raise ValueError(f"Expected at least 8 walk frames in {source_dir}, found {len(frame_paths)}")
+        raise ValueError(f"Expected at least 8 aben_walk_f*.png or walk_*.png frames in {source_dir}, found {len(frame_paths)}")
     frame_paths = frame_paths[:8]
 
     frames = [_remove_green_fringe(Image.open(path).convert("RGBA")) for path in frame_paths]
@@ -162,6 +188,121 @@ def _load_walk_frames(source_dir: Path) -> tuple[list[Sprite], list[Image.Image]
         sprites.append(
             Sprite(
                 group=WALK_GROUP,
+                image=image_number,
+                axis_x=origin_x,
+                axis_y=origin_y,
+                data=_rgba_to_indexed_pcx(resized),
+            )
+        )
+
+    return sprites, preview_frames
+
+
+def _load_action_frames(source_root: Path) -> tuple[list[Sprite], dict[str, list[Image.Image]]]:
+    sprites: list[Sprite] = []
+    previews: dict[str, list[Image.Image]] = {}
+    for action_name, group in ACTION_GROUPS.items():
+        action_dir = source_root / action_name
+        frame_paths = sorted(action_dir.glob(f"{action_name}_*.png"))
+        if not frame_paths:
+            raise ValueError(f"Expected {action_name}_*.png frames in {action_dir}")
+
+        frames = [_remove_green_fringe(Image.open(path).convert("RGBA")) for path in frame_paths]
+        boxes = []
+        for path, image in zip(frame_paths, frames):
+            box = image.getchannel("A").getbbox()
+            if not box:
+                raise ValueError(f"{path} has no visible pixels")
+            boxes.append(box)
+
+        left = min(box[0] for box in boxes)
+        top = min(box[1] for box in boxes)
+        right = max(box[2] for box in boxes)
+        bottom = max(box[3] for box in boxes)
+
+        pad = 8
+        crop_left = max(0, left - pad)
+        crop_top = max(0, top - pad)
+        crop_right = min(frames[0].width, right + pad)
+        crop_bottom = min(frames[0].height, bottom + pad)
+
+        crop_height = crop_bottom - crop_top
+        scale = TARGET_WALK_HEIGHT / crop_height
+        target_width = max(1, round((crop_right - crop_left) * scale))
+        target_height = TARGET_WALK_HEIGHT
+        origin_x = round((((left + right) / 2.0) - crop_left) * scale)
+        origin_y = round((bottom - crop_top) * scale)
+
+        action_preview: list[Image.Image] = []
+        for image_number, image in enumerate(frames):
+            cropped = image.crop((crop_left, crop_top, crop_right, crop_bottom))
+            resized = cropped.resize((target_width, target_height), Image.Resampling.LANCZOS)
+            action_preview.append(resized)
+            sprites.append(
+                Sprite(
+                    group=group,
+                    image=image_number,
+                    axis_x=origin_x,
+                    axis_y=origin_y,
+                    data=_rgba_to_indexed_pcx(resized),
+                )
+            )
+        previews[action_name] = action_preview
+
+    return sprites, previews
+
+
+def _load_idle_frames(source_root: Path) -> tuple[list[Sprite], list[Image.Image]]:
+    idle_dir = source_root / "idle"
+    idle_candidates = sorted(idle_dir.glob("idle_*.png"))
+    if idle_candidates:
+        if len(idle_candidates) < 6:
+            raise ValueError(f"Expected at least 6 idle_*.png frames in {idle_dir}, found {len(idle_candidates)}")
+        frame_paths = idle_candidates[:6]
+    else:
+        frame_paths = []
+        for action_name, requested_index in IDLE_FRAME_SEQUENCE:
+            action_dir = source_root / action_name
+            candidates = sorted(action_dir.glob(f"{action_name}_*.png"))
+            if not candidates:
+                raise ValueError(f"Expected {action_name}_*.png frames in {action_dir}")
+            frame_paths.append(candidates[min(requested_index, len(candidates) - 1)])
+
+    frames = [_remove_green_fringe(Image.open(path).convert("RGBA")) for path in frame_paths]
+    boxes = []
+    for path, image in zip(frame_paths, frames):
+        box = image.getchannel("A").getbbox()
+        if not box:
+            raise ValueError(f"{path} has no visible pixels")
+        boxes.append(box)
+
+    left = min(box[0] for box in boxes)
+    top = min(box[1] for box in boxes)
+    right = max(box[2] for box in boxes)
+    bottom = max(box[3] for box in boxes)
+
+    pad = 8
+    crop_left = max(0, left - pad)
+    crop_top = max(0, top - pad)
+    crop_right = min(frames[0].width, right + pad)
+    crop_bottom = min(frames[0].height, bottom + pad)
+
+    crop_height = crop_bottom - crop_top
+    scale = TARGET_WALK_HEIGHT / crop_height
+    target_width = max(1, round((crop_right - crop_left) * scale))
+    target_height = TARGET_WALK_HEIGHT
+    origin_x = round((((left + right) / 2.0) - crop_left) * scale)
+    origin_y = round((bottom - crop_top) * scale)
+
+    sprites: list[Sprite] = []
+    preview_frames: list[Image.Image] = []
+    for image_number, image in enumerate(frames):
+        cropped = image.crop((crop_left, crop_top, crop_right, crop_bottom))
+        resized = cropped.resize((target_width, target_height), Image.Resampling.LANCZOS)
+        preview_frames.append(resized)
+        sprites.append(
+            Sprite(
+                group=IDLE_GROUP,
                 image=image_number,
                 axis_x=origin_x,
                 axis_y=origin_y,
@@ -242,23 +383,52 @@ def _resolve_source_dir(source_dir: Path | None) -> Path:
     raise FileNotFoundError("Could not find aben_walk_assets/frames_8")
 
 
+def _resolve_action_source_root(action_source_root: Path | None) -> Path | None:
+    if action_source_root is not None:
+        if not action_source_root.exists():
+            raise FileNotFoundError(action_source_root)
+        return action_source_root
+    for candidate in DEFAULT_ACTION_SOURCE_ROOTS:
+        if candidate.exists():
+            return candidate
+    return None
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source-dir", type=Path, help="Folder containing aben_walk_f*.png frames")
+    parser.add_argument("--source-dir", type=Path, help="Folder containing walk_*.png or aben_walk_f*.png frames")
     parser.add_argument("--char-dir", type=Path, default=CHAR_DIR, help="A.Ben character directory")
+    parser.add_argument("--action-source-root", type=Path, help="Folder containing dash/jump/punch/kick frame folders")
+    parser.add_argument("--skip-actions", action="store_true", help="Only rebuild the walk cycle")
     parser.add_argument("--preview", type=Path, help="Optional output GIF preview path")
-    parser.add_argument("--shop-frame-dir", type=Path, help="Optional output directory for shop_player_walk_*.png")
+    parser.add_argument(
+        "--shop-frame-dir",
+        type=Path,
+        default=DEFAULT_SHOP_FRAME_DIR,
+        help="Output directory for shop_player_walk_*.png; defaults to the A.Ben character shop folder",
+    )
     args = parser.parse_args()
 
     char_dir = args.char_dir
     source_dir = _resolve_source_dir(args.source_dir)
+    action_source_root = None if args.skip_actions else _resolve_action_source_root(args.action_source_root)
     sff_path = char_dir / "A.Ben.sff"
 
     header, existing_sprites = _read_sff_v1(sff_path)
-    kept_sprites = [sprite for sprite in existing_sprites if sprite.group != WALK_GROUP]
+    generated_groups = {WALK_GROUP}
+    if action_source_root:
+        generated_groups.add(IDLE_GROUP)
+        generated_groups.update(ACTION_GROUPS.values())
+    kept_sprites = [sprite for sprite in existing_sprites if sprite.group not in generated_groups]
     walk_sprites, preview_frames = _load_walk_frames(source_dir)
+    idle_sprites: list[Sprite] = []
+    action_sprites: list[Sprite] = []
+    action_previews: dict[str, list[Image.Image]] = {}
+    if action_source_root:
+        idle_sprites, _ = _load_idle_frames(action_source_root)
+        action_sprites, action_previews = _load_action_frames(action_source_root)
 
-    _write_sff_v1(sff_path, header, kept_sprites + walk_sprites)
+    _write_sff_v1(sff_path, header, kept_sprites + idle_sprites + walk_sprites + action_sprites)
     if args.shop_frame_dir:
         shop_frame_dir = args.shop_frame_dir
         if not shop_frame_dir.is_absolute():
@@ -275,6 +445,12 @@ def main() -> int:
             f"  {sprite.group},{sprite.image}: axis=({sprite.axis_x},{sprite.axis_y}) "
             f"bytes={len(sprite.data)}"
         )
+    if action_source_root:
+        print(f"Added {len(idle_sprites)} idle sprites from {action_source_root}")
+        print(f"Added {len(action_sprites)} action sprites from {action_source_root}")
+        for action_name, group in ACTION_GROUPS.items():
+            count = len(action_previews.get(action_name, []))
+            print(f"  {action_name}: group={group} frames={count}")
     if args.shop_frame_dir:
         print(f"Wrote shop walk PNGs to {shop_frame_dir}")
     return 0

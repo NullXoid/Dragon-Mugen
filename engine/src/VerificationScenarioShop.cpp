@@ -6,7 +6,6 @@
 #include "FrontendMenu.h"
 #include "ShopCatalog.h"
 #include "ShopDemoCollision.h"
-
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
@@ -21,7 +20,6 @@ std::string readTextFile(const std::filesystem::path& path) {
     }
     return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
 }
-
 const ShopCatalogEntry* findShopEntry(
     const std::vector<ShopCatalogEntry>& catalog,
     std::string_view itemId) {
@@ -150,9 +148,11 @@ int runShopRoomActorProjection(RuntimeProbe& runtime, std::ostream& out) {
     const auto shopkeeperPng = root / "chars" / "I.Chie" / "I.Chie_shopkeeper_pose.png";
     const auto shopDragonDef = root / "chars" / "I.Chie" / "I.Chie.dragon.def";
     const auto shopSff = root / "chars" / "I.Chie" / "I.Chie.sff";
-    record(out, counts, std::filesystem::exists(shopkeeperPng) ? Status::Pass : Status::Fail,
-        "shopkeeper_pose_png_exists",
-        shopkeeperPng.string());
+    record(out, counts,
+        std::filesystem::exists(shopkeeperPng) && std::filesystem::exists(root / "chars" / "I.Chie" / "shop" / "shopkeeper_pose.png")
+            && std::filesystem::exists(root / "chars" / "A.Ben" / "shop" / "shop_player_back_pose.png")
+            && std::filesystem::exists(root / "chars" / "A.Ben" / "shop" / "walk" / "shop_player_walk_0.png") ? Status::Pass : Status::Fail,
+        "shop_character_owned_assets_exist", "I.Chie shopkeeper plus A.Ben pose/walk");
     record(out, counts, std::filesystem::exists(shopSff) ? Status::Pass : Status::Fail,
         "shopkeeper_sff_exists",
         shopSff.string());
