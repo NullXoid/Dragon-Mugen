@@ -4,6 +4,7 @@ This folder is the repo-owned handoff point for A.Ben-generated sprite work.
 
 Current trial source:
 - `curated_game_sprites/frames/idle`
+- `curated_game_sprites/frames/crouch`
 - `curated_game_sprites/frames/walk`
 - `curated_game_sprites/frames/jump`
 - `curated_game_sprites/frames/jump_forward`
@@ -12,6 +13,7 @@ Current trial source:
 
 Pass criteria for this trial:
 - Fighter idle/standing loads from group `0`.
+- Fighter duck/crouch loads from group `10`.
 - Fighter walk loads from group `20`.
 - Fighter neutral jump loads from group `40`.
 - Fighter forward diagonal jump loads from group `42`.

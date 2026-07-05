@@ -60,6 +60,30 @@
       "run_manifest": "ltx_runs/jump/manifest.json",
       "source_frame_dir": "ltx_runs/jump/frames_clean"
     },
+    "crouch": {
+      "selected_source_frames": [
+        18,
+        60,
+        18
+      ],
+      "preview_fps": 10,
+      "notes": "Derived from the best crouch anticipation poses in the curated jump source. Replace with a dedicated duck video pass when available.",
+      "full_sheet": "curated_game_sprites/sheets/crouch_selected_384x672.png",
+      "cropped_sheet": "curated_game_sprites/sheets/crouch_selected_cropped_384x672.png",
+      "contact": "curated_game_sprites/contacts/crouch_selected_contact.png",
+      "gif_preview": "curated_game_sprites/previews/crouch_selected_preview.gif",
+      "cropped_cell": {
+        "width": 384,
+        "height": 672
+      },
+      "run_manifest": "ltx_runs/jump/manifest.json",
+      "source_frame_dir": "ltx_runs/jump/frames_clean",
+      "promoted_frames": [
+        "curated_game_sprites/frames/crouch/crouch_00_src018_384x672.png",
+        "curated_game_sprites/frames/crouch/crouch_01_src060_384x672.png",
+        "curated_game_sprites/frames/crouch/crouch_02_src018_384x672.png"
+      ]
+    },
     "punch": {
       "selected_source_frames": [
         0,
@@ -100,7 +124,7 @@
         72
       ],
       "preview_fps": 14,
-      "notes": "Strong source with clear knee lift and extended kick.",
+      "notes": "Strong source with clear knee lift and extended kick. Frames 24/36/48 have a practical boot repair because the source video cropped the extended foot at the cell edge.",
       "full_sheet": "curated_game_sprites/sheets/kick_selected_384x672.png",
       "cropped_sheet": "curated_game_sprites/sheets/kick_selected_cropped_384x672.png",
       "contact": "curated_game_sprites/contacts/kick_selected_contact.png",

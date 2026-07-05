@@ -19,7 +19,9 @@ DEFAULT_SOURCE_DIRS = (
     CHAR_DIR / "source_art" / "curated_game_sprites" / "frames" / "walk",
 )
 TARGET_WALK_HEIGHT = 122
+CROUCH_TARGET_HEIGHT = 88
 IDLE_GROUP = 0
+CROUCH_GROUP = 10
 WALK_GROUP = 20
 ACTION_GROUPS = {
     "dash": 100,
@@ -28,6 +30,9 @@ ACTION_GROUPS = {
     "jump_back": 43,
     "punch": 200,
     "kick": 230,
+}
+ACTION_PADDING = {
+    "kick": 24,
 }
 DEFAULT_ACTION_SOURCE_ROOTS = (
     CHAR_DIR / "source_art" / "curated_game_sprites" / "frames",
@@ -216,7 +221,7 @@ def _load_action_frames(source_root: Path) -> tuple[list[Sprite], dict[str, list
         right = max(box[2] for box in boxes)
         bottom = max(box[3] for box in boxes)
 
-        pad = 8
+        pad = ACTION_PADDING.get(action_name, 8)
         crop_left = max(0, left - pad)
         crop_top = max(0, top - pad)
         crop_right = min(frames[0].width, right + pad)
@@ -246,6 +251,58 @@ def _load_action_frames(source_root: Path) -> tuple[list[Sprite], dict[str, list
         previews[action_name] = action_preview
 
     return sprites, previews
+
+
+def _load_crouch_frames(source_root: Path) -> tuple[list[Sprite], list[Image.Image]]:
+    crouch_dir = source_root / "crouch"
+    frame_paths = sorted(crouch_dir.glob("crouch_*.png"))
+    if len(frame_paths) < 3:
+        raise ValueError(f"Expected at least 3 crouch_*.png frames in {crouch_dir}, found {len(frame_paths)}")
+    frame_paths = frame_paths[:3]
+
+    frames = [_remove_green_fringe(Image.open(path).convert("RGBA")) for path in frame_paths]
+    boxes = []
+    for path, image in zip(frame_paths, frames):
+        box = image.getchannel("A").getbbox()
+        if not box:
+            raise ValueError(f"{path} has no visible pixels")
+        boxes.append(box)
+
+    left = min(box[0] for box in boxes)
+    top = min(box[1] for box in boxes)
+    right = max(box[2] for box in boxes)
+    bottom = max(box[3] for box in boxes)
+
+    pad = 12
+    crop_left = max(0, left - pad)
+    crop_top = max(0, top - pad)
+    crop_right = min(frames[0].width, right + pad)
+    crop_bottom = min(frames[0].height, bottom + pad)
+
+    crop_height = crop_bottom - crop_top
+    scale = CROUCH_TARGET_HEIGHT / crop_height
+    target_width = max(1, round((crop_right - crop_left) * scale))
+    target_height = CROUCH_TARGET_HEIGHT
+    origin_x = round((((left + right) / 2.0) - crop_left) * scale)
+    origin_y = round((bottom - crop_top) * scale)
+
+    sprites: list[Sprite] = []
+    preview_frames: list[Image.Image] = []
+    for image_number, image in enumerate(frames):
+        cropped = image.crop((crop_left, crop_top, crop_right, crop_bottom))
+        resized = cropped.resize((target_width, target_height), Image.Resampling.LANCZOS)
+        preview_frames.append(resized)
+        sprites.append(
+            Sprite(
+                group=CROUCH_GROUP,
+                image=image_number,
+                axis_x=origin_x,
+                axis_y=origin_y,
+                data=_rgba_to_indexed_pcx(resized),
+            )
+        )
+
+    return sprites, preview_frames
 
 
 def _load_idle_frames(source_root: Path) -> tuple[list[Sprite], list[Image.Image]]:
@@ -394,7 +451,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-dir", type=Path, help="Folder containing walk_*.png or aben_walk_f*.png frames")
     parser.add_argument("--char-dir", type=Path, default=CHAR_DIR, help="A.Ben character directory")
-    parser.add_argument("--action-source-root", type=Path, help="Folder containing dash/jump/punch/kick frame folders")
+    parser.add_argument("--action-source-root", type=Path, help="Folder containing crouch/dash/jump/punch/kick frame folders")
     parser.add_argument("--skip-actions", action="store_true", help="Only rebuild the walk cycle")
     parser.add_argument("--preview", type=Path, help="Optional output GIF preview path")
     parser.add_argument(
@@ -414,17 +471,20 @@ def main() -> int:
     generated_groups = {WALK_GROUP}
     if action_source_root:
         generated_groups.add(IDLE_GROUP)
+        generated_groups.add(CROUCH_GROUP)
         generated_groups.update(ACTION_GROUPS.values())
     kept_sprites = [sprite for sprite in existing_sprites if sprite.group not in generated_groups]
     walk_sprites, preview_frames = _load_walk_frames(source_dir)
     idle_sprites: list[Sprite] = []
+    crouch_sprites: list[Sprite] = []
     action_sprites: list[Sprite] = []
     action_previews: dict[str, list[Image.Image]] = {}
     if action_source_root:
         idle_sprites, _ = _load_idle_frames(action_source_root)
+        crouch_sprites, _ = _load_crouch_frames(action_source_root)
         action_sprites, action_previews = _load_action_frames(action_source_root)
 
-    _write_sff_v1(sff_path, header, kept_sprites + idle_sprites + walk_sprites + action_sprites)
+    _write_sff_v1(sff_path, header, kept_sprites + idle_sprites + crouch_sprites + walk_sprites + action_sprites)
     if args.shop_frame_dir:
         shop_frame_dir = args.shop_frame_dir
         if not shop_frame_dir.is_absolute():
@@ -443,6 +503,7 @@ def main() -> int:
         )
     if action_source_root:
         print(f"Added {len(idle_sprites)} idle sprites from {action_source_root}")
+        print(f"Added {len(crouch_sprites)} crouch sprites from {action_source_root}")
         print(f"Added {len(action_sprites)} action sprites from {action_source_root}")
         for action_name, group in ACTION_GROUPS.items():
             count = len(action_previews.get(action_name, []))

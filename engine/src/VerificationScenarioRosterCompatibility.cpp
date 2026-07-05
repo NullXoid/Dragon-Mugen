@@ -523,8 +523,9 @@ std::vector<RosterCharacterInfo> compatibilitySmokeRoster(RuntimeProbe& runtime)
 void verifyOwnedABen(RuntimeProbe& runtime, std::ostream& out, Counts& counts, const RosterCharacterInfo& character) {
     const std::filesystem::path root(runtime.rootText());
     const auto frameRoot = root / "chars" / "A.Ben" / "source_art" / "curated_game_sprites" / "frames";
-    const std::array<std::pair<std::string_view, int>, 8> requiredActions{ {
+    const std::array<std::pair<std::string_view, int>, 9> requiredActions{ {
         { "idle", 4 },
+        { "crouch", 3 },
         { "walk", 6 },
         { "dash", 4 },
         { "jump", 4 },
@@ -586,6 +587,20 @@ void verifyOwnedABen(RuntimeProbe& runtime, std::ostream& out, Counts& counts, c
         "p1{" + fighterDetail(jumpSnap.p1) + "}");
     if (jumped) {
         captureRosterProofFrame(runtime, out, counts, "aben", "jump");
+    }
+
+    RuntimeSnapshot crouchSnap;
+    setupABenProbe();
+    runtime.step(SymbolicInput{ .down = true }, 12);
+    crouchSnap = runtime.snapshot();
+    const bool crouched = crouchSnap.p1.onGround
+        && (crouchSnap.p1.stateNo == 10 || crouchSnap.p1.stateNo == 11 || crouchSnap.p1.stateNo == 12)
+        && (crouchSnap.p1.action == 10 || crouchSnap.p1.action == 11 || crouchSnap.p1.action == 12);
+    record(out, counts, crouched ? Status::Pass : Status::Fail,
+        "aben_crouch",
+        "p1{" + fighterDetail(crouchSnap.p1) + "}");
+    if (crouched) {
+        captureRosterProofFrame(runtime, out, counts, "aben", "crouch");
     }
 
     RuntimeSnapshot forwardJumpSnap;

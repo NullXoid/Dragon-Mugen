@@ -16,6 +16,7 @@ The curated LTX/Comfy post-processing path is the forward asset workflow. `engin
 Current curated action targets:
 
 - standing/idle: SFF group `0`
+- ducking/crouch: SFF group `10`
 - walking: SFF group `20`
 - dash: SFF group `100`
 - neutral jumping: SFF group `40`
