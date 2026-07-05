@@ -6,6 +6,7 @@ import json
 import mimetypes
 import os
 import posixpath
+import re
 import sys
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -14,9 +15,23 @@ from urllib.parse import parse_qs, quote, unquote, urlparse
 
 
 DEFAULT_REPO_ROOT = Path(r"C:\Users\kasom\projects\dragon-mugen-arena")
-CHARACTERS = ("A.Ben", "I.Chie")
+OWNED_CHARACTERS = ("A.Ben", "I.Chie")
+LOCAL_TEST_CHARACTERS = ("EvilRyu", "EvilKen")
 ACTIONS = ("idle", "walk", "jump", "punch", "kick", "dash")
 MEDIA_SUFFIXES = {".png", ".gif", ".mp4", ".jpg", ".jpeg", ".webp"}
+MUGEN_FILE_PRIORITY = (
+    "cmd",
+    "cns",
+    "st",
+    "stcommon",
+    "sprite",
+    "anim",
+    "sound",
+    "movelist",
+    "intro.storyboard",
+    "ending.storyboard",
+)
+AIR_ACTION_RE = re.compile(r"^\s*\[\s*Begin\s+Action\s+(-?\d+)\s*\]", re.IGNORECASE)
 
 
 def find_repo_root() -> Path:
@@ -66,6 +81,19 @@ def first_existing(paths: list[Path]) -> Path | None:
     return None
 
 
+def character_names(root: Path) -> tuple[str, ...]:
+    names = []
+    chars_root = root / "game" / "chars"
+    for name in (*OWNED_CHARACTERS, *LOCAL_TEST_CHARACTERS):
+        if (chars_root / name).is_dir() and name not in names:
+            names.append(name)
+    return tuple(names) if names else OWNED_CHARACTERS
+
+
+def character_kind(character: str) -> str:
+    return "owned" if character in OWNED_CHARACTERS else "local test"
+
+
 def media_url(path: Path | None, root: Path) -> str:
     if not path:
         return ""
@@ -89,6 +117,122 @@ def command_text(root: Path) -> list[tuple[str, str]]:
     ]
 
 
+def strip_mugen_comment(line: str) -> str:
+    return line.split(";", 1)[0].strip()
+
+
+def clean_mugen_value(value: str) -> str:
+    return strip_mugen_comment(value).strip().strip('"')
+
+
+def find_character_def(char_dir: Path, character: str) -> Path | None:
+    candidates = [
+        char_dir / f"{character}.def",
+        char_dir / f"{character.lower()}.def",
+        char_dir / f"{character.replace('.', '')}.def",
+        char_dir / f"{character.replace('.', '').lower()}.def",
+    ]
+    candidates.extend(sorted(char_dir.glob("*.def")))
+    seen: set[Path] = set()
+    for candidate in candidates:
+        normalized = candidate.resolve()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def parse_mugen_def(def_path: Path | None) -> dict:
+    if not def_path or not def_path.exists():
+        return {"info": {}, "files": {}}
+    section = ""
+    info: dict[str, str] = {}
+    files: dict[str, str] = {}
+    try:
+        lines = def_path.read_text(encoding="utf-8", errors="ignore").splitlines()
+    except OSError:
+        return {"info": {}, "files": {}}
+    for raw_line in lines:
+        line = strip_mugen_comment(raw_line)
+        if not line:
+            continue
+        if line.startswith("[") and line.endswith("]"):
+            section = line.strip("[]").strip().lower()
+            continue
+        if "=" not in line:
+            continue
+        key, value = line.split("=", 1)
+        key = key.strip().lower()
+        value = clean_mugen_value(value)
+        if section == "info":
+            info[key] = value
+        elif section == "files":
+            files[key] = value
+    return {"info": info, "files": files}
+
+
+def resolve_mugen_file(root: Path, char_dir: Path, raw_path: str) -> Path | None:
+    value = clean_mugen_value(raw_path)
+    if not value:
+        return None
+    normalized = value.replace("/", os.sep).replace("\\", os.sep)
+    char_candidate = (char_dir / normalized).resolve()
+    if char_candidate.exists():
+        return char_candidate
+    data_candidate = (root / "game" / "data" / normalized).resolve()
+    if data_candidate.exists():
+        return data_candidate
+    return char_candidate
+
+
+def count_air_actions(path: Path | None) -> int | None:
+    if not path or not path.exists():
+        return None
+    try:
+        return sum(1 for line in path.read_text(encoding="utf-8", errors="ignore").splitlines() if AIR_ACTION_RE.match(line))
+    except OSError:
+        return None
+
+
+def format_file_size(path: Path | None) -> str:
+    if not path or not path.exists() or not path.is_file():
+        return ""
+    size = path.stat().st_size
+    if size >= 1024 * 1024:
+        return f"{size / (1024 * 1024):.1f} MB"
+    if size >= 1024:
+        return f"{size / 1024:.1f} KB"
+    return f"{size} B"
+
+
+def mugen_file_summary(root: Path, char_dir: Path, files: dict[str, str]) -> list[dict]:
+    ordered_keys = [key for key in MUGEN_FILE_PRIORITY if key in files]
+    ordered_keys.extend(sorted(key for key in files if key not in ordered_keys and (key.startswith("pal") or key.endswith("storyboard"))))
+
+    rows = []
+    for key in ordered_keys:
+        raw_value = files.get(key, "")
+        resolved = resolve_mugen_file(root, char_dir, raw_value)
+        present = bool(resolved and resolved.exists())
+        detail = format_file_size(resolved)
+        if key == "anim":
+            action_count = count_air_actions(resolved)
+            if action_count is not None:
+                detail = f"{action_count} AIR actions"
+        rows.append(
+            {
+                "key": key,
+                "value": raw_value,
+                "path": resolved,
+                "present": present,
+                "detail": detail,
+            }
+        )
+    return rows
+
+
 def character_summary(root: Path, character: str) -> dict:
     char_dir = root / "game" / "chars" / character
     source_art = char_dir / "source_art"
@@ -105,6 +249,9 @@ def character_summary(root: Path, character: str) -> dict:
     video_manifest = load_json(video_manifest_path)
     curated_actions = curated_manifest.get("actions", {}) if isinstance(curated_manifest.get("actions"), dict) else {}
     video_actions = video_manifest.get("videos", {}) if isinstance(video_manifest.get("videos"), dict) else {}
+    def_path = find_character_def(char_dir, character)
+    def_data = parse_mugen_def(def_path)
+    mugen_files = mugen_file_summary(root, char_dir, def_data["files"])
 
     action_rows = []
     for action in ACTIONS:
@@ -149,8 +296,13 @@ def character_summary(root: Path, character: str) -> dict:
     ]
     return {
         "character": character,
+        "kind": character_kind(character),
         "char_dir": char_dir,
         "exists": char_dir.exists(),
+        "def_path": def_path,
+        "def_info": def_data["info"],
+        "def_files": def_data["files"],
+        "mugen_files": mugen_files,
         "workspace_dirs": workspace_dirs,
         "curated_manifest_path": curated_manifest_path if curated_manifest_path.exists() else None,
         "video_manifest_path": video_manifest_path if video_manifest_path.exists() else None,
@@ -160,14 +312,16 @@ def character_summary(root: Path, character: str) -> dict:
 
 
 def render_page(root: Path, selected_character: str) -> bytes:
-    if selected_character not in CHARACTERS:
-        selected_character = CHARACTERS[0]
+    characters = character_names(root)
+    if selected_character not in characters:
+        selected_character = characters[0]
     summary = character_summary(root, selected_character)
     manifest_actions = summary["curated_manifest"].get("actions", {})
 
     char_tabs = "".join(
-        f'<a class="tab {"active" if char == selected_character else ""}" href="/?char={quote(char)}">{html.escape(char)}</a>'
-        for char in CHARACTERS
+        f'<a class="tab {"active" if char == selected_character else ""}" href="/?char={quote(char)}">'
+        f"{html.escape(char)}<small>{html.escape(character_kind(char))}</small></a>"
+        for char in characters
     )
 
     workspace_items = []
@@ -181,6 +335,30 @@ def render_page(root: Path, selected_character: str) -> bytes:
             f'<b class="{status}">{status}</b>'
             "</li>"
         )
+
+    def_info = summary["def_info"]
+    display_name = def_info.get("displayname") or def_info.get("name") or selected_character
+    author = def_info.get("author", "unknown")
+    localcoord = def_info.get("localcoord", "not declared")
+    def_path = summary["def_path"]
+    def_status = "present" if def_path else "missing"
+    def_label = relpath(def_path, root) if def_path else "no DEF found"
+    mugen_file_items = []
+    if summary["mugen_files"]:
+        for row in summary["mugen_files"]:
+            status = "present" if row["present"] else "missing"
+            path_label = relpath(row["path"], root) if row["path"] and is_relative_to(row["path"], root) else row["value"]
+            detail = f"<span>{html.escape(row['detail'])}</span>" if row["detail"] else "<span></span>"
+            mugen_file_items.append(
+                "<li>"
+                f"<span>{html.escape(row['key'])}</span>"
+                f"<code>{html.escape(path_label)}</code>"
+                f"{detail}"
+                f'<b class="{status}">{status}</b>'
+                "</li>"
+            )
+    else:
+        mugen_file_items.append('<li><span>files</span><code>No [Files] entries parsed.</code><span></span><b class="missing">missing</b></li>')
 
     action_cards = []
     for row in summary["action_rows"]:
@@ -268,8 +446,11 @@ def render_page(root: Path, selected_character: str) -> bytes:
       border: 1px solid var(--line);
       padding: 8px 12px;
       background: var(--panel);
+      display: grid;
+      gap: 2px;
     }}
     .tab.active {{ border-color: var(--accent); color: white; background: #3a1f18; }}
+    .tab small {{ color: var(--muted); font-size: 11px; text-transform: uppercase; }}
     .panel {{
       border: 1px solid var(--line);
       background: var(--panel);
@@ -279,6 +460,18 @@ def render_page(root: Path, selected_character: str) -> bytes:
     .workspace-list li {{
       display: grid;
       grid-template-columns: 170px minmax(0, 1fr) 80px;
+      gap: 12px;
+      align-items: center;
+      border-bottom: 1px solid #33251f;
+      padding-bottom: 8px;
+    }}
+    .meta-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin: 0 0 14px; }}
+    .meta-grid div {{ border: 1px solid #33251f; background: #171312; padding: 10px; }}
+    .meta-grid span {{ display: block; color: var(--muted); font-size: 12px; text-transform: uppercase; }}
+    .runtime-list {{ list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }}
+    .runtime-list li {{
+      display: grid;
+      grid-template-columns: 130px minmax(0, 1fr) 130px 80px;
       gap: 12px;
       align-items: center;
       border-bottom: 1px solid #33251f;
@@ -339,6 +532,17 @@ def render_page(root: Path, selected_character: str) -> bytes:
       <h2>{html.escape(selected_character)} Workspace</h2>
       <ul class="workspace-list">{''.join(workspace_items)}</ul>
     </section>
+    <section class="panel">
+      <h2>MUGEN Character Files</h2>
+      <div class="meta-grid">
+        <div><span>kind</span>{html.escape(summary["kind"])}</div>
+        <div><span>display name</span>{html.escape(display_name)}</div>
+        <div><span>author</span>{html.escape(author)}</div>
+        <div><span>localcoord</span>{html.escape(localcoord)}</div>
+        <div><span>definition</span><code>{html.escape(def_label)}</code> <b class="{def_status}">{def_status}</b></div>
+      </div>
+      <ul class="runtime-list">{''.join(mugen_file_items)}</ul>
+    </section>
     <section>
       <h2>Action Dashboard</h2>
       <div class="actions">{''.join(action_cards)}</div>
@@ -365,7 +569,8 @@ class DragonAssetLabHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         if parsed.path == "/":
             query = parse_qs(parsed.query)
-            selected_character = query.get("char", [CHARACTERS[0]])[0]
+            characters = character_names(self.repo_root)
+            selected_character = query.get("char", [characters[0]])[0]
             self.send_bytes(render_page(self.repo_root, selected_character), "text/html; charset=utf-8")
             return
         if parsed.path.startswith("/asset/"):

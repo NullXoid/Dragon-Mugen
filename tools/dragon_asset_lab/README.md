@@ -24,8 +24,12 @@ python tools/dragon_asset_lab/app.py --repo-root C:\Users\kasom\projects\dragon-
 
 ## Current MVP Scope
 
-- Browses `game/chars/A.Ben` and `game/chars/I.Chie`.
+- Browses owned character workspaces for `game/chars/A.Ben` and `game/chars/I.Chie`.
+- Detects ignored local test characters `game/chars/EvilRyu` and `game/chars/EvilKen` when present for compatibility inspection only.
 - Shows whether `source_art`, `source_videos`, `shop`, and `source_art/curated_game_sprites` exist.
+- Parses each character DEF enough to show display metadata and `[Files]` runtime references.
+- Checks local/shared runtime file presence for CMD, CNS, common CNS, SFF, AIR, SND, palettes, movelists, and storyboards.
+- Counts AIR action blocks when an AIR file is available.
 - Shows action dashboard rows for `idle`, `walk`, `jump`, `punch`, `kick`, and `dash`.
 - Reads curated action metadata from `source_art/curated_game_sprites/manifest.json` when present.
 - Reads source video metadata from `source_videos/manifest.json` when present.
@@ -39,6 +43,7 @@ python tools/dragon_asset_lab/app.py --repo-root C:\Users\kasom\projects\dragon-
 - No ComfyUI API calls.
 - No generated asset rewrites.
 - No manifest writes. The manifest view is read-only to avoid corrupting curated data while the schema is still settling.
+- No third-party character import. Ryu/Ken-style local test folders are inspected in place and remain ignored by git.
 - Local-only prototype. The server binds to `127.0.0.1` by default and only serves supported media files under the repo root.
 
 ## Intended Comfy/LTX Workflow

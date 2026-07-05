@@ -4,8 +4,12 @@ Implemented a local stdlib Python web app prototype under `tools/dragon_asset_la
 
 ## Implemented
 
-- Character workspace browser for `A.Ben` and `I.Chie`.
+- Character workspace browser for owned characters `A.Ben` and `I.Chie`.
+- Local-only compatibility browser support for ignored `EvilRyu` and `EvilKen` folders when they exist.
 - Workspace presence checks for `source_art`, `source_videos`, `shop`, and `source_art/curated_game_sprites`.
+- Minimal MUGEN DEF parsing for display metadata and `[Files]` runtime references.
+- Runtime file presence checks for CMD, CNS, common CNS, SFF, AIR, SND, palettes, movelists, and storyboards.
+- AIR action counting for full local characters.
 - Action dashboard for `idle`, `walk`, `jump`, `punch`, `kick`, and `dash`.
 - Frame counts from curated frame folders, promoted frame metadata, or selected source frame metadata.
 - Contact sheet and preview GIF display from curated `contacts` and `previews` folders.
@@ -33,6 +37,7 @@ Expected MVP behavior:
 
 - `A.Ben` shows curated contacts/previews and frame counts for available actions.
 - `I.Chie` shows existing workspace folders but mostly empty action dashboard data.
+- `EvilRyu` and `EvilKen`, when present locally, show DEF metadata, runtime file statuses, and AIR action counts without tracking or copying those assets.
 - Manifest viewer is read-only.
 - Command blocks are displayed but not executed.
 
