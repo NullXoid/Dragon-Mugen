@@ -18,6 +18,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 from PIL import Image, ImageDraw, ImageOps
 
 
@@ -162,6 +163,35 @@ def _fit_frame(image: Image.Image, cell_width: int, cell_height: int) -> Image.I
     y = (cell_height - fitted.height) // 2
     canvas.alpha_composite(fitted, (x, y))
     return canvas
+
+
+def _remove_green_screen(image: Image.Image) -> Image.Image:
+    rgba = image.convert("RGBA")
+    arr = np.array(rgba)
+    rgb = arr[:, :, :3].astype(np.int16)
+    alpha = arr[:, :, 3]
+    red = rgb[:, :, 0]
+    green = rgb[:, :, 1]
+    blue = rgb[:, :, 2]
+
+    chroma_green = (alpha > 0) & (green > red + 18) & (green > blue + 18) & (green > 42)
+    strong_green = chroma_green & (red < 95) & (blue < 125)
+    soft_fringe = chroma_green & ~strong_green & (red < 150) & (blue < 180)
+
+    alpha[strong_green] = 0
+    arr[strong_green, 0:3] = 0
+    arr[soft_fringe, 1] = np.maximum(arr[soft_fringe, 0], arr[soft_fringe, 2])
+    return Image.fromarray(arr, "RGBA")
+
+
+def _write_clean_frames(raw_frames: list[Path], clean_dir: Path) -> list[Path]:
+    clean_dir.mkdir(parents=True, exist_ok=True)
+    clean_paths: list[Path] = []
+    for raw_frame in raw_frames:
+        output_path = clean_dir / raw_frame.name
+        _remove_green_screen(Image.open(raw_frame)).save(output_path)
+        clean_paths.append(output_path)
+    return clean_paths
 
 
 def _frame_paths(folder: Path) -> list[Path]:
@@ -327,11 +357,12 @@ def prepare(args: argparse.Namespace) -> int:
 
     first = Image.open(frames[0])
     frame_width, frame_height = first.size
+    clean_frames = _write_clean_frames(frames, clean_dir)
     contact = sheet_dir / "contact_all.png"
     preview = preview_dir / "preview.gif"
-    labels = [f"{index:03d}" for index in range(len(frames))]
-    _write_contact_sheet(contact, frames, labels)
-    preview_images = [Image.open(path).convert("RGBA") for path in frames]
+    labels = [f"{index:03d}" for index in range(len(clean_frames))]
+    _write_contact_sheet(contact, clean_frames, labels)
+    preview_images = [Image.open(path).convert("RGBA") for path in clean_frames]
     _write_preview_gif(preview, preview_images, args.sample_fps or info.get("fps"))
 
     manifest = {
@@ -436,7 +467,10 @@ def promote(args: argparse.Namespace) -> int:
     normalized_frames: list[Image.Image] = []
     for output_index, source_index in enumerate(selected):
         source_path = source_frames[source_index]
-        normalized = _fit_frame(Image.open(source_path), cell_width, cell_height)
+        source_image = Image.open(source_path)
+        if source_dir.name == "frames_raw":
+            source_image = _remove_green_screen(source_image)
+        normalized = _fit_frame(source_image, cell_width, cell_height)
         output_path = action_dir / f"{action}_{output_index:02d}_src{source_index:03d}_{cell_width}x{cell_height}.png"
         normalized.save(output_path)
         selected_paths.append(output_path)
@@ -459,7 +493,7 @@ def promote(args: argparse.Namespace) -> int:
     manifest_base = curated_root.parent
     curated_manifest = _load_json(curated_manifest_path)
     curated_manifest.setdefault("description", "Curated selected-frame sheets from Comfy/LTX action revisions.")
-    curated_manifest["source"] = _portable_path(source_dir, manifest_base)
+    curated_manifest.setdefault("source", "source_videos")
     curated_manifest["cell_full"] = {"width": cell_width, "height": cell_height}
     actions = curated_manifest.setdefault("actions", {})
     existing_notes = actions.get(action, {}).get("notes", "")

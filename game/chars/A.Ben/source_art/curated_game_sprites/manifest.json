@@ -1,5 +1,5 @@
 {
-  "source": "ltx_runs",
+  "source": "source_videos",
   "description": "Curated selected-frame sheets from LTX 6-second A.Ben action revisions.",
   "cell_full": {
     "width": 384,
@@ -114,14 +114,14 @@
     },
     "walk": {
       "selected_source_frames": [
-        60,
-        66,
-        72,
+        4,
+        20,
+        36,
+        52,
+        68,
         84,
-        90,
-        96,
-        102,
-        114
+        100,
+        116
       ],
       "preview_fps": 24.0,
       "notes": "",
@@ -132,28 +132,28 @@
       "contact": "curated_game_sprites/contacts/walk_selected_contact.png",
       "gif_preview": "curated_game_sprites/previews/walk_selected_preview.gif",
       "promoted_frames": [
-        "curated_game_sprites/frames/walk/walk_00_src060_384x672.png",
-        "curated_game_sprites/frames/walk/walk_01_src066_384x672.png",
-        "curated_game_sprites/frames/walk/walk_02_src072_384x672.png",
-        "curated_game_sprites/frames/walk/walk_03_src084_384x672.png",
-        "curated_game_sprites/frames/walk/walk_04_src090_384x672.png",
-        "curated_game_sprites/frames/walk/walk_05_src096_384x672.png",
-        "curated_game_sprites/frames/walk/walk_06_src102_384x672.png",
-        "curated_game_sprites/frames/walk/walk_07_src114_384x672.png"
+        "curated_game_sprites/frames/walk/walk_00_src004_384x672.png",
+        "curated_game_sprites/frames/walk/walk_01_src020_384x672.png",
+        "curated_game_sprites/frames/walk/walk_02_src036_384x672.png",
+        "curated_game_sprites/frames/walk/walk_03_src052_384x672.png",
+        "curated_game_sprites/frames/walk/walk_04_src068_384x672.png",
+        "curated_game_sprites/frames/walk/walk_05_src084_384x672.png",
+        "curated_game_sprites/frames/walk/walk_06_src100_384x672.png",
+        "curated_game_sprites/frames/walk/walk_07_src116_384x672.png"
       ],
       "cropped_cell": {
-        "width": 370,
-        "height": 672
+        "width": 358,
+        "height": 634
       }
     },
     "idle": {
       "selected_source_frames": [
         0,
-        1,
         2,
-        1,
-        0,
-        1
+        4,
+        6,
+        4,
+        2
       ],
       "preview_fps": 12.0,
       "notes": "",
@@ -165,15 +165,15 @@
       "gif_preview": "curated_game_sprites/previews/idle_selected_preview.gif",
       "promoted_frames": [
         "curated_game_sprites/frames/idle/idle_00_src000_384x672.png",
-        "curated_game_sprites/frames/idle/idle_01_src001_384x672.png",
-        "curated_game_sprites/frames/idle/idle_02_src002_384x672.png",
-        "curated_game_sprites/frames/idle/idle_03_src001_384x672.png",
-        "curated_game_sprites/frames/idle/idle_04_src000_384x672.png",
-        "curated_game_sprites/frames/idle/idle_05_src001_384x672.png"
+        "curated_game_sprites/frames/idle/idle_01_src002_384x672.png",
+        "curated_game_sprites/frames/idle/idle_02_src004_384x672.png",
+        "curated_game_sprites/frames/idle/idle_03_src006_384x672.png",
+        "curated_game_sprites/frames/idle/idle_04_src004_384x672.png",
+        "curated_game_sprites/frames/idle/idle_05_src002_384x672.png"
       ],
       "cropped_cell": {
-        "width": 384,
-        "height": 672
+        "width": 342,
+        "height": 625
       }
     }
   }

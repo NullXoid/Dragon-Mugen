@@ -8,29 +8,29 @@
       "run": "../source_art/curated_game_sprites",
       "selected_source_frames": [
         0,
-        1,
         2,
-        1,
-        0,
-        1
+        4,
+        6,
+        4,
+        2
       ],
-      "notes": "Stable fighting-stance frames used as the first proper idle loop."
+      "notes": "Stable fighting-stance frames used as the first proper idle loop. Current selection uses a wider subtle stance arc from the cleaned LTX frame rip."
     },
     "walk": {
       "file": "walk_LTX-2_00068_.mp4",
       "source": "walk_LTX-2_00068_.mp4",
       "run": "../source_art/curated_game_sprites",
       "selected_source_frames": [
-        60,
-        66,
-        72,
+        4,
+        20,
+        36,
+        52,
+        68,
         84,
-        90,
-        96,
-        102,
-        114
+        100,
+        116
       ],
-      "notes": "Cleanest available side-view green-screen walk cycle."
+      "notes": "Cleanest available side-view green-screen walk cycle. Current selection samples the full stored walk video and is promoted through chroma-cleaned frames."
     },
     "jump": {
       "file": "jump_Aben-jump-6s-v04-gray_00001_.mp4",

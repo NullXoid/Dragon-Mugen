@@ -67,6 +67,7 @@ CMakeUserPresets.json
 /artifacts/simulations/*.html
 /artifacts/simulations/*.png
 /artifacts/simulations/__pycache__/
+/game/chars/*/source_art/ltx_runs/
 __pycache__/
 *.pyc
 *.log
