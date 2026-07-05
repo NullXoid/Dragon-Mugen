@@ -60,6 +60,7 @@ CMakeUserPresets.json
 /artifacts/perf/
 /artifacts/aben_*
 /artifacts/aben_*/
+/artifacts/asset_lab/
 /artifacts/character_proof/
 /artifacts/ltx_video_audit/
 /artifacts/sff_sheets/
