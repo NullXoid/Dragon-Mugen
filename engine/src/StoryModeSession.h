@@ -60,7 +60,7 @@ void resetStoryFighterCommon(AppState& state, FighterState& fighter, size_t figh
 }
 
 void startStoryWave(AppState& state, const StageSlot& stage, bool resetPlayer) {
-    state.story.activeWaveEnemyCount = storyWaveEnemyCount(state.story.waveIndex);
+    state.story.activeWaveEnemyCount = storyWaveEnemyCount(state, state.story.waveIndex);
     state.story.waveTransitionTicks = 0;
     state.story.enemyRewarded = {};
     state.story.shopDoorAvailable = false;
@@ -83,15 +83,26 @@ void startStoryWave(AppState& state, const StageSlot& stage, bool resetPlayer) {
         stage.leftbound + 24.0f,
         stage.rightbound - 24.0f);
     static constexpr std::array<float, kStoryMaxEnemies> depths{ 0.0f, -22.0f, 22.0f };
+    const StoryBoardWaveSpec* waveSpec = activeStoryWaveSpec(state);
     for (int i = 1; i < static_cast<int>(state.fighters.size()); ++i) {
         auto& enemy = state.fighters[static_cast<size_t>(i)];
         if (i <= state.story.activeWaveEnemyCount) {
             resetStoryFighterCommon(state, enemy, static_cast<size_t>(i), stage);
             applyStoryDifficultyToEnemy(state, enemy, static_cast<size_t>(i));
-            enemy.x = clampFighterOriginToStage(std::min(enemyBaseX + static_cast<float>((i - 1) * 34), maxCamera + halfWidth - 24.0f), stage);
+            const StoryBoardWaveEnemy* waveEnemy =
+                waveSpec && i - 1 < static_cast<int>(waveSpec->enemies.size())
+                    ? &waveSpec->enemies[static_cast<size_t>(i - 1)]
+                    : nullptr;
+            const float xOffset = waveEnemy && waveEnemy->hasXOffset
+                ? waveEnemy->xOffset
+                : static_cast<float>((i - 1) * 34);
+            enemy.x = clampFighterOriginToStage(std::min(enemyBaseX + xOffset, maxCamera + halfWidth - 24.0f), stage);
             enemy.y = i % 2 == 0 ? stage.p1starty : stage.p2starty;
             enemy.depthZ = arenaDepthActive(state)
-                ? std::clamp(depths[static_cast<size_t>(i - 1)], state.arenaConfig.depthMin, state.arenaConfig.depthMax)
+                ? std::clamp(
+                    waveEnemy && waveEnemy->hasDepthZ ? waveEnemy->depthZ : depths[static_cast<size_t>(i - 1)],
+                    state.arenaConfig.depthMin,
+                    state.arenaConfig.depthMax)
                 : 0.0f;
             enemy.facing = state.fighters.empty() || enemy.x >= state.fighters[0].x ? -1 : 1;
         } else {
@@ -118,7 +129,7 @@ void resetStoryFightRound(AppState& state) {
     state.projectiles.clear();
 
     state.story.waveIndex = 0;
-    state.story.activeWaveEnemyCount = storyWaveEnemyCount(0);
+    state.story.activeWaveEnemyCount = storyWaveEnemyCount(state, 0);
     state.story.enemiesDefeated = 0;
     state.story.totalEnemies = storyTotalEnemyCount(state);
     state.story.waveTransitionTicks = 0;

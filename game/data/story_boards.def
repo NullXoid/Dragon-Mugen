@@ -6,6 +6,15 @@
 ;   mid_boss      - shorter board with a stronger encounter
 ;   shop          - route stop that enters the shop hub
 ;   arena_boss    - boss encounter board
+;
+; Wave sections use [Board N.Wave M].
+;   enemies    = character refs for enemy slots, comma-separated
+;   spawn_x    = per-slot X offsets from the wave spawn anchor
+;   spawn_z    = per-slot arena-depth offsets
+;   reward_xp  = optional reward when the wave clears
+;   reward_gold = optional reward when the wave clears
+; Board sections can also use board_reward_xp/board_reward_gold,
+; clear_cue_image, and shop_cue_image.
 
 [Route]
 id = aben_arena_mall_route
@@ -19,6 +28,25 @@ title = STREET PATROL
 stage = stages/tmnt_openbor_street.def
 waves = 2
 wave_clear_text = WAVE CLEAR
+clear_cue_image = data/story/wave_clear_arrow.png
+board_reward_xp = 10
+board_reward_gold = 15
+
+[Board 0.Wave 0]
+enemies = I.Chie
+spawn_x = 0
+spawn_z = 0
+clear_text = WAVE CLEAR
+reward_xp = 3
+reward_gold = 5
+
+[Board 0.Wave 1]
+enemies = I.Chie, I.Chie
+spawn_x = 0, 46
+spawn_z = -18, 18
+clear_text = ROUTE CLEAR
+reward_xp = 5
+reward_gold = 8
 
 [Board 1]
 id = comic_street
@@ -27,6 +55,25 @@ title = COMIC STREET
 stage = stages/comic_street_rumble.def
 waves = 2
 wave_clear_text = WAVE CLEAR
+clear_cue_image = data/story/wave_clear_arrow.png
+board_reward_xp = 12
+board_reward_gold = 18
+
+[Board 1.Wave 0]
+enemies = I.Chie
+spawn_x = 0
+spawn_z = 0
+clear_text = WAVE CLEAR
+reward_xp = 4
+reward_gold = 6
+
+[Board 1.Wave 1]
+enemies = I.Chie, I.Chie
+spawn_x = -18, 42
+spawn_z = -22, 22
+clear_text = ROUTE CLEAR
+reward_xp = 6
+reward_gold = 10
 
 [Board 2]
 id = sewer_midboss
@@ -35,6 +82,17 @@ title = SEWER MID BOSS
 stage = stages/tmnt_sewer_patrol.def
 enemy = I.Chie
 waves = 1
+clear_cue_image = data/story/wave_clear_arrow.png
+board_reward_xp = 20
+board_reward_gold = 30
+
+[Board 2.Wave 0]
+enemies = I.Chie
+spawn_x = 10
+spawn_z = 0
+clear_text = MID BOSS CLEAR
+reward_xp = 8
+reward_gold = 12
 
 [Board 3]
 id = ichie_shop_door
@@ -47,6 +105,7 @@ optional = 1
 shop_prompt = LK / X SHOP
 shop_enter_text = ENTERING SHOP
 shop_open_text = SHOP DOOR OPEN
+shop_cue_image = data/story/shop_door_arrow.png
 shop_door_x_offset = 160
 shop_door_radius_x = 56
 shop_door_radius_z = 44
@@ -58,3 +117,14 @@ title = ARENA MALL BOSS
 stage = stages/openbor_scroll.def
 enemy = I.Chie
 waves = 1
+clear_cue_image = data/story/wave_clear_arrow.png
+board_reward_xp = 30
+board_reward_gold = 45
+
+[Board 4.Wave 0]
+enemies = I.Chie
+spawn_x = 0
+spawn_z = 0
+clear_text = BOSS CLEAR
+reward_xp = 12
+reward_gold = 18

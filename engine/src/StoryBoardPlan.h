@@ -19,6 +19,22 @@ enum class StoryBoardNodeKind {
     ArenaBoss,
 };
 
+struct StoryBoardWaveEnemy {
+    std::string enemyRef;
+    float xOffset = 0.0f;
+    float depthZ = 0.0f;
+    bool hasXOffset = false;
+    bool hasDepthZ = false;
+};
+
+struct StoryBoardWaveSpec {
+    std::vector<StoryBoardWaveEnemy> enemies;
+    std::string clearText;
+    std::string clearCueImagePath;
+    int rewardXp = 0;
+    int rewardGold = 0;
+};
+
 struct StoryBoardNode {
     std::string id;
     std::string title;
@@ -29,8 +45,13 @@ struct StoryBoardNode {
     std::string shopDoorEnterText = "ENTERING SHOP";
     std::string shopDoorOpenText = "SHOP DOOR OPEN";
     std::string waveClearText;
+    std::string clearCueImagePath;
+    std::string shopCueImagePath;
+    std::vector<StoryBoardWaveSpec> waveSpecs;
     StoryBoardNodeKind kind = StoryBoardNodeKind::SideScroller;
     int waves = 3;
+    int rewardXp = 0;
+    int rewardGold = 0;
     bool optional = false;
     float shopDoorOffsetX = 160.0f;
     float shopDoorRadiusX = 56.0f;
@@ -101,6 +122,98 @@ inline std::string storyBoardPropertyValue(const MugenSection& section, std::str
     return fallback;
 }
 
+inline std::vector<std::string> storyBoardCsvValues(std::string_view value) {
+    std::vector<std::string> parts;
+    size_t start = 0;
+    while (start <= value.size()) {
+        const size_t comma = value.find(',', start);
+        const size_t end = comma == std::string_view::npos ? value.size() : comma;
+        const std::string part = trim(value.substr(start, end - start));
+        if (!part.empty()) {
+            parts.push_back(part);
+        }
+        if (comma == std::string_view::npos) {
+            break;
+        }
+        start = comma + 1;
+    }
+    return parts;
+}
+
+inline std::vector<float> storyBoardFloatList(std::string_view value) {
+    std::vector<float> out;
+    for (const std::string& part : storyBoardCsvValues(value)) {
+        out.push_back(storyBoardFloatValue(part, 0.0f));
+    }
+    return out;
+}
+
+inline bool storyBoardReadFirstIntAfter(std::string_view value, size_t start, int& out) {
+    while (start < value.size() && !std::isdigit(static_cast<unsigned char>(value[start]))) {
+        ++start;
+    }
+    if (start >= value.size()) {
+        return false;
+    }
+    size_t end = start;
+    while (end < value.size() && std::isdigit(static_cast<unsigned char>(value[end]))) {
+        ++end;
+    }
+    out = storyBoardIntValue(value.substr(start, end - start), -1);
+    return out >= 0;
+}
+
+inline bool storyBoardSectionIndices(std::string_view name, int& boardIndex, int& waveIndex) {
+    boardIndex = -1;
+    waveIndex = -1;
+    const std::string normalized = storyBoardLowercase(trim(name));
+    if (!storyBoardStartsWithNoCase(normalized, "board")) {
+        return false;
+    }
+    const size_t wavePos = normalized.find("wave");
+    if (!storyBoardReadFirstIntAfter(normalized, 5, boardIndex)) {
+        return false;
+    }
+    if (wavePos != std::string::npos) {
+        return storyBoardReadFirstIntAfter(normalized, wavePos + 4, waveIndex);
+    }
+    return true;
+}
+
+inline StoryBoardWaveSpec storyBoardWaveSpecFromSection(const MugenSection& section) {
+    StoryBoardWaveSpec wave;
+    wave.clearText = storyBoardPropertyValue(section, "clear_text");
+    wave.clearText = storyBoardPropertyValue(section, "wave_clear_text", wave.clearText);
+    wave.clearCueImagePath = storyBoardPropertyValue(section, "cue_image");
+    wave.clearCueImagePath = storyBoardPropertyValue(section, "clear_cue_image", wave.clearCueImagePath);
+    wave.rewardXp = std::max(0, storyBoardIntValue(storyBoardPropertyValue(section, "reward_xp", "0"), 0));
+    wave.rewardXp = std::max(0, storyBoardIntValue(storyBoardPropertyValue(section, "xp", std::to_string(wave.rewardXp)), wave.rewardXp));
+    wave.rewardGold = std::max(0, storyBoardIntValue(storyBoardPropertyValue(section, "reward_gold", "0"), 0));
+    wave.rewardGold = std::max(0, storyBoardIntValue(storyBoardPropertyValue(section, "gold", std::to_string(wave.rewardGold)), wave.rewardGold));
+
+    const auto enemies = storyBoardCsvValues(storyBoardPropertyValue(section, "enemies"));
+    const auto spawnX = storyBoardFloatList(storyBoardPropertyValue(section, "spawn_x"));
+    const auto spawnZ = storyBoardFloatList(storyBoardPropertyValue(section, "spawn_z"));
+    const size_t count = std::max({ enemies.size(), spawnX.size(), spawnZ.size() });
+    wave.enemies.reserve(count);
+    for (size_t i = 0; i < count; ++i) {
+        StoryBoardWaveEnemy enemy;
+        if (i < enemies.size()) {
+            enemy.enemyRef = enemies[i];
+        }
+        if (i < spawnX.size()) {
+            enemy.xOffset = spawnX[i];
+            enemy.hasXOffset = true;
+        }
+        if (i < spawnZ.size()) {
+            enemy.depthZ = spawnZ[i];
+            enemy.hasDepthZ = true;
+        }
+        wave.enemies.push_back(std::move(enemy));
+    }
+    return wave;
+}
+
 inline StoryBoardNodeKind storyBoardNodeKindFromText(std::string_view value) {
     const std::string normalized = storyBoardLowercase(trim(value));
     if (normalized == "mid_boss" || normalized == "midboss" || normalized == "mini_boss") {
@@ -160,7 +273,9 @@ inline StoryBoardRoute loadStoryBoardRouteFile(const std::filesystem::path& path
     }
 
     for (const MugenSection& section : doc.sections) {
-        if (!storyBoardStartsWithNoCase(section.name, "Board")) {
+        int boardIndex = -1;
+        int waveIndex = -1;
+        if (!storyBoardSectionIndices(section.name, boardIndex, waveIndex) || waveIndex >= 0) {
             continue;
         }
 
@@ -174,8 +289,15 @@ inline StoryBoardRoute loadStoryBoardRouteFile(const std::filesystem::path& path
         node.shopDoorEnterText = storyBoardPropertyValue(section, "shop_enter_text", node.shopDoorEnterText);
         node.shopDoorOpenText = storyBoardPropertyValue(section, "shop_open_text", node.shopDoorOpenText);
         node.waveClearText = storyBoardPropertyValue(section, "wave_clear_text", node.waveClearText);
+        node.clearCueImagePath = storyBoardPropertyValue(section, "clear_cue_image", node.clearCueImagePath);
+        node.clearCueImagePath = storyBoardPropertyValue(section, "cue_image", node.clearCueImagePath);
+        node.shopCueImagePath = storyBoardPropertyValue(section, "shop_cue_image", node.shopCueImagePath);
         node.kind = storyBoardNodeKindFromText(storyBoardPropertyValue(section, "type", "side_scroller"));
         node.waves = std::clamp(storyBoardIntValue(storyBoardPropertyValue(section, "waves", "3"), 3), 1, 8);
+        node.rewardXp = std::max(0, storyBoardIntValue(storyBoardPropertyValue(section, "reward_xp", "0"), 0));
+        node.rewardXp = std::max(0, storyBoardIntValue(storyBoardPropertyValue(section, "board_reward_xp", std::to_string(node.rewardXp)), node.rewardXp));
+        node.rewardGold = std::max(0, storyBoardIntValue(storyBoardPropertyValue(section, "reward_gold", "0"), 0));
+        node.rewardGold = std::max(0, storyBoardIntValue(storyBoardPropertyValue(section, "board_reward_gold", std::to_string(node.rewardGold)), node.rewardGold));
         node.optional = storyBoardBoolValue(storyBoardPropertyValue(section, "optional", "0"), false);
         node.shopDoorOffsetX = std::max(0.0f, storyBoardFloatValue(storyBoardPropertyValue(section, "shop_door_x_offset", "160"), 160.0f));
         node.shopDoorRadiusX = std::max(8.0f, storyBoardFloatValue(storyBoardPropertyValue(section, "shop_door_radius_x", "56"), 56.0f));
@@ -184,6 +306,23 @@ inline StoryBoardRoute loadStoryBoardRouteFile(const std::filesystem::path& path
             node.waves = 1;
         }
         route.nodes.push_back(std::move(node));
+    }
+
+    for (const MugenSection& section : doc.sections) {
+        int boardIndex = -1;
+        int waveIndex = -1;
+        if (!storyBoardSectionIndices(section.name, boardIndex, waveIndex) || waveIndex < 0) {
+            continue;
+        }
+        if (boardIndex < 0 || boardIndex >= static_cast<int>(route.nodes.size()) || waveIndex >= 8) {
+            continue;
+        }
+        StoryBoardNode& node = route.nodes[static_cast<size_t>(boardIndex)];
+        if (static_cast<int>(node.waveSpecs.size()) <= waveIndex) {
+            node.waveSpecs.resize(static_cast<size_t>(waveIndex + 1));
+        }
+        node.waveSpecs[static_cast<size_t>(waveIndex)] = storyBoardWaveSpecFromSection(section);
+        node.waves = std::max(node.waves, waveIndex + 1);
     }
 
     return route;

@@ -112,6 +112,78 @@ void awardStoryEnemyDefeat(AppState& state, const FighterState& defeatedEnemy) {
     }
 }
 
+std::string storyConfiguredRewardText(
+    std::string_view label,
+    const DragonProgressionAwardResult& award,
+    int goldBalance) {
+    if (!award.applied) {
+        return {};
+    }
+    std::ostringstream out;
+    out << label << " +" << award.xpGained << " XP";
+    if (award.goldGained > 0) {
+        out << " +" << award.goldGained << "G";
+    }
+    out << " BAL " << std::max(0, goldBalance) << "G";
+    return out.str();
+}
+
+void awardStoryConfiguredReward(AppState& state, int xp, int gold, std::string_view label) {
+    xp = std::max(0, xp);
+    gold = std::max(0, gold);
+    if (xp <= 0 && gold <= 0) {
+        return;
+    }
+    if (!state.progression.loaded) {
+        loadProgressionState(state);
+    }
+    if (!state.progression.data.config.enabled || state.fighters.empty()) {
+        return;
+    }
+    const CharacterSlot* p1 = sessionP1CharacterSlot(state.selection);
+    if (!p1) {
+        return;
+    }
+    const std::string profileId = dragonProgressionPlayerProfileId(state.progression.save, 0);
+    if (isDragonProgressionGuestProfile(profileId)) {
+        return;
+    }
+    const auto award = recordDragonProgressionRewardForProfile(
+        state.progression.data,
+        state.progression.save,
+        profileId,
+        p1->id,
+        p1->displayName,
+        xp,
+        gold);
+    if (!award.applied) {
+        return;
+    }
+    const int goldBalance = dragonProgressionGoldForProfile(state.progression.save, profileId);
+    state.progression.lastAwardText = storyConfiguredRewardText(label, award, goldBalance);
+    state.messages.lastHitText = state.progression.lastAwardText;
+    state.messages.lastHitTextTicks = std::max(state.messages.lastHitTextTicks, 90);
+    spawnStoryRewardFeedback(state, state.fighters[0], award);
+    try {
+        saveDragonProgressionSave(
+            state.progression.savePath.empty() ? dragonProgressionSavePath(state.gameRoot) : state.progression.savePath,
+            state.progression.save);
+    } catch (const std::exception& ex) {
+        SDL_Log("Dragon story configured reward save failed: %s", ex.what());
+    }
+}
+
+void awardStoryWaveAndBoardRewards(AppState& state, bool finalWave) {
+    if (const StoryBoardWaveSpec* wave = activeStoryWaveSpec(state)) {
+        awardStoryConfiguredReward(state, wave->rewardXp, wave->rewardGold, "WAVE");
+    }
+    if (finalWave) {
+        if (const StoryBoardNode* node = activeStoryBoardNode(state)) {
+            awardStoryConfiguredReward(state, node->rewardXp, node->rewardGold, "BOARD");
+        }
+    }
+}
+
 void markStoryDefeatedEnemies(AppState& state) {
     const int active = std::clamp(state.story.activeWaveEnemyCount, 0, kStoryMaxEnemies);
     for (size_t i = 1; i < state.fighters.size(); ++i) {
@@ -337,6 +409,9 @@ std::string storyShopDoorOpenText(const AppState& state) {
 }
 
 std::string storyWaveClearText(const AppState& state) {
+    if (const StoryBoardWaveSpec* wave = activeStoryWaveSpec(state); wave && !wave->clearText.empty()) {
+        return wave->clearText;
+    }
     if (const StoryBoardNode* node = activeStoryBoardNode(state); node && !node->waveClearText.empty()) {
         return node->waveClearText;
     }
@@ -416,6 +491,7 @@ void updateStoryWaveRules(AppState& state, const StageSlot& stage) {
             state.story.totalEnemies,
             state.story.enemiesDefeated + state.story.activeWaveEnemyCount);
         const int waves = storyWaveCount(state);
+        awardStoryWaveAndBoardRewards(state, state.story.waveIndex + 1 >= waves);
         if (state.story.waveIndex + 1 >= waves && storyShopDoorRouteAvailable(state)) {
             state.messages.lastHitText = storyShopDoorOpenText(state);
         } else {

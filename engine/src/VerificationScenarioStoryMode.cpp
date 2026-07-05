@@ -445,19 +445,21 @@ int runStoryBoardRoutePlan(RuntimeProbe& runtime, std::ostream& out) {
         record(out, counts, Status::Blocked, "route_def_loads", ex.what());
     }
     bool sawConfigurableShop = false;
+    bool sawConfigurableWave = false;
     for (const StoryBoardNode& node : parsedRoute.nodes) {
         sawConfigurableShop = sawConfigurableShop
             || (node.kind == StoryBoardNodeKind::Shop
                 && node.shopDoorPrompt == "LK / X SHOP"
                 && node.shopDoorOffsetX == 160.0f
                 && node.shopDoorRadiusX == 56.0f);
+        sawConfigurableWave = sawConfigurableWave || (!node.waveSpecs.empty() && !node.waveSpecs.front().enemies.empty() && node.rewardXp > 0 && node.rewardGold > 0 && !node.clearCueImagePath.empty());
     }
     record(out, counts,
-        parsedRoute.forwardCueImagePath == "data/story/wave_clear_arrow.png" && sawConfigurableShop
+        parsedRoute.forwardCueImagePath == "data/story/wave_clear_arrow.png" && sawConfigurableShop && sawConfigurableWave
             ? Status::Pass
             : Status::Fail,
         "route_def_exposes_mugen_style_story_settings",
-        "cue=" + parsedRoute.forwardCueImagePath + " shop_config=" + std::to_string(sawConfigurableShop ? 1 : 0));
+        "cue=" + parsedRoute.forwardCueImagePath + " shop_config=" + std::to_string(sawConfigurableShop ? 1 : 0) + " wave_config=" + std::to_string(sawConfigurableWave ? 1 : 0));
 
     const auto initial = runtime.snapshot();
     record(out, counts, initial.storyBoardNodeCount >= 5 ? Status::Pass : Status::Fail,

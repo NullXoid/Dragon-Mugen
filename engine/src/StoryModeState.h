@@ -13,6 +13,21 @@ int storyWaveEnemyCount(int waveIndex) {
     return std::clamp(waveIndex + 1, 1, kStoryMaxEnemies);
 }
 
+const StoryBoardWaveSpec* storyBoardWaveSpecAt(const StoryBoardNode& node, int waveIndex) {
+    if (waveIndex < 0 || waveIndex >= static_cast<int>(node.waveSpecs.size())) {
+        return nullptr;
+    }
+    return &node.waveSpecs[static_cast<size_t>(waveIndex)];
+}
+
+int storyWaveEnemyCount(const StoryBoardNode& node, int waveIndex) {
+    if (const StoryBoardWaveSpec* wave = storyBoardWaveSpecAt(node, waveIndex);
+        wave && !wave->enemies.empty()) {
+        return std::clamp(static_cast<int>(wave->enemies.size()), 1, kStoryMaxEnemies);
+    }
+    return storyWaveEnemyCount(waveIndex);
+}
+
 int findStoryDefaultStageIndex(const AppState& state);
 
 const StoryBoardNode* storyBoardNodeAt(const AppState& state, int index) {
@@ -28,6 +43,20 @@ const StoryBoardNode* selectedStoryBoardNode(const AppState& state) {
 
 const StoryBoardNode* activeStoryBoardNode(const AppState& state) {
     return storyBoardNodeAt(state, state.story.activeBoardNode);
+}
+
+const StoryBoardWaveSpec* activeStoryWaveSpec(const AppState& state) {
+    if (const StoryBoardNode* node = activeStoryBoardNode(state)) {
+        return storyBoardWaveSpecAt(*node, state.story.waveIndex);
+    }
+    return nullptr;
+}
+
+int storyWaveEnemyCount(const AppState& state, int waveIndex) {
+    if (const StoryBoardNode* node = activeStoryBoardNode(state)) {
+        return storyWaveEnemyCount(*node, waveIndex);
+    }
+    return storyWaveEnemyCount(waveIndex);
 }
 
 const StoryBoardNode* nextStoryBoardNode(const AppState& state) {
@@ -187,14 +216,14 @@ void commitSelectedStoryBoardNode(AppState& state) {
 
 int storyWaveCount(const AppState& state) {
     if (const StoryBoardNode* node = activeStoryBoardNode(state)) {
-        return std::max(1, node->waves);
+        return std::max({ 1, node->waves, static_cast<int>(node->waveSpecs.size()) });
     }
     return kStoryWaveCount;
 }
 
 int storySelectedBoardWaveCount(const AppState& state) {
     if (const StoryBoardNode* node = selectedStoryBoardNode(state)) {
-        return std::max(1, node->waves);
+        return std::max({ 1, node->waves, static_cast<int>(node->waveSpecs.size()) });
     }
     return kStoryWaveCount;
 }
@@ -203,7 +232,7 @@ int storyTotalEnemyCount(const AppState& state) {
     int total = 0;
     const int waves = storyWaveCount(state);
     for (int wave = 0; wave < waves; ++wave) {
-        total += storyWaveEnemyCount(wave);
+        total += storyWaveEnemyCount(state, wave);
     }
     return total;
 }
@@ -264,18 +293,41 @@ int findStoryPreferredEnemy(const AppState& state, std::string_view wanted, cons
     return -1;
 }
 
+int findStoryPreferredEnemyAllowDuplicate(const AppState& state, std::string_view wanted) {
+    const std::vector<int> empty;
+    return findStoryPreferredEnemy(state, wanted, empty);
+}
+
 void chooseStoryEnemyCharacters(AppState& state) {
     const int characterCount = static_cast<int>(state.selection.characters.size());
     const int p1Index = sessionP1CharacterIndex(state.selection);
     std::vector<int> picked;
     picked.reserve(kStoryMaxEnemies);
+    std::array<int, kStoryMaxEnemies> explicitSlots{ -1, -1, -1 };
 
     if (const StoryBoardNode* node = activeStoryBoardNode(state)) {
-        if (!node->enemyRef.empty()) {
-            const int index = findStoryPreferredEnemy(state, node->enemyRef, picked);
-            if (index >= 0) {
-                picked.push_back(index);
+        for (const StoryBoardWaveSpec& wave : node->waveSpecs) {
+            const int count = std::min(static_cast<int>(wave.enemies.size()), kStoryMaxEnemies);
+            for (int slot = 0; slot < count; ++slot) {
+                if (explicitSlots[static_cast<size_t>(slot)] >= 0
+                    || wave.enemies[static_cast<size_t>(slot)].enemyRef.empty()) {
+                    continue;
+                }
+                explicitSlots[static_cast<size_t>(slot)] =
+                    findStoryPreferredEnemyAllowDuplicate(state, wave.enemies[static_cast<size_t>(slot)].enemyRef);
             }
+        }
+        if (!node->enemyRef.empty()) {
+            for (int slot = 0; slot < kStoryMaxEnemies; ++slot) {
+                if (explicitSlots[static_cast<size_t>(slot)] < 0) {
+                    explicitSlots[static_cast<size_t>(slot)] = findStoryPreferredEnemyAllowDuplicate(state, node->enemyRef);
+                }
+            }
+        }
+    }
+    for (int index : explicitSlots) {
+        if (index >= 0) {
+            picked.push_back(index);
         }
     }
 
