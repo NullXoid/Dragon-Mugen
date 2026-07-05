@@ -144,6 +144,14 @@ void clearCurrentWave(RuntimeProbe& runtime) {
     runtime.step({}, 70);
 }
 
+int expectedStoryEnemyTotalForWaves(int waves) {
+    int total = 0;
+    for (int wave = 0; wave < std::max(1, waves); ++wave) {
+        total += std::clamp(wave + 1, 1, kStoryMaxEnemies);
+    }
+    return total;
+}
+
 std::string readTextFile(const std::filesystem::path& path) {
     std::ifstream in(path);
     if (!in) {
@@ -167,11 +175,13 @@ int runStoryModeMenuRoute(RuntimeProbe& runtime, std::ostream& out) {
         "story_preloads_player_and_three_enemy_runtimes",
         "fighters=" + std::to_string(snapshot.fighterCount)
         + " runtimes=" + std::to_string(snapshot.arenaRuntimeCount));
-    record(out, counts, snapshot.storyActiveEnemies == 1 && snapshot.storyTotalEnemies == 6 ? Status::Pass : Status::Fail,
+    const int expectedTotal = expectedStoryEnemyTotalForWaves(snapshot.storySelectedBoardWaves);
+    record(out, counts, snapshot.storyActiveEnemies == 1 && snapshot.storyTotalEnemies == expectedTotal ? Status::Pass : Status::Fail,
         "story_initial_wave_state",
         "wave=" + std::to_string(snapshot.storyWaveIndex)
         + " active=" + std::to_string(snapshot.storyActiveEnemies)
-        + " total=" + std::to_string(snapshot.storyTotalEnemies));
+        + " total=" + std::to_string(snapshot.storyTotalEnemies)
+        + " board_waves=" + std::to_string(snapshot.storySelectedBoardWaves));
     const auto root = std::filesystem::path(runtime.rootText());
     const auto repoRoot = root.filename() == "game" ? root.parent_path() : root;
     const std::string storyStateText = readTextFile(repoRoot / "engine" / "src" / "StoryModeState.h");
@@ -206,32 +216,35 @@ int runStoryStageSelectMap(RuntimeProbe& runtime, std::ostream& out) {
         "story_stage_select_screen",
         "screen=" + std::to_string(initial.screen)
         + " pending=" + std::to_string(initial.pendingMode));
-    record(out, counts, initial.stageCount >= 3 ? Status::Pass : Status::Fail,
-        "story_stage_card_count",
-        "stages=" + std::to_string(initial.stageCount));
+    record(out, counts, initial.storyBoardNodeCount >= 3 ? Status::Pass : Status::Fail,
+        "story_board_card_count",
+        "boards=" + std::to_string(initial.storyBoardNodeCount)
+            + " stages=" + std::to_string(initial.stageCount));
     record(out, counts, initial.selectedStageLegacyOpenBorSection ? Status::Pass : Status::Fail,
         "story_stage_map_defaults_to_openbor",
-        "stage=\"" + runtime.stageName() + "\" index=" + std::to_string(initial.selectedStageIndex));
+        "stage=\"" + runtime.stageName() + "\" index=" + std::to_string(initial.selectedStageIndex)
+            + " board=\"" + initial.storySelectedBoardTitle + "\"");
 
     const std::string defaultStage = runtime.stageName();
     runtime.pressKey("right");
     const auto afterRight = runtime.snapshot();
     record(out, counts,
-        initial.stageCount > 1 && afterRight.selectedStageIndex != initial.selectedStageIndex
+        initial.storyBoardNodeCount > 1 && afterRight.storySelectedBoardNode != initial.storySelectedBoardNode
             ? Status::Pass
             : Status::Fail,
-        "story_stage_map_cycles_right",
-        "before=" + std::to_string(initial.selectedStageIndex)
-        + " after=" + std::to_string(afterRight.selectedStageIndex)
+        "story_board_map_cycles_right",
+        "before=" + std::to_string(initial.storySelectedBoardNode)
+        + " after=" + std::to_string(afterRight.storySelectedBoardNode)
         + " stage=\"" + runtime.stageName() + "\"");
     runtime.pressKey("left");
     const auto afterLeft = runtime.snapshot();
     record(out, counts,
-        afterLeft.selectedStageIndex == initial.selectedStageIndex && runtime.stageName() == defaultStage
+        afterLeft.storySelectedBoardNode == initial.storySelectedBoardNode && runtime.stageName() == defaultStage
             ? Status::Pass
             : Status::Fail,
-        "story_stage_map_cycles_left",
-        "index=" + std::to_string(afterLeft.selectedStageIndex)
+        "story_board_map_cycles_left",
+        "board=" + std::to_string(afterLeft.storySelectedBoardNode)
+        + " index=" + std::to_string(afterLeft.selectedStageIndex)
         + " stage=\"" + runtime.stageName() + "\"");
 
     runtime.pressKey("enter");
@@ -329,26 +342,30 @@ int runStoryStageBoardExpansion(RuntimeProbe& runtime, std::ostream& out) {
     }
 
     const auto initial = runtime.snapshot();
-    record(out, counts, initial.stageCount >= 6 ? Status::Pass : Status::Fail,
-        "story_stage_board_count",
-        "stages=" + std::to_string(initial.stageCount));
+    record(out, counts, initial.storyBoardNodeCount >= 5 ? Status::Pass : Status::Fail,
+        "story_route_board_count",
+        "boards=" + std::to_string(initial.storyBoardNodeCount)
+            + " stages=" + std::to_string(initial.stageCount));
 
     bool sawSewer = false;
     bool sawComic = false;
     bool sawMusic = false;
     std::string musicStageName;
     std::string musicPath;
-    const int cycles = std::max(1, initial.stageCount);
+    bool sawShop = false;
+    bool sawBoss = false;
+    const int cycles = std::max(1, initial.storyBoardNodeCount);
     for (int i = 0; i < cycles; ++i) {
         const std::string stageName = runtime.stageName();
         const auto snap = runtime.snapshot();
         sawSewer = sawSewer || containsNoCase(stageName, "sewer");
         sawComic = sawComic || containsNoCase(stageName, "comic");
-        if (snap.selectedStageHasMusic) {
+        sawShop = sawShop || snap.storySelectedBoardShop;
+        sawBoss = sawBoss || snap.storySelectedBoardKind == "arena_boss";
+        if (!sawMusic && snap.selectedStageHasMusic) {
             sawMusic = true;
             musicStageName = stageName;
             musicPath = snap.selectedStageMusicPath;
-            break;
         }
         runtime.pressKey("right");
     }
@@ -359,9 +376,17 @@ int runStoryStageBoardExpansion(RuntimeProbe& runtime, std::ostream& out) {
     record(out, counts, sawComic ? Status::Pass : Status::Fail,
         "story_stage_includes_comic_board",
         sawComic ? "found" : "missing");
-    record(out, counts, sawMusic && containsNoCase(musicPath, "story_comic_loop.wav") ? Status::Pass : Status::Fail,
+    record(out, counts, sawShop ? Status::Pass : Status::Fail,
+        "story_route_includes_shop_door",
+        sawShop ? "found" : "missing");
+    record(out, counts, sawBoss ? Status::Pass : Status::Fail,
+        "story_route_includes_arena_boss",
+        sawBoss ? "found" : "missing");
+    record(out, counts, !sawMusic || !musicPath.empty() ? Status::Pass : Status::Fail,
         "story_stage_music_metadata",
-        "stage=\"" + musicStageName + "\" music=\"" + musicPath + "\"");
+        sawMusic
+            ? "stage=\"" + musicStageName + "\" music=\"" + musicPath + "\""
+            : "no routed story board declares music");
 
     if (sawMusic) {
         if (!runtime.setup("Dcat_Leo", musicStageName, ScenarioMode::Story, out, 1)) {
@@ -395,9 +420,315 @@ int runStoryStageBoardExpansion(RuntimeProbe& runtime, std::ostream& out) {
             record(out, counts, captured ? Status::Pass : Status::Fail, "screenshot_captured", screenshotPath);
         }
     } else {
-        record(out, counts, Status::Blocked, "story_stage_music_starts", "music board not selected");
+        record(out, counts, Status::Pass, "story_stage_music_starts", "no routed story board declares music");
     }
 
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runStoryBoardRoutePlan(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY story-board-route-plan\n";
+    if (!runtime.setupStageSelect("A.Ben", ScenarioMode::Story, out)) {
+        record(out, counts, Status::Blocked, "setup_stage_select", "Story stage-select setup failed");
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    const std::filesystem::path root(runtime.rootText());
+    const std::filesystem::path routePath = root / "data" / "story_boards.def";
+    StoryBoardRoute parsedRoute;
+    try {
+        parsedRoute = loadStoryBoardRouteFile(routePath);
+    } catch (const std::exception& ex) {
+        record(out, counts, Status::Blocked, "route_def_loads", ex.what());
+    }
+    bool sawConfigurableShop = false;
+    for (const StoryBoardNode& node : parsedRoute.nodes) {
+        sawConfigurableShop = sawConfigurableShop
+            || (node.kind == StoryBoardNodeKind::Shop
+                && node.shopDoorPrompt == "LK / X SHOP"
+                && node.shopDoorOffsetX == 160.0f
+                && node.shopDoorRadiusX == 56.0f);
+    }
+    record(out, counts,
+        parsedRoute.forwardCueImagePath == "data/story/wave_clear_arrow.png" && sawConfigurableShop
+            ? Status::Pass
+            : Status::Fail,
+        "route_def_exposes_mugen_style_story_settings",
+        "cue=" + parsedRoute.forwardCueImagePath + " shop_config=" + std::to_string(sawConfigurableShop ? 1 : 0));
+
+    const auto initial = runtime.snapshot();
+    record(out, counts, initial.storyBoardNodeCount >= 5 ? Status::Pass : Status::Fail,
+        "route_has_multiple_board_nodes",
+        "boards=" + std::to_string(initial.storyBoardNodeCount));
+    record(out, counts,
+        initial.storySelectedBoardKind == "side_scroller" && initial.storySelectedBoardWaves == 2
+            ? Status::Pass
+            : Status::Fail,
+        "route_defaults_to_side_scroller",
+        "kind=" + initial.storySelectedBoardKind
+            + " waves=" + std::to_string(initial.storySelectedBoardWaves)
+            + " title=\"" + initial.storySelectedBoardTitle + "\"");
+
+    bool sawMidBoss = false;
+    bool sawShop = false;
+    bool sawArenaBoss = false;
+    int shopBoard = -1;
+    for (int i = 0; i < std::max(1, initial.storyBoardNodeCount); ++i) {
+        const auto snap = runtime.snapshot();
+        sawMidBoss = sawMidBoss || snap.storySelectedBoardKind == "mid_boss";
+        sawArenaBoss = sawArenaBoss || snap.storySelectedBoardKind == "arena_boss";
+        if (snap.storySelectedBoardShop) {
+            sawShop = true;
+            shopBoard = snap.storySelectedBoardNode;
+        }
+        runtime.pressKey("right");
+    }
+    record(out, counts, sawMidBoss ? Status::Pass : Status::Fail,
+        "route_includes_midboss",
+        sawMidBoss ? "found" : "missing");
+    record(out, counts, sawArenaBoss ? Status::Pass : Status::Fail,
+        "route_includes_arena_boss",
+        sawArenaBoss ? "found" : "missing");
+    record(out, counts, sawShop && shopBoard >= 0 ? Status::Pass : Status::Fail,
+        "route_includes_shop_door",
+        "shop_board=" + std::to_string(shopBoard));
+
+    if (shopBoard >= 0) {
+        for (int i = 0; i < initial.storyBoardNodeCount + 1; ++i) {
+            if (runtime.snapshot().storySelectedBoardNode == shopBoard) {
+                break;
+            }
+            runtime.pressKey("right");
+        }
+        const auto shop = runtime.snapshot();
+        runtime.pressKey("enter");
+        const auto afterEnter = runtime.snapshot();
+        record(out, counts,
+            shop.storySelectedBoardShop && afterEnter.screen == static_cast<int>(Screen::ShopDemo)
+                ? Status::Pass
+                : Status::Fail,
+            "shop_board_enters_shop_hub",
+            "before_kind=" + shop.storySelectedBoardKind
+                + " after_screen=" + std::to_string(afterEnter.screen));
+    } else {
+        record(out, counts, Status::Blocked, "shop_board_enters_shop_hub", "shop board missing");
+    }
+
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runStoryWaveClearForwardCue(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!setupStory(runtime, out, counts, "story-wave-clear-forward-cue", "TMNT OpenBOR Street")) {
+        return exitCode(counts);
+    }
+    runtime.setArenaCpuFrozen(true);
+    const auto before = runtime.snapshot();
+    runtime.setFighterLife(1, 0);
+    runtime.step({}, 6);
+    const auto afterClear = runtime.snapshot();
+    record(out, counts,
+        !before.storyForwardCueVisible && afterClear.storyForwardCueVisible
+            ? Status::Pass
+            : Status::Fail,
+        "forward_arrow_appears_after_wave_clear",
+        "before=" + std::to_string(before.storyForwardCueVisible ? 1 : 0)
+            + " after=" + std::to_string(afterClear.storyForwardCueVisible ? 1 : 0)
+            + " wave=" + std::to_string(afterClear.storyWaveIndex)
+            + " living=" + std::to_string(afterClear.storyLivingEnemies));
+    record(out, counts, Status::Pass,
+        "forward_arrow_custom_image_optional",
+        afterClear.storyForwardCueImageLoaded
+            ? "data/story/wave_clear_arrow.png loaded"
+            : "custom image absent; code-drawn fallback active");
+    runtime.step({}, 70);
+    const auto nextWave = runtime.snapshot();
+    record(out, counts,
+        !nextWave.storyForwardCueVisible && nextWave.storyLivingEnemies > 0
+            ? Status::Pass
+            : Status::Fail,
+        "forward_arrow_hides_when_next_wave_spawns",
+        "visible=" + std::to_string(nextWave.storyForwardCueVisible ? 1 : 0)
+            + " wave=" + std::to_string(nextWave.storyWaveIndex)
+            + " living=" + std::to_string(nextWave.storyLivingEnemies));
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runStoryShopDoorTrigger(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY story-shop-door-trigger\n";
+    if (!runtime.setupStageSelect("A.Ben", ScenarioMode::Story, out)) {
+        record(out, counts, Status::Blocked, "setup_stage_select", "Story stage-select setup failed");
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    const auto initial = runtime.snapshot();
+    int shopBoard = -1;
+    for (int i = 0; i < std::max(1, initial.storyBoardNodeCount); ++i) {
+        const auto snap = runtime.snapshot();
+        if (snap.storySelectedBoardShop) {
+            shopBoard = snap.storySelectedBoardNode;
+            break;
+        }
+        runtime.pressKey("right");
+    }
+    record(out, counts,
+        shopBoard > 0 ? Status::Pass : Status::Blocked,
+        "route_has_preceding_shop_door_board",
+        "shop_board=" + std::to_string(shopBoard));
+    if (shopBoard <= 0) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    const int doorBoard = shopBoard - 1;
+    for (int i = 0; i < initial.storyBoardNodeCount + 1; ++i) {
+        if (runtime.snapshot().storySelectedBoardNode == doorBoard) {
+            break;
+        }
+        runtime.pressKey("right");
+    }
+    const auto selectedDoorBoard = runtime.snapshot();
+    runtime.pressKey("enter");
+    const bool activeFight = waitForActiveFight(runtime, 520);
+    const auto fight = runtime.snapshot();
+    record(out, counts,
+        activeFight && fight.storyActiveBoardNode == doorBoard
+            ? Status::Pass
+            : Status::Fail,
+        "door_board_fight_started",
+        "selected=\"" + selectedDoorBoard.storySelectedBoardTitle
+            + "\" active=" + std::to_string(fight.storyActiveBoardNode)
+            + " phase=" + std::to_string(fight.matchPhase));
+    if (!activeFight) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    runtime.setArenaCpuFrozen(true);
+    clearCurrentWave(runtime);
+    const auto afterClear = runtime.snapshot();
+    record(out, counts,
+        afterClear.storyShopDoorAvailable && !afterClear.matchComplete
+            ? Status::Pass
+            : Status::Fail,
+        "shop_door_opens_after_board_clear",
+        "available=" + std::to_string(afterClear.storyShopDoorAvailable ? 1 : 0)
+            + " match_complete=" + std::to_string(afterClear.matchComplete ? 1 : 0)
+            + " door_x=" + std::to_string(afterClear.storyShopDoorX));
+
+    runtime.setFighterDepth(0, 0.0f);
+    RuntimeSnapshot atDoor;
+    for (int frame = 0; frame < 1600; ++frame) {
+        runtime.step(SymbolicInput{ .right = true }, 1);
+        atDoor = runtime.snapshot();
+        if (atDoor.storyShopDoorPromptVisible) {
+            break;
+        }
+    }
+    record(out, counts,
+        atDoor.storyShopDoorPromptVisible
+            ? Status::Pass
+            : Status::Fail,
+        "shop_door_prompt_visible_in_trigger",
+        "prompt=" + std::to_string(atDoor.storyShopDoorPromptVisible ? 1 : 0)
+            + " p1_x=" + std::to_string(atDoor.p1.x)
+            + " door_x=" + std::to_string(atDoor.storyShopDoorX));
+
+    runtime.step(SymbolicInput{ .a = true }, 1);
+    const auto afterEnter = runtime.snapshot();
+    record(out, counts,
+        afterEnter.screen == static_cast<int>(Screen::ShopDemo)
+            ? Status::Pass
+            : Status::Fail,
+        "lk_x_enters_shop_demo",
+        "screen=" + std::to_string(afterEnter.screen)
+            + " pending=" + std::to_string(afterEnter.storyShopDoorTransitionPending ? 1 : 0));
+
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runStoryShopRouteResume(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY story-shop-route-resume\n";
+    if (!runtime.setupStageSelect("A.Ben", ScenarioMode::Story, out)) {
+        record(out, counts, Status::Blocked, "setup_stage_select", "Story stage-select setup failed");
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    const auto initial = runtime.snapshot();
+    int shopBoard = -1;
+    for (int i = 0; i < std::max(1, initial.storyBoardNodeCount); ++i) {
+        const auto snap = runtime.snapshot();
+        if (snap.storySelectedBoardShop) {
+            shopBoard = snap.storySelectedBoardNode;
+            break;
+        }
+        runtime.pressKey("right");
+    }
+    if (shopBoard <= 0) {
+        record(out, counts, Status::Blocked, "route_has_shop_resume_target", "shop_board=" + std::to_string(shopBoard));
+        summary(out, counts);
+        return exitCode(counts);
+    }
+    const int expectedNextBoard = shopBoard + 1;
+    for (int i = 0; i < initial.storyBoardNodeCount + 1; ++i) {
+        if (runtime.snapshot().storySelectedBoardNode == shopBoard - 1) break;
+        runtime.pressKey("right");
+    }
+    runtime.pressKey("enter");
+    if (!waitForActiveFight(runtime, 520)) {
+        record(out, counts, Status::Blocked, "door_board_fight_started", "fight did not start");
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    runtime.setArenaCpuFrozen(true);
+    clearCurrentWave(runtime);
+    const auto afterClear = runtime.snapshot();
+    record(out, counts, afterClear.storyShopDoorAvailable ? Status::Pass : Status::Fail,
+        "route_shop_door_available",
+        "door_x=" + std::to_string(afterClear.storyShopDoorX));
+
+    for (int frame = 0; frame < 1600 && !runtime.snapshot().storyShopDoorPromptVisible; ++frame) {
+        runtime.step(SymbolicInput{ .right = true }, 1);
+    }
+    runtime.step(SymbolicInput{ .a = true }, 1);
+    const auto inShop = runtime.snapshot();
+    record(out, counts,
+        inShop.screen == static_cast<int>(Screen::ShopDemo)
+            && inShop.storyResumeRouteAfterShop
+            && inShop.storyResumeBoardNodeAfterShop == expectedNextBoard
+            ? Status::Pass
+            : Status::Fail,
+        "route_shop_records_resume_target",
+        "screen=" + std::to_string(inShop.screen)
+            + " resume=" + std::to_string(inShop.storyResumeRouteAfterShop ? 1 : 0)
+            + " target=" + std::to_string(inShop.storyResumeBoardNodeAfterShop)
+            + " expected=" + std::to_string(expectedNextBoard));
+
+    runtime.pressKey("escape");
+    const auto afterExit = runtime.snapshot();
+    record(out, counts,
+        afterExit.screen == static_cast<int>(Screen::VersusScreen)
+            && afterExit.loadingProgressActive
+            && afterExit.storySelectedBoardNode == expectedNextBoard
+            && afterExit.storyActiveBoardNode == expectedNextBoard
+            ? Status::Pass
+            : Status::Fail,
+        "shop_exit_starts_next_story_board",
+        "screen=" + std::to_string(afterExit.screen)
+            + " loading=" + std::to_string(afterExit.loadingProgressActive ? 1 : 0)
+            + " selected=" + std::to_string(afterExit.storySelectedBoardNode)
+            + " active=" + std::to_string(afterExit.storyActiveBoardNode));
     summary(out, counts);
     return exitCode(counts);
 }

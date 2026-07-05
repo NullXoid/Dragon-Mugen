@@ -259,12 +259,14 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
                 setArenaDefaultsFromConfig(state);
                 selectArenaDefaultStage(state);
             } else if (action.mode == PendingMode::Story) {
-                selectStoryDefaultStage(state);
+                selectStoryDefaultBoardNode(state);
             }
             state.frontend.screen = Screen::CharacterSelect;
             break;
         case FrontendActionKind::OpenShopDemo:
             unloadCharacterRuntime(state);
+            state.story.resumeRouteAfterShop = false;
+            state.story.resumeBoardNodeAfterShop = -1;
             playMenuCursorDoneSound(state);
             enterShopDemo(renderer, state);
             break;
@@ -321,7 +323,7 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
             if (state.frontend.pendingMode == PendingMode::Story) {
                 state.selection.sessionSlots.p1Character = action.index;
                 state.selection.sessionSlots.opponentType = OpponentType::Cpu;
-                selectStoryDefaultStage(state);
+                selectStoryDefaultBoardNode(state);
                 configureFightSessionSlotsFromSelection(state);
                 state.frontend.screen = Screen::StageSelect;
                 break;
@@ -409,18 +411,51 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
     if (state.frontend.screen == Screen::StageSelect) {
         const int stageCount = static_cast<int>(state.selection.stages.size());
         const FrontendKey frontendKey = frontendKeyFromSdl(key);
-        if (state.frontend.pendingMode == PendingMode::Story
-            && (frontendKey == FrontendKey::Up || frontendKey == FrontendKey::Down)) {
-            state.story.difficulty = cycleStoryDifficulty(
-                state.story.difficulty,
-                frontendKey == FrontendKey::Up ? 1 : -1);
-            playMenuCursorMoveSound(state);
+        if (state.frontend.pendingMode == PendingMode::Story) {
+            ensureStoryBoardRouteLoaded(state);
+            if (frontendKey == FrontendKey::Up || frontendKey == FrontendKey::Down) {
+                state.story.difficulty = cycleStoryDifficulty(
+                    state.story.difficulty,
+                    frontendKey == FrontendKey::Up ? 1 : -1);
+                playMenuCursorMoveSound(state);
+                return;
+            }
+            if (frontendKey == FrontendKey::Left || frontendKey == FrontendKey::Right) {
+                moveStoryBoardNodeSelection(state, frontendKey == FrontendKey::Left ? -1 : 1);
+                playMenuCursorMoveSound(state);
+                return;
+            }
+            if (frontendKey == FrontendKey::Escape) {
+                unloadCharacterRuntime(state);
+                state.frontend.screen = Screen::CharacterSelect;
+                resetSingleFightCharacterConfirms(state);
+                playMenuCancelSound(state);
+                return;
+            }
+            if (frontendKey == FrontendKey::Accept) {
+                commitSelectedStoryBoardNode(state);
+                if (const StoryBoardNode* node = selectedStoryBoardNode(state);
+                    node && node->kind == StoryBoardNodeKind::Shop) {
+                    playMenuCursorDoneSound(state);
+                    enterStoryRouteShopDemo(renderer, state, state.story.activeBoardNode);
+                    return;
+                }
+                if (!characterSlotAt(state.selection, state.selection.sessionSlots.p1Character)) {
+                    configureFightSessionSlotsFromSelection(state);
+                }
+                unloadCharacterRuntime(state);
+                state.frontend.screen = Screen::VersusScreen;
+                state.frontend.screenFrame = 0;
+                state.fightSessionPrepared = false;
+                state.fightSessionLoadFailed = false;
+                startLoadingProgress(state.loadingProgress, "Waiting to load");
+                playMenuCursorDoneSound(state);
+                return;
+            }
             return;
         }
-        if (state.frontend.pendingMode == PendingMode::Story
-            && (frontendKey == FrontendKey::Left || frontendKey == FrontendKey::Right)) {
-            state.selection.selectedStage = moveStageCursor(state.selection.selectedStage, stageCount, frontendKey);
-        } else if (state.frontend.pendingMode != PendingMode::Story) {
+
+        if (state.frontend.pendingMode != PendingMode::Story) {
             state.selection.selectedStage = moveStageCursor(state.selection.selectedStage, stageCount, frontendKey);
         }
         const FrontendAction action = decideStageSelectAction(state.selection.selectedStage, stageCount, frontendKey);

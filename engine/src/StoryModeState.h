@@ -3,6 +3,8 @@
 // Internal App.cpp implementation header for Story Mode selection/state helpers.
 // Include only from App.cpp after AppState, SelectionState helpers, and ArenaModeState helpers exist.
 
+#include <filesystem>
+
 bool isStoryMode(const AppState& state) {
     return state.frontend.pendingMode == PendingMode::Story;
 }
@@ -11,9 +13,196 @@ int storyWaveEnemyCount(int waveIndex) {
     return std::clamp(waveIndex + 1, 1, kStoryMaxEnemies);
 }
 
-int storyTotalEnemyCount() {
+int findStoryDefaultStageIndex(const AppState& state);
+
+const StoryBoardNode* storyBoardNodeAt(const AppState& state, int index) {
+    if (index < 0 || index >= static_cast<int>(state.story.boardRoute.nodes.size())) {
+        return nullptr;
+    }
+    return &state.story.boardRoute.nodes[static_cast<size_t>(index)];
+}
+
+const StoryBoardNode* selectedStoryBoardNode(const AppState& state) {
+    return storyBoardNodeAt(state, state.story.selectedBoardNode);
+}
+
+const StoryBoardNode* activeStoryBoardNode(const AppState& state) {
+    return storyBoardNodeAt(state, state.story.activeBoardNode);
+}
+
+const StoryBoardNode* nextStoryBoardNode(const AppState& state) {
+    return storyBoardNodeAt(state, state.story.activeBoardNode + 1);
+}
+
+const StoryBoardNode* nextStoryShopBoardNode(const AppState& state) {
+    const StoryBoardNode* node = nextStoryBoardNode(state);
+    if (!node || node->kind != StoryBoardNodeKind::Shop) {
+        return nullptr;
+    }
+    return node;
+}
+
+bool storyBoardNodeStartsFight(const StoryBoardNode& node) {
+    return node.kind != StoryBoardNodeKind::Shop;
+}
+
+int nextStoryPlayableBoardNodeIndex(const AppState& state, int startIndex) {
+    for (int i = startIndex + 1; i < static_cast<int>(state.story.boardRoute.nodes.size()); ++i) {
+        if (storyBoardNodeStartsFight(state.story.boardRoute.nodes[static_cast<size_t>(i)])) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+StoryBoardRoute fallbackStoryBoardRoute(const AppState& state) {
+    StoryBoardRoute route;
+    route.id = "select_def_stages";
+    route.title = "STORY BOARDS";
+    route.nodes.reserve(state.selection.stages.size());
+    for (const StageSlot& stage : state.selection.stages) {
+        StoryBoardNode node;
+        node.id = stage.id;
+        node.title = stage.displayName;
+        node.stageRef = stage.defPath.generic_string();
+        node.kind = stage.openborScrolling || stage.legacyOpenBorSection
+            ? StoryBoardNodeKind::SideScroller
+            : StoryBoardNodeKind::ArenaBoss;
+        node.waves = kStoryWaveCount;
+        route.nodes.push_back(std::move(node));
+    }
+    return route;
+}
+
+std::filesystem::path storyBoardRoutePath(const AppState& state) {
+    return state.gameRoot / "data" / "story_boards.def";
+}
+
+void ensureStoryBoardRouteLoaded(AppState& state) {
+    if (state.story.boardRouteLoaded) {
+        return;
+    }
+
+    StoryBoardRoute route;
+    const std::filesystem::path routePath = storyBoardRoutePath(state);
+    if (std::filesystem::exists(routePath)) {
+        try {
+            route = loadStoryBoardRouteFile(routePath);
+        } catch (const std::exception& ex) {
+            SDL_Log("Story board route parse failed %s: %s", routePath.string().c_str(), ex.what());
+        }
+    }
+    if (route.nodes.empty()) {
+        route = fallbackStoryBoardRoute(state);
+    }
+    state.story.boardRoute = std::move(route);
+    state.story.selectedBoardNode = std::clamp(
+        state.story.selectedBoardNode,
+        0,
+        std::max(0, static_cast<int>(state.story.boardRoute.nodes.size()) - 1));
+    state.story.activeBoardNode = std::clamp(
+        state.story.activeBoardNode,
+        0,
+        std::max(0, static_cast<int>(state.story.boardRoute.nodes.size()) - 1));
+    state.story.boardRouteLoaded = true;
+}
+
+bool storyStageRefMatches(const AppState& state, const StageSlot& stage, std::string_view stageRef) {
+    const std::string wanted = lowercaseCopy(trim(stageRef));
+    if (wanted.empty()) {
+        return false;
+    }
+    if (lowercaseCopy(stage.id) == wanted || lowercaseCopy(stage.displayName) == wanted) {
+        return true;
+    }
+
+    const std::filesystem::path refPath = std::filesystem::path(std::string(stageRef)).lexically_normal();
+    const std::filesystem::path gameRelative = (state.gameRoot / refPath).lexically_normal();
+    const std::string refText = lowercaseCopy(refPath.generic_string());
+    const std::string gameRefText = lowercaseCopy(gameRelative.generic_string());
+    const std::string stagePathText = lowercaseCopy(stage.defPath.lexically_normal().generic_string());
+    const std::string stageFileText = lowercaseCopy(stage.defPath.filename().generic_string());
+    return stagePathText == refText
+        || stagePathText == gameRefText
+        || stageFileText == refText
+        || stagePathText.ends_with("/" + refText)
+        || stagePathText.ends_with("\\" + refText);
+}
+
+int storyStageIndexForNode(const AppState& state, const StoryBoardNode& node) {
+    if (node.stageRef.empty()) {
+        return findStoryDefaultStageIndex(state);
+    }
+    for (int i = 0; i < static_cast<int>(state.selection.stages.size()); ++i) {
+        if (storyStageRefMatches(state, state.selection.stages[static_cast<size_t>(i)], node.stageRef)) {
+            return i;
+        }
+    }
+    return findStoryDefaultStageIndex(state);
+}
+
+void syncStorySelectedStageToBoardNode(AppState& state) {
+    ensureStoryBoardRouteLoaded(state);
+    if (const StoryBoardNode* node = selectedStoryBoardNode(state)) {
+        const int stageIndex = storyStageIndexForNode(state, *node);
+        if (stageIndex >= 0) {
+            state.selection.selectedStage = stageIndex;
+        }
+    }
+}
+
+void selectStoryDefaultBoardNode(AppState& state) {
+    ensureStoryBoardRouteLoaded(state);
+    int selected = 0;
+    for (int i = 0; i < static_cast<int>(state.story.boardRoute.nodes.size()); ++i) {
+        const StoryBoardNode& node = state.story.boardRoute.nodes[static_cast<size_t>(i)];
+        if (node.kind != StoryBoardNodeKind::Shop) {
+            selected = i;
+            break;
+        }
+    }
+    state.story.selectedBoardNode = selected;
+    state.story.activeBoardNode = selected;
+    syncStorySelectedStageToBoardNode(state);
+}
+
+void moveStoryBoardNodeSelection(AppState& state, int direction) {
+    ensureStoryBoardRouteLoaded(state);
+    const int count = static_cast<int>(state.story.boardRoute.nodes.size());
+    if (count <= 0) {
+        return;
+    }
+    state.story.selectedBoardNode = (state.story.selectedBoardNode + direction + count) % count;
+    syncStorySelectedStageToBoardNode(state);
+}
+
+void commitSelectedStoryBoardNode(AppState& state) {
+    ensureStoryBoardRouteLoaded(state);
+    state.story.activeBoardNode = std::clamp(
+        state.story.selectedBoardNode,
+        0,
+        std::max(0, static_cast<int>(state.story.boardRoute.nodes.size()) - 1));
+    syncStorySelectedStageToBoardNode(state);
+}
+
+int storyWaveCount(const AppState& state) {
+    if (const StoryBoardNode* node = activeStoryBoardNode(state)) {
+        return std::max(1, node->waves);
+    }
+    return kStoryWaveCount;
+}
+
+int storySelectedBoardWaveCount(const AppState& state) {
+    if (const StoryBoardNode* node = selectedStoryBoardNode(state)) {
+        return std::max(1, node->waves);
+    }
+    return kStoryWaveCount;
+}
+
+int storyTotalEnemyCount(const AppState& state) {
     int total = 0;
-    for (int wave = 0; wave < kStoryWaveCount; ++wave) {
+    const int waves = storyWaveCount(state);
+    for (int wave = 0; wave < waves; ++wave) {
         total += storyWaveEnemyCount(wave);
     }
     return total;
@@ -81,6 +270,15 @@ void chooseStoryEnemyCharacters(AppState& state) {
     std::vector<int> picked;
     picked.reserve(kStoryMaxEnemies);
 
+    if (const StoryBoardNode* node = activeStoryBoardNode(state)) {
+        if (!node->enemyRef.empty()) {
+            const int index = findStoryPreferredEnemy(state, node->enemyRef, picked);
+            if (index >= 0) {
+                picked.push_back(index);
+            }
+        }
+    }
+
     static constexpr std::array<std::string_view, 5> preferredEnemies{
         "I.Chie",
         "A.Ben",
@@ -146,7 +344,12 @@ int findStoryDefaultStageIndex(const AppState& state) {
 }
 
 void selectStoryDefaultStage(AppState& state) {
-    state.selection.selectedStage = findStoryDefaultStageIndex(state);
+    ensureStoryBoardRouteLoaded(state);
+    if (state.story.boardRoute.nodes.empty()) {
+        state.selection.selectedStage = findStoryDefaultStageIndex(state);
+        return;
+    }
+    syncStorySelectedStageToBoardNode(state);
 }
 
 int livingStoryEnemyCount(const AppState& state) {
@@ -223,10 +426,11 @@ std::string storyStatusLine(const AppState& state) {
     if (state.story.stageFailed) {
         return "Mission failed" + storyPlayerGoldStatusSuffix(state);
     }
+    const int waves = storyWaveCount(state);
     return "Wave "
-        + std::to_string(std::clamp(state.story.waveIndex + 1, 1, kStoryWaveCount))
+        + std::to_string(std::clamp(state.story.waveIndex + 1, 1, waves))
         + "/"
-        + std::to_string(kStoryWaveCount)
+        + std::to_string(waves)
         + "  "
         + std::string(storyDifficultyShortLabel(state.story.difficulty))
         + "  Defeated: "

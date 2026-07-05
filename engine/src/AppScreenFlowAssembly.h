@@ -72,33 +72,47 @@ void drawStageSelectPreviewBackground(SDL_Renderer* renderer, const AppState& st
 }
 
 void drawStageSelect(SDL_Renderer* renderer, AppState& state) {
+    if (state.frontend.pendingMode == PendingMode::Story) {
+        ensureStoryBoardRouteLoaded(state);
+        syncStorySelectedStageToBoardNode(state);
+    }
     ensureSelectedStagePreviewBackground(renderer, state);
     drawStageSelectPreviewBackground(renderer, state);
 
     if (state.frontend.pendingMode == PendingMode::Story) {
         std::vector<StoryStageCardView> stages;
-        stages.reserve(state.selection.stages.size());
-        for (int i = 0; i < static_cast<int>(state.selection.stages.size()); ++i) {
-            const auto& stage = state.selection.stages[static_cast<std::size_t>(i)];
+        stages.reserve(state.story.boardRoute.nodes.size());
+        for (int i = 0; i < static_cast<int>(state.story.boardRoute.nodes.size()); ++i) {
+            const StoryBoardNode& node = state.story.boardRoute.nodes[static_cast<std::size_t>(i)];
+            const int stageIndex = storyStageIndexForNode(state, node);
+            const StageSlot* stage = stageSlotAt(state.selection, stageIndex);
             stages.push_back(StoryStageCardView{
-                stage.displayName,
-                stage.id,
-                stage.author.empty() ? std::string("UNKNOWN AUTHOR") : stage.author,
-                i == state.selection.selectedStage,
-                stage.openborScrolling || stage.legacyOpenBorSection,
+                node.title.empty() ? (stage ? stage->displayName : node.id) : node.title,
+                node.id,
+                stage && !stage->author.empty() ? stage->author : std::string("STORY BOARD"),
+                storyBoardNodeKindLabel(node.kind),
+                i == state.story.selectedBoardNode,
+                stage ? (stage->openborScrolling || stage->legacyOpenBorSection) : false,
+                node.kind == StoryBoardNodeKind::Shop,
+                node.kind == StoryBoardNodeKind::MidBoss || node.kind == StoryBoardNodeKind::ArenaBoss,
             });
         }
 
         StoryStageSelectView view;
         view.stages = stages;
         view.fighterLabel = selectedCharacterName(state.selection);
-        view.selectedIndex = state.selection.selectedStage;
-        view.waveCount = kStoryWaveCount;
+        view.routeTitle = state.story.boardRoute.title;
+        view.selectedIndex = state.story.selectedBoardNode;
+        view.waveCount = storySelectedBoardWaveCount(state);
         view.frame = state.frame;
         view.difficultyLabel = std::string(storyDifficultyShortLabel(state.story.difficulty));
+        if (const StoryBoardNode* node = selectedStoryBoardNode(state)) {
+            view.selectedStageName = node->title.empty() ? node->id : node->title;
+            view.selectedNodeKind = storyBoardNodeKindLabel(node->kind);
+            view.selectedNodeTarget = !node->shopRef.empty() ? node->shopRef : node->enemyRef;
+        }
         if (const StageSlot* selected = selectedStageSlot(state.selection)) {
-            view.selectedStageName = selected->displayName;
-            view.selectedStageAuthor = selected->author.empty() ? std::string("UNKNOWN AUTHOR") : selected->author;
+            view.selectedStageAuthor = selected->displayName;
         }
         drawStoryStageSelectOverlay(uiRenderContext(renderer, state), view);
         drawFpsCounter(renderer, state);

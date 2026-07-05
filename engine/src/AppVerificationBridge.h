@@ -36,7 +36,7 @@ public:
         } else if (mode == verification::ScenarioMode::Story) {
             state_.frontend.pendingMode = PendingMode::Story;
             state_.selection.sessionSlots.opponentType = OpponentType::Cpu;
-            selectStoryDefaultStage(state_);
+            selectStoryDefaultBoardNode(state_);
         } else if (mode == verification::ScenarioMode::Versus) {
             state_.frontend.pendingMode = PendingMode::SingleFight;
             state_.selection.selectedP2Character =
@@ -50,7 +50,7 @@ public:
         if (mode == verification::ScenarioMode::Arena) {
             selectArenaDefaultStage(state_);
         } else if (mode == verification::ScenarioMode::Story) {
-            selectStoryDefaultStage(state_);
+            selectStoryDefaultBoardNode(state_);
         } else {
             selectPreferredStage(state_);
         }
@@ -79,7 +79,7 @@ public:
             : PendingMode::SinglePlayer;
         if (state_.frontend.pendingMode == PendingMode::Story) {
             state_.selection.sessionSlots.opponentType = OpponentType::Cpu;
-            selectStoryDefaultStage(state_);
+            selectStoryDefaultBoardNode(state_);
         } else {
             selectPreferredStage(state_);
         }
@@ -112,8 +112,7 @@ public:
             gFightInputOverride = &inputOverride;
             updateFight(state_);
             gFightInputOverride = previous;
-            applyTrainingPowerMode(state_);
-            updateAudioMixer(state_);
+            applyTrainingPowerMode(state_); consumeStoryShopDoorTransition(renderer_, state_); updateAudioMixer(state_);
         }
     }
 
@@ -139,8 +138,7 @@ public:
             gFightInputOverride = &inputOverride;
             updateFight(state_);
             gFightInputOverride = previous;
-            applyTrainingPowerMode(state_);
-            updateAudioMixer(state_);
+            applyTrainingPowerMode(state_); consumeStoryShopDoorTransition(renderer_, state_); updateAudioMixer(state_);
         }
     }
 
@@ -287,7 +285,7 @@ public:
         }
         const StageSlot fallbackStage;
         const StageSlot& stage = selectedStageSlot(state_.selection) ? *selectedStageSlot(state_.selection) : fallbackStage;
-        state_.story.waveIndex = std::clamp(waveIndex, 0, kStoryWaveCount - 1);
+        state_.story.waveIndex = std::clamp(waveIndex, 0, storyWaveCount(state_) - 1);
         startStoryWave(state_, stage, false);
         updateStoryFighterFacing(state_);
     }
@@ -688,6 +686,19 @@ public:
         const StageSlot& stage = selectedStageSlot(state_.selection) ? *selectedStageSlot(state_.selection) : fallbackStage;
         out.selectedStageDragonSidecarAvailable = stage.dragonSidecarAvailable; out.selectedStageLegacyOpenBorSection = stage.legacyOpenBorSection;
         out.selectedStageHasMusic = !stage.bgMusicPath.empty(); out.selectedStageMusicPath = stage.bgMusicPath.generic_string();
+        out.storyDifficulty = storyDifficultyIndex(state_.story.difficulty);
+        out.storyBoardNodeCount = static_cast<int>(state_.story.boardRoute.nodes.size());
+        out.storySelectedBoardNode = state_.story.selectedBoardNode;
+        out.storyActiveBoardNode = state_.story.activeBoardNode;
+        out.storySelectedBoardWaves = storySelectedBoardWaveCount(state_);
+        if (const StoryBoardNode* node = selectedStoryBoardNode(state_)) {
+            out.storySelectedBoardKind = storyBoardNodeKindTag(node->kind);
+            out.storySelectedBoardTitle = node->title;
+            out.storySelectedBoardTarget = !node->shopRef.empty() ? node->shopRef : node->enemyRef;
+            out.storySelectedBoardShop = node->kind == StoryBoardNodeKind::Shop;
+        }
+        out.storyForwardCueVisible = storyForwardCueVisible(state_); out.storyForwardCueImageLoaded = state_.storyForwardCueImage.texture != nullptr;
+        out.storyShopDoorAvailable = state_.story.shopDoorAvailable; out.storyShopDoorPromptVisible = storyShopDoorPromptVisible(state_, stage); out.storyShopDoorTransitionPending = state_.story.pendingShopDoorTransition; out.storyResumeRouteAfterShop = state_.story.resumeRouteAfterShop; out.storyResumeBoardNodeAfterShop = state_.story.resumeBoardNodeAfterShop; out.storyShopDoorX = storyShopDoorX(state_, stage);
         out.loadingProgressActive = state_.loadingProgress.active;
         out.loadingProgressFailed = state_.loadingProgress.failed;
         out.loadingProgressFraction = loadingProgressFraction(state_.loadingProgress);
@@ -748,7 +759,6 @@ public:
         out.storyLivingEnemies = livingStoryEnemyCount(state_);
         out.storyEnemiesDefeated = state_.story.enemiesDefeated;
         out.storyTotalEnemies = state_.story.totalEnemies;
-        out.storyDifficulty = storyDifficultyIndex(state_.story.difficulty);
         out.storyStageClear = state_.story.stageClear;
         out.storyStageFailed = state_.story.stageFailed;
         out.fightPauseOpen = state_.frontend.fightPauseOpen;

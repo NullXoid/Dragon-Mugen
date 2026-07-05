@@ -1,0 +1,60 @@
+; Dragon story route boards.
+; Edit this file to build story flow without recompiling the engine.
+;
+; Node type values:
+;   side_scroller - scrolling beat-em-up board
+;   mid_boss      - shorter board with a stronger encounter
+;   shop          - route stop that enters the shop hub
+;   arena_boss    - boss encounter board
+
+[Route]
+id = aben_arena_mall_route
+title = A.BEN ARENA MALL ROUTE
+forward_cue_image = data/story/wave_clear_arrow.png
+
+[Board 0]
+id = street_patrol
+type = side_scroller
+title = STREET PATROL
+stage = stages/tmnt_openbor_street.def
+waves = 2
+wave_clear_text = WAVE CLEAR
+
+[Board 1]
+id = comic_street
+type = side_scroller
+title = COMIC STREET
+stage = stages/comic_street_rumble.def
+waves = 2
+wave_clear_text = WAVE CLEAR
+
+[Board 2]
+id = sewer_midboss
+type = mid_boss
+title = SEWER MID BOSS
+stage = stages/tmnt_sewer_patrol.def
+enemy = I.Chie
+waves = 1
+
+[Board 3]
+id = ichie_shop_door
+type = shop
+title = I.CHIE SHOP DOOR
+stage = stages/tmnt_sewer_patrol.def
+shop = I.Chie
+waves = 1
+optional = 1
+shop_prompt = LK / X SHOP
+shop_enter_text = ENTERING SHOP
+shop_open_text = SHOP DOOR OPEN
+shop_door_x_offset = 160
+shop_door_radius_x = 56
+shop_door_radius_z = 44
+
+[Board 4]
+id = arena_mall_boss
+type = arena_boss
+title = ARENA MALL BOSS
+stage = stages/openbor_scroll.def
+enemy = I.Chie
+waves = 1

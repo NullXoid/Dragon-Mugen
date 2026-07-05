@@ -1,5 +1,6 @@
 #pragma once
 
+#include "StoryBoardPlan.h"
 #include "StoryModeDifficulty.h"
 
 #include <array>
@@ -35,8 +36,11 @@ struct StoryRewardCoin {
 
 struct StoryModeState {
     std::string chapterTitle = "TMNT STREET PATROL";
+    StoryBoardRoute boardRoute;
     std::array<int, kStoryMaxEnemies> enemyCharacterIndices{ -1, -1, -1 };
     StoryDifficulty difficulty = StoryDifficulty::Medium;
+    int selectedBoardNode = 0;
+    int activeBoardNode = 0;
     int waveIndex = 0;
     int activeWaveEnemyCount = 0;
     int enemiesDefeated = 0;
@@ -45,6 +49,11 @@ struct StoryModeState {
     std::array<bool, kStoryMaxEnemies> enemyRewarded{ false, false, false };
     std::vector<StoryRewardPopup> rewardPopups;
     std::vector<StoryRewardCoin> rewardCoins;
+    bool boardRouteLoaded = false;
+    bool shopDoorAvailable = false;
+    bool pendingShopDoorTransition = false;
+    bool resumeRouteAfterShop = false;
+    int resumeBoardNodeAfterShop = -1;
     bool stageClear = false;
     bool stageFailed = false;
 };

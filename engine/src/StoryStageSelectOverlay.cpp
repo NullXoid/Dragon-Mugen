@@ -102,17 +102,23 @@ void drawStageCard(
         drawRect(renderer, sx + 2.0f, sy + 2.0f, sw - 4.0f, sh - 4.0f);
     }
 
-    setColor(renderer, stage.scrolling ? 40 : 142, stage.scrolling ? 192 : 96, stage.scrolling ? 174 : 172, 220);
+    if (stage.shop) {
+        setColor(renderer, 122, 77, 216, 220);
+    } else if (stage.boss) {
+        setColor(renderer, 231, 195, 90, 220);
+    } else {
+        setColor(renderer, stage.scrolling ? 40 : 142, stage.scrolling ? 192 : 96, stage.scrolling ? 174 : 172, 220);
+    }
     fillRect(renderer, sx + 4.0f, sy + 4.0f, sw - 8.0f, 7.0f);
     const int nameChars = std::max(7, static_cast<int>((sw - 14.0f) / 8.0f));
     const auto [nameLine1, nameLine2] = wrapStageName(stage.name, nameChars);
-    storyText(renderer, sx + 7.0f, sy + 15.0f, "STAGE " + std::to_string(stageNumber), 246, 226, 112);
+    storyText(renderer, sx + 7.0f, sy + 15.0f, "BOARD " + std::to_string(stageNumber), 246, 226, 112);
     storyText(renderer, sx + 7.0f, sy + 27.0f, nameLine1, 220, 232, 242);
     if (!nameLine2.empty()) {
         storyText(renderer, sx + 7.0f, sy + 39.0f, nameLine2, 220, 232, 242);
     }
     if (selected) {
-        storyText(renderer, sx + 7.0f, sy + 51.0f, stage.scrolling ? "SCROLL MAP" : "CLASSIC MAP", 120, 226, 218);
+        storyText(renderer, sx + 7.0f, sy + 51.0f, fitDebugText(stage.kindLabel.empty() ? "STORY NODE" : stage.kindLabel, nameChars), 120, 226, 218);
     }
 }
 
@@ -138,8 +144,8 @@ void drawStoryStageSelectOverlay(const UiRenderContext& ui, const StoryStageSele
     setColor(renderer, 224, 64, 86, 210);
     fillRect(renderer, 0, 27.0f, widthF, 2.0f);
 
-    storyText(renderer, 14.0f, 8.0f, "STORY MAP", 246, 226, 112);
-    storyTextCentered(renderer, centerX, 8.0f, "SELECT A STAGE", 150, 210, 252);
+    storyText(renderer, 14.0f, 8.0f, fitDebugText(view.routeTitle.empty() ? "STORY MAP" : view.routeTitle, 18), 246, 226, 112);
+    storyTextCentered(renderer, centerX, 8.0f, "SELECT A BOARD", 150, 210, 252);
     const float fighterRight = widthF - 66.0f;
     const int fighterChars = std::clamp(static_cast<int>((fighterRight - centerX - 62.0f) / 8.0f), 0, 8);
     if (fighterChars > 0) {
@@ -147,8 +153,8 @@ void drawStoryStageSelectOverlay(const UiRenderContext& ui, const StoryStageSele
     }
 
     if (view.stages.empty()) {
-        storyTextCentered(renderer, centerX, 96.0f, "NO STORY STAGES", 246, 126, 116);
-        storyTextCentered(renderer, centerX, 112.0f, "CHECK select.def", 220, 232, 242);
+        storyTextCentered(renderer, centerX, 96.0f, "NO STORY BOARDS", 246, 126, 116);
+        storyTextCentered(renderer, centerX, 112.0f, "CHECK story_boards.def", 220, 232, 242);
         return;
     }
 
@@ -198,13 +204,18 @@ void drawStoryStageSelectOverlay(const UiRenderContext& ui, const StoryStageSele
     const int selectedOneBased = std::clamp(view.selectedIndex + 1, 1, stageCount);
     storyText(renderer, panelX + 12.0f, panelY + 4.0f, "EPISODE " + std::to_string(selectedOneBased) + "/" + std::to_string(stageCount), 246, 226, 112);
     storyText(renderer, panelX + 102.0f, panelY + 4.0f, fitDebugText(view.selectedStageName, 24), 150, 226, 252);
-    storyText(renderer, panelX + 12.0f, panelY + 30.0f, "WAVES " + std::to_string(std::max(1, view.waveCount)), 220, 232, 242);
-    storyText(renderer, panelX + 78.0f, panelY + 30.0f, "DIFF " + fitDebugText(view.difficultyLabel, 4), 246, 226, 112);
-    storyText(renderer, panelX + 150.0f, panelY + 30.0f, fitDebugText(view.selectedStageAuthor, 16), 196, 206, 220);
+    storyText(renderer, panelX + 12.0f, panelY + 30.0f, fitDebugText(view.selectedNodeKind.empty() ? "NODE" : view.selectedNodeKind, 10), 120, 226, 218);
+    storyText(renderer, panelX + 92.0f, panelY + 30.0f, "WAVES " + std::to_string(std::max(1, view.waveCount)), 220, 232, 242);
+    storyText(renderer, panelX + 158.0f, panelY + 30.0f, "DIFF " + fitDebugText(view.difficultyLabel, 4), 246, 226, 112);
+    if (!view.selectedNodeTarget.empty()) {
+        storyTextRight(renderer, panelX + panelW - 12.0f, panelY + 30.0f, fitDebugText(view.selectedNodeTarget, 12), 196, 206, 220);
+    } else {
+        storyTextRight(renderer, panelX + panelW - 12.0f, panelY + 30.0f, fitDebugText(view.selectedStageAuthor, 12), 196, 206, 220);
+    }
 
     setColor(renderer, 6, 8, 12, 190);
     fillRect(renderer, 0, heightF - 15.0f, widthF, 15.0f);
-    storyTextCentered(renderer, centerX, heightF - 12.0f, "L/R MAP   UP/DOWN DIFF   ENTER START   ESC BACK", 220, 232, 242);
+    storyTextCentered(renderer, centerX, heightF - 12.0f, "L/R BOARD   UP/DOWN DIFF   ENTER START/SHOP   ESC BACK", 220, 232, 242);
 }
 
 } // namespace dragon

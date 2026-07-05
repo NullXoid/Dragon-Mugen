@@ -236,6 +236,7 @@ struct AppState {
     ControlsSettings controls;
     StoryModeState story;
     ShopDemoState shopDemo;
+    TextureSprite storyForwardCueImage;
     std::filesystem::path controlsSavePath;
     bool running = true;
     MainSettings mainSettings;

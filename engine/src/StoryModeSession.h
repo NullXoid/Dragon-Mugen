@@ -21,8 +21,9 @@ float storyWaveCameraGate(const AppState& state, const StageSlot& stage) {
     if (minCamera >= maxCamera) {
         return maxCamera;
     }
-    const float progress = static_cast<float>(std::clamp(state.story.waveIndex + 1, 1, kStoryWaveCount))
-        / static_cast<float>(kStoryWaveCount);
+    const int waves = storyWaveCount(state);
+    const float progress = static_cast<float>(std::clamp(state.story.waveIndex + 1, 1, waves))
+        / static_cast<float>(waves);
     return std::clamp(minCamera + (maxCamera - minCamera) * progress, minCamera, maxCamera);
 }
 
@@ -62,6 +63,8 @@ void startStoryWave(AppState& state, const StageSlot& stage, bool resetPlayer) {
     state.story.activeWaveEnemyCount = storyWaveEnemyCount(state.story.waveIndex);
     state.story.waveTransitionTicks = 0;
     state.story.enemyRewarded = {};
+    state.story.shopDoorAvailable = false;
+    state.story.pendingShopDoorTransition = false;
     const float halfWidth = logicalWidthF(state) * 0.5f;
     const float minCamera = storyScrollMinCamera(stage);
     const float maxCamera = storyWaveCameraGate(state, stage);
@@ -108,6 +111,7 @@ void resetStoryFightRound(AppState& state) {
     const StageSlot fallbackStage;
     const StageSlot& stage = selectedStageSlot(state.selection) ? *selectedStageSlot(state.selection) : fallbackStage;
 
+    commitSelectedStoryBoardNode(state);
     chooseStoryEnemyCharacters(state);
     state.fighters.assign(static_cast<size_t>(storyFighterCount()), FighterState{});
     state.helpers.clear();
@@ -116,8 +120,10 @@ void resetStoryFightRound(AppState& state) {
     state.story.waveIndex = 0;
     state.story.activeWaveEnemyCount = storyWaveEnemyCount(0);
     state.story.enemiesDefeated = 0;
-    state.story.totalEnemies = storyTotalEnemyCount();
+    state.story.totalEnemies = storyTotalEnemyCount(state);
     state.story.waveTransitionTicks = 0;
+    state.story.shopDoorAvailable = false;
+    state.story.pendingShopDoorTransition = false;
     state.story.stageClear = false;
     state.story.stageFailed = false;
     state.story.enemyRewarded = {};

@@ -163,7 +163,17 @@ void collectFramePerformanceCounters(AppState& state) {
     state.framePerf.setCounters(counters);
 }
 
-void fixedUpdate(AppState& state) {
+void consumeStoryShopDoorTransition(SDL_Renderer* renderer, AppState& state) {
+    if (!state.story.pendingShopDoorTransition) {
+        return;
+    }
+    state.story.pendingShopDoorTransition = false;
+    state.story.shopDoorAvailable = false;
+    playMenuCursorDoneSound(state);
+    enterStoryRouteShopDemo(renderer, state, state.story.activeBoardNode + 1);
+}
+
+void fixedUpdate(SDL_Renderer* renderer, AppState& state) {
     ++state.frame;
     ++state.frontend.screenFrame;
     updateTrainingShowSelectHold(state);
@@ -182,6 +192,7 @@ void fixedUpdate(AppState& state) {
     if (state.frontend.screen == Screen::FightView && !fightPaused) {
         updateFight(state);
         applyTrainingPowerMode(state);
+        consumeStoryShopDoorTransition(renderer, state);
     }
     updateFightFreezeWatch(state, fightPaused);
     {

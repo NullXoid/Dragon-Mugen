@@ -301,7 +301,7 @@ int runApp(const std::filesystem::path& gameRoot, const AppStartupOptions& start
         while (state.accumulator >= fixedStep && fixedStepsThisFrame < 5) {
             {
                 FramePerfScope scope(state.framePerf, FramePerfSection::FixedUpdate);
-                fixedUpdate(state);
+                fixedUpdate(renderer, state);
             }
             state.accumulator -= fixedStep;
             ++fixedStepsThisFrame;

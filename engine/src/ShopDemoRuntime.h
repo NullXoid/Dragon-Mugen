@@ -338,6 +338,48 @@ void enterShopDemo(SDL_Renderer* renderer, AppState& state) {
     state.frontend.screen = Screen::ShopDemo;
 }
 
+void enterStoryRouteShopDemo(SDL_Renderer* renderer, AppState& state, int shopBoardNode) {
+    ensureStoryBoardRouteLoaded(state);
+    const int maxNode = static_cast<int>(state.story.boardRoute.nodes.size()) - 1;
+    const int shopIndex = std::clamp(shopBoardNode, 0, std::max(0, maxNode));
+    state.story.selectedBoardNode = shopIndex;
+    state.story.activeBoardNode = shopIndex;
+    state.story.resumeBoardNodeAfterShop = nextStoryPlayableBoardNodeIndex(state, shopIndex);
+    state.story.resumeRouteAfterShop = state.story.resumeBoardNodeAfterShop >= 0;
+    syncStorySelectedStageToBoardNode(state);
+    unloadCharacterRuntime(state);
+    enterShopDemo(renderer, state);
+}
+
+bool resumeStoryRouteAfterShop(AppState& state) {
+    if (!state.story.resumeRouteAfterShop) {
+        return false;
+    }
+
+    ensureStoryBoardRouteLoaded(state);
+    const int nextBoard = state.story.resumeBoardNodeAfterShop;
+    state.story.resumeRouteAfterShop = false;
+    state.story.resumeBoardNodeAfterShop = -1;
+    if (!storyBoardNodeAt(state, nextBoard)) {
+        syncStorySelectedStageToBoardNode(state);
+        state.frontend.screen = Screen::StageSelect;
+        state.frontend.screenFrame = 0;
+        return true;
+    }
+
+    state.story.selectedBoardNode = nextBoard;
+    state.story.activeBoardNode = nextBoard;
+    syncStorySelectedStageToBoardNode(state);
+    configureFightSessionSlotsFromSelection(state);
+    unloadCharacterRuntime(state);
+    state.frontend.screen = Screen::VersusScreen;
+    state.frontend.screenFrame = 0;
+    state.fightSessionPrepared = false;
+    state.fightSessionLoadFailed = false;
+    startLoadingProgress(state.loadingProgress, "Waiting to load");
+    return true;
+}
+
 enum class ShopInteractionKind {
     None,
     CounterService,
@@ -809,6 +851,10 @@ void handleShopDemoKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key)
     }
 
     if (frontendKey == FrontendKey::Escape) {
+        if (resumeStoryRouteAfterShop(state)) {
+            playMenuCursorDoneSound(state);
+            return;
+        }
         state.frontend.screen = Screen::ModeSelect;
         playMenuCancelSound(state);
         return;

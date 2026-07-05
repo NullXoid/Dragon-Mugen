@@ -53,7 +53,7 @@ verification::RuntimePerformanceResult measureVerificationPerformance(
         gFightInputOverride = &inputOverride;
         {
             FramePerfScope scope(state.framePerf, FramePerfSection::FixedUpdate);
-            fixedUpdate(state);
+            fixedUpdate(renderer, state);
         }
         gFightInputOverride = previous;
 

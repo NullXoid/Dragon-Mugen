@@ -737,6 +737,26 @@ void loadVisualAssets(SDL_Renderer* renderer, AppState& state) {
         state.commandInputIcons = loadCommandInputIconAtlas(renderer, state.gameRoot);
         destroyTextureSprite(state.commandCompleteCheck);
         state.commandCompleteCheck = loadUiPngSprite(renderer, state.gameRoot, "data/ui/command_complete_check.png");
+        destroyTextureSprite(state.storyForwardCueImage);
+        std::filesystem::path storyForwardCueImagePath = "data/story/wave_clear_arrow.png";
+        const std::filesystem::path storyBoardRoutePath = state.gameRoot / "data" / "story_boards.def";
+        if (std::filesystem::exists(storyBoardRoutePath)) {
+            try {
+                StoryBoardRoute route = loadStoryBoardRouteFile(storyBoardRoutePath);
+                if (!route.forwardCueImagePath.empty()) {
+                    storyForwardCueImagePath = route.forwardCueImagePath;
+                }
+            } catch (const std::exception& ex) {
+                SDL_Log("Story cue image route parse failed %s: %s", storyBoardRoutePath.string().c_str(), ex.what());
+            }
+        }
+        if (std::filesystem::exists(state.gameRoot / storyForwardCueImagePath)) {
+            state.storyForwardCueImage = loadUiPngSprite(
+                renderer,
+                state.gameRoot,
+                storyForwardCueImagePath,
+                TextureFilter::Linear);
+        }
         state.fightFxClips = loadFightFxClips(renderer, state.gameRoot);
         for (auto& sprite : state.characterIconSprites) {
             destroyTextureSprite(sprite);
@@ -810,6 +830,7 @@ void destroyVisualAssets(AppState& state) {
     destroySystemScreenAssets(state.systemScreens);
     destroyCommandInputIconAtlas(state.commandInputIcons);
     destroyTextureSprite(state.commandCompleteCheck);
+    destroyTextureSprite(state.storyForwardCueImage);
     destroyTextureSprite(state.shopDemo.shopBackdrop);
     destroyTextureSprite(state.shopDemo.shopCounterFront);
     destroyTextureSprite(state.shopDemo.shopkeeperPose);

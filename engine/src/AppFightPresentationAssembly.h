@@ -379,6 +379,88 @@ void drawScreenshotFreezeOverlay(SDL_Renderer* renderer, const AppState& state) 
     debugText(renderer, x + 8.0f, y + 4.0f, "FREEZE");
 }
 
+bool storyForwardCueVisible(const AppState& state) {
+    return state.frontend.pendingMode == PendingMode::Story
+        && state.matchPhase == MatchPhase::Fight
+        && !state.story.stageClear
+        && !state.story.stageFailed
+        && state.story.waveTransitionTicks > 0
+        && state.story.waveIndex + 1 < storyWaveCount(state)
+        && livingStoryEnemyCount(state) <= 0;
+}
+
+void drawStoryForwardCue(SDL_Renderer* renderer, const AppState& state) {
+    if (!storyForwardCueVisible(state)) {
+        return;
+    }
+
+    const float widthF = logicalWidthF(state);
+    const float heightF = logicalHeightF(state);
+    const float pulse = 0.5f + 0.5f * std::sin(static_cast<float>(state.frame) * 0.18f);
+    if (state.storyForwardCueImage.texture
+        && state.storyForwardCueImage.width > 0
+        && state.storyForwardCueImage.height > 0) {
+        const float sourceW = static_cast<float>(state.storyForwardCueImage.width);
+        const float sourceH = static_cast<float>(state.storyForwardCueImage.height);
+        const float targetW = std::clamp(widthF * 0.16f, 96.0f, 210.0f);
+        const float targetH = std::clamp(targetW * (sourceH / sourceW), 24.0f, heightF * 0.16f);
+        const float targetX = std::min(widthF - targetW - 18.0f, screenCenterX(state) + 82.0f);
+        const float targetY = std::max(52.0f, heightF * 0.50f - targetH * 0.5f);
+        const Uint8 alpha = static_cast<Uint8>(205.0f + pulse * 50.0f);
+        SDL_SetTextureAlphaMod(state.storyForwardCueImage.texture, alpha);
+        SDL_FRect dst{ targetX, targetY, targetW, targetH };
+        SDL_RenderTexture(renderer, state.storyForwardCueImage.texture, nullptr, &dst);
+        SDL_SetTextureAlphaMod(state.storyForwardCueImage.texture, 255);
+        return;
+    }
+
+    const float panelW = 114.0f;
+    const float panelH = 20.0f;
+    const float x = std::min(widthF - panelW - 18.0f, screenCenterX(state) + 72.0f);
+    const float y = std::max(58.0f, heightF * 0.52f);
+    const Uint8 glow = static_cast<Uint8>(140.0f + pulse * 70.0f);
+
+    setColor(renderer, 5, 8, 14, 188);
+    fillRect(renderer, x, y, panelW, panelH);
+    setColor(renderer, 81, 210, 198, glow);
+    drawRect(renderer, x, y, panelW, panelH);
+    fillRect(renderer, x + panelW - 31.0f, y + 5.0f, 18.0f, 3.0f);
+    fillRect(renderer, x + panelW - 31.0f, y + 12.0f, 18.0f, 3.0f);
+    setColor(renderer, 231, 195, 90, static_cast<Uint8>(180.0f + pulse * 60.0f));
+    debugText(renderer, x + 10.0f, y + 6.0f, "CLEAR");
+    setColor(renderer, 81, 210, 198, 235);
+    debugText(renderer, x + 64.0f, y + 6.0f, ">>> ");
+}
+
+void drawStoryShopDoorCue(SDL_Renderer* renderer, const AppState& state, const StageSlot& stage) {
+    if (!storyShopDoorPromptVisible(state, stage)) {
+        return;
+    }
+
+    const ArenaProjectedPoint door = projectArenaWorldPoint(
+        state,
+        stage,
+        storyShopDoorX(state, stage),
+        0.0f,
+        storyShopDoorDepthZ(state));
+    const float widthF = logicalWidthF(state);
+    const float heightF = logicalHeightF(state);
+    const float pulse = 0.5f + 0.5f * std::sin(static_cast<float>(state.frame) * 0.20f);
+    const std::string prompt = storyShopDoorPromptText(state);
+    const float panelW = std::clamp(18.0f + static_cast<float>(prompt.size()) * 8.0f, 96.0f, 184.0f);
+    const float panelH = 18.0f;
+    const float x = std::clamp(door.screenX - panelW * 0.5f, 8.0f, widthF - panelW - 8.0f);
+    const float y = std::clamp(door.screenY - 46.0f, 52.0f, heightF - 54.0f);
+    const Uint8 glow = static_cast<Uint8>(150.0f + pulse * 70.0f);
+
+    setColor(renderer, 5, 8, 14, 200);
+    fillRect(renderer, x, y, panelW, panelH);
+    setColor(renderer, 81, 210, 198, glow);
+    drawRect(renderer, x, y, panelW, panelH);
+    setColor(renderer, 231, 195, 90, 236);
+    debugText(renderer, x + 8.0f, y + 5.0f, prompt);
+}
+
 void drawFightViewFrame(SDL_Renderer* renderer, const AppState& state, bool present) {
     setColor(renderer, 10, 12, 16);
     SDL_RenderClear(renderer);
@@ -462,6 +544,8 @@ void drawFightViewFrame(SDL_Renderer* renderer, const AppState& state, bool pres
 
         if (!hideHud) {
             drawFightHudView(renderer, state);
+            drawStoryForwardCue(renderer, state);
+            drawStoryShopDoorCue(renderer, state, stage);
         }
 
         if (state.frontend.pendingMode == PendingMode::Training

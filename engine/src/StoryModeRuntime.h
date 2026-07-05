@@ -216,7 +216,9 @@ void updateStoryCamera(AppState& state, const StageSlot& stage) {
     }
 
     const float minCamera = storyScrollMinCamera(stage);
-    const float maxCamera = state.story.stageClear ? storyScrollMaxCamera(stage) : storyWaveCameraGate(state, stage);
+    const float maxCamera = (state.story.stageClear || state.story.shopDoorAvailable)
+        ? storyScrollMaxCamera(stage)
+        : storyWaveCameraGate(state, stage);
     if (minCamera > maxCamera) {
         updateArenaCamera(state, stage);
         return;
@@ -246,7 +248,7 @@ void applyStoryScreenBounds(AppState& state, const StageSlot& stage) {
     }
 
     const float halfWidth = logicalWidthF(state) * 0.5f;
-    const float waveGate = storyWaveCameraGate(state, stage);
+    const float waveGate = state.story.shopDoorAvailable ? storyScrollMaxCamera(stage) : storyWaveCameraGate(state, stage);
     const float maxPlayableX = std::min(stage.rightbound, waveGate + halfWidth - stage.screenright);
     state.fighters[0].x = std::min(state.fighters[0].x, maxPlayableX);
 }
@@ -284,6 +286,117 @@ void applyStoryHitIfNeeded(AppState& state) {
     }
 }
 
+bool storyShopDoorRouteAvailable(const AppState& state) {
+    return nextStoryShopBoardNode(state) != nullptr;
+}
+
+const StoryBoardNode* storyShopDoorConfigNode(const AppState& state) {
+    return nextStoryShopBoardNode(state);
+}
+
+float storyShopDoorOffsetX(const AppState& state) {
+    if (const StoryBoardNode* node = storyShopDoorConfigNode(state)) {
+        return node->shopDoorOffsetX;
+    }
+    return 160.0f;
+}
+
+float storyShopDoorRadiusX(const AppState& state) {
+    if (const StoryBoardNode* node = storyShopDoorConfigNode(state)) {
+        return node->shopDoorRadiusX;
+    }
+    return 56.0f;
+}
+
+float storyShopDoorRadiusZ(const AppState& state) {
+    if (const StoryBoardNode* node = storyShopDoorConfigNode(state)) {
+        return node->shopDoorRadiusZ;
+    }
+    return 44.0f;
+}
+
+std::string storyShopDoorPromptText(const AppState& state) {
+    if (const StoryBoardNode* node = storyShopDoorConfigNode(state); node && !node->shopDoorPrompt.empty()) {
+        return node->shopDoorPrompt;
+    }
+    return "LK / X SHOP";
+}
+
+std::string storyShopDoorEnterText(const AppState& state) {
+    if (const StoryBoardNode* node = storyShopDoorConfigNode(state); node && !node->shopDoorEnterText.empty()) {
+        return node->shopDoorEnterText;
+    }
+    return "ENTERING SHOP";
+}
+
+std::string storyShopDoorOpenText(const AppState& state) {
+    if (const StoryBoardNode* node = storyShopDoorConfigNode(state); node && !node->shopDoorOpenText.empty()) {
+        return node->shopDoorOpenText;
+    }
+    return "SHOP DOOR OPEN";
+}
+
+std::string storyWaveClearText(const AppState& state) {
+    if (const StoryBoardNode* node = activeStoryBoardNode(state); node && !node->waveClearText.empty()) {
+        return node->waveClearText;
+    }
+    return "WAVE CLEAR";
+}
+
+float storyShopDoorX(const AppState& state, const StageSlot& stage) {
+    const float halfWidth = logicalWidthF(state) * 0.5f;
+    const float maxCamera = storyScrollMaxCamera(stage);
+    const float maxPlayableX = std::min(stage.rightbound, maxCamera + halfWidth - stage.screenright);
+    return std::clamp(maxPlayableX - storyShopDoorOffsetX(state), stage.leftbound + 32.0f, stage.rightbound - 18.0f);
+}
+
+float storyShopDoorDepthZ(const AppState& state) {
+    return arenaDepthActive(state)
+        ? std::clamp(0.0f, state.arenaConfig.depthMin, state.arenaConfig.depthMax)
+        : 0.0f;
+}
+
+bool storyPlayerInsideShopDoor(const AppState& state, const StageSlot& stage) {
+    if (!state.story.shopDoorAvailable || state.fighters.empty() || state.fighters[0].life <= 0) {
+        return false;
+    }
+    const FighterState& player = state.fighters[0];
+    return std::abs(player.x - storyShopDoorX(state, stage)) <= storyShopDoorRadiusX(state)
+        && std::abs(player.depthZ - storyShopDoorDepthZ(state)) <= storyShopDoorRadiusZ(state);
+}
+
+bool storyShopDoorPromptVisible(const AppState& state, const StageSlot& stage) {
+    return state.frontend.pendingMode == PendingMode::Story
+        && state.matchPhase == MatchPhase::Fight
+        && !state.story.stageClear
+        && !state.story.stageFailed
+        && !state.story.pendingShopDoorTransition
+        && storyPlayerInsideShopDoor(state, stage);
+}
+
+bool storyShopDoorActionPressed(const AppState& state) {
+    if (state.fighters.empty() || state.fighters[0].inputHistory.empty()) {
+        return false;
+    }
+    const auto& history = state.fighters[0].inputHistory;
+    const bool now = history.back().input.a;
+    const bool previous = history.size() >= 2 && history[history.size() - 2].input.a;
+    return now && !previous;
+}
+
+void updateStoryShopDoorTrigger(AppState& state, const StageSlot& stage) {
+    if (!storyShopDoorPromptVisible(state, stage)) {
+        return;
+    }
+    state.messages.lastHitText = storyShopDoorPromptText(state);
+    state.messages.lastHitTextTicks = std::max(state.messages.lastHitTextTicks, 6);
+    if (storyShopDoorActionPressed(state)) {
+        state.story.pendingShopDoorTransition = true;
+        state.messages.lastHitText = storyShopDoorEnterText(state);
+        state.messages.lastHitTextTicks = 30;
+    }
+}
+
 void updateStoryWaveRules(AppState& state, const StageSlot& stage) {
     if (state.matchPhase != MatchPhase::Fight) {
         return;
@@ -302,12 +415,21 @@ void updateStoryWaveRules(AppState& state, const StageSlot& stage) {
         state.story.enemiesDefeated = std::min(
             state.story.totalEnemies,
             state.story.enemiesDefeated + state.story.activeWaveEnemyCount);
-        state.messages.lastHitText = state.story.waveIndex + 1 >= kStoryWaveCount ? "STAGE CLEAR" : "WAVE CLEAR";
+        const int waves = storyWaveCount(state);
+        if (state.story.waveIndex + 1 >= waves && storyShopDoorRouteAvailable(state)) {
+            state.messages.lastHitText = storyShopDoorOpenText(state);
+        } else {
+            state.messages.lastHitText = state.story.waveIndex + 1 >= waves ? "STAGE CLEAR" : storyWaveClearText(state);
+        }
         state.messages.lastHitTextTicks = 90;
     }
 
     ++state.story.waveTransitionTicks;
-    if (state.story.waveIndex + 1 >= kStoryWaveCount) {
+    if (state.story.waveIndex + 1 >= storyWaveCount(state)) {
+        if (storyShopDoorRouteAvailable(state)) {
+            state.story.shopDoorAvailable = true;
+            return;
+        }
         if (state.story.waveTransitionTicks >= 45) {
             startStoryRoundFinish(state, true);
         }
@@ -502,6 +624,7 @@ void updateStoryFight(AppState& state) {
 
     updateStoryCamera(state, stage);
     applyStoryScreenBounds(state, stage);
+    updateStoryShopDoorTrigger(state, stage);
     updateStoryPhaseTimers(state);
 
     for (size_t i = 0; i < state.fighters.size(); ++i) {
