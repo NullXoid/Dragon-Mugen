@@ -32,6 +32,24 @@
       ],
       "notes": "Cleanest available side-view green-screen walk cycle. Current selection samples the full stored walk video and is promoted through chroma-cleaned frames."
     },
+    "dash": {
+      "file": "dash_Aben-dash-6s-v03-magenta_00001_.mp4",
+      "source": "dash_Aben-dash-6s-v03-magenta_00001_.mp4",
+      "run": "../source_art/curated_game_sprites",
+      "selected_source_frames": [
+        0,
+        12,
+        18,
+        24,
+        30,
+        36,
+        42,
+        48,
+        48,
+        42
+      ],
+      "notes": "Six-second dash source from the earlier A.Ben LTX revision set. Useful as a motion candidate; still needs later hand cleanup for final production quality."
+    },
     "jump": {
       "file": "jump_Aben-jump-6s-v04-gray_00001_.mp4",
       "source": "jump_Aben-jump-6s-v04-gray_00001_.mp4",
