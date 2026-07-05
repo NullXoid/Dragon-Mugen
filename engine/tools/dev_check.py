@@ -53,6 +53,9 @@ def main() -> int:
         checks.extend(
             [
                 ("verify roster-compatibility-smoke", [str(exe), "--verify", "roster-compatibility-smoke"]),
+                ("verify classic-fight-outcomes", [str(exe), "--verify", "classic-fight-outcomes"]),
+                ("verify classic-fight-routing", [str(exe), "--verify", "classic-fight-routing"]),
+                ("verify classic-fight-combat", [str(exe), "--verify", "classic-fight-combat"]),
                 ("verify cpu-baseline", [str(exe), "--verify", "cpu-baseline"]),
                 ("verify arena-cpu-1", [str(exe), "--verify", "arena-cpu-1"]),
             ]

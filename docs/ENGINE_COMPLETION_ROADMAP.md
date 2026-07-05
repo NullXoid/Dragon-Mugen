@@ -246,7 +246,7 @@ Polish and verification:
 
 - Visual feedback smoke should be rerun on the current branch.
 - Physical keyboard/controller retests should remain on every release checklist.
-- Oversized source and verifier files are still architecture debt; current file-size guard failures include `App.cpp`, `VerificationScenario.cpp`, `VerificationScenarioSpecials.cpp`, `VerificationScenarioEvilKen.cpp`, `TrainingCommandPracticeAssembly.h`, and `VerificationScenarioArena.cpp`.
+- Oversized source and verifier files are still architecture debt. The file-size guard currently passes, but multiple source/verifier files remain close to the cap and should keep being split before new broad systems are added.
 
 ## Required Checks
 
