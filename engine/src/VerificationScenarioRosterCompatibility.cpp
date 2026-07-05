@@ -197,8 +197,9 @@ bool detectJump(RuntimeProbe& runtime, RuntimeSnapshot& observed) {
         observed = runtime.snapshot();
         if (observed.p1.life > 0
             && !observed.p1.onGround
-            && observed.p1.y < -45.0f
-            && (observed.p1.action == 41 || observed.p1.action == 44)) {
+            && observed.p1.stateNo == 50
+            && observed.p1.vy < -0.5f
+            && (observed.p1.action == 41 || observed.p1.action == 44 || observed.p1.action == 50)) {
             return true;
         }
     }
@@ -224,6 +225,17 @@ bool detectDirectionalJump(RuntimeProbe& runtime, const SymbolicInput& jumpInput
         observed = runtime.snapshot();
         if (observed.p1.life > 0 && observed.p1.action == expectedAction) {
             return observed.p1.action == expectedAction;
+        }
+        if (observed.p1.life > 0
+            && !observed.p1.onGround
+            && observed.p1.stateNo == 50
+            && observed.p1.vy < -0.5f) {
+            if (expectedAction == 42 && observed.p1.vx > 0.5f) {
+                return true;
+            }
+            if (expectedAction == 43 && observed.p1.vx < -0.5f) {
+                return true;
+            }
         }
     }
     return false;
@@ -683,6 +695,88 @@ void verifyOwnedIChie(RuntimeProbe& runtime, std::ostream& out, Counts& counts, 
         if (ready) {
             captureRosterProofFrame(runtime, out, counts, "ichie", "standing_placeholder");
         }
+    }
+
+    const auto setupIChieProbe = [&]() {
+        if (!runtime.setup(character.id, "Mountainside", ScenarioMode::Training, out)) {
+            return false;
+        }
+        if (!waitForFight(runtime, 480)) {
+            return false;
+        }
+        runtime.setFighterLife(0, 950);
+        runtime.setFighterLife(1, 1000);
+        return waitForP1Idle(runtime, 480);
+    };
+
+    RuntimeSnapshot beforeMove;
+    RuntimeSnapshot afterMove;
+    if (setupIChieProbe()) {
+        const bool moved = detectMovement(runtime, beforeMove, afterMove);
+        record(out, counts, moved ? Status::Pass : Status::Fail,
+            "ichie_walks_right",
+            "x_before=" + std::to_string(beforeMove.p1.x) + " x_after=" + std::to_string(afterMove.p1.x));
+        if (moved) {
+            captureRosterProofFrame(runtime, out, counts, "ichie", "walking_placeholder");
+        }
+    } else {
+        record(out, counts, Status::Blocked, "ichie_walks_right", "Training setup failed");
+    }
+
+    RuntimeSnapshot crouchSnap;
+    if (setupIChieProbe()) {
+        runtime.step(SymbolicInput{ .down = true }, 12);
+        crouchSnap = runtime.snapshot();
+        const bool crouched = crouchSnap.p1.onGround
+            && (crouchSnap.p1.stateNo == 10 || crouchSnap.p1.stateNo == 11 || crouchSnap.p1.stateNo == 12)
+            && (crouchSnap.p1.action == 10 || crouchSnap.p1.action == 11 || crouchSnap.p1.action == 12);
+        record(out, counts, crouched ? Status::Pass : Status::Fail,
+            "ichie_crouch",
+            "p1{" + fighterDetail(crouchSnap.p1) + "}");
+        if (crouched) {
+            captureRosterProofFrame(runtime, out, counts, "ichie", "crouch_placeholder");
+        }
+    } else {
+        record(out, counts, Status::Blocked, "ichie_crouch", "Training setup failed");
+    }
+
+    RuntimeSnapshot jumpSnap;
+    if (setupIChieProbe()) {
+        const bool jumped = detectJump(runtime, jumpSnap);
+        record(out, counts, jumped ? Status::Pass : Status::Fail,
+            "ichie_neutral_jump",
+            "p1{" + fighterDetail(jumpSnap.p1) + "}");
+        if (jumped) {
+            captureRosterProofFrame(runtime, out, counts, "ichie", "jump_placeholder");
+        }
+    } else {
+        record(out, counts, Status::Blocked, "ichie_neutral_jump", "Training setup failed");
+    }
+
+    RuntimeSnapshot forwardJumpSnap;
+    if (setupIChieProbe()) {
+        const bool forwardJumped = detectDirectionalJump(runtime, SymbolicInput{ .right = true, .up = true }, 42, forwardJumpSnap);
+        record(out, counts, forwardJumped ? Status::Pass : Status::Fail,
+            "ichie_forward_diagonal_jump",
+            "p1{" + fighterDetail(forwardJumpSnap.p1) + "}");
+        if (forwardJumped) {
+            captureRosterProofFrame(runtime, out, counts, "ichie", "jump_forward_placeholder");
+        }
+    } else {
+        record(out, counts, Status::Blocked, "ichie_forward_diagonal_jump", "Training setup failed");
+    }
+
+    RuntimeSnapshot backJumpSnap;
+    if (setupIChieProbe()) {
+        const bool backJumped = detectDirectionalJump(runtime, SymbolicInput{ .left = true, .up = true }, 43, backJumpSnap);
+        record(out, counts, backJumped ? Status::Pass : Status::Fail,
+            "ichie_back_diagonal_jump",
+            "p1{" + fighterDetail(backJumpSnap.p1) + "}");
+        if (backJumped) {
+            captureRosterProofFrame(runtime, out, counts, "ichie", "jump_back_placeholder");
+        }
+    } else {
+        record(out, counts, Status::Blocked, "ichie_back_diagonal_jump", "Training setup failed");
     }
 
     const bool fighterWorkDeferred = sourceNotes.find("Future fighter pass") != std::string::npos

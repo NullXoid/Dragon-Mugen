@@ -312,6 +312,12 @@ def proof_command_catalog(root: Path) -> list[dict[str, str]]:
     exe = root / "build" / ("dragon_mugen.exe" if os.name == "nt" else "dragon_mugen")
     return [
         {
+            "kind": "owned_roster_screens",
+            "label": "Owned roster proof with screenshots",
+            "command": f"{exe} --verify owned-character-readiness",
+            "description": "Checks only A.Ben and I.Chie readiness and writes proof screenshots under artifacts/asset_lab.",
+        },
+        {
             "kind": "roster_screens",
             "label": "Roster proof with screenshots",
             "command": f"{exe} --verify roster-compatibility-smoke",

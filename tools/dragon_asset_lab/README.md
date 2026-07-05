@@ -38,7 +38,7 @@ python tools/dragon_asset_lab/app.py --repo-root C:\Users\kasom\projects\dragon-
 - Stores local Comfy/LTX configuration in ignored `artifacts/asset_lab/dragon_asset_lab_config.json`.
 - Supports optional direct Comfy HTTP submission to `/prompt` only when explicitly enabled and a workflow JSON path is configured.
 - Shows image-to-image workflow configuration/status and submits that workflow JSON as-is when configured.
-- Provides proof helper buttons for `dev_check --skip-build`, CPU baseline, and roster compatibility smoke with `DRAGON_ROSTER_SCREENSHOT_DIR` set under `artifacts/asset_lab`.
+- Provides proof helper buttons for `dev_check --skip-build`, CPU baseline, owned-character readiness, and broader roster compatibility smoke with `DRAGON_ROSTER_SCREENSHOT_DIR` set under `artifacts/asset_lab`.
 - Keeps live game launch as a command stub instead of inventing screen automation.
 - Serves only allowed local media suffixes from inside the repo root.
 

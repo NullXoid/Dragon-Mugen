@@ -66,6 +66,30 @@ Clsn2Default: 2
  Clsn2[1] = -7, -88, 7, -106
 0,0, 0,0, 4
 
+[Begin Action 43]
+Clsn2Default: 2
+ Clsn2[0] = -15, -8, 15, -88
+ Clsn2[1] = -7, -88, 7, -106
+0,0, 0,0, 4
+
+[Begin Action 44]
+Clsn2Default: 2
+ Clsn2[0] = -15, -8, 15, -88
+ Clsn2[1] = -7, -88, 7, -106
+0,0, 0,0, 4
+
+[Begin Action 45]
+Clsn2Default: 2
+ Clsn2[0] = -15, -8, 15, -88
+ Clsn2[1] = -7, -88, 7, -106
+0,0, 0,0, 4
+
+[Begin Action 46]
+Clsn2Default: 2
+ Clsn2[0] = -15, -8, 15, -88
+ Clsn2[1] = -7, -88, 7, -106
+0,0, 0,0, 4
+
 [Begin Action 47]
 Clsn2Default: 2
  Clsn2[0] = -15, -8, 15, -88

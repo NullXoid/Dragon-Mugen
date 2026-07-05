@@ -397,6 +397,13 @@ def run_proof(root: Path, proof_kind: str) -> CommandResult:
         )
     if not exe.exists():
         return result_error("Run proof", str(exe), f"dragon_mugen executable is missing: {exe}")
+    if proof_kind == "owned_roster_screens":
+        output_dir = root / "artifacts" / "asset_lab" / "owned_roster_proof" / timestamp()
+        output_dir.mkdir(parents=True, exist_ok=True)
+        env = {"DRAGON_ROSTER_SCREENSHOT_DIR": str(output_dir)}
+        result = run_command(root, "Owned roster proof with screenshots", [str(exe), "--verify", "owned-character-readiness"], env=env, timeout=900)
+        result.stdout = f"DRAGON_ROSTER_SCREENSHOT_DIR={output_dir}\n" + result.stdout
+        return result
     if proof_kind == "roster_screens":
         output_dir = root / "artifacts" / "asset_lab" / "roster_proof" / timestamp()
         output_dir.mkdir(parents=True, exist_ok=True)

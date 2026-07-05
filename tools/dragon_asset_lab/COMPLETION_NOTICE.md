@@ -18,7 +18,7 @@ Implemented the remaining browser-side Asset Lab feature set under `tools/dragon
 - Added Comfy/LTX config for server URL, video workflow JSON, image-to-image workflow JSON, and output folder.
 - Stores config in ignored `artifacts/asset_lab/dragon_asset_lab_config.json`.
 - Added optional Comfy HTTP `/prompt` submission, disabled unless explicitly configured.
-- Added proof helper buttons for `dev_check --skip-build`, CPU baseline, and roster smoke with roster screenshot output.
+- Added proof helper buttons for `dev_check --skip-build`, CPU baseline, owned-character readiness, and roster smoke with roster screenshot output.
 - Preserved safe media serving: only approved media suffixes under the repo root are served.
 
 ## Intentionally Deferred
