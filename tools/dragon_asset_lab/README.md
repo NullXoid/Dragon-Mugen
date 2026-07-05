@@ -1,6 +1,6 @@
 # Dragon Asset Lab
 
-Dragon Asset Lab is a narrow local MVP for browsing Dragon MUGEN character sprite asset workspaces. It is intentionally a sidecar tool and does not integrate with the game runtime or ComfyUI internals.
+Dragon Asset Lab is a local stdlib Python web dashboard for Dragon MUGEN sprite asset workspaces. It is a sidecar tool: browsing is available for owned and local probe characters, while write actions are limited to owned production targets.
 
 ## Run
 
@@ -19,54 +19,43 @@ http://127.0.0.1:8765/
 Optional arguments:
 
 ```powershell
-python tools/dragon_asset_lab/app.py --repo-root C:\Users\kasom\projects\dragon-mugen-arena --port 8766
+python tools/dragon_asset_lab/app.py --repo-root C:\Users\kasom\projects\dragon-mugen --port 8766
 ```
 
-## Current MVP Scope
+## Implemented
 
-- Browses owned character workspaces for `game/chars/A.Ben` and `game/chars/I.Chie`.
-- Detects ignored local test characters `game/chars/EvilRyu` and `game/chars/EvilKen` when present for compatibility inspection only.
-- Shows whether `source_art`, `source_videos`, `shop`, and `source_art/curated_game_sprites` exist.
-- Parses each character DEF enough to show display metadata and `[Files]` runtime references.
-- Checks local/shared runtime file presence for CMD, CNS, common CNS, SFF, AIR, SND, palettes, movelists, and storyboards.
-- Counts AIR action blocks when an AIR file is available.
-- Shows action dashboard rows for `idle`, `walk`, `jump`, `punch`, `kick`, and `dash`.
-- Reads curated action metadata from `source_art/curated_game_sprites/manifest.json` when present.
-- Reads source video metadata from `source_videos/manifest.json` when present.
-- Serves local PNG, GIF, MP4, JPG, JPEG, and WEBP files from inside the repo root.
-- Shows contact sheets and preview GIFs from `contacts` and `previews`.
-- Displays curated manifest action metadata read-only.
-- Displays export/proof command stubs instead of executing them.
+- Browses owned `A.Ben` and `I.Chie` workspaces, plus ignored local-only `EvilRyu` and `EvilKen` compatibility probes when present.
+- Parses character DEF files, reports runtime file presence, and counts AIR action blocks.
+- Shows curated contacts/previews alongside source run contacts/previews and source frame counts for curated actions.
+- Allows explicit browser edits to curated `selected_source_frames` for owned characters.
+- Validates selected frame numbers against the action source frame count before saving.
+- Writes manifest edits atomically and creates timestamped `.bak` files before replacing JSON.
+- Runs `engine/tools/ltx_sprite_pipeline.py promote` from the browser for action-specific LTX runs and shows stdout/stderr in the page.
+- Creates manifest backups before promotion because the existing promote tool rewrites run and curated manifests.
+- Blocks unsafe promotion for derived actions whose run manifest action does not match the curated action, such as current A.Ben `crouch` derived from the `jump` run.
+- Exposes A.Ben sprite rebuild buttons for the full curated action-source-root path and walk-only rebuild path.
+- Imports/registers completed source videos into `game/chars/<character>/source_videos`, with optional `ltx_sprite_pipeline.py prepare`.
+- Stores local Comfy/LTX configuration in ignored `artifacts/asset_lab/dragon_asset_lab_config.json`.
+- Supports optional direct Comfy HTTP submission to `/prompt` only when explicitly enabled and a workflow JSON path is configured.
+- Shows image-to-image workflow configuration/status and submits that workflow JSON as-is when configured.
+- Provides proof helper buttons for `dev_check --skip-build`, CPU baseline, and roster compatibility smoke with `DRAGON_ROSTER_SCREENSHOT_DIR` set under `artifacts/asset_lab`.
+- Keeps live game launch as a command stub instead of inventing screen automation.
+- Serves only allowed local media suffixes from inside the repo root.
 
-## Limits
+## Limits / Remaining
 
-- No ComfyUI API calls.
-- No generated asset rewrites.
-- No manifest writes. The manifest view is read-only to avoid corrupting curated data while the schema is still settling.
-- No third-party character import. Ryu/Ken-style local test folders are inspected in place and remain ignored by git.
-- Local-only prototype. The server binds to `127.0.0.1` by default and only serves supported media files under the repo root.
+- I.Chie has no dedicated SFF builder yet, so the browser reports that instead of guessing.
+- Direct Comfy submission does not mutate workflow graphs or inject prompts; import completed videos for stable handoff.
+- Browser promotion is only enabled when the curated action has an action-matching LTX run manifest.
+- Source video imports are explicit user actions and are limited to owned characters.
+- Local probe characters remain browse-only; do not track or copy third-party character assets.
 
-## Intended Comfy/LTX Workflow
+## Typical Workflow
 
-1. Export or place completed LTX/Comfy videos under the character `source_videos` folder.
-2. Use the existing pipeline to prepare a reviewable run:
-
-   ```powershell
-   python engine/tools/ltx_sprite_pipeline.py prepare --character A.Ben --action walk --video game/chars/A.Ben/source_videos/walk_LTX-2_00068_.mp4
-   ```
-
-3. Select frames in the run manifest or pass a selected frame list, then promote them:
-
-   ```powershell
-   python engine/tools/ltx_sprite_pipeline.py promote --run-dir game/chars/A.Ben/source_art/ltx_runs/<run-name> --selected 0,6,12
-   ```
-
-4. Reopen Dragon Asset Lab to inspect updated contacts, previews, frame counts, and manifest metadata.
-5. Run the existing build/proof commands when ready:
-
-   ```powershell
-   python engine/tools/build_aben_walk_sff.py
-   build/dragon_mugen.exe --verify roster-compatibility-smoke
-   ```
-
-Future versions can add schema-aware manifest editing, command execution with logs, and I.Chie-specific promotion flows.
+1. Save or copy a completed Comfy/LTX video through the Source Video Import / Prepare form.
+2. Optionally run prepare from the same form to create an `source_art/ltx_runs/<run>` folder.
+3. Review source contact/preview context in the action card.
+4. Edit `selected_source_frames` and save. Invalid frame numbers are rejected.
+5. Promote selected frames from the action card when the run action matches.
+6. Rebuild A.Ben sprites with the full curated action-source-root button or walk-only button.
+7. Run proof helpers and inspect command logs in the UI.

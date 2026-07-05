@@ -6,336 +6,109 @@ import json
 import mimetypes
 import os
 import posixpath
-import re
 import sys
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlparse
 
-
-DEFAULT_REPO_ROOT = Path(r"C:\Users\kasom\projects\dragon-mugen-arena")
-OWNED_CHARACTERS = ("A.Ben", "I.Chie")
-LOCAL_TEST_CHARACTERS = ("EvilRyu", "EvilKen")
-ACTIONS = ("idle", "walk", "jump", "punch", "kick", "dash")
-MEDIA_SUFFIXES = {".png", ".gif", ".mp4", ".jpg", ".jpeg", ".webp"}
-MUGEN_FILE_PRIORITY = (
-    "cmd",
-    "cns",
-    "st",
-    "stcommon",
-    "sprite",
-    "anim",
-    "sound",
-    "movelist",
-    "intro.storyboard",
-    "ending.storyboard",
+from lab_ops import (
+    CommandResult,
+    build_sprites,
+    command_for_build,
+    import_or_prepare_video,
+    load_config,
+    promote_selected_frames,
+    run_proof,
+    save_config,
+    save_selected_frames,
+    submit_comfy_workflow,
 )
-AIR_ACTION_RE = re.compile(r"^\s*\[\s*Begin\s+Action\s+(-?\d+)\s*\]", re.IGNORECASE)
+from lab_paths import (
+    ACTIONS,
+    MEDIA_SUFFIXES,
+    OWNED_CHARACTERS,
+    character_kind,
+    character_names,
+    config_path,
+    find_repo_root,
+    format_selected_frames,
+    is_relative_to,
+    media_url,
+    relpath,
+)
+from lab_workspace import (
+    character_summary,
+    configured_build_modes,
+    display_path,
+    path_status,
+    proof_command_catalog,
+)
 
 
-def find_repo_root() -> Path:
-    local_root = Path(__file__).resolve().parents[2]
-    if (local_root / "game" / "chars").exists():
-        return local_root
-    return DEFAULT_REPO_ROOT
+def esc(value: object) -> str:
+    return html.escape(str(value), quote=True)
 
 
-def load_json(path: Path) -> dict:
-    if not path.exists():
-        return {}
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return {}
-
-
-def is_relative_to(path: Path, root: Path) -> bool:
-    try:
-        path.resolve().relative_to(root.resolve())
-        return True
-    except ValueError:
-        return False
-
-
-def relpath(path: Path, root: Path) -> str:
-    return path.resolve().relative_to(root.resolve()).as_posix()
-
-
-def localize_manifest_path(raw_path: object, fallback_dir: Path, root: Path) -> Path | None:
-    if not raw_path:
-        return None
-    candidate = Path(str(raw_path))
-    if candidate.exists() and is_relative_to(candidate, root):
-        return candidate
-    fallback = fallback_dir / candidate.name
-    if fallback.exists() and is_relative_to(fallback, root):
-        return fallback
-    return None
-
-
-def first_existing(paths: list[Path]) -> Path | None:
-    for path in paths:
-        if path.exists():
-            return path
-    return None
-
-
-def character_names(root: Path) -> tuple[str, ...]:
-    names = []
-    chars_root = root / "game" / "chars"
-    for name in (*OWNED_CHARACTERS, *LOCAL_TEST_CHARACTERS):
-        if (chars_root / name).is_dir() and name not in names:
-            names.append(name)
-    return tuple(names) if names else OWNED_CHARACTERS
-
-
-def character_kind(character: str) -> str:
-    return "owned" if character in OWNED_CHARACTERS else "local test"
-
-
-def media_url(path: Path | None, root: Path) -> str:
+def link_for(path: Path | None, root: Path, label: str | None = None) -> str:
     if not path:
+        return "<span>none</span>"
+    text = label or display_path(path, root)
+    return f'<a href="{esc(media_url(path, root))}" target="_blank">{esc(text)}</a>'
+
+
+def path_text(path: Path | None, root: Path, missing: str = "not found") -> str:
+    return esc(display_path(path, root, missing))
+
+
+def render_result(result: CommandResult | None) -> str:
+    if not result:
         return ""
-    return "/asset/" + quote(relpath(path, root))
+    status = "ok" if result.ok else "fail"
+    body = "\n".join(part for part in (result.stdout.strip(), result.stderr.strip()) if part)
+    if not body:
+        body = "(no output)"
+    return f"""
+    <section class="panel result {status}" id="last-result">
+      <div class="result-head">
+        <h2>Last Result</h2>
+        <b>{'PASS' if result.ok else 'FAIL'} · exit {result.returncode}</b>
+      </div>
+      <div class="command-line"><code>{esc(result.command)}</code></div>
+      <pre>{esc(body)}</pre>
+    </section>
+    """
 
 
-def command_text(root: Path) -> list[tuple[str, str]]:
-    return [
-        (
-            "Prepare LTX run",
-            "python engine/tools/ltx_sprite_pipeline.py prepare "
-            "--character A.Ben --action walk --video game/chars/A.Ben/source_videos/walk_LTX-2_00068_.mp4",
-        ),
-        (
-            "Promote selected frames",
-            "python engine/tools/ltx_sprite_pipeline.py promote "
-            "--run-dir game/chars/A.Ben/source_art/ltx_runs/<run-name> --selected 0,6,12",
-        ),
-        ("Build A.Ben walk SFF", "python engine/tools/build_aben_walk_sff.py"),
-        ("Roster compatibility proof", "build/dragon_mugen.exe --verify roster-compatibility-smoke"),
-    ]
-
-
-def strip_mugen_comment(line: str) -> str:
-    return line.split(";", 1)[0].strip()
-
-
-def clean_mugen_value(value: str) -> str:
-    return strip_mugen_comment(value).strip().strip('"')
-
-
-def find_character_def(char_dir: Path, character: str) -> Path | None:
-    candidates = [
-        char_dir / f"{character}.def",
-        char_dir / f"{character.lower()}.def",
-        char_dir / f"{character.replace('.', '')}.def",
-        char_dir / f"{character.replace('.', '').lower()}.def",
-    ]
-    candidates.extend(sorted(char_dir.glob("*.def")))
-    seen: set[Path] = set()
-    for candidate in candidates:
-        normalized = candidate.resolve()
-        if normalized in seen:
-            continue
-        seen.add(normalized)
-        if candidate.exists():
-            return candidate
-    return None
-
-
-def parse_mugen_def(def_path: Path | None) -> dict:
-    if not def_path or not def_path.exists():
-        return {"info": {}, "files": {}}
-    section = ""
-    info: dict[str, str] = {}
-    files: dict[str, str] = {}
-    try:
-        lines = def_path.read_text(encoding="utf-8", errors="ignore").splitlines()
-    except OSError:
-        return {"info": {}, "files": {}}
-    for raw_line in lines:
-        line = strip_mugen_comment(raw_line)
-        if not line:
-            continue
-        if line.startswith("[") and line.endswith("]"):
-            section = line.strip("[]").strip().lower()
-            continue
-        if "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        key = key.strip().lower()
-        value = clean_mugen_value(value)
-        if section == "info":
-            info[key] = value
-        elif section == "files":
-            files[key] = value
-    return {"info": info, "files": files}
-
-
-def resolve_mugen_file(root: Path, char_dir: Path, raw_path: str) -> Path | None:
-    value = clean_mugen_value(raw_path)
-    if not value:
-        return None
-    normalized = value.replace("/", os.sep).replace("\\", os.sep)
-    char_candidate = (char_dir / normalized).resolve()
-    if char_candidate.exists():
-        return char_candidate
-    data_candidate = (root / "game" / "data" / normalized).resolve()
-    if data_candidate.exists():
-        return data_candidate
-    return char_candidate
-
-
-def count_air_actions(path: Path | None) -> int | None:
-    if not path or not path.exists():
-        return None
-    try:
-        return sum(1 for line in path.read_text(encoding="utf-8", errors="ignore").splitlines() if AIR_ACTION_RE.match(line))
-    except OSError:
-        return None
-
-
-def format_file_size(path: Path | None) -> str:
-    if not path or not path.exists() or not path.is_file():
-        return ""
-    size = path.stat().st_size
-    if size >= 1024 * 1024:
-        return f"{size / (1024 * 1024):.1f} MB"
-    if size >= 1024:
-        return f"{size / 1024:.1f} KB"
-    return f"{size} B"
-
-
-def mugen_file_summary(root: Path, char_dir: Path, files: dict[str, str]) -> list[dict]:
-    ordered_keys = [key for key in MUGEN_FILE_PRIORITY if key in files]
-    ordered_keys.extend(sorted(key for key in files if key not in ordered_keys and (key.startswith("pal") or key.endswith("storyboard"))))
-
-    rows = []
-    for key in ordered_keys:
-        raw_value = files.get(key, "")
-        resolved = resolve_mugen_file(root, char_dir, raw_value)
-        present = bool(resolved and resolved.exists())
-        detail = format_file_size(resolved)
-        if key == "anim":
-            action_count = count_air_actions(resolved)
-            if action_count is not None:
-                detail = f"{action_count} AIR actions"
-        rows.append(
-            {
-                "key": key,
-                "value": raw_value,
-                "path": resolved,
-                "present": present,
-                "detail": detail,
-            }
-        )
-    return rows
-
-
-def character_summary(root: Path, character: str) -> dict:
-    char_dir = root / "game" / "chars" / character
-    source_art = char_dir / "source_art"
-    source_videos = char_dir / "source_videos"
-    curated = source_art / "curated_game_sprites"
-    contacts = curated / "contacts"
-    previews = curated / "previews"
-    frames = curated / "frames"
-    shop = char_dir / "shop"
-
-    curated_manifest_path = curated / "manifest.json"
-    video_manifest_path = source_videos / "manifest.json"
-    curated_manifest = load_json(curated_manifest_path)
-    video_manifest = load_json(video_manifest_path)
-    curated_actions = curated_manifest.get("actions", {}) if isinstance(curated_manifest.get("actions"), dict) else {}
-    video_actions = video_manifest.get("videos", {}) if isinstance(video_manifest.get("videos"), dict) else {}
-    def_path = find_character_def(char_dir, character)
-    def_data = parse_mugen_def(def_path)
-    mugen_files = mugen_file_summary(root, char_dir, def_data["files"])
-
-    action_rows = []
-    for action in ACTIONS:
-        manifest_action = curated_actions.get(action, {}) if isinstance(curated_actions.get(action), dict) else {}
-        frame_dir = frames / action
-        frame_files = sorted(path for path in frame_dir.glob("*.png")) if frame_dir.exists() else []
-        selected = manifest_action.get("selected_source_frames")
-        promoted = manifest_action.get("promoted_frames")
-        frame_count = len(frame_files)
-        if frame_count == 0 and isinstance(promoted, list):
-            frame_count = len(promoted)
-        if frame_count == 0 and isinstance(selected, list):
-            frame_count = len(selected)
-
-        contact = localize_manifest_path(manifest_action.get("contact"), contacts, root)
-        if not contact:
-            contact = first_existing([contacts / f"{action}_selected_contact.png"])
-        preview = localize_manifest_path(manifest_action.get("gif_preview") or manifest_action.get("preview"), previews, root)
-        if not preview:
-            preview = first_existing([previews / f"{action}_selected_preview.gif"])
-
-        video_info = video_actions.get(action, {}) if isinstance(video_actions.get(action), dict) else {}
-        video_file = source_videos / str(video_info.get("file", ""))
-        source_video = video_file if video_file.exists() else first_existing(sorted(source_videos.glob(f"{action}*.mp4")))
-
-        action_rows.append(
-            {
-                "name": action,
-                "frame_count": frame_count,
-                "contact": contact,
-                "preview": preview,
-                "source_video": source_video,
-                "manifest": manifest_action,
-            }
-        )
-
-    workspace_dirs = [
-        ("source_art", source_art),
-        ("source_videos", source_videos),
-        ("shop", shop),
-        ("curated_game_sprites", curated),
-    ]
-    return {
-        "character": character,
-        "kind": character_kind(character),
-        "char_dir": char_dir,
-        "exists": char_dir.exists(),
-        "def_path": def_path,
-        "def_info": def_data["info"],
-        "def_files": def_data["files"],
-        "mugen_files": mugen_files,
-        "workspace_dirs": workspace_dirs,
-        "curated_manifest_path": curated_manifest_path if curated_manifest_path.exists() else None,
-        "video_manifest_path": video_manifest_path if video_manifest_path.exists() else None,
-        "curated_manifest": curated_manifest,
-        "action_rows": action_rows,
-    }
-
-
-def render_page(root: Path, selected_character: str) -> bytes:
-    characters = character_names(root)
-    if selected_character not in characters:
-        selected_character = characters[0]
-    summary = character_summary(root, selected_character)
-    manifest_actions = summary["curated_manifest"].get("actions", {})
-
-    char_tabs = "".join(
+def render_tabs(root: Path, selected_character: str) -> str:
+    return "".join(
         f'<a class="tab {"active" if char == selected_character else ""}" href="/?char={quote(char)}">'
-        f"{html.escape(char)}<small>{html.escape(character_kind(char))}</small></a>"
-        for char in characters
+        f"{esc(char)}<small>{esc(character_kind(char))}</small></a>"
+        for char in character_names(root)
     )
 
+
+def render_workspace(summary: dict, root: Path, selected_character: str) -> str:
     workspace_items = []
     for label, path in summary["workspace_dirs"]:
         present = path.exists()
         status = "present" if present else "missing"
         workspace_items.append(
             "<li>"
-            f"<span>{html.escape(label)}</span>"
-            f"<code>{html.escape(relpath(path, root) if is_relative_to(path, root) else str(path))}</code>"
+            f"<span>{esc(label)}</span>"
+            f"<code>{esc(relpath(path, root) if is_relative_to(path, root) else str(path))}</code>"
             f'<b class="{status}">{status}</b>'
             "</li>"
         )
+    return f"""
+    <section class="panel">
+      <h2>{esc(selected_character)} Workspace</h2>
+      <ul class="workspace-list">{''.join(workspace_items)}</ul>
+    </section>
+    """
 
+
+def render_mugen_files(summary: dict, root: Path, selected_character: str) -> str:
     def_info = summary["def_info"]
     display_name = def_info.get("displayname") or def_info.get("name") or selected_character
     author = def_info.get("author", "unknown")
@@ -348,57 +121,254 @@ def render_page(root: Path, selected_character: str) -> bytes:
         for row in summary["mugen_files"]:
             status = "present" if row["present"] else "missing"
             path_label = relpath(row["path"], root) if row["path"] and is_relative_to(row["path"], root) else row["value"]
-            detail = f"<span>{html.escape(row['detail'])}</span>" if row["detail"] else "<span></span>"
+            detail = f"<span>{esc(row['detail'])}</span>" if row["detail"] else "<span></span>"
             mugen_file_items.append(
                 "<li>"
-                f"<span>{html.escape(row['key'])}</span>"
-                f"<code>{html.escape(path_label)}</code>"
+                f"<span>{esc(row['key'])}</span>"
+                f"<code>{esc(path_label)}</code>"
                 f"{detail}"
                 f'<b class="{status}">{status}</b>'
                 "</li>"
             )
     else:
-        mugen_file_items.append('<li><span>files</span><code>No [Files] entries parsed.</code><span></span><b class="missing">missing</b></li>')
-
-    action_cards = []
-    for row in summary["action_rows"]:
-        contact_url = media_url(row["contact"], root)
-        preview_url = media_url(row["preview"], root)
-        video_url = media_url(row["source_video"], root)
-        contact_path = relpath(row["contact"], root) if row["contact"] else "not found"
-        preview_path = relpath(row["preview"], root) if row["preview"] else "not found"
-        video_status = "yes" if row["source_video"] else "no"
-        media = ""
-        if preview_url:
-            media = f'<img src="{preview_url}" alt="{html.escape(row["name"])} preview">'
-        elif contact_url:
-            media = f'<img src="{contact_url}" alt="{html.escape(row["name"])} contact sheet">'
-        else:
-            media = '<div class="empty-media">No preview</div>'
-        video_link = f'<a href="{video_url}" target="_blank">open video</a>' if video_url else "<span>none</span>"
-        contact_link = f'<a href="{contact_url}" target="_blank">{html.escape(contact_path)}</a>' if contact_url else html.escape(contact_path)
-        preview_link = f'<a href="{preview_url}" target="_blank">{html.escape(preview_path)}</a>' if preview_url else html.escape(preview_path)
-
-        action_cards.append(
-            '<article class="action-card">'
-            f'<header><h3>{html.escape(row["name"])}</h3><span>{row["frame_count"]} frames</span></header>'
-            f'<div class="media">{media}</div>'
-            '<dl>'
-            f"<dt>contact</dt><dd>{contact_link}</dd>"
-            f"<dt>preview</dt><dd>{preview_link}</dd>"
-            f"<dt>source video</dt><dd>{html.escape(video_status)} · {video_link}</dd>"
-            "</dl>"
-            "</article>"
+        mugen_file_items.append(
+            '<li><span>files</span><code>No [Files] entries parsed.</code><span></span><b class="missing">missing</b></li>'
         )
 
+    return f"""
+    <section class="panel">
+      <h2>MUGEN Character Files</h2>
+      <div class="meta-grid">
+        <div><span>kind</span>{esc(summary["kind"])}</div>
+        <div><span>display name</span>{esc(display_name)}</div>
+        <div><span>author</span>{esc(author)}</div>
+        <div><span>localcoord</span>{esc(localcoord)}</div>
+        <div><span>definition</span><code>{esc(def_label)}</code> <b class="{def_status}">{def_status}</b></div>
+      </div>
+      <ul class="runtime-list">{''.join(mugen_file_items)}</ul>
+    </section>
+    """
+
+
+def render_media_panel(title: str, media_path: Path | None, root: Path, empty: str) -> str:
+    media = '<div class="empty-media">' + esc(empty) + "</div>"
+    url = media_url(media_path, root) if media_path else ""
+    if url:
+        media = f'<img src="{esc(url)}" alt="{esc(title)}">'
+    return f'<div><div class="media-label">{esc(title)}</div><div class="media">{media}</div></div>'
+
+
+def render_action_cards(summary: dict, root: Path, selected_character: str) -> str:
+    is_owned = selected_character in OWNED_CHARACTERS
+    action_cards = []
+    for row in summary["action_rows"]:
+        action = row["name"]
+        manifest_action = row["manifest"]
+        run = row["run"]
+        selected_frames = format_selected_frames(manifest_action.get("selected_source_frames"))
+        curated_media = row["preview"] or row["contact"]
+        source_media = run.get("source_preview") or run.get("source_contact")
+        source_count = run.get("source_count")
+        run_action = run.get("run_action")
+        has_manifest_action = bool(manifest_action)
+        can_edit = is_owned and has_manifest_action and isinstance(source_count, int) and source_count > 0
+        can_promote = can_edit and (not run_action or run_action == action)
+        edit_disabled = "" if can_edit else " disabled"
+        promote_disabled = "" if can_promote else " disabled"
+        edit_note = ""
+        if not is_owned:
+            edit_note = "Local test characters are browse-only."
+        elif not has_manifest_action:
+            edit_note = "No curated manifest entry for this action yet."
+        elif not can_edit:
+            edit_note = "No source frame directory is available for validation."
+        elif not can_promote:
+            edit_note = f"Promote disabled: run manifest action is {run_action!r}."
+
+        source_video = row["source_video"]
+        video_status = "yes" if source_video else "no"
+        run_manifest_path = run.get("run_manifest_path")
+        source_dir = run.get("source_dir")
+
+        action_cards.append(
+            f"""
+            <article class="action-card">
+              <header><h3>{esc(action)}</h3><span>{row["frame_count"]} curated frames</span></header>
+              <div class="media-grid">
+                {render_media_panel("Curated preview", curated_media, root, "No curated preview")}
+                {render_media_panel("Source preview", source_media, root, "No source preview")}
+              </div>
+              <dl>
+                <dt>curated contact</dt><dd>{link_for(row["contact"], root)}</dd>
+                <dt>curated preview</dt><dd>{link_for(row["preview"], root)}</dd>
+                <dt>source video</dt><dd>{esc(video_status)} · {link_for(source_video, root, "open video") if source_video else "<span>none</span>"}</dd>
+                <dt>run manifest</dt><dd><code>{path_text(run_manifest_path, root)}</code></dd>
+                <dt>source frames</dt><dd><code>{path_text(source_dir, root)}</code> · {esc(source_count if source_count is not None else "unknown")} frames</dd>
+                <dt>source contact</dt><dd>{link_for(run.get("source_contact"), root)}</dd>
+              </dl>
+              <form method="post" class="action-form">
+                <input type="hidden" name="char" value="{esc(selected_character)}">
+                <input type="hidden" name="action" value="{esc(action)}">
+                <label>selected_source_frames</label>
+                <textarea name="selected_frames" spellcheck="false"{edit_disabled}>{esc(selected_frames)}</textarea>
+                <div class="form-row">
+                  <button type="submit" name="op" value="save_selection"{edit_disabled}>Save selection</button>
+                  <button type="submit" name="op" value="promote_selection"{promote_disabled}>Promote selected</button>
+                </div>
+                <p class="note">{esc(edit_note or "Save writes the curated manifest with a backup; promote runs the existing LTX pipeline with backups first.")}</p>
+              </form>
+            </article>
+            """
+        )
+    return f"""
+    <section>
+      <h2>Action Dashboard</h2>
+      <div class="actions">{''.join(action_cards)}</div>
+    </section>
+    """
+
+
+def render_manifest_viewer(summary: dict) -> str:
+    manifest_actions = summary["curated_manifest"].get("actions", {}) if isinstance(summary["curated_manifest"].get("actions"), dict) else {}
     selected_manifest = json.dumps(manifest_actions, indent=2, sort_keys=True) if manifest_actions else "{}"
-    commands = "".join(
-        "<section class='command'>"
-        f"<h3>{html.escape(label)}</h3>"
-        f"<pre><code>{html.escape(command)}</code></pre>"
-        "</section>"
-        for label, command in command_text(root)
-    )
+    return f"""
+    <section class="panel">
+      <h2>Manifest Viewer</h2>
+      <textarea readonly class="manifest-view">{esc(selected_manifest)}</textarea>
+      <div class="note">Read-only snapshot. Use per-action Save selection controls for explicit schema-aware writes with backups.</div>
+    </section>
+    """
+
+
+def render_build_tools(root: Path, selected_character: str) -> str:
+    modes = configured_build_modes(root, selected_character)
+    if not modes:
+        return f"""
+        <section class="panel">
+          <h2>Sprite Builds</h2>
+          <p class="note">No safe browser build tool is configured for {esc(selected_character)}. A.Ben can use build_aben_walk_sff.py; I.Chie still needs a dedicated builder.</p>
+        </section>
+        """
+    controls = []
+    for mode in modes:
+        controls.append(
+            f"""
+            <form method="post" class="command-card">
+              <input type="hidden" name="char" value="{esc(selected_character)}">
+              <input type="hidden" name="build_mode" value="{esc(mode["mode"])}">
+              <h3>{esc(mode["label"])}</h3>
+              <p>{esc(mode["description"])}</p>
+              <pre><code>{esc(command_for_build(root, mode["mode"]))}</code></pre>
+              <button type="submit" name="op" value="build_sprites">Run build</button>
+            </form>
+            """
+        )
+    return f"""
+    <section class="panel">
+      <h2>Sprite Builds</h2>
+      <div class="commands">{''.join(controls)}</div>
+    </section>
+    """
+
+
+def render_video_import(root: Path, selected_character: str) -> str:
+    disabled = "" if selected_character in OWNED_CHARACTERS else " disabled"
+    action_options = "".join(f'<option value="{esc(action)}">{esc(action)}</option>' for action in ACTIONS)
+    return f"""
+    <section class="panel">
+      <h2>Source Video Import / Prepare</h2>
+      <form method="post" class="grid-form">
+        <input type="hidden" name="char" value="{esc(selected_character)}">
+        <label>Action<select name="action"{disabled}>{action_options}</select></label>
+        <label class="wide">Completed video path<input name="video_path" placeholder="C:\\path\\to\\finished_video.mp4"{disabled}></label>
+        <label>Run name<input name="run_name" placeholder="optional, e.g. walk_v2"{disabled}></label>
+        <label>Sample FPS<input name="sample_fps" placeholder="optional"{disabled}></label>
+        <label class="wide">Notes<input name="video_notes" placeholder="optional source note"{disabled}></label>
+        <label class="check"><input type="checkbox" name="overwrite_video" value="1"{disabled}> overwrite same-name source_videos copy</label>
+        <label class="check"><input type="checkbox" name="prepare_video" value="1"{disabled}> run ltx_sprite_pipeline.py prepare after import</label>
+        <label class="check"><input type="checkbox" name="force_prepare" value="1"{disabled}> allow --force for an existing run name</label>
+        <div class="wide"><button type="submit" name="op" value="import_video"{disabled}>Import / prepare</button></div>
+      </form>
+      <p class="note">Imports copy videos into the selected character's source_videos folder and update source_videos/manifest.json with a backup. Prepare outputs stay under source_art/ltx_runs.</p>
+    </section>
+    """
+
+
+def render_comfy_config(root: Path) -> str:
+    config = load_config(root)
+    video_status = path_status(str(config.get("workflow_json", "")), root)
+    i2i_status = path_status(str(config.get("image_to_image_workflow_json", "")), root)
+    output_status = path_status(str(config.get("video_output_dir", "")), root)
+    direct_ready = bool(config.get("enable_direct_submit") and config.get("comfy_server_url") and video_status == "present")
+    i2i_ready = bool(config.get("enable_direct_submit") and config.get("comfy_server_url") and i2i_status == "present")
+    direct_disabled = "" if direct_ready else " disabled"
+    i2i_disabled = "" if i2i_ready else " disabled"
+    checked = " checked" if config.get("enable_direct_submit") else ""
+    default_server = esc(str(config.get("comfy_server_url", "")).rstrip("/") or "http://127.0.0.1:8188")
+    return f"""
+    <section class="panel">
+      <h2>Comfy / LTX Config</h2>
+      <form method="post" class="grid-form">
+        <label class="wide">Comfy server URL<input name="comfy_server_url" value="{esc(config.get("comfy_server_url", ""))}" placeholder="http://127.0.0.1:8188"></label>
+        <label class="wide">Video workflow JSON<input name="workflow_json" value="{esc(config.get("workflow_json", ""))}" placeholder="workflow_api.json"></label>
+        <label class="wide">Image-to-image workflow JSON<input name="image_to_image_workflow_json" value="{esc(config.get("image_to_image_workflow_json", ""))}" placeholder="optional"></label>
+        <label class="wide">Video output folder<input name="video_output_dir" value="{esc(config.get("video_output_dir", ""))}" placeholder="optional external Comfy output folder"></label>
+        <label class="check wide"><input type="checkbox" name="enable_direct_submit" value="1"{checked}> enable direct Comfy HTTP submission</label>
+        <div class="wide"><button type="submit" name="op" value="save_config">Save config</button></div>
+      </form>
+      <div class="status-row">
+        <span>Config: <code>{esc(config_path(root))}</code></span>
+        <span>video workflow: <b class="{video_status.replace(' ', '-')}">{esc(video_status)}</b></span>
+        <span>image-to-image workflow: <b class="{i2i_status.replace(' ', '-')}">{esc(i2i_status)}</b></span>
+        <span>output folder: <b class="{output_status.replace(' ', '-')}">{esc(output_status)}</b></span>
+      </div>
+      <div class="commands">
+        <form method="post" class="command-card">
+          <h3>Submit video workflow</h3>
+          <pre><code>POST {default_server}/prompt</code></pre>
+          <input type="hidden" name="workflow_kind" value="video">
+          <button type="submit" name="op" value="submit_comfy"{direct_disabled}>Submit configured workflow</button>
+        </form>
+        <form method="post" class="command-card">
+          <h3>Submit image-to-image workflow</h3>
+          <pre><code>POST {default_server}/prompt</code></pre>
+          <input type="hidden" name="workflow_kind" value="image_to_image">
+          <button type="submit" name="op" value="submit_comfy"{i2i_disabled}>Submit configured workflow</button>
+        </form>
+      </div>
+      <p class="note">Direct Comfy calls are off unless explicitly enabled. Asset Lab submits workflow API JSON as-is and relies on the import form for completed videos.</p>
+    </section>
+    """
+
+
+def render_proof_tools(root: Path) -> str:
+    cards = []
+    for item in proof_command_catalog(root):
+        button = "Show command" if item["kind"] == "launch_stub" else "Run"
+        cards.append(
+            f"""
+            <form method="post" class="command-card">
+              <h3>{esc(item["label"])}</h3>
+              <p>{esc(item["description"])}</p>
+              <pre><code>{esc(item["command"])}</code></pre>
+              <input type="hidden" name="proof_kind" value="{esc(item["kind"])}">
+              <button type="submit" name="op" value="run_proof">{button}</button>
+            </form>
+            """
+        )
+    return f"""
+    <section class="panel">
+      <h2>In-Game Proof Helpers</h2>
+      <div class="commands">{''.join(cards)}</div>
+    </section>
+    """
+
+
+def render_page(root: Path, selected_character: str, result: CommandResult | None = None) -> bytes:
+    characters = character_names(root)
+    if selected_character not in characters:
+        selected_character = characters[0]
+    summary = character_summary(root, selected_character)
 
     body = f"""<!doctype html>
 <html lang="en">
@@ -412,6 +382,7 @@ def render_page(root: Path, selected_character: str) -> bytes:
       --bg: #120f12;
       --panel: #1c1718;
       --panel-2: #251c1a;
+      --field: #0f0d0d;
       --line: #4b3329;
       --text: #f4e7d3;
       --muted: #b99b82;
@@ -451,12 +422,12 @@ def render_page(root: Path, selected_character: str) -> bytes:
     }}
     .tab.active {{ border-color: var(--accent); color: white; background: #3a1f18; }}
     .tab small {{ color: var(--muted); font-size: 11px; text-transform: uppercase; }}
-    .panel {{
+    .panel, .action-card, .command-card {{
       border: 1px solid var(--line);
       background: var(--panel);
       padding: 16px;
     }}
-    .workspace-list {{ list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }}
+    .workspace-list, .runtime-list {{ list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }}
     .workspace-list li {{
       display: grid;
       grid-template-columns: 170px minmax(0, 1fr) 80px;
@@ -465,10 +436,6 @@ def render_page(root: Path, selected_character: str) -> bytes:
       border-bottom: 1px solid #33251f;
       padding-bottom: 8px;
     }}
-    .meta-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin: 0 0 14px; }}
-    .meta-grid div {{ border: 1px solid #33251f; background: #171312; padding: 10px; }}
-    .meta-grid span {{ display: block; color: var(--muted); font-size: 12px; text-transform: uppercase; }}
-    .runtime-list {{ list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }}
     .runtime-list li {{
       display: grid;
       grid-template-columns: 130px minmax(0, 1fr) 130px 80px;
@@ -477,14 +444,21 @@ def render_page(root: Path, selected_character: str) -> bytes:
       border-bottom: 1px solid #33251f;
       padding-bottom: 8px;
     }}
+    .meta-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin: 0 0 14px; }}
+    .meta-grid div {{ border: 1px solid #33251f; background: #171312; padding: 10px; }}
+    .meta-grid span, label {{ display: block; color: var(--muted); font-size: 12px; text-transform: uppercase; }}
     code, pre {{ font-family: Consolas, monospace; }}
     code {{ color: #f9cf8f; overflow-wrap: anywhere; }}
-    .present {{ color: var(--good); }}
-    .missing {{ color: var(--bad); }}
-    .actions {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; }}
-    .action-card {{ border: 1px solid var(--line); background: var(--panel-2); padding: 12px; }}
+    pre {{ white-space: pre-wrap; overflow-wrap: anywhere; margin: 10px 0 0; }}
+    .present, .ok {{ color: var(--good); }}
+    .missing, .fail {{ color: var(--bad); }}
+    .not-configured {{ color: var(--muted); }}
+    .actions {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(360px, 1fr)); gap: 14px; }}
+    .action-card {{ background: var(--panel-2); }}
     .action-card header {{ display: flex; justify-content: space-between; gap: 12px; align-items: baseline; margin-bottom: 10px; }}
     .action-card header span {{ color: var(--gold); font-weight: 600; }}
+    .media-grid {{ display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }}
+    .media-label {{ color: var(--muted); font-size: 12px; margin-bottom: 4px; text-transform: uppercase; }}
     .media {{
       min-height: 160px;
       display: grid;
@@ -495,28 +469,48 @@ def render_page(root: Path, selected_character: str) -> bytes:
     }}
     .media img {{ max-width: 100%; max-height: 260px; object-fit: contain; image-rendering: auto; }}
     .empty-media {{ color: var(--muted); }}
-    dl {{ display: grid; grid-template-columns: 95px minmax(0, 1fr); gap: 6px 10px; margin: 12px 0 0; }}
+    dl {{ display: grid; grid-template-columns: 105px minmax(0, 1fr); gap: 6px 10px; margin: 12px 0; }}
     dt {{ color: var(--muted); }}
     dd {{ margin: 0; overflow-wrap: anywhere; }}
     a {{ color: #ff9b6d; }}
-    textarea {{
+    textarea, input, select {{
       width: 100%;
-      min-height: 360px;
-      resize: vertical;
-      background: #0f0d0d;
+      background: var(--field);
       color: var(--text);
       border: 1px solid var(--line);
-      padding: 12px;
-      font-family: Consolas, monospace;
-      font-size: 13px;
+      padding: 9px;
+      font: inherit;
+      text-transform: none;
     }}
-    .note {{ color: var(--muted); margin-top: 8px; }}
+    textarea {{ min-height: 72px; resize: vertical; font-family: Consolas, monospace; font-size: 13px; }}
+    textarea.manifest-view {{ min-height: 360px; }}
+    button {{
+      border: 1px solid #b7472c;
+      background: #5a261b;
+      color: #fff7ed;
+      padding: 8px 12px;
+      cursor: pointer;
+      font-weight: 600;
+    }}
+    button:disabled {{ opacity: .45; cursor: not-allowed; }}
+    .form-row {{ display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }}
+    .note {{ color: var(--muted); margin: 8px 0 0; }}
     .commands {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; }}
-    .command {{ border: 1px solid var(--line); background: #171312; padding: 12px; }}
-    .command pre {{ white-space: pre-wrap; margin: 10px 0 0; }}
-    @media (max-width: 720px) {{
+    .command-card {{ background: #171312; display: grid; align-content: start; gap: 8px; }}
+    .command-card p {{ margin: 0; color: var(--muted); }}
+    .grid-form {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }}
+    .grid-form .wide {{ grid-column: 1 / -1; }}
+    .grid-form .check {{ display: flex; align-items: center; gap: 8px; text-transform: none; color: var(--text); }}
+    .grid-form .check input {{ width: auto; }}
+    .status-row {{ display: flex; flex-wrap: wrap; gap: 10px 18px; margin: 12px 0; color: var(--muted); }}
+    .result {{ background: #151f17; }}
+    .result.fail {{ background: #251717; }}
+    .result-head {{ display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }}
+    .command-line {{ margin: 8px 0; }}
+    @media (max-width: 760px) {{
       header.hero, main {{ padding-left: 16px; padding-right: 16px; }}
-      .workspace-list li {{ grid-template-columns: 1fr; gap: 4px; }}
+      .workspace-list li, .runtime-list li {{ grid-template-columns: 1fr; gap: 4px; }}
+      .media-grid {{ grid-template-columns: 1fr; }}
       dl {{ grid-template-columns: 1fr; }}
     }}
   </style>
@@ -524,38 +518,19 @@ def render_page(root: Path, selected_character: str) -> bytes:
 <body>
   <header class="hero">
     <h1>Dragon Asset Lab</h1>
-    <div class="repo">Repo root: <code>{html.escape(str(root))}</code></div>
+    <div class="repo">Repo root: <code>{esc(str(root))}</code></div>
   </header>
   <main>
-    <nav class="tabs">{char_tabs}</nav>
-    <section class="panel">
-      <h2>{html.escape(selected_character)} Workspace</h2>
-      <ul class="workspace-list">{''.join(workspace_items)}</ul>
-    </section>
-    <section class="panel">
-      <h2>MUGEN Character Files</h2>
-      <div class="meta-grid">
-        <div><span>kind</span>{html.escape(summary["kind"])}</div>
-        <div><span>display name</span>{html.escape(display_name)}</div>
-        <div><span>author</span>{html.escape(author)}</div>
-        <div><span>localcoord</span>{html.escape(localcoord)}</div>
-        <div><span>definition</span><code>{html.escape(def_label)}</code> <b class="{def_status}">{def_status}</b></div>
-      </div>
-      <ul class="runtime-list">{''.join(mugen_file_items)}</ul>
-    </section>
-    <section>
-      <h2>Action Dashboard</h2>
-      <div class="actions">{''.join(action_cards)}</div>
-    </section>
-    <section class="panel">
-      <h2>Manifest Viewer</h2>
-      <textarea readonly>{html.escape(selected_manifest)}</textarea>
-      <div class="note">Read-only for this MVP to avoid corrupting curated manifests. Next step: add schema-aware edits for notes, selected_source_frames, and preview_fps with atomic backup writes.</div>
-    </section>
-    <section>
-      <h2>Export / Proof Command Stubs</h2>
-      <div class="commands">{commands}</div>
-    </section>
+    <nav class="tabs">{render_tabs(root, selected_character)}</nav>
+    {render_result(result)}
+    {render_workspace(summary, root, selected_character)}
+    {render_mugen_files(summary, root, selected_character)}
+    {render_action_cards(summary, root, selected_character)}
+    {render_build_tools(root, selected_character)}
+    {render_video_import(root, selected_character)}
+    {render_comfy_config(root)}
+    {render_proof_tools(root)}
+    {render_manifest_viewer(summary)}
   </main>
 </body>
 </html>"""
@@ -577,6 +552,51 @@ class DragonAssetLabHandler(BaseHTTPRequestHandler):
             self.serve_asset(parsed.path.removeprefix("/asset/"))
             return
         self.send_error(HTTPStatus.NOT_FOUND, "Not found")
+
+    def do_POST(self) -> None:
+        parsed = urlparse(self.path)
+        if parsed.path != "/":
+            self.send_error(HTTPStatus.NOT_FOUND, "Not found")
+            return
+        try:
+            form = self.read_form()
+        except ValueError as exc:
+            self.send_error(HTTPStatus.BAD_REQUEST, str(exc))
+            return
+        characters = character_names(self.repo_root)
+        selected_character = form.get("char", [characters[0]])[0]
+        op = form.get("op", [""])[0]
+        result = self.dispatch_post(op, form)
+        self.send_bytes(render_page(self.repo_root, selected_character, result), "text/html; charset=utf-8")
+
+    def read_form(self) -> dict[str, list[str]]:
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError as exc:
+            raise ValueError("Invalid Content-Length") from exc
+        if length > 2_000_000:
+            raise ValueError("Form body is too large")
+        data = self.rfile.read(length).decode("utf-8", errors="replace")
+        return parse_qs(data, keep_blank_values=True)
+
+    def dispatch_post(self, op: str, form: dict[str, list[str]]) -> CommandResult:
+        character = form.get("char", [""])[0]
+        action = form.get("action", [""])[0]
+        if op == "save_selection":
+            return save_selected_frames(self.repo_root, character, action, form.get("selected_frames", [""])[0])
+        if op == "promote_selection":
+            return promote_selected_frames(self.repo_root, character, action, form.get("selected_frames", [""])[0])
+        if op == "build_sprites":
+            return build_sprites(self.repo_root, character, form.get("build_mode", [""])[0])
+        if op == "import_video":
+            return import_or_prepare_video(self.repo_root, character, action, form)
+        if op == "save_config":
+            return save_config(self.repo_root, form)
+        if op == "submit_comfy":
+            return submit_comfy_workflow(self.repo_root, form.get("workflow_kind", ["video"])[0])
+        if op == "run_proof":
+            return run_proof(self.repo_root, form.get("proof_kind", [""])[0])
+        return CommandResult(title="Unknown action", command=op, returncode=1, stderr=f"Unknown operation: {op}")
 
     def serve_asset(self, raw_rel_path: str) -> None:
         rel = posixpath.normpath(unquote(raw_rel_path)).lstrip("/")
