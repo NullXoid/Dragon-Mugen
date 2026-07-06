@@ -41,7 +41,13 @@ void drawTitleBackground(SDL_Renderer* renderer, const AppState& state) {
         drawParallaxFloorSprite(renderer, system.titleFloor, motifX, 145, 400.0f, 1200.0f, width, state.frame);
     }
     if (system.titleShade.texture) {
-        drawSpriteTopLeftWithBlend(renderer, system.titleShade, motifX - 160.0f, 145.0f, SDL_BLENDMODE_MUL, 180);
+        drawSpriteTopLeftWithBlend(
+            renderer,
+            system.titleShade,
+            motifX - 160.0f,
+            145.0f,
+            SDL_BLENDMODE_MUL,
+            state.systemScreens.mainMenu.motifShadowAlpha);
     }
 
     setColor(renderer, 0, 0, 0);

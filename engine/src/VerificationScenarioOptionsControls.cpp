@@ -5,6 +5,7 @@
 #include "UiMenuList.h"
 #include "dragon/MugenText.h"
 
+#include <array>
 #include <fstream>
 #include <iterator>
 #include <optional>
@@ -361,6 +362,14 @@ std::string verificationPropertyValue(const MugenSection* section, std::string_v
     return property ? verificationUnquote(property->value) : std::string{};
 }
 
+std::string verificationReadTextFile(const std::filesystem::path& path) {
+    std::ifstream in(path, std::ios::binary);
+    if (!in) {
+        return {};
+    }
+    return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+}
+
 int runMainMenuEditablePresentationData(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
     out << "VERIFY main-menu-editable-presentation-data\n";
@@ -434,6 +443,109 @@ int runMainMenuEditablePresentationData(RuntimeProbe& runtime, std::ostream& out
                 value);
         }
     }
+
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+int runMainMenuEditableLayoutData(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY main-menu-editable-layout-data\n";
+
+    const auto root = std::filesystem::path(runtime.rootText());
+    const auto dragonDef = root / "data" / "dragon.def";
+
+    MugenDocument dragonDoc;
+    bool dragonParsed = false;
+    try {
+        dragonDoc = parseMugenTextFile(dragonDef);
+        dragonParsed = true;
+    } catch (const std::exception& ex) {
+        record(out, counts, Status::Blocked, "dragon_def_parse", ex.what());
+    }
+
+    const MugenSection* dragonMenu = dragonParsed ? findSection(dragonDoc, "Dragon.MainMenu") : nullptr;
+    record(out, counts, dragonMenu ? Status::Pass : Status::Fail,
+        "dragon_main_menu_section",
+        dragonDef.string());
+    if (dragonMenu) {
+        constexpr std::array<std::string_view, 27> editableKeys{ {
+            "title.visible",
+            "title.left",
+            "title.center",
+            "logo",
+            "logo.x",
+            "logo.y",
+            "logo.scale",
+            "logo.alpha",
+            "panel.x",
+            "panel.y",
+            "panel.w",
+            "panel.h",
+            "panel.header.h",
+            "panel.left.text",
+            "panel.right.text",
+            "menu.row.h",
+            "panel.fill.alpha",
+            "panel.border.alpha",
+            "panel.header.alpha",
+            "panel.shadow.alpha",
+            "panel.shadow.offset.x",
+            "panel.shadow.offset.y",
+            "selection.inset.x",
+            "selection.inset.y",
+            "selection.border.alpha",
+            "selection.fill.alpha",
+            "selection.underline.alpha",
+        } };
+        for (std::string_view key : editableKeys) {
+            const std::string value = verificationPropertyValue(dragonMenu, key);
+            record(out, counts, !value.empty() ? Status::Pass : Status::Fail,
+                "dragon_main_menu_" + std::string(key) + "_editable",
+                value);
+        }
+        const std::string motifShadow = verificationPropertyValue(dragonMenu, "motif.shadow.alpha");
+        record(out, counts, !motifShadow.empty() ? Status::Pass : Status::Fail,
+            "dragon_main_menu_motif_shadow_alpha_editable",
+            motifShadow);
+    }
+
+    const auto repoRoot = root.filename() == "game" ? root.parent_path() : root;
+    const std::string presentationLoadingText = verificationReadTextFile(repoRoot / "engine" / "src" / "MainMenuPresentationLoading.h");
+    const std::string assemblyText = verificationReadTextFile(repoRoot / "engine" / "src" / "AppInputMenuAssembly.h");
+    const std::string overlayText = verificationReadTextFile(repoRoot / "engine" / "src" / "MainMenuOverlay.cpp");
+    const std::string mediaText = verificationReadTextFile(repoRoot / "engine" / "src" / "AppRuntimeTypesCommandsMedia.h");
+    record(out, counts,
+        presentationLoadingText.find("applyDragonMainMenuLayout") != std::string::npos
+            && presentationLoadingText.find("\"panel.x\"") != std::string::npos
+            && presentationLoadingText.find("\"selection.fill.alpha\"") != std::string::npos
+            ? Status::Pass : Status::Fail,
+        "main_menu_layout_loaded_from_dragon_def",
+        "MainMenuPresentationLoading parses Dragon.MainMenu layout/style keys");
+    record(out, counts,
+        mediaText.find("MainMenuLogoMode") != std::string::npos
+            && mediaText.find("MainMenuPanelStyle panel") != std::string::npos
+            && mediaText.find("motifShadowAlpha") != std::string::npos
+            && mediaText.find("panelLeftText") != std::string::npos
+            ? Status::Pass : Status::Fail,
+        "main_menu_config_owns_editable_surface",
+        "config stores logo, panel, style, and motif shadow data");
+    record(out, counts,
+        assemblyText.find("mainMenuLogoView") != std::string::npos
+            && assemblyText.find("state.systemScreens.mainMenu.panel") != std::string::npos
+            && assemblyText.find("state.systemScreens.mainMenu.panelLeftText") != std::string::npos
+            && assemblyText.find("MainMenuTitleBarView") != std::string::npos
+            ? Status::Pass : Status::Fail,
+        "main_menu_view_receives_prepared_data",
+        "assembly passes prepared title, panel, labels, and logo data");
+    record(out, counts,
+        overlayText.find("mainMenuLayout(ui, view.panel)") != std::string::npos
+            && overlayText.find("layout.style.selectionFillAlpha") != std::string::npos
+            && overlayText.find("view.panelLeftText") != std::string::npos
+            && overlayText.find("view.logo.visible") != std::string::npos
+            ? Status::Pass : Status::Fail,
+        "main_menu_renderer_consumes_view_data",
+        "overlay renders from view/config values");
 
     summary(out, counts);
     return exitCode(counts);

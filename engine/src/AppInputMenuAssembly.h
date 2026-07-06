@@ -197,6 +197,24 @@ std::array<std::string_view, kMainMenuOptionCount> mainMenuLabelViews(const Main
     return labels;
 }
 
+MainMenuLogoView mainMenuLogoView(const SystemScreenAssets& screens) {
+    const MainMenuPresentationConfig& config = screens.mainMenu;
+    const TextureSprite* sprite = nullptr;
+    if (config.logoMode == MainMenuLogoMode::Motif) {
+        sprite = &screens.titleLogo;
+    } else if (config.logoMode == MainMenuLogoMode::Image) {
+        sprite = &screens.mainMenuLogo;
+    }
+    return MainMenuLogoView{
+        sprite ? uiSpriteView(sprite) : UiSpriteView{},
+        sprite && sprite->texture,
+        config.logoX,
+        config.logoY,
+        config.logoScale,
+        config.logoAlpha,
+    };
+}
+
 ControlsOptionsContext controlsOptionsContext(const AppState& state);
 
 void drawModeSelect(SDL_Renderer* renderer, const AppState& state) {
@@ -212,12 +230,20 @@ void drawModeSelect(SDL_Renderer* renderer, const AppState& state) {
             state.systemScreens.mainMenu.backgroundDimAlpha,
         });
     }
-    drawMainMenuTitleText(ui);
+    drawMainMenuTitleText(ui, MainMenuTitleBarView{
+        state.systemScreens.mainMenu.titleLeft,
+        state.systemScreens.mainMenu.titleCenter,
+        state.systemScreens.mainMenu.titleBarVisible,
+    });
     drawMainMenuOverlay(ui, MainMenuView{
         state.frontend.selectedMode,
         state.frontend.screenFrame,
         state.frontend.exitConfirmOpen,
-        mainMenuLabelViews(state.systemScreens.mainMenu) });
+        state.systemScreens.mainMenu.panelLeftText,
+        state.systemScreens.mainMenu.panelRightText,
+        mainMenuLabelViews(state.systemScreens.mainMenu),
+        state.systemScreens.mainMenu.panel,
+        mainMenuLogoView(state.systemScreens) });
 
     drawFpsCounter(renderer, state);
     SDL_RenderPresent(renderer);

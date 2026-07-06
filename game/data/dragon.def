@@ -9,6 +9,36 @@ background = motif
 background.pan.x = 0.5
 background.dim = 0
 fallback.grid = 1
+motif.shadow.alpha = 180
+title.visible = 1
+title.left = DRAGON MUGEN CORE
+title.center = MAIN MENU
+; Logo can be "none", "motif" for system.sff group 0,0, or a PNG path under game/.
+logo = none
+logo.x = 165
+logo.y = 38
+logo.scale = 0.45
+logo.alpha = 255
+; Main-menu layout coordinates are in the stable 426x240 presentation grid.
+panel.x = 125
+panel.y = 124
+panel.w = 176
+panel.h = 110
+panel.header.h = 22
+panel.left.text = M.U.G.E.N
+panel.right.text = CORE
+menu.row.h = 10.625
+panel.fill.alpha = 228
+panel.border.alpha = 160
+panel.header.alpha = 238
+panel.shadow.alpha = 0
+panel.shadow.offset.x = 0
+panel.shadow.offset.y = 0
+selection.inset.x = 12
+selection.inset.y = 2
+selection.border.alpha = 166
+selection.fill.alpha = 238
+selection.underline.alpha = 255
 ; Menu labels are read from here first. If a label is blank or missing, the
 ; engine falls back to the matching M.U.G.E.N [Title Info] item name where one
 ; exists, then to the built-in Dragon route name.

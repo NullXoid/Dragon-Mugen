@@ -372,4 +372,5 @@ const std::vector<DecodedSoundSample>* arenaCharacterSamplesForOwner(const AppSt
 
 #include "CommandParsing.h"
 #include "AudioRuntime.h"
+#include "MainMenuPresentationLoading.h"
 #include "RuntimeLoading.h"

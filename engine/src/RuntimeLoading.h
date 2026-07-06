@@ -77,150 +77,6 @@ SystemScreenAssets loadSystemScreenAssets(SDL_Renderer* renderer, const std::fil
     return assets;
 }
 
-bool parseDragonBoolValue(const std::string& value, bool fallback) {
-    const std::string normalized = lowercaseCopy(trim(value));
-    if (normalized == "1" || normalized == "true" || normalized == "yes" || normalized == "on") {
-        return true;
-    }
-    if (normalized == "0" || normalized == "false" || normalized == "no" || normalized == "off") {
-        return false;
-    }
-    return fallback;
-}
-
-std::string dragonSectionValue(const MugenSection& section, std::string_view key, std::string fallback = {}) {
-    if (const auto* property = findProperty(section, key)) {
-        return unquote(trim(property->value));
-    }
-    return fallback;
-}
-
-std::array<std::string, kMainMenuOptionCount> defaultMainMenuLabels() {
-    return {
-        "TRAINING",
-        "SINGLE PLAYER",
-        "VS MODE",
-        "ARENA MODE",
-        "STORY MODE",
-        "SHOP DEMO",
-        "OPTIONS",
-        "EXIT",
-    };
-}
-
-std::string sectionStringValue(const MugenSection& section, std::string_view key) {
-    if (const auto* property = findProperty(section, key)) {
-        return unquote(trim(property->value));
-    }
-    return {};
-}
-
-void loadMotifMainMenuLabels(const std::filesystem::path& gameRoot, MainMenuPresentationConfig& config) {
-    const auto systemDef = gameRoot / "data" / "system.def";
-    if (!std::filesystem::exists(systemDef)) {
-        return;
-    }
-
-    constexpr std::array<std::string_view, kMainMenuOptionCount> motifKeys{ {
-        "menu.itemname.training",
-        "menu.itemname.arcade",
-        "menu.itemname.versus",
-        "",
-        "",
-        "",
-        "menu.itemname.options",
-        "menu.itemname.exit",
-    } };
-
-    try {
-        const MugenDocument doc = parseMugenTextFile(systemDef);
-        const MugenSection* section = findSection(doc, "Title Info");
-        if (!section) {
-            return;
-        }
-        for (std::size_t i = 0; i < motifKeys.size(); ++i) {
-            if (motifKeys[i].empty()) {
-                continue;
-            }
-            const std::string label = sectionStringValue(*section, motifKeys[i]);
-            if (!label.empty()) {
-                config.labels[i] = label;
-            }
-        }
-    } catch (const std::exception& ex) {
-        SDL_Log("M.U.G.E.N title menu label load failed: %s", ex.what());
-    }
-}
-
-void applyDragonMainMenuLabels(const MugenSection& section, MainMenuPresentationConfig& config) {
-    constexpr std::array<std::string_view, kMainMenuOptionCount> dragonKeys{ {
-        "label.training",
-        "label.single_player",
-        "label.vs_mode",
-        "label.arena_mode",
-        "label.story_mode",
-        "label.shop_demo",
-        "label.options",
-        "label.exit",
-    } };
-
-    for (std::size_t i = 0; i < dragonKeys.size(); ++i) {
-        const std::string label = dragonSectionValue(section, dragonKeys[i]);
-        if (!label.empty()) {
-            config.labels[i] = label;
-        }
-    }
-}
-
-MainMenuPresentationConfig loadMainMenuPresentationConfig(const std::filesystem::path& gameRoot) {
-    MainMenuPresentationConfig config;
-    config.labels = defaultMainMenuLabels();
-    loadMotifMainMenuLabels(gameRoot, config);
-
-    const auto dragonDef = gameRoot / "data" / "dragon.def";
-    if (!std::filesystem::exists(dragonDef)) {
-        return config;
-    }
-
-    try {
-        const MugenDocument doc = parseMugenTextFile(dragonDef);
-        const MugenSection* section = findSection(doc, "Dragon.MainMenu");
-        if (!section) {
-            return config;
-        }
-
-        applyDragonMainMenuLabels(*section, config);
-
-        const std::string background = dragonSectionValue(*section, "background", "motif");
-        const std::string normalized = lowercaseCopy(background);
-        if (background.empty() || normalized == "motif" || normalized == "system") {
-            config.backgroundMode = MainMenuBackgroundMode::Motif;
-        } else if (normalized == "fallback" || normalized == "grid") {
-            config.backgroundMode = MainMenuBackgroundMode::Fallback;
-        } else if (normalized == "none" || normalized == "off") {
-            config.backgroundMode = MainMenuBackgroundMode::None;
-        } else {
-            config.backgroundMode = MainMenuBackgroundMode::Image;
-            config.backgroundPath = background;
-        }
-
-        config.fallbackGrid = parseDragonBoolValue(
-            dragonSectionValue(*section, "fallback.grid", config.fallbackGrid ? "1" : "0"),
-            config.fallbackGrid);
-        config.backgroundPanX = std::clamp(
-            parseFloatValue(dragonSectionValue(*section, "background.pan.x", "0.5"), 0.5f),
-            0.0f,
-            1.0f);
-        config.backgroundDimAlpha = std::clamp(
-            parseIntValue(dragonSectionValue(*section, "background.dim", "0"), 0),
-            0,
-            255);
-    } catch (const std::exception& ex) {
-        SDL_Log("Dragon main menu config load failed: %s", ex.what());
-    }
-    return config;
-}
-
 TextureSprite loadCharacterIconSprite(SDL_Renderer* renderer, const std::filesystem::path& gameRoot, const CharacterSlot& character) {
     try {
         const CharacterFiles files = resolveCharacterFiles(gameRoot, character);
@@ -774,6 +630,7 @@ void unloadCharacterRuntime(AppState& state) {
 
 void destroySystemScreenAssets(SystemScreenAssets& assets) {
     destroyTextureSprite(assets.mainMenuBackground);
+    destroyTextureSprite(assets.mainMenuLogo);
     destroyTextureSprite(assets.titleLogo);
     destroyTextureSprite(assets.titleTop);
     destroyTextureSprite(assets.titleFloor);
@@ -813,6 +670,16 @@ void loadVisualAssets(SDL_Renderer* renderer, AppState& state) {
                 state.systemScreens.mainMenu.backgroundMode = state.systemScreens.mainMenu.fallbackGrid
                     ? MainMenuBackgroundMode::Fallback
                     : MainMenuBackgroundMode::None;
+            }
+        }
+        if (state.systemScreens.mainMenu.logoMode == MainMenuLogoMode::Image) {
+            state.systemScreens.mainMenuLogo = loadUiPngSprite(
+                renderer,
+                state.gameRoot,
+                state.systemScreens.mainMenu.logoPath,
+                TextureFilter::Linear);
+            if (!state.systemScreens.mainMenuLogo.texture) {
+                state.systemScreens.mainMenu.logoMode = MainMenuLogoMode::None;
             }
         }
         destroyCommandInputIconAtlas(state.commandInputIcons);

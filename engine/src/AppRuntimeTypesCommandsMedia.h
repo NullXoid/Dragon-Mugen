@@ -102,6 +102,12 @@ enum class MainMenuBackgroundMode {
     None,
 };
 
+enum class MainMenuLogoMode {
+    None,
+    Motif,
+    Image,
+};
+
 struct MainMenuPresentationConfig {
     MainMenuBackgroundMode backgroundMode = MainMenuBackgroundMode::Motif;
     std::filesystem::path backgroundPath;
@@ -109,11 +115,25 @@ struct MainMenuPresentationConfig {
     float backgroundPanX = 0.5f;
     int backgroundDimAlpha = 0;
     std::array<std::string, kMainMenuOptionCount> labels{};
+    std::string titleLeft = "DRAGON MUGEN CORE";
+    std::string titleCenter = "MAIN MENU";
+    bool titleBarVisible = true;
+    std::string panelLeftText = "M.U.G.E.N";
+    std::string panelRightText = "CORE";
+    MainMenuLogoMode logoMode = MainMenuLogoMode::None;
+    std::filesystem::path logoPath;
+    float logoX = 165.0f;
+    float logoY = 38.0f;
+    float logoScale = 0.45f;
+    int logoAlpha = 255;
+    MainMenuPanelStyle panel;
+    int motifShadowAlpha = 180;
 };
 
 struct SystemScreenAssets {
     MainMenuPresentationConfig mainMenu;
     TextureSprite mainMenuBackground;
+    TextureSprite mainMenuLogo;
     TextureSprite titleLogo;
     TextureSprite titleTop;
     TextureSprite titleFloor;

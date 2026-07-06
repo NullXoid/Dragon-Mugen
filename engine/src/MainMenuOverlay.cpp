@@ -36,37 +36,27 @@ struct MainMenuLayout {
     SDL_FRect panel{};
     float rowH = 18.0f;
     float headerH = 22.0f;
-    float footerH = 3.0f;
     float scale = 1.0f;
     float border = 1.0f;
+    MainMenuPanelStyle style;
 };
 
-MainMenuLayout mainMenuLayout(const UiRenderContext& ui) {
-    constexpr float designPanelW = 176.0f;
-    constexpr float designPanelH = 110.0f;
-    constexpr float designHeaderH = 22.0f;
-    constexpr float designFooterH = 3.0f;
-    constexpr float designRowH = 10.625f;
-
+MainMenuLayout mainMenuLayout(const UiRenderContext& ui, const MainMenuPanelStyle& style) {
     const DragonUiMetrics metrics = dragonUiMetricsForContext(ui);
     const float s = metrics.pixelScale;
     const float border = metrics.border;
-    const float height = static_cast<float>(ui.logicalHeight);
-    const float panelW = designPanelW * s;
-    const float panelH = designPanelH * s;
-    const float panelX = std::floor((static_cast<float>(ui.logicalWidth) - panelW) * 0.5f);
-    const float desiredY = std::floor(height * 0.56f);
-    const float minY = metrics.topBarH + 14.0f * s;
-    const float maxY = std::max(minY, height - panelH - 6.0f * s);
-    const float panelY = std::clamp(desiredY, minY, maxY);
+    const float panelW = std::max(32.0f, style.w) * s;
+    const float panelH = std::max(32.0f, style.h) * s;
+    const float panelX = std::floor(style.x * s);
+    const float panelY = std::floor(style.y * s);
 
     return MainMenuLayout{
         SDL_FRect{ panelX, panelY, panelW, panelH },
-        designRowH * s,
-        designHeaderH * s,
-        designFooterH * s,
+        std::max(4.0f, style.rowH) * s,
+        std::max(8.0f, style.headerH) * s,
         s,
         border,
+        style,
     };
 }
 
@@ -92,7 +82,11 @@ void drawMainMenuCoverImage(
     SDL_RenderTexture(renderer, sprite.texture, nullptr, &dst);
 }
 
-void drawMainMenuTitleText(const UiRenderContext& ui) {
+void drawMainMenuTitleText(const UiRenderContext& ui, const MainMenuTitleBarView& title) {
+    if (!title.visible) {
+        return;
+    }
+
     SDL_Renderer* renderer = ui.renderer;
     const DragonUiMetrics metrics = dragonUiMetricsForContext(ui);
     const auto& tokens = dragonUiTokens();
@@ -104,9 +98,16 @@ void drawMainMenuTitleText(const UiRenderContext& ui) {
     setColor(renderer, tokens.separatorRed);
     fillRect(renderer, 0.0f, metrics.topBarH - metrics.border, width, metrics.border);
     setColor(renderer, tokens.mutedGold);
-    scaledDebugText(renderer, s, 10.0f * s, 8.0f * s, "DRAGON MUGEN CORE");
-    setColor(renderer, tokens.primaryTeal);
-    scaledDebugText(renderer, s, width * 0.5f - 32.0f * s, 8.0f * s, "MAIN MENU");
+    scaledDebugText(renderer, s, 10.0f * s, 8.0f * s, std::string(title.leftText));
+    if (!title.centerText.empty()) {
+        setColor(renderer, tokens.primaryTeal);
+        scaledDebugText(
+            renderer,
+            s,
+            width * 0.5f - static_cast<float>(title.centerText.size()) * 4.0f * s,
+            8.0f * s,
+            std::string(title.centerText));
+    }
 }
 
 void drawDragonMainMenuBackdrop(const UiRenderContext& ui, const MainMenuBackdropView& backdrop) {
@@ -175,12 +176,16 @@ void drawDragonMainMenuBackdrop(const UiRenderContext& ui, const MainMenuBackdro
 }
 
 SDL_FRect mainMenuPanelRect(const UiRenderContext& ui) {
-    return mainMenuLayout(ui).panel;
+    return mainMenuLayout(ui, MainMenuPanelStyle{}).panel;
+}
+
+SDL_FRect mainMenuPanelRect(const UiRenderContext& ui, const MainMenuPanelStyle& style) {
+    return mainMenuLayout(ui, style).panel;
 }
 
 void drawMainMenuOverlay(const UiRenderContext& ui, const MainMenuView& view) {
     SDL_Renderer* renderer = ui.renderer;
-    const MainMenuLayout layout = mainMenuLayout(ui);
+    const MainMenuLayout layout = mainMenuLayout(ui, view.panel);
     const auto& tokens = dragonUiTokens();
     const float s = layout.scale;
     const float border = layout.border;
@@ -192,20 +197,46 @@ void drawMainMenuOverlay(const UiRenderContext& ui, const MainMenuView& view) {
     const float centerX = menuX + panelW * 0.5f;
     const int selectedMode = std::clamp(view.selectedMode, 0, static_cast<int>(kDefaultModeLabels.size()) - 1);
     const float pulse = 0.5f + 0.5f * std::sin(static_cast<float>(view.frame) * 0.16f);
-    const int pulseAlpha = 96 + static_cast<int>(pulse * 70.0f);
+    const int pulseAlpha = std::clamp(
+        static_cast<int>(static_cast<float>(layout.style.selectionBorderAlpha) * (0.58f + pulse * 0.42f)),
+        0,
+        255);
 
-    setColor(renderer, tokens.panelBase, 228);
+    if (view.logo.visible && hasTexture(view.logo.sprite)) {
+        SDL_SetTextureAlphaMod(view.logo.sprite.texture, static_cast<Uint8>(std::clamp(view.logo.alpha, 0, 255)));
+        drawSpriteTopLeft(renderer, view.logo.sprite, view.logo.x * s, view.logo.y * s, view.logo.scale * s);
+        SDL_SetTextureAlphaMod(view.logo.sprite.texture, 255);
+    }
+
+    if (layout.style.shadowAlpha > 0) {
+        setColor(renderer, tokens.panelBase, static_cast<Uint8>(std::clamp(layout.style.shadowAlpha, 0, 255)));
+        fillRect(
+            renderer,
+            menuX + layout.style.shadowOffsetX * s,
+            menuY + layout.style.shadowOffsetY * s,
+            panelW,
+            panelH);
+    }
+
+    setColor(renderer, tokens.panelBase, static_cast<Uint8>(std::clamp(layout.style.panelFillAlpha, 0, 255)));
     fillRect(renderer, menuX, menuY, panelW, panelH);
-    setColor(renderer, tokens.primaryTeal, 160);
+    setColor(renderer, tokens.primaryTeal, static_cast<Uint8>(std::clamp(layout.style.panelBorderAlpha, 0, 255)));
     drawRect(renderer, menuX, menuY, panelW, panelH);
-    setColor(renderer, tokens.secondaryPanel, 238);
-    fillRect(renderer, menuX + 2.0f * s, menuY + 2.0f * s, panelW - 4.0f * s, 18.0f * s);
+    setColor(renderer, tokens.secondaryPanel, static_cast<Uint8>(std::clamp(layout.style.headerFillAlpha, 0, 255)));
+    fillRect(renderer, menuX + 2.0f * s, menuY + 2.0f * s, panelW - 4.0f * s, std::max(4.0f * s, layout.headerH - 4.0f * s));
     setColor(renderer, tokens.separatorRed);
-    fillRect(renderer, menuX + 2.0f * s, menuY + 20.0f * s, panelW - 4.0f * s, border);
+    fillRect(renderer, menuX + 2.0f * s, menuY + layout.headerH - 2.0f * s, panelW - 4.0f * s, border);
     setColor(renderer, tokens.characterPurple);
-    scaledDebugText(renderer, s, menuX + 10.0f * s, menuY + 8.0f * s, "M.U.G.E.N");
-    setColor(renderer, tokens.mutedText);
-    scaledDebugText(renderer, s, menuX + panelW - 58.0f * s, menuY + 8.0f * s, "CORE");
+    scaledDebugText(renderer, s, menuX + 10.0f * s, menuY + 8.0f * s, std::string(view.panelLeftText));
+    if (!view.panelRightText.empty()) {
+        setColor(renderer, tokens.mutedText);
+        scaledDebugText(
+            renderer,
+            s,
+            menuX + panelW - (static_cast<float>(view.panelRightText.size()) * 8.0f + 10.0f) * s,
+            menuY + 8.0f * s,
+            std::string(view.panelRightText));
+    }
 
     for (int i = 0; i < static_cast<int>(kDefaultModeLabels.size()); ++i) {
         const float y = menuY + layout.headerH + 2.0f * s + static_cast<float>(i) * rowH;
@@ -216,12 +247,16 @@ void drawMainMenuOverlay(const UiRenderContext& ui, const MainMenuView& view) {
         const float textY = y + std::max(0.0f, (rowH - 7.0f * s) * 0.5f);
 
         if (i == selectedMode) {
+            const float insetX = std::min(layout.style.selectedInsetX * s, panelW * 0.5f - 4.0f * s);
+            const float insetY = layout.style.selectedInsetY * s;
+            const float fillInsetX = std::min(insetX + 3.0f * s, panelW * 0.5f - 3.0f * s);
+            const float underlineInsetX = std::min(insetX + 6.0f * s, panelW * 0.5f - 3.0f * s);
             setColor(renderer, tokens.mutedGold, static_cast<Uint8>(pulseAlpha));
-            drawRect(renderer, menuX + 12.0f * s, y - 2.0f * s, panelW - 24.0f * s, selectionH);
-            setColor(renderer, tokens.secondaryPanel, 238);
-            fillRect(renderer, menuX + 15.0f * s, y, panelW - 30.0f * s, fillH);
-            setColor(renderer, tokens.primaryTeal);
-            fillRect(renderer, menuX + 18.0f * s, y + selectionH - 2.0f * s, panelW - 36.0f * s, border);
+            drawRect(renderer, menuX + insetX, y - insetY, panelW - 2.0f * insetX, selectionH);
+            setColor(renderer, tokens.secondaryPanel, static_cast<Uint8>(std::clamp(layout.style.selectionFillAlpha, 0, 255)));
+            fillRect(renderer, menuX + fillInsetX, y, panelW - 2.0f * fillInsetX, fillH);
+            setColor(renderer, tokens.primaryTeal, static_cast<Uint8>(std::clamp(layout.style.selectionUnderlineAlpha, 0, 255)));
+            fillRect(renderer, menuX + underlineInsetX, y + selectionH - 2.0f * s, panelW - 2.0f * underlineInsetX, border);
             setColor(renderer, tokens.mutedGold);
             scaledDebugText(renderer, s, textX, textY, label);
         } else {
