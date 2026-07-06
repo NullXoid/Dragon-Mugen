@@ -3,6 +3,7 @@
 #include "DragonUi.h"
 #include "MainMenuOverlay.h"
 #include "UiMenuList.h"
+#include "dragon/MugenText.h"
 
 #include <fstream>
 #include <iterator>
@@ -338,6 +339,100 @@ int runMainMenuResponsiveLayout(RuntimeProbe&, std::ostream& out) {
             std::string(item.name) + "_stable_presentation_grid_ui_size",
             "expected=" + std::to_string(expectedW) + "x" + std::to_string(expectedH)
                 + " actual=" + std::to_string(rect.w) + "x" + std::to_string(rect.h));
+    }
+
+    summary(out, counts);
+    return exitCode(counts);
+}
+
+std::string verificationUnquote(std::string value) {
+    value = trim(value);
+    if (value.size() >= 2 && value.front() == '"' && value.back() == '"') {
+        return value.substr(1, value.size() - 2);
+    }
+    return value;
+}
+
+std::string verificationPropertyValue(const MugenSection* section, std::string_view key) {
+    if (!section) {
+        return {};
+    }
+    const auto* property = findProperty(*section, key);
+    return property ? verificationUnquote(property->value) : std::string{};
+}
+
+int runMainMenuEditablePresentationData(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY main-menu-editable-presentation-data\n";
+
+    const auto root = std::filesystem::path(runtime.rootText());
+    const auto dragonDef = root / "data" / "dragon.def";
+    const auto systemDef = root / "data" / "system.def";
+
+    MugenDocument dragonDoc;
+    bool dragonParsed = false;
+    try {
+        dragonDoc = parseMugenTextFile(dragonDef);
+        dragonParsed = true;
+    } catch (const std::exception& ex) {
+        record(out, counts, Status::Blocked, "dragon_def_parse", ex.what());
+    }
+
+    const MugenSection* dragonMenu = dragonParsed ? findSection(dragonDoc, "Dragon.MainMenu") : nullptr;
+    record(out, counts, dragonMenu ? Status::Pass : Status::Fail,
+        "dragon_main_menu_section",
+        dragonDef.string());
+    if (dragonMenu) {
+        const std::string background = verificationPropertyValue(dragonMenu, "background");
+        record(out, counts, !background.empty() ? Status::Pass : Status::Fail,
+            "dragon_main_menu_background_configurable",
+            "background=" + background);
+
+        constexpr std::array<std::string_view, kMainMenuOptionCount> dragonLabelKeys{ {
+            "label.training",
+            "label.single_player",
+            "label.vs_mode",
+            "label.arena_mode",
+            "label.story_mode",
+            "label.shop_demo",
+            "label.options",
+            "label.exit",
+        } };
+        for (std::string_view key : dragonLabelKeys) {
+            const std::string value = verificationPropertyValue(dragonMenu, key);
+            record(out, counts, !value.empty() ? Status::Pass : Status::Fail,
+                "dragon_main_menu_" + std::string(key) + "_editable",
+                value);
+        }
+    }
+
+    MugenDocument systemDoc;
+    bool systemParsed = false;
+    try {
+        systemDoc = parseMugenTextFile(systemDef);
+        systemParsed = true;
+    } catch (const std::exception& ex) {
+        record(out, counts, Status::Blocked, "system_def_parse", ex.what());
+    }
+
+    const MugenSection* titleInfo = systemParsed ? findSection(systemDoc, "Title Info") : nullptr;
+    record(out, counts, titleInfo ? Status::Pass : Status::Fail,
+        "mugen_title_info_section",
+        systemDef.string());
+    if (titleInfo) {
+        constexpr std::array<std::string_view, 5> motifLabelKeys{ {
+            "menu.itemname.training",
+            "menu.itemname.arcade",
+            "menu.itemname.versus",
+            "menu.itemname.options",
+            "menu.itemname.exit",
+        } };
+        for (std::string_view key : motifLabelKeys) {
+            const std::string value = verificationPropertyValue(titleInfo, key);
+            record(out, counts, !value.empty() ? Status::Pass : Status::Fail,
+                "mugen_title_" + std::string(key) + "_fallback",
+                value);
+        }
     }
 
     summary(out, counts);

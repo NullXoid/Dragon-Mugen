@@ -108,6 +108,7 @@ struct MainMenuPresentationConfig {
     bool fallbackGrid = true;
     float backgroundPanX = 0.5f;
     int backgroundDimAlpha = 0;
+    std::array<std::string, kMainMenuOptionCount> labels{};
 };
 
 struct SystemScreenAssets {

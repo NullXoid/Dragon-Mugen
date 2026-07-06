@@ -5,12 +5,19 @@
 
 #include <SDL3/SDL_rect.h>
 
+#include <array>
+#include <cstddef>
+#include <string_view>
+
 namespace dragon {
+
+inline constexpr std::size_t kMainMenuOptionCount = 8;
 
 struct MainMenuView {
     int selectedMode = 0;
     int frame = 0;
     bool exitConfirmOpen = false;
+    std::array<std::string_view, kMainMenuOptionCount> labels{};
 };
 
 struct MainMenuBackdropView {

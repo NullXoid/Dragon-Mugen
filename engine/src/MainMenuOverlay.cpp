@@ -14,7 +14,7 @@
 namespace dragon {
 namespace {
 
-constexpr std::array<std::string_view, 8> kModeLabels{ {
+constexpr std::array<std::string_view, kMainMenuOptionCount> kDefaultModeLabels{ {
     "TRAINING",
     "SINGLE PLAYER",
     "VS MODE",
@@ -24,6 +24,13 @@ constexpr std::array<std::string_view, 8> kModeLabels{ {
     "OPTIONS",
     "EXIT",
 } };
+
+std::string_view modeLabel(const MainMenuView& view, std::size_t index) {
+    if (index < view.labels.size() && !view.labels[index].empty()) {
+        return view.labels[index];
+    }
+    return kDefaultModeLabels[index];
+}
 
 struct MainMenuLayout {
     SDL_FRect panel{};
@@ -183,7 +190,7 @@ void drawMainMenuOverlay(const UiRenderContext& ui, const MainMenuView& view) {
     const float menuX = layout.panel.x;
     const float menuY = layout.panel.y;
     const float centerX = menuX + panelW * 0.5f;
-    const int selectedMode = std::clamp(view.selectedMode, 0, static_cast<int>(kModeLabels.size()) - 1);
+    const int selectedMode = std::clamp(view.selectedMode, 0, static_cast<int>(kDefaultModeLabels.size()) - 1);
     const float pulse = 0.5f + 0.5f * std::sin(static_cast<float>(view.frame) * 0.16f);
     const int pulseAlpha = 96 + static_cast<int>(pulse * 70.0f);
 
@@ -200,9 +207,9 @@ void drawMainMenuOverlay(const UiRenderContext& ui, const MainMenuView& view) {
     setColor(renderer, tokens.mutedText);
     scaledDebugText(renderer, s, menuX + panelW - 58.0f * s, menuY + 8.0f * s, "CORE");
 
-    for (int i = 0; i < static_cast<int>(kModeLabels.size()); ++i) {
+    for (int i = 0; i < static_cast<int>(kDefaultModeLabels.size()); ++i) {
         const float y = menuY + layout.headerH + 2.0f * s + static_cast<float>(i) * rowH;
-        const std::string label(kModeLabels[static_cast<std::size_t>(i)]);
+        const std::string label(modeLabel(view, static_cast<std::size_t>(i)));
         const float textX = centerX - static_cast<float>(label.size()) * 4.0f * s;
         const float selectionH = std::max(6.0f * s, rowH - 1.0f * s);
         const float fillH = std::max(5.0f * s, rowH - 3.0f * s);

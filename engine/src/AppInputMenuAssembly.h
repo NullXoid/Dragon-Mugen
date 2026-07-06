@@ -189,6 +189,14 @@ std::string mainSettingsPadSummary(const AppState& state) {
     return "PADS " + std::to_string(state.gamepads.size()) + "  " + gamepadFamilyName(state.gamepads.front().type);
 }
 
+std::array<std::string_view, kMainMenuOptionCount> mainMenuLabelViews(const MainMenuPresentationConfig& config) {
+    std::array<std::string_view, kMainMenuOptionCount> labels{};
+    for (std::size_t i = 0; i < labels.size(); ++i) {
+        labels[i] = config.labels[i];
+    }
+    return labels;
+}
+
 ControlsOptionsContext controlsOptionsContext(const AppState& state);
 
 void drawModeSelect(SDL_Renderer* renderer, const AppState& state) {
@@ -208,7 +216,8 @@ void drawModeSelect(SDL_Renderer* renderer, const AppState& state) {
     drawMainMenuOverlay(ui, MainMenuView{
         state.frontend.selectedMode,
         state.frontend.screenFrame,
-        state.frontend.exitConfirmOpen });
+        state.frontend.exitConfirmOpen,
+        mainMenuLabelViews(state.systemScreens.mainMenu) });
 
     drawFpsCounter(renderer, state);
     SDL_RenderPresent(renderer);

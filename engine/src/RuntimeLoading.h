@@ -95,8 +95,88 @@ std::string dragonSectionValue(const MugenSection& section, std::string_view key
     return fallback;
 }
 
+std::array<std::string, kMainMenuOptionCount> defaultMainMenuLabels() {
+    return {
+        "TRAINING",
+        "SINGLE PLAYER",
+        "VS MODE",
+        "ARENA MODE",
+        "STORY MODE",
+        "SHOP DEMO",
+        "OPTIONS",
+        "EXIT",
+    };
+}
+
+std::string sectionStringValue(const MugenSection& section, std::string_view key) {
+    if (const auto* property = findProperty(section, key)) {
+        return unquote(trim(property->value));
+    }
+    return {};
+}
+
+void loadMotifMainMenuLabels(const std::filesystem::path& gameRoot, MainMenuPresentationConfig& config) {
+    const auto systemDef = gameRoot / "data" / "system.def";
+    if (!std::filesystem::exists(systemDef)) {
+        return;
+    }
+
+    constexpr std::array<std::string_view, kMainMenuOptionCount> motifKeys{ {
+        "menu.itemname.training",
+        "menu.itemname.arcade",
+        "menu.itemname.versus",
+        "",
+        "",
+        "",
+        "menu.itemname.options",
+        "menu.itemname.exit",
+    } };
+
+    try {
+        const MugenDocument doc = parseMugenTextFile(systemDef);
+        const MugenSection* section = findSection(doc, "Title Info");
+        if (!section) {
+            return;
+        }
+        for (std::size_t i = 0; i < motifKeys.size(); ++i) {
+            if (motifKeys[i].empty()) {
+                continue;
+            }
+            const std::string label = sectionStringValue(*section, motifKeys[i]);
+            if (!label.empty()) {
+                config.labels[i] = label;
+            }
+        }
+    } catch (const std::exception& ex) {
+        SDL_Log("M.U.G.E.N title menu label load failed: %s", ex.what());
+    }
+}
+
+void applyDragonMainMenuLabels(const MugenSection& section, MainMenuPresentationConfig& config) {
+    constexpr std::array<std::string_view, kMainMenuOptionCount> dragonKeys{ {
+        "label.training",
+        "label.single_player",
+        "label.vs_mode",
+        "label.arena_mode",
+        "label.story_mode",
+        "label.shop_demo",
+        "label.options",
+        "label.exit",
+    } };
+
+    for (std::size_t i = 0; i < dragonKeys.size(); ++i) {
+        const std::string label = dragonSectionValue(section, dragonKeys[i]);
+        if (!label.empty()) {
+            config.labels[i] = label;
+        }
+    }
+}
+
 MainMenuPresentationConfig loadMainMenuPresentationConfig(const std::filesystem::path& gameRoot) {
     MainMenuPresentationConfig config;
+    config.labels = defaultMainMenuLabels();
+    loadMotifMainMenuLabels(gameRoot, config);
+
     const auto dragonDef = gameRoot / "data" / "dragon.def";
     if (!std::filesystem::exists(dragonDef)) {
         return config;
@@ -108,6 +188,8 @@ MainMenuPresentationConfig loadMainMenuPresentationConfig(const std::filesystem:
         if (!section) {
             return config;
         }
+
+        applyDragonMainMenuLabels(*section, config);
 
         const std::string background = dragonSectionValue(*section, "background", "motif");
         const std::string normalized = lowercaseCopy(background);

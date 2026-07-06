@@ -9,6 +9,17 @@ background = motif
 background.pan.x = 0.5
 background.dim = 0
 fallback.grid = 1
+; Menu labels are read from here first. If a label is blank or missing, the
+; engine falls back to the matching M.U.G.E.N [Title Info] item name where one
+; exists, then to the built-in Dragon route name.
+label.training = TRAINING
+label.single_player = SINGLE PLAYER
+label.vs_mode = VS MODE
+label.arena_mode = ARENA MODE
+label.story_mode = STORY MODE
+label.shop_demo = SHOP DEMO
+label.options = OPTIONS
+label.exit = EXIT
 
 [Dragon.Progression]
 enabled = 1
