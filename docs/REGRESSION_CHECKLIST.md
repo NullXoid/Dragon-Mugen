@@ -134,6 +134,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Training character select shows one clear dummy opponent card.
 - Stage select opens after character confirmation.
 - Stage select previews the selected stage behind the menu, shows the stage name at the bottom, and refreshes when changing stages with Left/Right.
+- Regular Stage Select uses the same stable virtual-layout rule as Main Menu, Options, Story Select, loading, and results. `stage-select-responsive-layout` must stay green so HD output does not collapse the stage menu into the old `320x240` top-strip layout.
 - Main menu labels, top title text, panel header text, logo, panel geometry, menu row spacing, selection styling, panel shadow, and motif shadow remain editable presentation data. Dragon-owned values come from `game/data/dragon.def` `[Dragon.MainMenu]`, and compatible fallback labels come from M.U.G.E.N `game/data/system.def` `[Title Info]`. `main-menu-editable-presentation-data` and `main-menu-editable-layout-data` must stay green when touching menu loading or presentation.
 - Stage confirmation opens the VS screen first.
 - Fight view loads selected character and selected stage after VS.

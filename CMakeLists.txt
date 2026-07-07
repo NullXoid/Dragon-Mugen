@@ -133,6 +133,7 @@ add_library(dragon_core STATIC
     engine/src/VerificationScenarioClassicCombat.cpp
     engine/src/VerificationScenarioModeSmoke.cpp
     engine/src/VerificationScenarioOptionsControls.cpp
+    engine/src/VerificationScenarioStageSelect.cpp
     engine/src/VerificationScenarioFightOutcomes.cpp
     engine/src/VerificationScenarioDragonProgression.cpp
     engine/src/VerificationScenarioKfmHit.cpp
