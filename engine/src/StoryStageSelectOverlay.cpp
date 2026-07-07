@@ -133,8 +133,10 @@ int firstVisibleStage(int selectedIndex, int stageCount, int visibleCount) {
 
 void drawStoryStageSelectOverlay(const UiRenderContext& ui, const StoryStageSelectView& view) {
     SDL_Renderer* renderer = ui.renderer;
-    const float widthF = static_cast<float>(ui.logicalWidth);
-    const float heightF = static_cast<float>(ui.logicalHeight);
+    const float virtualWidth = ui.logicalWidth <= 340 ? 320.0f : 426.0f;
+    ScopedVirtualCanvas virtualCanvas(ui, virtualWidth, 240.0f);
+    const float widthF = virtualWidth;
+    const float heightF = 240.0f;
     const float centerX = widthF * 0.5f;
 
     setColor(renderer, 4, 6, 10, 112);
@@ -144,7 +146,7 @@ void drawStoryStageSelectOverlay(const UiRenderContext& ui, const StoryStageSele
     setColor(renderer, 224, 64, 86, 210);
     fillRect(renderer, 0, 27.0f, widthF, 2.0f);
 
-    storyText(renderer, 14.0f, 8.0f, fitDebugText(view.routeTitle.empty() ? "STORY MAP" : view.routeTitle, 18), 246, 226, 112);
+    storyText(renderer, 14.0f, 8.0f, fitDebugText(view.routeTitle.empty() ? "STORY MAP" : view.routeTitle, widthF < 360.0f ? 11 : 15), 246, 226, 112);
     storyTextCentered(renderer, centerX, 8.0f, "SELECT A BOARD", 150, 210, 252);
     const float fighterRight = widthF - 66.0f;
     const int fighterChars = std::clamp(static_cast<int>((fighterRight - centerX - 62.0f) / 8.0f), 0, 8);
@@ -204,9 +206,17 @@ void drawStoryStageSelectOverlay(const UiRenderContext& ui, const StoryStageSele
     const int selectedOneBased = std::clamp(view.selectedIndex + 1, 1, stageCount);
     storyText(renderer, panelX + 12.0f, panelY + 4.0f, "EPISODE " + std::to_string(selectedOneBased) + "/" + std::to_string(stageCount), 246, 226, 112);
     storyText(renderer, panelX + 102.0f, panelY + 4.0f, fitDebugText(view.selectedStageName, 24), 150, 226, 252);
-    storyText(renderer, panelX + 12.0f, panelY + 30.0f, fitDebugText(view.selectedNodeKind.empty() ? "NODE" : view.selectedNodeKind, 10), 120, 226, 218);
-    storyText(renderer, panelX + 92.0f, panelY + 30.0f, "WAVES " + std::to_string(std::max(1, view.waveCount)), 220, 232, 242);
-    storyText(renderer, panelX + 158.0f, panelY + 30.0f, "DIFF " + fitDebugText(view.difficultyLabel, 4), 246, 226, 112);
+    const bool compactDetails = widthF < 360.0f;
+    storyText(
+        renderer,
+        panelX + 12.0f,
+        panelY + 30.0f,
+        fitDebugText(view.selectedNodeKind.empty() ? "NODE" : view.selectedNodeKind, compactDetails ? 9 : 11),
+        120,
+        226,
+        218);
+    storyText(renderer, panelX + (compactDetails ? 100.0f : 112.0f), panelY + 30.0f, "WAVES " + std::to_string(std::max(1, view.waveCount)), 220, 232, 242);
+    storyText(renderer, panelX + (compactDetails ? 170.0f : 190.0f), panelY + 30.0f, "DIFF " + fitDebugText(view.difficultyLabel, 4), 246, 226, 112);
     if (!view.selectedNodeTarget.empty()) {
         storyTextRight(renderer, panelX + panelW - 12.0f, panelY + 30.0f, fitDebugText(view.selectedNodeTarget, 12), 196, 206, 220);
     } else {
@@ -215,7 +225,7 @@ void drawStoryStageSelectOverlay(const UiRenderContext& ui, const StoryStageSele
 
     setColor(renderer, 6, 8, 12, 190);
     fillRect(renderer, 0, heightF - 15.0f, widthF, 15.0f);
-    storyTextCentered(renderer, centerX, heightF - 12.0f, "L/R BOARD   UP/DOWN DIFF   ENTER START/SHOP   ESC BACK", 220, 232, 242);
+    storyTextCentered(renderer, centerX, heightF - 12.0f, "L/R BOARD  UP/DN DIFF  ENT START  ESC BACK", 220, 232, 242);
 }
 
 } // namespace dragon

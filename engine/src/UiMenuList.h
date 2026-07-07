@@ -32,6 +32,10 @@ struct UiMenuListStyle {
     float rowH = 12.0f;
     bool redSelection = true;
     float textScale = 1.0f;
+    float frameX = 0.0f;
+    float frameY = 0.0f;
+    float frameW = 0.0f;
+    float frameH = 0.0f;
 };
 
 struct UiMenuListGeometryReport {
@@ -40,6 +44,11 @@ struct UiMenuListGeometryReport {
 };
 
 void drawUiMenuList(const UiRenderContext& ui, const UiMenuListView& view, const UiMenuListStyle& style = {});
+UiMenuListGeometryReport verifyUiMenuListGeometry(
+    const UiMenuListView& view,
+    float frameW,
+    float frameH,
+    const UiMenuListStyle& style = {});
 UiMenuListGeometryReport verifyUiMenuListGeometry(
     const UiMenuListView& view,
     float frameW,

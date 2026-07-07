@@ -3,14 +3,16 @@
 // Internal App.cpp implementation shard.
 // UI context, Arena projection, sprite drawing, and versus loading helpers.
 
+CanvasDimensions activeCanvasDimensions(const AppState& state) {
+    return dimensionsForPreset(state.mainSettings.canvasPreset);
+}
+
 int logicalWidth(const AppState& state) {
-    static_cast<void>(state);
-    return presentationDimensions().width;
+    return activeCanvasDimensions(state).width;
 }
 
 int logicalHeight(const AppState& state) {
-    static_cast<void>(state);
-    return presentationDimensions().height;
+    return activeCanvasDimensions(state).height;
 }
 
 float logicalWidthF(const AppState& state) {
@@ -25,6 +27,19 @@ float screenCenterX(const AppState& state) {
     return logicalWidthF(state) * 0.5f;
 }
 
+float worldRenderScale(const AppState& state) {
+    return logicalHeightF(state) / static_cast<float>(kDesignLogicalHeight);
+}
+
+float worldViewportWidth(const AppState& state) {
+    const float scale = worldRenderScale(state);
+    return scale > 0.0f ? logicalWidthF(state) / scale : logicalWidthF(state);
+}
+
+float worldViewportHalfWidth(const AppState& state) {
+    return worldViewportWidth(state) * 0.5f;
+}
+
 float motifOriginX(const AppState& state) {
     return (logicalWidthF(state) - static_cast<float>(kClassicLogicalWidth)) * 0.5f;
 }
@@ -34,14 +49,14 @@ float uiScale(const AppState& state) {
 }
 
 UiRenderContext uiRenderContext(SDL_Renderer* renderer, const AppState& state) {
-    const CanvasDimensions output = dimensionsForPreset(state.mainSettings.canvasPreset);
+    const CanvasDimensions canvas = activeCanvasDimensions(state);
     return UiRenderContext{
         renderer,
-        logicalWidth(state),
-        logicalHeight(state),
+        canvas.width,
+        canvas.height,
         uiScale(state),
-        output.width,
-        output.height,
+        canvas.width,
+        canvas.height,
     };
 }
 
@@ -221,9 +236,10 @@ ArenaProjectedPoint projectArenaWorldPoint(
         viewX = worldX * c - effectiveDepth * s;
         viewZ = worldX * s + effectiveDepth * c;
     }
+    const float scale = worldRenderScale(state);
     return ArenaProjectedPoint{
-        screenCenterX(state) + viewX,
-        stage.zoffset + y + viewZ * state.arenaConfig.depthProjectionScale - state.cameraY,
+        screenCenterX(state) + viewX * scale,
+        (stage.zoffset + y + viewZ * state.arenaConfig.depthProjectionScale - state.cameraY) * scale,
         viewZ,
     };
 }
@@ -418,7 +434,18 @@ VsScreenLoadStatus vsScreenLoadStatus(const AppState& state) {
 }
 
 std::string_view loadingOpponentSlotLabel(const AppState& state) {
+    if (isStoryMode(state)) {
+        const StoryWaveRole role = storyWaveRole(state, state.story.waveIndex);
+        return role == StoryWaveRole::Normal ? std::string_view{"WAVE"} : storyWaveRoleLabel(role);
+    }
     return opponentTypeLabel(activeOpponentType(state));
+}
+
+std::string loadingOpponentDisplayName(const AppState& state) {
+    if (isStoryMode(state)) {
+        return storyFighterName(state, 1);
+    }
+    return opponentDisplayName(state);
 }
 
 VsScreenView versusScreenView(const AppState& state) {
@@ -447,7 +474,7 @@ VsScreenView versusScreenView(const AppState& state) {
     return VsScreenView{
         std::string(pendingModeTitle(state.frontend.pendingMode)),
         compactSettingText(selectedCharacterName(state.selection), 13),
-        compactSettingText(opponentDisplayName(state), 10),
+        compactSettingText(loadingOpponentDisplayName(state), 12),
         std::string(loadingOpponentSlotLabel(state)),
         compactSettingText(selectedStageName(state.selection), 26),
         phase,

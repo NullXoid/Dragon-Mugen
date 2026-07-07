@@ -14,7 +14,8 @@
 ;   reward_xp  = optional reward when the wave clears
 ;   reward_gold = optional reward when the wave clears
 ; Board sections can also use board_reward_xp/board_reward_gold,
-; clear_cue_image, and shop_cue_image.
+; clear_cue_image, shop_cue_image, regular_enemy, midboss_enemy,
+; and boss_enemy.
 
 [Route]
 id = aben_arena_mall_route
@@ -27,13 +28,16 @@ type = side_scroller
 title = STREET PATROL
 stage = stages/tmnt_openbor_street.def
 waves = 2
+regular_enemy = kfm
+midboss_enemy = EvilKen
+boss_enemy = EvilRyu
 wave_clear_text = WAVE CLEAR
 clear_cue_image = data/story/wave_clear_arrow.png
 board_reward_xp = 10
 board_reward_gold = 15
 
 [Board 0.Wave 0]
-enemies = I.Chie
+enemies = kfm
 spawn_x = 0
 spawn_z = 0
 clear_text = WAVE CLEAR
@@ -41,7 +45,7 @@ reward_xp = 3
 reward_gold = 5
 
 [Board 0.Wave 1]
-enemies = I.Chie, I.Chie
+enemies = kfm, kfm
 spawn_x = 0, 46
 spawn_z = -18, 18
 clear_text = ROUTE CLEAR
@@ -54,13 +58,16 @@ type = side_scroller
 title = COMIC STREET
 stage = stages/comic_street_rumble.def
 waves = 2
+regular_enemy = kfm
+midboss_enemy = EvilKen
+boss_enemy = EvilRyu
 wave_clear_text = WAVE CLEAR
 clear_cue_image = data/story/wave_clear_arrow.png
 board_reward_xp = 12
 board_reward_gold = 18
 
 [Board 1.Wave 0]
-enemies = I.Chie
+enemies = kfm
 spawn_x = 0
 spawn_z = 0
 clear_text = WAVE CLEAR
@@ -68,7 +75,7 @@ reward_xp = 4
 reward_gold = 6
 
 [Board 1.Wave 1]
-enemies = I.Chie, I.Chie
+enemies = kfm, kfm
 spawn_x = -18, 42
 spawn_z = -22, 22
 clear_text = ROUTE CLEAR
@@ -80,14 +87,15 @@ id = sewer_midboss
 type = mid_boss
 title = SEWER MID BOSS
 stage = stages/tmnt_sewer_patrol.def
-enemy = I.Chie
+enemy = EvilKen
+midboss_enemy = EvilKen
 waves = 1
 clear_cue_image = data/story/wave_clear_arrow.png
 board_reward_xp = 20
 board_reward_gold = 30
 
 [Board 2.Wave 0]
-enemies = I.Chie
+enemies = EvilKen
 spawn_x = 10
 spawn_z = 0
 clear_text = MID BOSS CLEAR
@@ -115,14 +123,15 @@ id = arena_mall_boss
 type = arena_boss
 title = ARENA MALL BOSS
 stage = stages/openbor_scroll.def
-enemy = I.Chie
+enemy = EvilRyu
+boss_enemy = EvilRyu
 waves = 1
 clear_cue_image = data/story/wave_clear_arrow.png
 board_reward_xp = 30
 board_reward_gold = 45
 
 [Board 4.Wave 0]
-enemies = I.Chie
+enemies = EvilRyu
 spawn_x = 0
 spawn_z = 0
 clear_text = BOSS CLEAR

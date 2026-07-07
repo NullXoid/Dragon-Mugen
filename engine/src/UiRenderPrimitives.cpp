@@ -225,6 +225,32 @@ ScopedUiScale::~ScopedUiScale() {
     SDL_SetRenderViewport(renderer, &oldViewport);
 }
 
+ScopedVirtualCanvas::ScopedVirtualCanvas(const UiRenderContext& context, float virtualWidth, float virtualHeight)
+    : renderer(context.renderer) {
+    SDL_GetRenderViewport(renderer, &oldViewport);
+    SDL_GetRenderScale(renderer, &oldScaleX, &oldScaleY);
+
+    const float fitScale = std::min(
+        static_cast<float>(context.logicalWidth) / std::max(1.0f, virtualWidth),
+        static_cast<float>(context.logicalHeight) / std::max(1.0f, virtualHeight));
+    const float scale = std::max(1.0f, std::floor(fitScale + 0.01f));
+    const float width = virtualWidth * scale;
+    const float height = virtualHeight * scale;
+    SDL_Rect viewport{
+        static_cast<int>(std::lround((static_cast<float>(context.logicalWidth) - width) * 0.5f)),
+        static_cast<int>(std::lround((static_cast<float>(context.logicalHeight) - height) * 0.5f)),
+        static_cast<int>(std::lround(width)),
+        static_cast<int>(std::lround(height)),
+    };
+    SDL_SetRenderViewport(renderer, &viewport);
+    SDL_SetRenderScale(renderer, scale, scale);
+}
+
+ScopedVirtualCanvas::~ScopedVirtualCanvas() {
+    SDL_SetRenderScale(renderer, oldScaleX, oldScaleY);
+    SDL_SetRenderViewport(renderer, &oldViewport);
+}
+
 void debugTextCentered(SDL_Renderer* renderer, float centerX, float y, const std::string& text) {
     debugText(renderer, centerX - static_cast<float>(text.size()) * 4.0f, y, text);
 }

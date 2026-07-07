@@ -164,8 +164,8 @@ inline CanvasDimensions presentationDimensions() {
 }
 
 inline bool canvasPresetChangesLayout(CanvasPreset preset) {
-    static_cast<void>(preset);
-    return false;
+    return dimensionsForPreset(preset).width != dimensionsForPreset(kStandardCanvasPreset).width
+        || dimensionsForPreset(preset).height != dimensionsForPreset(kStandardCanvasPreset).height;
 }
 
 enum class DragonLayoutClass {

@@ -29,12 +29,12 @@ struct MainMenuLogoView {
 };
 
 struct MainMenuPanelStyle {
-    float x = 125.0f;
-    float y = 124.0f;
+    float x = -1.0f;
+    float y = 181.0f;
     float w = 176.0f;
-    float h = 110.0f;
-    float headerH = 22.0f;
-    float rowH = 10.625f;
+    float h = 100.0f;
+    float headerH = 19.0f;
+    float rowH = 9.5f;
     float selectedInsetX = 12.0f;
     float selectedInsetY = 2.0f;
     int panelFillAlpha = 228;

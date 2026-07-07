@@ -71,16 +71,20 @@ void drawStageLayer(SDL_Renderer* renderer, const AppState& state, int layerNo) 
             continue;
         }
 
+        const float renderScale = worldRenderScale(state);
         float baseX = screenCenterX(state)
-            + element.x
-            + frameOffsetX
-            - static_cast<float>(sprite->axisX)
-            - state.cameraX * element.deltaX;
-        const float baseY = element.y
+            + (element.x
+                + frameOffsetX
+                - static_cast<float>(sprite->axisX)
+                - state.cameraX * element.deltaX) * renderScale;
+        const float baseY = (element.y
             + frameOffsetY
             - static_cast<float>(sprite->axisY)
-            - state.cameraY * element.deltaY;
-        float drawWidth = static_cast<float>(sprite->width);
+            - state.cameraY * element.deltaY) * renderScale;
+        float drawWidth = static_cast<float>(sprite->width) * renderScale;
+        const float drawHeight = static_cast<float>(sprite->height) * renderScale;
+        const float tileWidth = static_cast<float>(sprite->width) * renderScale;
+        const float tileHeight = static_cast<float>(sprite->height) * renderScale;
         const float widthF = logicalWidthF(state);
         const bool fixedWideBackdrop = layerNo == 0
             && !element.tileX
@@ -92,33 +96,37 @@ void drawStageLayer(SDL_Renderer* renderer, const AppState& state, int layerNo) 
             baseX = 0.0f;
             drawWidth = widthF;
         }
-        const int repeatX = element.tileX ? 6 : 1;
-        const int repeatY = element.tileY ? 3 : 1;
-        const float firstX = element.tileX ? baseX - static_cast<float>(sprite->width * 2) : baseX;
-        const float firstY = element.tileY ? baseY - static_cast<float>(sprite->height) : baseY;
+        const int repeatX = element.tileX && tileWidth > 0.0f
+            ? std::max(6, static_cast<int>(std::ceil(widthF / tileWidth)) + 5)
+            : 1;
+        const int repeatY = element.tileY && tileHeight > 0.0f
+            ? std::max(3, static_cast<int>(std::ceil(logicalHeightF(state) / tileHeight)) + 3)
+            : 1;
+        const float firstX = element.tileX ? baseX - tileWidth * 2.0f : baseX;
+        const float firstY = element.tileY ? baseY - tileHeight : baseY;
 
         int startTx = 0;
         int endTx = repeatX;
-        if (element.tileX && sprite->width > 0) {
+        if (element.tileX && tileWidth > 0.0f) {
             constexpr float pad = 72.0f;
-            startTx = std::clamp(static_cast<int>(std::floor((-pad - firstX) / static_cast<float>(sprite->width))), 0, repeatX - 1);
-            endTx = std::clamp(static_cast<int>(std::ceil((widthF + pad - firstX) / static_cast<float>(sprite->width))) + 1, startTx + 1, repeatX);
+            startTx = std::clamp(static_cast<int>(std::floor((-pad - firstX) / tileWidth)), 0, repeatX - 1);
+            endTx = std::clamp(static_cast<int>(std::ceil((widthF + pad - firstX) / tileWidth)) + 1, startTx + 1, repeatX);
         }
         int startTy = 0;
         int endTy = repeatY;
-        if (element.tileY && sprite->height > 0) {
+        if (element.tileY && tileHeight > 0.0f) {
             constexpr float pad = 72.0f;
-            startTy = std::clamp(static_cast<int>(std::floor((-pad - firstY) / static_cast<float>(sprite->height))), 0, repeatY - 1);
-            endTy = std::clamp(static_cast<int>(std::ceil((logicalHeightF(state) + pad - firstY) / static_cast<float>(sprite->height))) + 1, startTy + 1, repeatY);
+            startTy = std::clamp(static_cast<int>(std::floor((-pad - firstY) / tileHeight)), 0, repeatY - 1);
+            endTy = std::clamp(static_cast<int>(std::ceil((logicalHeightF(state) + pad - firstY) / tileHeight)) + 1, startTy + 1, repeatY);
         }
 
         for (int ty = startTy; ty < endTy; ++ty) {
             for (int tx = startTx; tx < endTx; ++tx) {
                 SDL_FRect dst{
-                    firstX + static_cast<float>(tx * sprite->width),
-                    firstY + static_cast<float>(ty * sprite->height),
+                    firstX + static_cast<float>(tx) * tileWidth,
+                    firstY + static_cast<float>(ty) * tileHeight,
                     drawWidth,
-                    static_cast<float>(sprite->height),
+                    drawHeight,
                 };
                 if (skipInvisibleRenderRect(state, dst, 72.0f)) {
                     continue;
@@ -276,18 +284,21 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
         const ArenaProjectedPoint projected = projectArenaWorldPoint(state, stage, x, y, depthZ);
         const float originX = projected.screenX;
         const float originY = projected.screenY;
+        const float renderScale = worldRenderScale(state);
+        const float drawScaleX = scaleX * renderScale;
+        const float drawScaleY = scaleY * renderScale;
         const bool facingLeft = facing < 0;
         const bool flipH = frame->flipX != facingLeft;
         const float drawX = facingLeft
-            ? originX - static_cast<float>(frame->offsetX) * scaleX - static_cast<float>(frame->sprite.width - frame->sprite.axisX) * scaleX
-            : originX + static_cast<float>(frame->offsetX) * scaleX - static_cast<float>(frame->sprite.axisX) * scaleX;
-        const float drawY = originY + static_cast<float>(frame->offsetY) * scaleY - static_cast<float>(frame->sprite.axisY) * scaleY;
+            ? originX - static_cast<float>(frame->offsetX) * drawScaleX - static_cast<float>(frame->sprite.width - frame->sprite.axisX) * drawScaleX
+            : originX + static_cast<float>(frame->offsetX) * drawScaleX - static_cast<float>(frame->sprite.axisX) * drawScaleX;
+        const float drawY = originY + static_cast<float>(frame->offsetY) * drawScaleY - static_cast<float>(frame->sprite.axisY) * drawScaleY;
 
         SDL_FRect dst{
             drawX,
             drawY,
-            static_cast<float>(frame->sprite.width) * scaleX,
-            static_cast<float>(frame->sprite.height) * scaleY,
+            static_cast<float>(frame->sprite.width) * drawScaleX,
+            static_cast<float>(frame->sprite.height) * drawScaleY,
         };
         if (skipInvisibleRenderRect(state, dst, 96.0f)) {
             return false;
@@ -379,20 +390,23 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
         const ArenaProjectedPoint projected = projectArenaWorldPoint(state, stage, fighter.x, fighter.y, fighter.depthZ);
         const float originX = projected.screenX;
         const float originY = projected.screenY;
-        const float displayOriginX = originX + fighter.displayOffsetX * static_cast<float>(fighter.facing);
-        const float displayOriginY = originY + fighter.displayOffsetY;
+        const float renderScale = worldRenderScale(state);
+        const float drawScaleX = fighter.scaleX * renderScale;
+        const float drawScaleY = fighter.scaleY * renderScale;
+        const float displayOriginX = originX + fighter.displayOffsetX * static_cast<float>(fighter.facing) * renderScale;
+        const float displayOriginY = originY + fighter.displayOffsetY * renderScale;
         const bool facingLeft = fighter.facing < 0;
         const bool flipH = frame->flipX != facingLeft;
         const float drawX = facingLeft
-            ? displayOriginX - static_cast<float>(frame->offsetX) * fighter.scaleX - static_cast<float>(frame->sprite.width - frame->sprite.axisX) * fighter.scaleX
-            : displayOriginX + static_cast<float>(frame->offsetX) * fighter.scaleX - static_cast<float>(frame->sprite.axisX) * fighter.scaleX;
-        const float drawY = displayOriginY + static_cast<float>(frame->offsetY) * fighter.scaleY - static_cast<float>(frame->sprite.axisY) * fighter.scaleY;
+            ? displayOriginX - static_cast<float>(frame->offsetX) * drawScaleX - static_cast<float>(frame->sprite.width - frame->sprite.axisX) * drawScaleX
+            : displayOriginX + static_cast<float>(frame->offsetX) * drawScaleX - static_cast<float>(frame->sprite.axisX) * drawScaleX;
+        const float drawY = displayOriginY + static_cast<float>(frame->offsetY) * drawScaleY - static_cast<float>(frame->sprite.axisY) * drawScaleY;
 
         SDL_FRect dst{
             drawX,
             drawY,
-            static_cast<float>(frame->sprite.width) * fighter.scaleX,
-            static_cast<float>(frame->sprite.height) * fighter.scaleY,
+            static_cast<float>(frame->sprite.width) * drawScaleX,
+            static_cast<float>(frame->sprite.height) * drawScaleY,
         };
         if (skipInvisibleRenderRect(state, dst, 96.0f)) {
             return;
@@ -471,18 +485,19 @@ void drawActor(SDL_Renderer* renderer, const AppState& state, const FighterState
         fighter.depthZ);
     const float originX = projected.screenX;
     const float originY = projected.screenY;
+    const float renderScale = worldRenderScale(state);
     if (actorIndex == 0) {
         setColor(renderer, 62, 118, 184);
     } else {
         setColor(renderer, 218, 174, 100);
     }
-    fillRect(renderer, originX - 14.0f, originY - 58.0f, 28, 58);
-    fillRect(renderer, originX - 22.0f, originY - 38.0f, 44, 12);
+    fillRect(renderer, originX - 14.0f * renderScale, originY - 58.0f * renderScale, 28.0f * renderScale, 58.0f * renderScale);
+    fillRect(renderer, originX - 22.0f * renderScale, originY - 38.0f * renderScale, 44.0f * renderScale, 12.0f * renderScale);
     if (drawHitFeedback) {
         setColor(renderer, 255, 178, 86, fighter.hitPauseTicks > 0 ? 112 : 72);
-        fillRect(renderer, originX - 24.0f, originY - 60.0f, 48.0f, 62.0f);
+        fillRect(renderer, originX - 24.0f * renderScale, originY - 60.0f * renderScale, 48.0f * renderScale, 62.0f * renderScale);
         setColor(renderer, 255, 244, 190, 190);
-        drawRect(renderer, originX - 24.0f, originY - 60.0f, 48.0f, 62.0f);
+        drawRect(renderer, originX - 24.0f * renderScale, originY - 60.0f * renderScale, 48.0f * renderScale, 62.0f * renderScale);
     }
 }
 
@@ -503,11 +518,14 @@ void drawRuntimeEffect(SDL_Renderer* renderer, const AppState& state, const Stag
     const ArenaProjectedPoint projected = projectArenaWorldPoint(state, stage, effect.x, effect.y, arenaEffectDepth(state, effect));
     const float originX = projected.screenX;
     const float originY = projected.screenY;
+    const float renderScale = worldRenderScale(state);
+    const float drawScaleX = effect.scaleX * renderScale;
+    const float drawScaleY = effect.scaleY * renderScale;
     SDL_FRect dst{
-        originX + (static_cast<float>(frame->offsetX) - static_cast<float>(frame->sprite.axisX)) * effect.scaleX,
-        originY + (static_cast<float>(frame->offsetY) - static_cast<float>(frame->sprite.axisY)) * effect.scaleY,
-        static_cast<float>(frame->sprite.width) * effect.scaleX,
-        static_cast<float>(frame->sprite.height) * effect.scaleY,
+        originX + (static_cast<float>(frame->offsetX) - static_cast<float>(frame->sprite.axisX)) * drawScaleX,
+        originY + (static_cast<float>(frame->offsetY) - static_cast<float>(frame->sprite.axisY)) * drawScaleY,
+        static_cast<float>(frame->sprite.width) * drawScaleX,
+        static_cast<float>(frame->sprite.height) * drawScaleY,
     };
     if (skipInvisibleRenderRect(state, dst, 96.0f)) {
         return;
@@ -572,17 +590,20 @@ void drawRuntimeProjectile(SDL_Renderer* renderer, const AppState& state, const 
         arenaProjectileDepth(state, projectile));
     const float originX = projected.screenX;
     const float originY = projected.screenY;
+    const float renderScale = worldRenderScale(state);
+    const float drawScaleX = projectile.scaleX * renderScale;
+    const float drawScaleY = projectile.scaleY * renderScale;
     const bool facingLeft = projectile.facing < 0;
     const bool flipH = frame->flipX != facingLeft;
     const float drawX = facingLeft
-        ? originX - static_cast<float>(frame->offsetX) * projectile.scaleX - static_cast<float>(frame->sprite.width - frame->sprite.axisX) * projectile.scaleX
-        : originX + static_cast<float>(frame->offsetX) * projectile.scaleX - static_cast<float>(frame->sprite.axisX) * projectile.scaleX;
-    const float drawY = originY + static_cast<float>(frame->offsetY) * projectile.scaleY - static_cast<float>(frame->sprite.axisY) * projectile.scaleY;
+        ? originX - static_cast<float>(frame->offsetX) * drawScaleX - static_cast<float>(frame->sprite.width - frame->sprite.axisX) * drawScaleX
+        : originX + static_cast<float>(frame->offsetX) * drawScaleX - static_cast<float>(frame->sprite.axisX) * drawScaleX;
+    const float drawY = originY + static_cast<float>(frame->offsetY) * drawScaleY - static_cast<float>(frame->sprite.axisY) * drawScaleY;
     SDL_FRect dst{
         drawX,
         drawY,
-        static_cast<float>(frame->sprite.width) * projectile.scaleX,
-        static_cast<float>(frame->sprite.height) * projectile.scaleY,
+        static_cast<float>(frame->sprite.width) * drawScaleX,
+        static_cast<float>(frame->sprite.height) * drawScaleY,
     };
     if (skipInvisibleRenderRect(state, dst, 96.0f)) {
         return;
@@ -613,9 +634,9 @@ void drawRuntimeProjectile(SDL_Renderer* renderer, const AppState& state, const 
             arenaProjectileDepth(state, projectile));
         SDL_FRect shadowDst{
             dst.x,
-            shadowProjected.screenY - 3.0f,
+            shadowProjected.screenY - 3.0f * renderScale,
             dst.w,
-            std::max(2.0f, dst.h * 0.18f),
+            std::max(2.0f * renderScale, dst.h * 0.18f),
         };
         SDL_SetTextureBlendMode(frame->sprite.texture, SDL_BLENDMODE_BLEND);
         SDL_SetTextureColorMod(

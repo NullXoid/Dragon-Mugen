@@ -64,6 +64,9 @@
 
 A.Ben, stages/kfm.def
 I.Chie, stages/kfm.def
+kfm, stages/kfm.def
+EvilKen, stages/kfm.def
+EvilRyu, stages/kfm.def
 
 ; Compatibility/reference characters are intentionally inactive in the owned-character build.
 ; Keep local verifier fixtures in data/compatibility_select.def instead.

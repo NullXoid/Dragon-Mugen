@@ -138,36 +138,36 @@
     },
     "walk": {
       "selected_source_frames": [
-        4,
-        20,
-        36,
-        52,
+        62,
         68,
-        84,
-        100,
-        116
+        74,
+        80,
+        86,
+        92,
+        98,
+        104
       ],
       "preview_fps": 24.0,
       "notes": "",
-      "run_manifest": "ltx_runs/walk/manifest.json",
-      "source_frame_dir": "ltx_runs/walk/frames_clean",
+      "run_manifest": "ltx_runs/2026-07-06_aben_walk_v02/manifest.json",
+      "source_frame_dir": "ltx_runs/2026-07-06_aben_walk_v02/frames_clean",
       "full_sheet": "curated_game_sprites/sheets/walk_selected_384x672.png",
       "cropped_sheet": "curated_game_sprites/sheets/walk_selected_cropped_384x672.png",
       "contact": "curated_game_sprites/contacts/walk_selected_contact.png",
       "gif_preview": "curated_game_sprites/previews/walk_selected_preview.gif",
       "promoted_frames": [
-        "curated_game_sprites/frames/walk/walk_00_src004_384x672.png",
-        "curated_game_sprites/frames/walk/walk_01_src020_384x672.png",
-        "curated_game_sprites/frames/walk/walk_02_src036_384x672.png",
-        "curated_game_sprites/frames/walk/walk_03_src052_384x672.png",
-        "curated_game_sprites/frames/walk/walk_04_src068_384x672.png",
-        "curated_game_sprites/frames/walk/walk_05_src084_384x672.png",
-        "curated_game_sprites/frames/walk/walk_06_src100_384x672.png",
-        "curated_game_sprites/frames/walk/walk_07_src116_384x672.png"
+        "curated_game_sprites/frames/walk/walk_00_src062_384x672.png",
+        "curated_game_sprites/frames/walk/walk_01_src068_384x672.png",
+        "curated_game_sprites/frames/walk/walk_02_src074_384x672.png",
+        "curated_game_sprites/frames/walk/walk_03_src080_384x672.png",
+        "curated_game_sprites/frames/walk/walk_04_src086_384x672.png",
+        "curated_game_sprites/frames/walk/walk_05_src092_384x672.png",
+        "curated_game_sprites/frames/walk/walk_06_src098_384x672.png",
+        "curated_game_sprites/frames/walk/walk_07_src104_384x672.png"
       ],
       "cropped_cell": {
-        "width": 358,
-        "height": 634
+        "width": 353,
+        "height": 648
       }
     },
     "idle": {

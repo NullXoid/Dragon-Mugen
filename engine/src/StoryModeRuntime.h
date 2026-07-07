@@ -298,7 +298,7 @@ void updateStoryCamera(AppState& state, const StageSlot& stage) {
 
     state.cameraX = std::clamp(state.cameraX, minCamera, maxCamera);
     if (!state.fighters.empty() && state.fighters[0].life > 0) {
-        const float halfWidth = logicalWidthF(state) * 0.5f;
+        const float halfWidth = storyGameplayHalfWidth(state, stage);
         const float leadEdge = state.cameraX + halfWidth - stage.openborScrollLead;
         float targetX = state.cameraX;
         if (state.fighters[0].x > leadEdge) {
@@ -319,7 +319,7 @@ void applyStoryScreenBounds(AppState& state, const StageSlot& stage) {
         return;
     }
 
-    const float halfWidth = logicalWidthF(state) * 0.5f;
+    const float halfWidth = storyGameplayHalfWidth(state, stage);
     const float waveGate = state.story.shopDoorAvailable ? storyScrollMaxCamera(stage) : storyWaveCameraGate(state, stage);
     const float maxPlayableX = std::min(stage.rightbound, waveGate + halfWidth - stage.screenright);
     state.fighters[0].x = std::min(state.fighters[0].x, maxPlayableX);
@@ -415,11 +415,20 @@ std::string storyWaveClearText(const AppState& state) {
     if (const StoryBoardNode* node = activeStoryBoardNode(state); node && !node->waveClearText.empty()) {
         return node->waveClearText;
     }
+    switch (storyWaveRole(state, state.story.waveIndex)) {
+    case StoryWaveRole::MidBoss:
+        return "MID BOSS CLEAR";
+    case StoryWaveRole::Boss:
+        return "BOSS CLEAR";
+    case StoryWaveRole::Normal:
+    default:
+        break;
+    }
     return "WAVE CLEAR";
 }
 
 float storyShopDoorX(const AppState& state, const StageSlot& stage) {
-    const float halfWidth = logicalWidthF(state) * 0.5f;
+    const float halfWidth = storyGameplayHalfWidth(state, stage);
     const float maxCamera = storyScrollMaxCamera(stage);
     const float maxPlayableX = std::min(stage.rightbound, maxCamera + halfWidth - stage.screenright);
     return std::clamp(maxPlayableX - storyShopDoorOffsetX(state), stage.leftbound + 32.0f, stage.rightbound - 18.0f);
@@ -516,7 +525,10 @@ void updateStoryWaveRules(AppState& state, const StageSlot& stage) {
         ++state.story.waveIndex;
         startStoryWave(state, stage, false);
         updateStoryFighterFacing(state);
-        state.messages.lastHitText = "WAVE " + std::to_string(state.story.waveIndex + 1);
+        const StoryWaveRole role = storyWaveRole(state, state.story.waveIndex);
+        state.messages.lastHitText = role == StoryWaveRole::Normal
+            ? "WAVE " + std::to_string(state.story.waveIndex + 1)
+            : std::string(storyWaveRoleLabel(role));
         state.messages.lastHitTextTicks = 90;
     }
 }

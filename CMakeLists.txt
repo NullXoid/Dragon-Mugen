@@ -123,6 +123,7 @@ add_library(dragon_core STATIC
     engine/src/Input.cpp
     engine/src/VerificationScenario.cpp
     engine/src/VerificationScenarioArena.cpp
+    engine/src/VerificationScenarioArenaAben.cpp
     engine/src/VerificationScenarioArenaOpenBor.cpp
     engine/src/VerificationScenarioEvilKen.cpp
     engine/src/VerificationScenarioEvilKenAdvanced.cpp
@@ -142,6 +143,7 @@ add_library(dragon_core STATIC
     engine/src/VerificationScenarioScottCompatibility.cpp
     engine/src/VerificationScenarioShop.cpp
     engine/src/VerificationScenarioShopVisual.cpp
+    engine/src/VerificationScenarioStoryEvilRyu.cpp
     engine/src/VerificationScenarioStoryMode.cpp
     engine/src/VerificationScenarioSpecials.cpp
     engine/src/VerificationScenarioTrainingSpecials.cpp

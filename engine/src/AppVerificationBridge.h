@@ -2,6 +2,7 @@
 
 #include "AppVerificationProbeHelpers.h"
 #include "AppVerificationPerformanceBridge.h"
+#include "AppVerificationScreenshotCapture.h"
 
 class AppVerificationRuntime final : public verification::RuntimeProbe {
 public:
@@ -626,30 +627,7 @@ public:
     }
 
     bool captureScreenshot(const std::filesystem::path& path) override {
-        if (!renderer_) {
-            return false;
-        }
-        std::error_code error;
-        if (path.has_parent_path()) {
-            std::filesystem::create_directories(path.parent_path(), error);
-            if (error) {
-                return false;
-            }
-        }
-
-        clearPhysicalFrame(renderer_);
-        applyLogicalPresentation(renderer_, state_);
-        const bool oldSuppressFps = state_.suppressFpsCounter;
-        state_.suppressFpsCounter = true;
-        drawFightViewFrame(renderer_, state_, false);
-        state_.suppressFpsCounter = oldSuppressFps;
-        SDL_Surface* surface = SDL_RenderReadPixels(renderer_, nullptr);
-        if (!surface) {
-            return false;
-        }
-        const bool saved = SDL_SaveBMP(surface, path.string().c_str());
-        SDL_DestroySurface(surface);
-        return saved;
+        return captureVerificationScreenshot(renderer_, state_, path);
     }
 
     verification::RuntimeSnapshot snapshot() const override {
@@ -697,6 +675,22 @@ public:
             out.storySelectedBoardTarget = !node->shopRef.empty() ? node->shopRef : node->enemyRef;
             out.storySelectedBoardShop = node->kind == StoryBoardNodeKind::Shop;
         }
+        const auto assignCharacterInfo = [&](size_t fighterIndex, std::string& outId, std::string& outName) {
+            int characterIndex = -1;
+            if (isStoryMode(state_)) {
+                characterIndex = storyFighterCharacterIndex(state_, fighterIndex);
+            } else if (fighterIndex == 0) {
+                characterIndex = sessionP1CharacterIndex(state_.selection);
+            } else {
+                characterIndex = state_.selection.sessionSlots.opponentCharacter;
+            }
+            if (const CharacterSlot* character = characterSlotAt(state_.selection, characterIndex)) {
+                outId = character->id;
+                outName = character->displayName;
+            }
+        };
+        assignCharacterInfo(0, out.p1CharacterId, out.p1CharacterName);
+        assignCharacterInfo(1, out.p2CharacterId, out.p2CharacterName);
         out.storyForwardCueVisible = storyForwardCueVisible(state_); out.storyForwardCueImageLoaded = state_.storyForwardCueImage.texture != nullptr;
         out.storyShopDoorAvailable = state_.story.shopDoorAvailable; out.storyShopDoorPromptVisible = storyShopDoorPromptVisible(state_, stage); out.storyShopDoorTransitionPending = state_.story.pendingShopDoorTransition; out.storyResumeRouteAfterShop = state_.story.resumeRouteAfterShop; out.storyResumeBoardNodeAfterShop = state_.story.resumeBoardNodeAfterShop; out.storyShopDoorX = storyShopDoorX(state_, stage);
         out.loadingProgressActive = state_.loadingProgress.active;
@@ -876,7 +870,8 @@ private:
             out << "SDL_CreateRenderer failed: " << SDL_GetError() << "\n";
             return false;
         }
-        const CanvasDimensions defaultCanvas = dimensionsForPreset(CanvasPreset::Wide426x240);
+        state_.mainSettings.canvasPreset = kStandardCanvasPreset;
+        const CanvasDimensions defaultCanvas = dimensionsForPreset(kStandardCanvasPreset);
         SDL_SetRenderLogicalPresentation(renderer_, defaultCanvas.width, defaultCanvas.height, SDL_LOGICAL_PRESENTATION_LETTERBOX);
         SDL_SetRenderDrawBlendMode(renderer_, SDL_BLENDMODE_BLEND);
         return true;

@@ -61,14 +61,30 @@ void drawSelectBackground(SDL_Renderer* renderer, const AppState& state) {
     setColor(renderer, 0, 0, 0);
     SDL_RenderClear(renderer);
 
-    const float widthF = logicalWidthF(state);
+    const float virtualWidth = logicalWidth(state) <= 340 ? 320.0f : 426.0f;
+    const UiRenderContext ui{
+        renderer,
+        logicalWidth(state),
+        logicalHeight(state),
+        1.0f,
+        logicalWidth(state),
+        logicalHeight(state),
+    };
+    ScopedVirtualCanvas virtualCanvas(ui, virtualWidth, 240.0f);
+    const float widthF = virtualWidth;
     const auto& system = state.systemScreens;
     if (system.selectBackdrop.texture) {
         const float backdropOffset = -static_cast<float>((state.frame / 3) % std::max(1, system.selectBackdrop.width));
-        drawTiledSprite(renderer, system.selectBackdrop, backdropOffset, 0, 3, 2);
+        const int repeatX = system.selectBackdrop.width > 0
+            ? std::max(3, static_cast<int>(std::ceil(widthF / static_cast<float>(system.selectBackdrop.width))) + 2)
+            : 3;
+        const int repeatY = system.selectBackdrop.height > 0
+            ? std::max(2, static_cast<int>(std::ceil(240.0f / static_cast<float>(system.selectBackdrop.height))) + 1)
+            : 2;
+        drawTiledSprite(renderer, system.selectBackdrop, backdropOffset, 0, repeatX, repeatY);
     } else {
         setColor(renderer, 18, 22, 30);
-        fillRect(renderer, 0, 0, widthF, logicalHeightF(state));
+        fillRect(renderer, 0, 0, widthF, 240.0f);
     }
 
     if (system.selectShadow.texture) {

@@ -216,9 +216,19 @@ void drawArenaHealthBars(const UiRenderContext& ui, const FightHudView& view) {
     }
 }
 
-} // namespace
+float fightHudVirtualWidth(const UiRenderContext& ui) {
+    return ui.logicalWidth <= 340 ? 320.0f : 426.0f;
+}
 
-void drawFightHud(const UiRenderContext& ui, const FightHudView& view) {
+UiRenderContext virtualFightHudContext(const UiRenderContext& ui, float virtualWidth) {
+    UiRenderContext virtualUi = ui;
+    virtualUi.logicalWidth = static_cast<int>(virtualWidth);
+    virtualUi.logicalHeight = 240;
+    virtualUi.scale = 1.0f;
+    return virtualUi;
+}
+
+void drawFightHudContent(const UiRenderContext& ui, const FightHudView& view) {
     const float widthF = static_cast<float>(ui.logicalWidth);
     const float centerX = widthF * 0.5f;
 
@@ -294,6 +304,14 @@ void drawFightHud(const UiRenderContext& ui, const FightHudView& view) {
             view.bottomLineHighlighted ? 105 : 174);
         debugText(ui.renderer, 20, 218, view.bottomLine);
     }
+}
+
+} // namespace
+
+void drawFightHud(const UiRenderContext& ui, const FightHudView& view) {
+    const float virtualWidth = fightHudVirtualWidth(ui);
+    ScopedVirtualCanvas virtualCanvas(ui, virtualWidth, 240.0f);
+    drawFightHudContent(virtualFightHudContext(ui, virtualWidth), view);
 }
 
 } // namespace dragon

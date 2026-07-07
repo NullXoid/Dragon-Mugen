@@ -118,8 +118,9 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Story Mode enemy labels/status use `EASY`/`MED`/`HARD` difficulty, and difficulty scales enemy life/attack/defence without applying the player profile level to enemies.
 - Story Mode `Soundcheck Alley` starts its configured WAV background music through normal stage `[Music] bgmusic` metadata.
 - When `game/data/external_content.local.def` points at the local Scott Pilgrim Versus package, Story Mode Stage Select includes `Tram_Rooftop`, the stage loads through the shared VS/loading screen, SFF v2 PNG/palette stage art and first-pass animated BG elements render, and `Run Scott Run.mp3` starts through normal stage `[Music] bgmusic` metadata.
-- Story Mode spawns wave sizes `1`, `2`, then `3`, keeps inactive future-wave enemies invisible, scrolls forward only to the current wave gate, and has enemies chase P1 rather than each other.
-- Story Mode clears to `STAGE CLEAR` after all waves, fails to `MISSION FAILED` when P1 is defeated, returns through match-result options, and awards P1 profile-owned Dragon XP/gold on clear with current balance in the result summary.
+- Story Mode spawns difficulty-owned board waves: `EASY` ends with one boss wave, `MEDIUM` runs three waves with a midboss then boss, and `HARD` runs five waves with midboss checkpoints before the boss. The OpenBOR test board should use KFM-style regular enemies, Evil Ken as the mini/midboss role, and Evil Ryu as the boss role so wave transitions are visually obvious.
+- Story Mode keeps inactive future-wave enemies invisible, scrolls forward only to the current wave gate, and has enemies chase P1 rather than each other.
+- Story Mode clears to `STAGE CLEAR` after all waves, fails to `MISSION FAILED` when P1 is defeated, returns through match-result options, and awards P1 profile-owned Dragon XP/gold on clear with current balance in the result summary. Result overlays must keep text/panels inside the stable virtual layout instead of slipping back to 320x240 positioning at HD output.
 - Evil Ryu Story supers briefly pause as authored, then recover to gameplay after helper/projectile hit runtime; Ryu must not remain stuck after the super.
 - Story/Arena HUD shows compact per-fighter power strips under each active health bar so super availability remains visible while retaining the same generic CMD/CNS power gates and power consumption.
 - Story/Arena wave stress should not spam per-hit terminal logs by default; enable `DRAGON_DEBUG_HIT_LOG=1` only when hit-event console traces are needed.
@@ -136,7 +137,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Main menu labels, top title text, panel header text, logo, panel geometry, menu row spacing, selection styling, panel shadow, and motif shadow remain editable presentation data. Dragon-owned values come from `game/data/dragon.def` `[Dragon.MainMenu]`, and compatible fallback labels come from M.U.G.E.N `game/data/system.def` `[Title Info]`. `main-menu-editable-presentation-data` and `main-menu-editable-layout-data` must stay green when touching menu loading or presentation.
 - Stage confirmation opens the VS screen first.
 - Fight view loads selected character and selected stage after VS.
-- VS/Arena/Story loading shows actual load progress for character, stage, sprite/sound/runtime preparation, not only static `PLEASE WAIT` text.
+- VS/Arena/Story loading shows actual load progress for character, stage, sprite/sound/runtime preparation, not only static `PLEASE WAIT` text. Loading presentation should use the same stable virtual layout rules as menus so the HD/fullscreen output improves clarity without shrinking the content into the top strip.
 - Fight view fully repaints the window during hitpause, camera shake, and result overlays; no stale desktop/debug text should appear around the game viewport.
 - Video Options exposes Performance HUD `FPS`/`PERF`/`OFF`. `FPS` keeps the compact top-right counter visible by default; `PERF` shows frame-time/workload telemetry so live performance drops can be distinguished from gameplay hitpause, superpause, or state timing.
 - Video resolution presets are output presets, not alternate game-layout canvases. `video-resolution-stable-virtual-layout` must stay green so Classic, Wide, Extra, SD, and HD keep one stable virtual presentation grid across menus and options.
@@ -151,7 +152,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Arena trip and heavy knockback hits resolve to floor impact before air recovery can take over.
 - Arena timer ticks down, hit-frozen fighters recover or resolve to KO, and knockdowns do not pull the camera upward.
 - Arena hitpause is brief, Rush counters reset after disappearing, debug hit boxes stay Training-only, and disabled timers show `INF`.
-- Arena Z-axis modifier moves depth with Shift/left trigger using authored walk animation; normal Up/Down still jump/crouch and still feed quarter-circle commands when the modifier is not held.
+- Arena Z-axis modifier moves depth with Shift/left trigger using authored walk animation; A.Ben must continue advancing walk frames while moving up/down in depth rather than freezing on a single frame. Normal Up/Down still jump/crouch and still feed quarter-circle commands when the modifier is not held.
 - Arena double-tapping the Z-axis modifier performs a short sidestep using authored walk animation; Up/Down on the second tap chooses the sidestep depth direction.
 - Arena depth affects hit gating, player push, CPU alignment, projected sprite position, and draw order only when Z Axis is enabled.
 - Arena Camera Rotate defaults off, only activates when Z Axis is also on, eases yaw from P1/living-fighter depth, and changes actor/effect projection and depth draw order without rotating backgrounds or combat math.

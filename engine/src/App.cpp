@@ -256,7 +256,7 @@ int runApp(const std::filesystem::path& gameRoot, const AppStartupOptions& start
         return 1;
     }
 
-    const CanvasDimensions initialCanvas = presentationDimensions();
+    const CanvasDimensions initialCanvas = dimensionsForPreset(kStandardCanvasPreset);
     SDL_SetRenderLogicalPresentation(renderer, initialCanvas.width, initialCanvas.height, SDL_LOGICAL_PRESENTATION_LETTERBOX);
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
 
@@ -276,8 +276,7 @@ int runApp(const std::filesystem::path& gameRoot, const AppStartupOptions& start
     applyStartupOptions(renderer, state, startupOptions);
     applyWindowPresentation(window, state);
 
-    const CanvasDimensions presentationCanvas = presentationDimensions();
-    SDL_SetRenderLogicalPresentation(renderer, presentationCanvas.width, presentationCanvas.height, SDL_LOGICAL_PRESENTATION_LETTERBOX);
+    applyLogicalPresentation(renderer, state);
 
     using clock = std::chrono::steady_clock;
     constexpr double fixedStep = 1.0 / 60.0;

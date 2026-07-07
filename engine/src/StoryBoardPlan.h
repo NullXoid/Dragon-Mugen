@@ -40,6 +40,9 @@ struct StoryBoardNode {
     std::string title;
     std::string stageRef;
     std::string enemyRef;
+    std::string regularEnemyRef;
+    std::string midBossEnemyRef;
+    std::string bossEnemyRef;
     std::string shopRef;
     std::string shopDoorPrompt = "LK / X SHOP";
     std::string shopDoorEnterText = "ENTERING SHOP";
@@ -284,6 +287,13 @@ inline StoryBoardRoute loadStoryBoardRouteFile(const std::filesystem::path& path
         node.title = storyBoardPropertyValue(section, "title", node.id);
         node.stageRef = storyBoardPropertyValue(section, "stage");
         node.enemyRef = storyBoardPropertyValue(section, "enemy");
+        node.regularEnemyRef = storyBoardPropertyValue(section, "regular_enemy");
+        node.regularEnemyRef = storyBoardPropertyValue(section, "normal_enemy", node.regularEnemyRef);
+        node.regularEnemyRef = storyBoardPropertyValue(section, "wave_enemy", node.regularEnemyRef);
+        node.midBossEnemyRef = storyBoardPropertyValue(section, "midboss_enemy");
+        node.midBossEnemyRef = storyBoardPropertyValue(section, "mid_boss_enemy", node.midBossEnemyRef);
+        node.midBossEnemyRef = storyBoardPropertyValue(section, "mini_boss_enemy", node.midBossEnemyRef);
+        node.bossEnemyRef = storyBoardPropertyValue(section, "boss_enemy");
         node.shopRef = storyBoardPropertyValue(section, "shop");
         node.shopDoorPrompt = storyBoardPropertyValue(section, "shop_prompt", node.shopDoorPrompt);
         node.shopDoorEnterText = storyBoardPropertyValue(section, "shop_enter_text", node.shopDoorEnterText);

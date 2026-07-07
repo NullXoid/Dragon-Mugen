@@ -10,6 +10,10 @@
 namespace dragon {
 namespace {
 
+float fightResultVirtualWidth(const UiRenderContext& ui) {
+    return ui.logicalWidth <= 340 ? 320.0f : 426.0f;
+}
+
 void drawRoundPips(const UiRenderContext& ui, float x, float y, FightRoundPipsView pips) {
     pips.required = std::clamp(pips.required, 1, 5);
     pips.wins = std::clamp(pips.wins, 0, pips.required);
@@ -37,15 +41,16 @@ void drawRoundCalloutBand(const UiRenderContext& ui, const FightRoundCalloutView
         return;
     }
 
-    ScopedUiScale scaledUi(ui, 320.0f, 240.0f);
+    const float virtualWidth = fightResultVirtualWidth(ui);
+    ScopedVirtualCanvas virtualCanvas(ui, virtualWidth, 240.0f);
 
-    constexpr float centerX = 160.0f;
+    const float centerX = virtualWidth * 0.5f;
     const float pulse = 0.5f + 0.5f * std::sin(static_cast<float>(view.frame) * 0.18f);
     const float pop = std::max(0.0f, 1.0f - static_cast<float>(view.frame) / 14.0f);
-    const float bandW = 232.0f + pop * 22.0f;
+    const float bandW = std::min(virtualWidth - 32.0f, 232.0f + pop * 22.0f);
 
     setColor(ui.renderer, 4, 6, 10, 180);
-    fillRect(ui.renderer, centerX - 160.0f, 75.0f, 320.0f, 48.0f);
+    fillRect(ui.renderer, 0.0f, 75.0f, virtualWidth, 48.0f);
     setColor(ui.renderer, 6, 8, 14, 226);
     fillRect(ui.renderer, centerX - bandW * 0.5f, 82.0f, bandW, 34.0f);
     setColor(ui.renderer, 30, 38, 58, 236);
@@ -76,9 +81,10 @@ void drawRoundResultOverlay(const UiRenderContext& ui, const FightRoundResultVie
         return;
     }
 
-    ScopedUiScale scaledUi(ui, 320.0f, 240.0f);
+    const float virtualWidth = fightResultVirtualWidth(ui);
+    ScopedVirtualCanvas virtualCanvas(ui, virtualWidth, 240.0f);
 
-    constexpr float centerX = 160.0f;
+    const float centerX = virtualWidth * 0.5f;
     const float pulse = 0.5f + 0.5f * std::sin(static_cast<float>(view.frame) * 0.15f);
     setColor(ui.renderer, 4, 6, 10, 180);
     fillRect(ui.renderer, centerX - 130.0f, 68, 260, 86);
@@ -106,8 +112,10 @@ void drawRoundResultOverlay(const UiRenderContext& ui, const FightRoundResultVie
 }
 
 void drawMatchResultScreen(const UiRenderContext& ui, const FightMatchResultView& view) {
-    const float widthF = static_cast<float>(ui.logicalWidth);
-    const float heightF = static_cast<float>(ui.logicalHeight);
+    const float virtualWidth = fightResultVirtualWidth(ui);
+    ScopedVirtualCanvas virtualCanvas(ui, virtualWidth, 240.0f);
+    const float widthF = virtualWidth;
+    const float heightF = 240.0f;
     const float centerX = widthF * 0.5f;
     const float pulse = 0.5f + 0.5f * std::sin(static_cast<float>(view.frame) * 0.12f);
     setColor(ui.renderer, 6, 8, 14, 238);

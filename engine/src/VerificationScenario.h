@@ -194,6 +194,10 @@ struct RuntimeSnapshot {
     std::string storySelectedBoardKind;
     std::string storySelectedBoardTitle;
     std::string storySelectedBoardTarget;
+    std::string p1CharacterId;
+    std::string p1CharacterName;
+    std::string p2CharacterId;
+    std::string p2CharacterName;
     int progressionGoldBalance = 0;
     int storyRewardPopups = 0;
     int storyRewardCoins = 0;

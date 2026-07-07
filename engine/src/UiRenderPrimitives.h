@@ -38,6 +38,18 @@ struct ScopedUiScale {
     ~ScopedUiScale();
 };
 
+struct ScopedVirtualCanvas {
+    SDL_Renderer* renderer = nullptr;
+    SDL_Rect oldViewport{};
+    float oldScaleX = 1.0f;
+    float oldScaleY = 1.0f;
+
+    ScopedVirtualCanvas(const UiRenderContext& context, float virtualWidth, float virtualHeight);
+    ScopedVirtualCanvas(const ScopedVirtualCanvas&) = delete;
+    ScopedVirtualCanvas& operator=(const ScopedVirtualCanvas&) = delete;
+    ~ScopedVirtualCanvas();
+};
+
 void debugTextCentered(SDL_Renderer* renderer, float centerX, float y, const std::string& text);
 std::string fitDebugText(const std::string& value, std::size_t maxChars);
 void drawPanel(SDL_Renderer* renderer, float x, float y, float w, float h);

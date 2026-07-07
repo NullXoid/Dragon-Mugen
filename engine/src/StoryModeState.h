@@ -13,6 +13,57 @@ int storyWaveEnemyCount(int waveIndex) {
     return std::clamp(waveIndex + 1, 1, kStoryMaxEnemies);
 }
 
+int storyDifficultyWaveCount(StoryDifficulty difficulty) {
+    switch (difficulty) {
+    case StoryDifficulty::Easy:
+        return 1;
+    case StoryDifficulty::Hard:
+        return 5;
+    case StoryDifficulty::Medium:
+    default:
+        return 3;
+    }
+}
+
+enum class StoryWaveRole {
+    Normal,
+    MidBoss,
+    Boss,
+};
+
+bool storyBoardUsesDifficultyWavePlan(const StoryBoardNode& node) {
+    return node.kind == StoryBoardNodeKind::SideScroller;
+}
+
+StoryWaveRole storyWaveRoleForBoard(
+    const StoryBoardNode& node,
+    StoryDifficulty difficulty,
+    int waveIndex,
+    int waveCount) {
+    if (!storyBoardUsesDifficultyWavePlan(node)) {
+        if (node.kind == StoryBoardNodeKind::ArenaBoss) {
+            return StoryWaveRole::Boss;
+        }
+        if (node.kind == StoryBoardNodeKind::MidBoss) {
+            return StoryWaveRole::MidBoss;
+        }
+        return waveIndex + 1 >= waveCount ? StoryWaveRole::Boss : StoryWaveRole::Normal;
+    }
+
+    if (waveIndex + 1 >= waveCount) {
+        return StoryWaveRole::Boss;
+    }
+    switch (difficulty) {
+    case StoryDifficulty::Hard:
+        return (waveIndex == 1 || waveIndex == 3) ? StoryWaveRole::MidBoss : StoryWaveRole::Normal;
+    case StoryDifficulty::Medium:
+        return waveIndex == 1 ? StoryWaveRole::MidBoss : StoryWaveRole::Normal;
+    case StoryDifficulty::Easy:
+    default:
+        return StoryWaveRole::Boss;
+    }
+}
+
 const StoryBoardWaveSpec* storyBoardWaveSpecAt(const StoryBoardNode& node, int waveIndex) {
     if (waveIndex < 0 || waveIndex >= static_cast<int>(node.waveSpecs.size())) {
         return nullptr;
@@ -52,8 +103,100 @@ const StoryBoardWaveSpec* activeStoryWaveSpec(const AppState& state) {
     return nullptr;
 }
 
+int storyWaveCount(const AppState& state) {
+    if (const StoryBoardNode* node = activeStoryBoardNode(state)) {
+        if (storyBoardUsesDifficultyWavePlan(*node)) {
+            return storyDifficultyWaveCount(state.story.difficulty);
+        }
+        return std::max({ 1, node->waves, static_cast<int>(node->waveSpecs.size()) });
+    }
+    return storyDifficultyWaveCount(state.story.difficulty);
+}
+
+int storySelectedBoardWaveCount(const AppState& state) {
+    if (const StoryBoardNode* node = selectedStoryBoardNode(state)) {
+        if (storyBoardUsesDifficultyWavePlan(*node)) {
+            return storyDifficultyWaveCount(state.story.difficulty);
+        }
+        return std::max({ 1, node->waves, static_cast<int>(node->waveSpecs.size()) });
+    }
+    return storyDifficultyWaveCount(state.story.difficulty);
+}
+
+StoryWaveRole storyWaveRole(const AppState& state, int waveIndex) {
+    if (const StoryBoardNode* node = activeStoryBoardNode(state)) {
+        return storyWaveRoleForBoard(*node, state.story.difficulty, waveIndex, storyWaveCount(state));
+    }
+    return storyWaveRoleForBoard(StoryBoardNode{}, state.story.difficulty, waveIndex, storyWaveCount(state));
+}
+
+std::string_view storyWaveRoleLabel(StoryWaveRole role) {
+    switch (role) {
+    case StoryWaveRole::MidBoss:
+        return "MID BOSS";
+    case StoryWaveRole::Boss:
+        return "BOSS";
+    case StoryWaveRole::Normal:
+    default:
+        return "WAVE";
+    }
+}
+
+size_t storyWaveRoleEnemySlot(StoryWaveRole role) {
+    switch (role) {
+    case StoryWaveRole::MidBoss:
+        return 1;
+    case StoryWaveRole::Boss:
+        return 2;
+    case StoryWaveRole::Normal:
+    default:
+        return 0;
+    }
+}
+
+std::string_view storyDefaultEnemyRefForRole(StoryWaveRole role) {
+    switch (role) {
+    case StoryWaveRole::MidBoss:
+        return "EvilKen";
+    case StoryWaveRole::Boss:
+        return "EvilRyu";
+    case StoryWaveRole::Normal:
+    default:
+        return "kfm";
+    }
+}
+
+std::string storyBoardEnemyRefForRole(const StoryBoardNode& node, StoryWaveRole role) {
+    switch (role) {
+    case StoryWaveRole::MidBoss:
+        if (!node.midBossEnemyRef.empty()) {
+            return node.midBossEnemyRef;
+        }
+        break;
+    case StoryWaveRole::Boss:
+        if (!node.bossEnemyRef.empty()) {
+            return node.bossEnemyRef;
+        }
+        break;
+    case StoryWaveRole::Normal:
+    default:
+        if (!node.regularEnemyRef.empty()) {
+            return node.regularEnemyRef;
+        }
+        break;
+    }
+    if (!node.enemyRef.empty()) {
+        return node.enemyRef;
+    }
+    return std::string(storyDefaultEnemyRefForRole(role));
+}
+
 int storyWaveEnemyCount(const AppState& state, int waveIndex) {
     if (const StoryBoardNode* node = activeStoryBoardNode(state)) {
+        const StoryWaveRole role = storyWaveRole(state, waveIndex);
+        if (storyBoardUsesDifficultyWavePlan(*node) && role != StoryWaveRole::Normal) {
+            return 1;
+        }
         return storyWaveEnemyCount(*node, waveIndex);
     }
     return storyWaveEnemyCount(waveIndex);
@@ -214,20 +357,6 @@ void commitSelectedStoryBoardNode(AppState& state) {
     syncStorySelectedStageToBoardNode(state);
 }
 
-int storyWaveCount(const AppState& state) {
-    if (const StoryBoardNode* node = activeStoryBoardNode(state)) {
-        return std::max({ 1, node->waves, static_cast<int>(node->waveSpecs.size()) });
-    }
-    return kStoryWaveCount;
-}
-
-int storySelectedBoardWaveCount(const AppState& state) {
-    if (const StoryBoardNode* node = selectedStoryBoardNode(state)) {
-        return std::max({ 1, node->waves, static_cast<int>(node->waveSpecs.size()) });
-    }
-    return kStoryWaveCount;
-}
-
 int storyTotalEnemyCount(const AppState& state) {
     int total = 0;
     const int waves = storyWaveCount(state);
@@ -251,6 +380,14 @@ int storyFighterCount() {
 int storyFighterCharacterIndex(const AppState& state, size_t fighterIndex) {
     if (fighterIndex == 0) {
         return sessionP1CharacterIndex(state.selection);
+    }
+    if (const StoryBoardNode* node = activeStoryBoardNode(state);
+        node && storyBoardUsesDifficultyWavePlan(*node)) {
+        const size_t roleSlot = storyWaveRoleEnemySlot(storyWaveRole(state, state.story.waveIndex));
+        if (roleSlot < state.story.enemyCharacterIndices.size()) {
+            return state.story.enemyCharacterIndices[roleSlot];
+        }
+        return -1;
     }
     const size_t enemySlot = fighterIndex - 1;
     if (enemySlot < state.story.enemyCharacterIndices.size()) {
@@ -304,8 +441,23 @@ void chooseStoryEnemyCharacters(AppState& state) {
     std::vector<int> picked;
     picked.reserve(kStoryMaxEnemies);
     std::array<int, kStoryMaxEnemies> explicitSlots{ -1, -1, -1 };
+    const auto setExplicitSlotFromRef = [&](size_t slot, std::string_view enemyRef) {
+        if (slot >= explicitSlots.size() || explicitSlots[slot] >= 0 || enemyRef.empty()) {
+            return;
+        }
+        explicitSlots[slot] = findStoryPreferredEnemyAllowDuplicate(state, enemyRef);
+    };
 
     if (const StoryBoardNode* node = activeStoryBoardNode(state)) {
+        if (storyBoardUsesDifficultyWavePlan(*node)) {
+            setExplicitSlotFromRef(0, storyBoardEnemyRefForRole(*node, StoryWaveRole::Normal));
+            setExplicitSlotFromRef(1, storyBoardEnemyRefForRole(*node, StoryWaveRole::MidBoss));
+            setExplicitSlotFromRef(2, storyBoardEnemyRefForRole(*node, StoryWaveRole::Boss));
+        } else if (node->kind == StoryBoardNodeKind::MidBoss) {
+            setExplicitSlotFromRef(0, storyBoardEnemyRefForRole(*node, StoryWaveRole::MidBoss));
+        } else if (node->kind == StoryBoardNodeKind::ArenaBoss) {
+            setExplicitSlotFromRef(0, storyBoardEnemyRefForRole(*node, StoryWaveRole::Boss));
+        }
         for (const StoryBoardWaveSpec& wave : node->waveSpecs) {
             const int count = std::min(static_cast<int>(wave.enemies.size()), kStoryMaxEnemies);
             for (int slot = 0; slot < count; ++slot) {
@@ -331,7 +483,10 @@ void chooseStoryEnemyCharacters(AppState& state) {
         }
     }
 
-    static constexpr std::array<std::string_view, 5> preferredEnemies{
+    static constexpr std::array<std::string_view, 8> preferredEnemies{
+        "kfm",
+        "EvilKen",
+        "EvilRyu",
         "I.Chie",
         "A.Ben",
         "ichie",
@@ -479,12 +634,17 @@ std::string storyStatusLine(const AppState& state) {
         return "Mission failed" + storyPlayerGoldStatusSuffix(state);
     }
     const int waves = storyWaveCount(state);
+    const StoryWaveRole role = storyWaveRole(state, state.story.waveIndex);
+    const std::string roleText = role == StoryWaveRole::Normal
+        ? std::string{}
+        : "  " + std::string(storyWaveRoleLabel(role));
     return "Wave "
         + std::to_string(std::clamp(state.story.waveIndex + 1, 1, waves))
         + "/"
         + std::to_string(waves)
         + "  "
         + std::string(storyDifficultyShortLabel(state.story.difficulty))
+        + roleText
         + "  Defeated: "
         + std::to_string(std::clamp(state.story.enemiesDefeated, 0, state.story.totalEnemies))
         + "/"

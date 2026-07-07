@@ -14,6 +14,7 @@ import math
 import shutil
 import subprocess
 import sys
+from collections import deque
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -181,6 +182,45 @@ def _remove_green_screen(image: Image.Image) -> Image.Image:
     alpha[strong_green] = 0
     arr[strong_green, 0:3] = 0
     arr[soft_fringe, 1] = np.maximum(arr[soft_fringe, 0], arr[soft_fringe, 2])
+    return Image.fromarray(arr, "RGBA")
+
+
+def _drop_disconnected_alpha_debris(image: Image.Image, min_alpha: int = 8) -> Image.Image:
+    rgba = image.convert("RGBA")
+    arr = np.array(rgba)
+    mask = arr[:, :, 3] >= min_alpha
+    if not mask.any():
+        return rgba
+
+    height, width = mask.shape
+    visited = np.zeros(mask.shape, dtype=bool)
+    best_component: list[tuple[int, int]] = []
+
+    for start_y, start_x in np.argwhere(mask):
+        y = int(start_y)
+        x = int(start_x)
+        if visited[y, x]:
+            continue
+
+        component: list[tuple[int, int]] = []
+        queue: deque[tuple[int, int]] = deque([(y, x)])
+        visited[y, x] = True
+        while queue:
+            cy, cx = queue.pop()
+            component.append((cy, cx))
+            for ny, nx in ((cy - 1, cx), (cy + 1, cx), (cy, cx - 1), (cy, cx + 1)):
+                if 0 <= ny < height and 0 <= nx < width and mask[ny, nx] and not visited[ny, nx]:
+                    visited[ny, nx] = True
+                    queue.append((ny, nx))
+
+        if len(component) > len(best_component):
+            best_component = component
+
+    keep = np.zeros(mask.shape, dtype=bool)
+    ys, xs = zip(*best_component)
+    keep[np.array(ys), np.array(xs)] = True
+    arr[~keep, 0:3] = 0
+    arr[~keep, 3] = 0
     return Image.fromarray(arr, "RGBA")
 
 
@@ -463,6 +503,7 @@ def promote(args: argparse.Namespace) -> int:
     _clear_action_outputs(curated_root, action)
 
     action_dir = curated_root / "frames" / action
+    action_dir.mkdir(parents=True, exist_ok=True)
     selected_paths: list[Path] = []
     normalized_frames: list[Image.Image] = []
     for output_index, source_index in enumerate(selected):
@@ -470,7 +511,7 @@ def promote(args: argparse.Namespace) -> int:
         source_image = Image.open(source_path)
         if source_dir.name == "frames_raw":
             source_image = _remove_green_screen(source_image)
-        normalized = _fit_frame(source_image, cell_width, cell_height)
+        normalized = _drop_disconnected_alpha_debris(_fit_frame(source_image, cell_width, cell_height))
         output_path = action_dir / f"{action}_{output_index:02d}_src{source_index:03d}_{cell_width}x{cell_height}.png"
         normalized.save(output_path)
         selected_paths.append(output_path)

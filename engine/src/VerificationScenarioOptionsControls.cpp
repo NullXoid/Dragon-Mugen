@@ -303,15 +303,15 @@ int runMainMenuResponsiveLayout(RuntimeProbe&, std::ostream& out) {
     } };
 
     for (const Case& item : cases) {
-        const CanvasDimensions dimensions = presentationDimensions();
+        const CanvasDimensions dimensions = dimensionsForPreset(item.preset);
         const DragonUiMetrics metrics = dragonUiMetricsForCanvas(dimensions, 1.0f);
         const UiRenderContext ui{
             nullptr,
             dimensions.width,
             dimensions.height,
             1.0f,
-            dimensionsForPreset(item.preset).width,
-            dimensionsForPreset(item.preset).height,
+            dimensions.width,
+            dimensions.height,
         };
         const SDL_FRect rect = dragon::mainMenuPanelRect(ui);
         const bool inside =
@@ -333,11 +333,11 @@ int runMainMenuResponsiveLayout(RuntimeProbe&, std::ostream& out) {
             "height_ratio=" + std::to_string(rect.h / std::max(1.0f, availableH)));
 
         const float expectedW = 176.0f * metrics.pixelScale;
-        const float expectedH = 110.0f * metrics.pixelScale;
+        const float expectedH = 100.0f * metrics.pixelScale;
         const bool normalizedScale = std::fabs(rect.w - expectedW) <= 0.01f
             && std::fabs(rect.h - expectedH) <= 0.01f;
         record(out, counts, normalizedScale ? Status::Pass : Status::Fail,
-            std::string(item.name) + "_stable_presentation_grid_ui_size",
+            std::string(item.name) + "_active_canvas_ui_size",
             "expected=" + std::to_string(expectedW) + "x" + std::to_string(expectedH)
                 + " actual=" + std::to_string(rect.w) + "x" + std::to_string(rect.h));
     }
@@ -555,13 +555,6 @@ int runVideoResolutionStableVirtualLayout(RuntimeProbe&, std::ostream& out) {
     Counts counts;
     out << "VERIFY video-resolution-stable-virtual-layout\n";
 
-    const CanvasDimensions presentation = presentationDimensions();
-    record(out, counts,
-        presentation.width == kDesignLogicalWidth && presentation.height == kDesignLogicalHeight
-            ? Status::Pass : Status::Fail,
-        "presentation_uses_fixed_design_canvas",
-        std::to_string(presentation.width) + "x" + std::to_string(presentation.height));
-
     struct Case {
         CanvasPreset preset;
         const char* name;
@@ -574,37 +567,35 @@ int runVideoResolutionStableVirtualLayout(RuntimeProbe&, std::ostream& out) {
         { CanvasPreset::Hd1280x720, "hd_1280x720" },
     } };
 
-    std::optional<SDL_FRect> expectedMainMenuPanel;
-    std::optional<std::string> expectedOptionsGeometry;
-
     for (const Case& item : cases) {
-        const CanvasDimensions output = outputDimensionsForPreset(item.preset);
+        const CanvasDimensions canvas = dimensionsForPreset(item.preset);
+        const DragonUiMetrics metrics = dragonUiMetricsForCanvas(canvas, 1.0f);
         const UiRenderContext ui{
             nullptr,
-            presentation.width,
-            presentation.height,
+            canvas.width,
+            canvas.height,
             1.0f,
-            output.width,
-            output.height,
+            canvas.width,
+            canvas.height,
         };
 
         record(out, counts,
-            !canvasPresetChangesLayout(item.preset) ? Status::Pass : Status::Fail,
-            std::string(item.name) + "_declares_output_only",
-            std::to_string(output.width) + "x" + std::to_string(output.height));
+            ui.logicalWidth == canvas.width && ui.logicalHeight == canvas.height
+                    && ui.outputWidth == canvas.width && ui.outputHeight == canvas.height
+                ? Status::Pass
+                : Status::Fail,
+            std::string(item.name) + "_active_canvas_matches_preset",
+            std::to_string(canvas.width) + "x" + std::to_string(canvas.height));
 
         const SDL_FRect mainPanel = mainMenuPanelRect(ui);
-        if (!expectedMainMenuPanel) {
-            expectedMainMenuPanel = mainPanel;
-        }
-        const bool sameMainPanel =
-            std::fabs(mainPanel.x - expectedMainMenuPanel->x) <= 0.01f
-            && std::fabs(mainPanel.y - expectedMainMenuPanel->y) <= 0.01f
-            && std::fabs(mainPanel.w - expectedMainMenuPanel->w) <= 0.01f
-            && std::fabs(mainPanel.h - expectedMainMenuPanel->h) <= 0.01f;
+        const bool panelInside =
+            mainPanel.x >= -0.01f
+            && mainPanel.y >= -0.01f
+            && mainPanel.x + mainPanel.w <= static_cast<float>(canvas.width) + 0.01f
+            && mainPanel.y + mainPanel.h <= static_cast<float>(canvas.height) + 0.01f;
         record(out, counts,
-            sameMainPanel ? Status::Pass : Status::Fail,
-            std::string(item.name) + "_main_menu_panel_stable",
+            panelInside ? Status::Pass : Status::Fail,
+            std::string(item.name) + "_main_menu_panel_inside_active_canvas",
             "panel=" + std::to_string(static_cast<int>(mainPanel.x)) + ","
                 + std::to_string(static_cast<int>(mainPanel.y)) + " "
                 + std::to_string(static_cast<int>(mainPanel.w)) + "x"
@@ -637,21 +628,19 @@ int runVideoResolutionStableVirtualLayout(RuntimeProbe&, std::ostream& out) {
                 view.padSummary,
                 view.footer,
             },
-            static_cast<float>(presentation.width),
+            static_cast<float>(canvas.width),
+            static_cast<float>(canvas.height),
             UiMenuListStyle{
-                40.0f,
-                300.0f,
-                406.0f,
-                18.0f,
+                metrics.topBarH + 16.0f * metrics.pixelScale,
+                300.0f * metrics.pixelScale,
+                std::min(static_cast<float>(canvas.width) - 20.0f * metrics.pixelScale, 430.0f * metrics.pixelScale),
+                metrics.rowH,
                 true,
-                1.0f,
+                metrics.pixelScale,
             });
-        if (!expectedOptionsGeometry) {
-            expectedOptionsGeometry = optionsGeometry.detail;
-        }
         record(out, counts,
-            optionsGeometry.ok && optionsGeometry.detail == *expectedOptionsGeometry ? Status::Pass : Status::Fail,
-            std::string(item.name) + "_options_geometry_stable",
+            optionsGeometry.ok ? Status::Pass : Status::Fail,
+            std::string(item.name) + "_options_geometry_fits_active_canvas",
             optionsGeometry.detail);
     }
 

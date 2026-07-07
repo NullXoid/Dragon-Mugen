@@ -150,16 +150,18 @@ FighterVisualScreenBounds fighterVisualScreenBounds(const AppState& state, const
     }
 
     const ArenaProjectedPoint projected = projectArenaWorldPoint(state, stage, fighter.x, fighter.y, fighter.depthZ);
-    const float displayOriginX = projected.screenX + fighter.displayOffsetX * static_cast<float>(fighter.facing);
+    const float renderScale = worldRenderScale(state);
+    const float drawScaleX = fighter.scaleX * renderScale;
+    const float displayOriginX = projected.screenX + fighter.displayOffsetX * static_cast<float>(fighter.facing) * renderScale;
     const bool facingLeft = fighter.facing < 0;
     const float drawLeft = facingLeft
         ? displayOriginX
-            - static_cast<float>(frame->offsetX) * fighter.scaleX
-            - static_cast<float>(frame->sprite.width - frame->sprite.axisX) * fighter.scaleX
+            - static_cast<float>(frame->offsetX) * drawScaleX
+            - static_cast<float>(frame->sprite.width - frame->sprite.axisX) * drawScaleX
         : displayOriginX
-            + static_cast<float>(frame->offsetX) * fighter.scaleX
-            - static_cast<float>(frame->sprite.axisX) * fighter.scaleX;
-    const float drawRight = drawLeft + static_cast<float>(frame->sprite.width) * fighter.scaleX;
+            + static_cast<float>(frame->offsetX) * drawScaleX
+            - static_cast<float>(frame->sprite.axisX) * drawScaleX;
+    const float drawRight = drawLeft + static_cast<float>(frame->sprite.width) * drawScaleX;
     return FighterVisualScreenBounds{
         std::min(drawLeft, drawRight),
         std::max(drawLeft, drawRight),
@@ -191,7 +193,7 @@ FighterVisualScreenBounds fighterVisualOriginExtents(const AppState& state, cons
 }
 
 void applyScreenBounds(AppState& state, const StageSlot& stage) {
-    const float halfWidth = logicalWidthF(state) * 0.5f;
+    const float halfWidth = worldViewportHalfWidth(state);
     const float visibleLeft = state.cameraX - halfWidth;
     const float visibleRight = state.cameraX + halfWidth;
 
@@ -477,7 +479,7 @@ void updateArenaCameraRotation(AppState& state) {
 void updateCamera(AppState& state, const StageSlot& stage) {
     const float minFighterX = std::min(state.fighters[0].x, state.fighters[1].x);
     const float maxFighterX = std::max(state.fighters[0].x, state.fighters[1].x);
-    const float halfWidth = logicalWidthF(state) * 0.5f;
+    const float halfWidth = worldViewportHalfWidth(state);
     const float leftEdge = state.cameraX - halfWidth + stage.cameraTension;
     const float rightEdge = state.cameraX + halfWidth - stage.cameraTension;
 
@@ -544,7 +546,7 @@ void updateArenaOpenBorScrollingCamera(AppState& state, const StageSlot& stage) 
     }
 
     if (any) {
-        const float halfWidth = logicalWidthF(state) * 0.5f;
+        const float halfWidth = worldViewportHalfWidth(state);
         const float leadEdge = state.cameraX + halfWidth - stage.openborScrollLead;
         float targetX = state.cameraX;
         if (maxFighterX > leadEdge) {
@@ -610,7 +612,7 @@ void updateArenaCamera(AppState& state, const StageSlot& stage) {
         return;
     }
 
-    const float halfWidth = logicalWidthF(state) * 0.5f;
+    const float halfWidth = worldViewportHalfWidth(state);
     const float leftEdge = state.cameraX - halfWidth + stage.cameraTension;
     const float rightEdge = state.cameraX + halfWidth - stage.cameraTension;
 

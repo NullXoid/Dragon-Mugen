@@ -15,6 +15,15 @@ float storyScrollMaxCamera(const StageSlot& stage) {
         : stage.cameraBoundright;
 }
 
+float storyGameplayViewportWidth(const AppState& state, const StageSlot& stage) {
+    (void)stage;
+    return worldViewportWidth(state);
+}
+
+float storyGameplayHalfWidth(const AppState& state, const StageSlot& stage) {
+    return storyGameplayViewportWidth(state, stage) * 0.5f;
+}
+
 float storyWaveCameraGate(const AppState& state, const StageSlot& stage) {
     const float minCamera = storyScrollMinCamera(stage);
     const float maxCamera = storyScrollMaxCamera(stage);
@@ -34,6 +43,28 @@ void applyStoryDifficultyToEnemy(AppState& state, FighterState& fighter, size_t 
     fighter.life = fighter.maxLifeOverride;
     fighter.modeAttackMultiplier = tuning.attackMultiplier;
     fighter.modeDefenceMultiplier = tuning.defenceMultiplier;
+}
+
+void applyStoryWaveRoleToEnemy(AppState& state, FighterState& fighter) {
+    const StoryWaveRole role = storyWaveRole(state, state.story.waveIndex);
+    int lifePermille = 1000;
+    int startingPower = 0;
+    switch (role) {
+    case StoryWaveRole::Boss:
+        lifePermille = 1500;
+        startingPower = 1000;
+        break;
+    case StoryWaveRole::MidBoss:
+        lifePermille = 1250;
+        startingPower = 500;
+        break;
+    case StoryWaveRole::Normal:
+    default:
+        break;
+    }
+    fighter.maxLifeOverride = std::max(1, (fighter.maxLifeOverride * lifePermille + 500) / 1000);
+    fighter.life = fighter.maxLifeOverride;
+    fighter.power = std::max(fighter.power, startingPower);
 }
 
 void resetStoryFighterCommon(AppState& state, FighterState& fighter, size_t fighterIndex, const StageSlot& stage) {
@@ -65,7 +96,7 @@ void startStoryWave(AppState& state, const StageSlot& stage, bool resetPlayer) {
     state.story.enemyRewarded = {};
     state.story.shopDoorAvailable = false;
     state.story.pendingShopDoorTransition = false;
-    const float halfWidth = logicalWidthF(state) * 0.5f;
+    const float halfWidth = storyGameplayHalfWidth(state, stage);
     const float minCamera = storyScrollMinCamera(stage);
     const float maxCamera = storyWaveCameraGate(state, stage);
 
@@ -89,6 +120,7 @@ void startStoryWave(AppState& state, const StageSlot& stage, bool resetPlayer) {
         if (i <= state.story.activeWaveEnemyCount) {
             resetStoryFighterCommon(state, enemy, static_cast<size_t>(i), stage);
             applyStoryDifficultyToEnemy(state, enemy, static_cast<size_t>(i));
+            applyStoryWaveRoleToEnemy(state, enemy);
             const StoryBoardWaveEnemy* waveEnemy =
                 waveSpec && i - 1 < static_cast<int>(waveSpec->enemies.size())
                     ? &waveSpec->enemies[static_cast<size_t>(i - 1)]

@@ -72,7 +72,11 @@ struct MenuListLayout {
 };
 
 MenuListLayout menuListLayout(const UiMenuListView& view, float frameW, float frameH, const UiMenuListStyle& style) {
-    const float textScale = std::clamp(style.textScale, 0.60f, 1.0f);
+    const float textScale = std::clamp(style.textScale, 0.60f, 3.0f);
+    const float originX = style.frameX;
+    const float originY = style.frameY;
+    const float layoutFrameW = style.frameW > 0.0f ? style.frameW : frameW;
+    const float layoutFrameH = style.frameH > 0.0f ? style.frameH : frameH;
     float maxLabelW = debugTextWidth(view.labelHeader.empty() ? "SETTING" : view.labelHeader, textScale);
     for (const auto& row : view.rows) {
         maxLabelW = std::max(maxLabelW, debugTextWidth(row.label, textScale));
@@ -81,7 +85,8 @@ MenuListLayout menuListLayout(const UiMenuListView& view, float frameW, float fr
     MenuListLayout layout;
     layout.textScale = textScale;
     layout.rowTextOffsetY = 3.0f * textScale;
-    frameW = std::max(280.0f * textScale, frameW);
+    frameW = std::max(280.0f * textScale, layoutFrameW);
+    frameH = std::max(160.0f * textScale, layoutFrameH);
     const float edgePad = 10.0f * textScale;
     const float availableMaxW = std::clamp(frameW - edgePad * 2.0f, 260.0f * textScale, style.maxPanelW);
     const float minW = std::min(style.minPanelW, availableMaxW);
@@ -93,8 +98,8 @@ MenuListLayout menuListLayout(const UiMenuListView& view, float frameW, float fr
     const float desiredPanelW = std::max({ contentW, headerW, footerW, statusW, minW });
 
     layout.panelW = std::clamp(std::ceil(desiredPanelW), minW, availableMaxW);
-    layout.panelX = std::floor((frameW - layout.panelW) * 0.5f);
-    layout.panelY = style.panelY;
+    layout.panelX = originX + std::floor((frameW - layout.panelW) * 0.5f);
+    layout.panelY = originY + style.panelY;
     layout.listX = layout.panelX + 16.0f * textScale;
     layout.listW = layout.panelW - 32.0f * textScale;
     layout.listY = layout.panelY + 48.0f * textScale;
@@ -103,8 +108,8 @@ MenuListLayout menuListLayout(const UiMenuListView& view, float frameW, float fr
     layout.statusY = layout.listY + layout.listH + 5.0f * textScale;
     layout.footerY = layout.statusY + (view.statusLine.empty() ? 0.0f : 14.0f * textScale);
     layout.panelH = layout.footerY - layout.panelY + (view.footer.empty() ? 4.0f * textScale : 17.0f * textScale);
-    if (layout.panelY + layout.panelH > frameH - 4.0f) {
-        layout.panelY = std::max(4.0f, frameH - layout.panelH - 4.0f);
+    if (layout.panelY + layout.panelH > originY + frameH - 4.0f) {
+        layout.panelY = std::max(originY + 4.0f, originY + frameH - layout.panelH - 4.0f);
         layout.listY = layout.panelY + 48.0f * textScale;
         layout.columnHeaderY = layout.listY - 10.0f * textScale;
         layout.statusY = layout.listY + layout.listH + 5.0f * textScale;
@@ -232,14 +237,19 @@ void drawUiMenuList(const UiRenderContext& ui, const UiMenuListView& view, const
 UiMenuListGeometryReport verifyUiMenuListGeometry(
     const UiMenuListView& view,
     float frameW,
+    float frameH,
     const UiMenuListStyle& style) {
-    const MenuListLayout layout = menuListLayout(view, frameW, 240.0f, style);
+    const MenuListLayout layout = menuListLayout(view, frameW, frameH, style);
     if (view.rows.empty()) {
         return { false, "no rows" };
     }
-    if (layout.panelX < 0.0f || layout.panelY < 0.0f
-        || layout.panelX + layout.panelW > frameW
-        || layout.panelY + layout.panelH > 240.0f) {
+    const float boundsX = style.frameX;
+    const float boundsY = style.frameY;
+    const float boundsW = style.frameW > 0.0f ? style.frameW : frameW;
+    const float boundsH = style.frameH > 0.0f ? style.frameH : frameH;
+    if (layout.panelX < boundsX || layout.panelY < boundsY
+        || layout.panelX + layout.panelW > boundsX + boundsW
+        || layout.panelY + layout.panelH > boundsY + boundsH) {
         return { false, "panel outside frame" };
     }
     if (layout.valueCellX <= layout.labelX) {
@@ -266,6 +276,13 @@ UiMenuListGeometryReport verifyUiMenuListGeometry(
             + " panelW=" + std::to_string(static_cast<int>(layout.panelW))
             + " rows=" + std::to_string(view.rows.size()),
     };
+}
+
+UiMenuListGeometryReport verifyUiMenuListGeometry(
+    const UiMenuListView& view,
+    float frameW,
+    const UiMenuListStyle& style) {
+    return verifyUiMenuListGeometry(view, frameW, 240.0f, style);
 }
 
 } // namespace dragon

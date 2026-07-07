@@ -72,8 +72,9 @@ std::string singleFightScoreText(const AppState& state) {
         return "Free-for-all";
     }
     if (state.frontend.pendingMode == PendingMode::Story) {
-        return "Wave " + std::to_string(std::clamp(state.story.waveIndex + 1, 1, kStoryWaveCount))
-            + "/" + std::to_string(kStoryWaveCount);
+        const int waves = storyWaveCount(state);
+        return "Wave " + std::to_string(std::clamp(state.story.waveIndex + 1, 1, waves))
+            + "/" + std::to_string(waves);
     }
     return std::to_string(state.roundWins[0]) + " - " + std::to_string(state.roundWins[1]);
 }

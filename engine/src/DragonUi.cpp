@@ -32,20 +32,25 @@ SDL_Color dragonTextColor(DragonTypographyRole role) {
 }
 
 DragonUiMetrics dragonUiMetricsForScale(float uiScale) {
-    const float s = std::clamp(uiScale, 0.60f, 1.75f);
+    const float s = std::clamp(uiScale, 0.60f, 3.0f);
     return {
         24.0f * s,
         22.0f * s,
         18.0f * s,
         14.0f * s,
-        s >= 1.5f ? 2.0f : 1.0f,
+        std::max(1.0f, std::round(s)),
         6.0f * s,
         s,
     };
 }
 
 float dragonUiDensityForDimensions(CanvasDimensions dimensions) {
-    static_cast<void>(dimensions);
+    if (dimensions.width >= kHdLogicalWidth || dimensions.height >= kHdLogicalHeight) {
+        return 3.0f;
+    }
+    if (dimensions.width >= kSdLogicalWidth || dimensions.height >= kSdLogicalHeight) {
+        return 2.0f;
+    }
     return 1.0f;
 }
 
@@ -76,11 +81,36 @@ DragonUiMetrics dragonUiMetricsForPreset(CanvasPreset preset) {
 }
 
 SDL_FRect dragonPixelUiSafeArea(CanvasDimensions dimensions) {
+    constexpr float targetAspect = 16.0f / 9.0f;
+    const float width = static_cast<float>(std::max(1, dimensions.width));
+    const float height = static_cast<float>(std::max(1, dimensions.height));
+    const float aspect = width / height;
+
+    if (std::fabs(aspect - targetAspect) <= 0.01f) {
+        return {
+            0.0f,
+            0.0f,
+            width,
+            height,
+        };
+    }
+
+    if (aspect > targetAspect) {
+        const float safeW = std::floor(height * targetAspect);
+        return {
+            std::floor((width - safeW) * 0.5f),
+            0.0f,
+            safeW,
+            height,
+        };
+    }
+
+    const float safeH = std::floor(width / targetAspect);
     return {
         0.0f,
-        0.0f,
-        static_cast<float>(dimensions.width),
-        static_cast<float>(dimensions.height),
+        std::floor((height - safeH) * 0.5f),
+        width,
+        safeH,
     };
 }
 

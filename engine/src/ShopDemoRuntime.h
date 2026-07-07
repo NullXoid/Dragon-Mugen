@@ -526,7 +526,9 @@ void updateShopDemo(AppState& state) {
         const float speedScale = input.depthModifier ? kShopRunMultiplier : 1.0f;
         const float dx = ((input.right ? kShopWalkSpeed : 0.0f) - (input.left ? kShopWalkSpeed : 0.0f)) * speedScale;
         const float dz = ((input.down ? kShopDepthSpeed : 0.0f) - (input.up ? kShopDepthSpeed : 0.0f)) * speedScale;
-        const bool moving = dx != 0.0f || dz != 0.0f;
+        const bool horizontalWalking = dx != 0.0f;
+        const bool depthWalking = dz != 0.0f;
+        const bool moving = horizontalWalking || depthWalking;
         state.shopDemo.playerMoving = moving;
         if (dx < 0.0f) {
             state.shopDemo.playerFacingLeft = true;

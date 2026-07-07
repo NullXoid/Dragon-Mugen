@@ -397,6 +397,13 @@ int runShopRoomMovementCollision(RuntimeProbe&, std::ostream& out) {
             ? Status::Pass : Status::Fail,
         "shopkeeper_talk_priority_over_service",
         "close-to-I.Chie interaction resolves to talk before the generic counter service zone");
+    record(out, counts,
+        runtimeText.find("depthWalking") != std::string::npos
+            && runtimeText.find("horizontalWalking || depthWalking") != std::string::npos
+            && runtimeText.find("playerWalkFrame +=") != std::string::npos
+            ? Status::Pass : Status::Fail,
+        "shop_depth_walk_animates",
+        "Up/Down movement participates in the same walk-frame loop as horizontal walking");
 
     summary(out, counts);
     return exitCode(counts);

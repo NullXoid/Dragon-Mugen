@@ -96,7 +96,7 @@ bool waitForMatchResult(RuntimeProbe& runtime, int maxFrames) {
 }
 
 bool setupStory(RuntimeProbe& runtime, std::ostream& out, Counts& counts, std::string_view scenario, std::string_view stageHint = "") {
-    if (!runtime.setup("Dcat_Leo", stageHint, ScenarioMode::Story, out, 1)) {
+    if (!runtime.setup("A.Ben", stageHint, ScenarioMode::Story, out, 1)) {
         record(out, counts, Status::Blocked, "setup", "Story setup failed");
         summary(out, counts);
         return false;
@@ -144,12 +144,10 @@ void clearCurrentWave(RuntimeProbe& runtime) {
     runtime.step({}, 70);
 }
 
-int expectedStoryEnemyTotalForWaves(int waves) {
-    int total = 0;
-    for (int wave = 0; wave < std::max(1, waves); ++wave) {
-        total += std::clamp(wave + 1, 1, kStoryMaxEnemies);
-    }
-    return total;
+int expectedStoryEnemyTotalForDifficulty(StoryDifficulty difficulty) {
+    if (difficulty == StoryDifficulty::Easy) return 1;
+    if (difficulty == StoryDifficulty::Hard) return 7;
+    return 3;
 }
 
 std::string readTextFile(const std::filesystem::path& path) {
@@ -158,6 +156,20 @@ std::string readTextFile(const std::filesystem::path& path) {
         return {};
     }
     return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+}
+
+void captureOptionalScreenshot(
+    RuntimeProbe& runtime,
+    std::ostream& out,
+    Counts& counts,
+    const char* envName,
+    std::string_view checkName) {
+    const char* screenshotPath = std::getenv(envName);
+    if (!screenshotPath || !*screenshotPath) {
+        return;
+    }
+    const bool captured = runtime.captureScreenshot(std::filesystem::path(screenshotPath));
+    record(out, counts, captured ? Status::Pass : Status::Fail, checkName, screenshotPath);
 }
 
 } // namespace
@@ -175,7 +187,7 @@ int runStoryModeMenuRoute(RuntimeProbe& runtime, std::ostream& out) {
         "story_preloads_player_and_three_enemy_runtimes",
         "fighters=" + std::to_string(snapshot.fighterCount)
         + " runtimes=" + std::to_string(snapshot.arenaRuntimeCount));
-    const int expectedTotal = expectedStoryEnemyTotalForWaves(snapshot.storySelectedBoardWaves);
+    const int expectedTotal = expectedStoryEnemyTotalForDifficulty(static_cast<StoryDifficulty>(snapshot.storyDifficulty));
     record(out, counts, snapshot.storyActiveEnemies == 1 && snapshot.storyTotalEnemies == expectedTotal ? Status::Pass : Status::Fail,
         "story_initial_wave_state",
         "wave=" + std::to_string(snapshot.storyWaveIndex)
@@ -201,7 +213,7 @@ int runStoryModeMenuRoute(RuntimeProbe& runtime, std::ostream& out) {
 int runStoryStageSelectMap(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
     out << "VERIFY story-stage-select-map\n";
-    if (!runtime.setupStageSelect("Dcat_Leo", ScenarioMode::Story, out)) {
+    if (!runtime.setupStageSelect("A.Ben", ScenarioMode::Story, out)) {
         record(out, counts, Status::Blocked, "setup_stage_select", "Story stage-select setup failed");
         summary(out, counts);
         return exitCode(counts);
@@ -224,6 +236,34 @@ int runStoryStageSelectMap(RuntimeProbe& runtime, std::ostream& out) {
         "story_stage_map_defaults_to_openbor",
         "stage=\"" + runtime.stageName() + "\" index=" + std::to_string(initial.selectedStageIndex)
             + " board=\"" + initial.storySelectedBoardTitle + "\"");
+    captureOptionalScreenshot(
+        runtime,
+        out,
+        counts,
+        "DRAGON_STORY_STAGE_SELECT_SCREENSHOT",
+        "story_stage_select_screenshot");
+
+    if (const char* characterSelectPath = std::getenv("DRAGON_STORY_CHARACTER_SELECT_SCREENSHOT");
+        characterSelectPath && *characterSelectPath) {
+        runtime.pressKey("escape");
+        const auto characterSelect = runtime.snapshot();
+        record(out, counts,
+            characterSelect.screen == static_cast<int>(Screen::CharacterSelect)
+                ? Status::Pass
+                : Status::Fail,
+            "story_returns_to_character_select_for_screenshot",
+            "screen=" + std::to_string(characterSelect.screen));
+        const bool captured = runtime.captureScreenshot(std::filesystem::path(characterSelectPath));
+        record(out, counts, captured ? Status::Pass : Status::Fail, "story_character_select_screenshot", characterSelectPath);
+        runtime.pressKey("enter");
+        const auto backToStage = runtime.snapshot();
+        record(out, counts,
+            backToStage.screen == static_cast<int>(Screen::StageSelect)
+                ? Status::Pass
+                : Status::Fail,
+            "story_returns_to_stage_select_after_screenshot",
+            "screen=" + std::to_string(backToStage.screen));
+    }
 
     const std::string defaultStage = runtime.stageName();
     runtime.pressKey("right");
@@ -259,6 +299,12 @@ int runStoryStageSelectMap(RuntimeProbe& runtime, std::ostream& out) {
         "screen=" + std::to_string(afterEnter.screen)
         + " loading=" + std::to_string(afterEnter.loadingProgressActive ? 1 : 0)
         + " phase=\"" + afterEnter.loadingProgressPhase + "\"");
+    captureOptionalScreenshot(
+        runtime,
+        out,
+        counts,
+        "DRAGON_STORY_LOADING_SCREENSHOT",
+        "story_loading_screenshot");
 
     summary(out, counts);
     return exitCode(counts);
@@ -268,48 +314,80 @@ int runStoryDifficultyEnemyScaling(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
     out << "VERIFY story-difficulty-enemy-scaling\n";
 
-    if (!runtime.setup("Dcat_Leo", "TMNT OpenBOR Street", ScenarioMode::Story, out, 1)) {
+    StoryBoardRoute parsedRoute;
+    try {
+        parsedRoute = loadStoryBoardRouteFile(std::filesystem::path(runtime.rootText()) / "data" / "story_boards.def");
+    } catch (const std::exception& ex) {
+        record(out, counts, Status::Blocked, "story_role_enemy_route_loads", ex.what());
+    }
+    const auto roleNode = std::find_if(parsedRoute.nodes.begin(), parsedRoute.nodes.end(), [](const StoryBoardNode& node) {
+        return node.kind == StoryBoardNodeKind::SideScroller;
+    });
+    const bool roleRefsConfigured = roleNode != parsedRoute.nodes.end()
+        && roleNode->regularEnemyRef == "kfm"
+        && roleNode->midBossEnemyRef == "EvilKen"
+        && roleNode->bossEnemyRef == "EvilRyu";
+    record(out, counts, roleRefsConfigured ? Status::Pass : Status::Fail,
+        "story_role_enemy_refs_configured",
+        roleNode != parsedRoute.nodes.end()
+            ? "regular=" + roleNode->regularEnemyRef
+                + " midboss=" + roleNode->midBossEnemyRef
+                + " boss=" + roleNode->bossEnemyRef
+            : "missing side-scroller board");
+
+    if (!runtime.setup("A.Ben", "TMNT OpenBOR Street", ScenarioMode::Story, out, 1)) {
         record(out, counts, Status::Blocked, "setup_medium_story", "Story setup failed");
         summary(out, counts);
         return exitCode(counts);
     }
     waitForActiveFight(runtime, 420);
     const auto medium = runtime.snapshot();
+    record(out, counts,
+        medium.p2CharacterId == "kfm" || containsNoCase(medium.p2CharacterName, "kung fu")
+            ? Status::Pass
+            : Status::Fail,
+        "story_medium_first_wave_uses_kfm",
+        "p2_id=" + medium.p2CharacterId + " p2_name=" + medium.p2CharacterName);
 
-    if (!runtime.setupStageSelect("Dcat_Leo", ScenarioMode::Story, out)) {
+    if (!runtime.setupStageSelect("A.Ben", ScenarioMode::Story, out)) {
         record(out, counts, Status::Blocked, "setup_stage_select", "Story stage-select setup failed");
         summary(out, counts);
         return exitCode(counts);
     }
     const auto initial = runtime.snapshot();
     record(out, counts, initial.storyDifficulty == 1 ? Status::Pass : Status::Fail,
-        "story_difficulty_defaults_medium",
-        "difficulty=" + std::to_string(initial.storyDifficulty));
+        "story_difficulty_defaults_medium", "difficulty=" + std::to_string(initial.storyDifficulty));
+    record(out, counts, initial.storySelectedBoardWaves == 3 ? Status::Pass : Status::Fail,
+        "story_medium_uses_three_wave_plan", "waves=" + std::to_string(initial.storySelectedBoardWaves));
 
     runtime.pressKey("up");
     const auto hardSelect = runtime.snapshot();
     record(out, counts, hardSelect.storyDifficulty == 2 ? Status::Pass : Status::Fail,
-        "story_difficulty_cycles_on_map",
-        "difficulty=" + std::to_string(hardSelect.storyDifficulty)
+        "story_difficulty_cycles_on_map", "difficulty=" + std::to_string(hardSelect.storyDifficulty)
             + " stage_index=" + std::to_string(hardSelect.selectedStageIndex));
+    record(out, counts, hardSelect.storySelectedBoardWaves == 5 ? Status::Pass : Status::Fail,
+        "story_hard_uses_five_wave_plan", "waves=" + std::to_string(hardSelect.storySelectedBoardWaves));
+
+    runtime.pressKey("down");
+    runtime.pressKey("down");
+    const auto easySelect = runtime.snapshot();
+    record(out, counts, easySelect.storyDifficulty == 0 && easySelect.storySelectedBoardWaves == 1 ? Status::Pass : Status::Fail,
+        "story_easy_uses_one_boss_wave",
+        "difficulty=" + std::to_string(easySelect.storyDifficulty)
+            + " waves=" + std::to_string(easySelect.storySelectedBoardWaves));
+    runtime.pressKey("up");
+    runtime.pressKey("up");
 
     runtime.pressKey("enter");
     runtime.pressKey("enter");
     const bool activeFight = waitForActiveFight(runtime, 520);
     const auto hard = runtime.snapshot();
     record(out, counts, activeFight && hard.pendingMode == static_cast<int>(PendingMode::Story) ? Status::Pass : Status::Fail,
-        "hard_story_fight_starts",
-        "phase=" + std::to_string(hard.matchPhase)
-            + " difficulty=" + std::to_string(hard.storyDifficulty));
+        "hard_story_fight_starts", "phase=" + std::to_string(hard.matchPhase) + " difficulty=" + std::to_string(hard.storyDifficulty));
     record(out, counts, hard.p1.maxLife == medium.p1.maxLife ? Status::Pass : Status::Fail,
-        "story_difficulty_does_not_scale_player_level",
-        "medium_p1_max=" + std::to_string(medium.p1.maxLife)
-            + " hard_p1_max=" + std::to_string(hard.p1.maxLife));
+        "story_difficulty_does_not_scale_player_level", "medium_p1_max=" + std::to_string(medium.p1.maxLife) + " hard_p1_max=" + std::to_string(hard.p1.maxLife));
     record(out, counts, hard.p2.maxLife > medium.p2.maxLife && hard.p2.life == hard.p2.maxLife ? Status::Pass : Status::Fail,
-        "story_difficulty_scales_enemy_life",
-        "medium_enemy_max=" + std::to_string(medium.p2.maxLife)
-            + " hard_enemy_max=" + std::to_string(hard.p2.maxLife)
-            + " hard_enemy_life=" + std::to_string(hard.p2.life));
+        "story_difficulty_scales_enemy_life", "medium_enemy_max=" + std::to_string(medium.p2.maxLife) + " hard_enemy_max=" + std::to_string(hard.p2.maxLife) + " hard_enemy_life=" + std::to_string(hard.p2.life));
 
     summary(out, counts);
     return exitCode(counts);
@@ -335,7 +413,7 @@ int runStoryOpenBorStageDefault(RuntimeProbe& runtime, std::ostream& out) {
 int runStoryStageBoardExpansion(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
     out << "VERIFY story-stage-board-expansion\n";
-    if (!runtime.setupStageSelect("Dcat_Leo", ScenarioMode::Story, out)) {
+    if (!runtime.setupStageSelect("A.Ben", ScenarioMode::Story, out)) {
         record(out, counts, Status::Blocked, "setup_stage_select", "Story stage-select setup failed");
         summary(out, counts);
         return exitCode(counts);
@@ -389,7 +467,7 @@ int runStoryStageBoardExpansion(RuntimeProbe& runtime, std::ostream& out) {
             : "no routed story board declares music");
 
     if (sawMusic) {
-        if (!runtime.setup("Dcat_Leo", musicStageName, ScenarioMode::Story, out, 1)) {
+        if (!runtime.setup("A.Ben", musicStageName, ScenarioMode::Story, out, 1)) {
             record(out, counts, Status::Blocked, "story_stage_music_starts", "Story music-board setup failed");
             summary(out, counts);
             return exitCode(counts);
@@ -452,7 +530,8 @@ int runStoryBoardRoutePlan(RuntimeProbe& runtime, std::ostream& out) {
                 && node.shopDoorPrompt == "LK / X SHOP"
                 && node.shopDoorOffsetX == 160.0f
                 && node.shopDoorRadiusX == 56.0f);
-        sawConfigurableWave = sawConfigurableWave || (!node.waveSpecs.empty() && !node.waveSpecs.front().enemies.empty() && node.rewardXp > 0 && node.rewardGold > 0 && !node.clearCueImagePath.empty());
+        sawConfigurableWave = sawConfigurableWave || (!node.waveSpecs.empty() && !node.waveSpecs.front().enemies.empty()
+            && node.rewardXp > 0 && node.rewardGold > 0 && !node.clearCueImagePath.empty());
     }
     record(out, counts,
         parsedRoute.forwardCueImagePath == "data/story/wave_clear_arrow.png" && sawConfigurableShop && sawConfigurableWave
@@ -466,7 +545,7 @@ int runStoryBoardRoutePlan(RuntimeProbe& runtime, std::ostream& out) {
         "route_has_multiple_board_nodes",
         "boards=" + std::to_string(initial.storyBoardNodeCount));
     record(out, counts,
-        initial.storySelectedBoardKind == "side_scroller" && initial.storySelectedBoardWaves == 2
+        initial.storySelectedBoardKind == "side_scroller" && initial.storySelectedBoardWaves == 3
             ? Status::Pass
             : Status::Fail,
         "route_defaults_to_side_scroller",
@@ -755,14 +834,29 @@ int runStoryWaveSpawnScroll(RuntimeProbe& runtime, std::ostream& out) {
 
     clearCurrentWave(runtime);
     const auto wave2 = runtime.snapshot();
-    record(out, counts, wave2.storyWaveIndex == 1 && wave2.storyActiveEnemies == 2 && wave2.storyLivingEnemies == 2
-            ? Status::Pass
-            : Status::Fail,
-        "story_spawns_second_wave",
-        "wave=" + std::to_string(wave2.storyWaveIndex)
-        + " active=" + std::to_string(wave2.storyActiveEnemies)
-        + " living=" + std::to_string(wave2.storyLivingEnemies)
+    const bool midBossIsKen = containsNoCase(wave2.p2CharacterId, "ken")
+        || containsNoCase(wave2.p2CharacterName, "ken");
+    record(out, counts, wave2.storyWaveIndex == 1 && wave2.storyActiveEnemies == 1 && wave2.storyLivingEnemies == 1 ? Status::Pass : Status::Fail,
+        "story_spawns_medium_midboss_wave", "wave=" + std::to_string(wave2.storyWaveIndex)
+        + " active=" + std::to_string(wave2.storyActiveEnemies) + " living=" + std::to_string(wave2.storyLivingEnemies)
         + " defeated=" + std::to_string(wave2.storyEnemiesDefeated));
+    record(out, counts, midBossIsKen ? Status::Pass : Status::Fail,
+        "story_medium_midboss_is_ken",
+        "p2_id=" + wave2.p2CharacterId + " p2_name=" + wave2.p2CharacterName);
+
+    clearCurrentWave(runtime);
+    const auto wave3 = runtime.snapshot();
+    const bool bossIsRyu = containsNoCase(wave3.p2CharacterId, "ryu")
+        || containsNoCase(wave3.p2CharacterName, "ryu");
+    record(out, counts, wave3.storyWaveIndex == 2 && wave3.storyActiveEnemies == 1 && wave3.storyLivingEnemies == 1 ? Status::Pass : Status::Fail,
+        "story_spawns_medium_boss_wave",
+        "wave=" + std::to_string(wave3.storyWaveIndex)
+            + " active=" + std::to_string(wave3.storyActiveEnemies)
+            + " living=" + std::to_string(wave3.storyLivingEnemies)
+            + " defeated=" + std::to_string(wave3.storyEnemiesDefeated));
+    record(out, counts, bossIsRyu ? Status::Pass : Status::Fail,
+        "story_medium_boss_is_ryu",
+        "p2_id=" + wave3.p2CharacterId + " p2_name=" + wave3.p2CharacterName);
     summary(out, counts);
     return exitCode(counts);
 }
@@ -807,6 +901,12 @@ int runStoryStageClear(RuntimeProbe& runtime, std::ostream& out) {
         + " winner=" + std::to_string(snapshot.matchWinner)
         + " clear=" + std::to_string(snapshot.storyStageClear ? 1 : 0)
         + " defeated=" + std::to_string(snapshot.storyEnemiesDefeated));
+    captureOptionalScreenshot(
+        runtime,
+        out,
+        counts,
+        "DRAGON_STORY_STAGE_CLEAR_SCREENSHOT",
+        "story_stage_clear_screenshot");
     summary(out, counts);
     return exitCode(counts);
 }
@@ -875,118 +975,6 @@ int runStoryRewardFeedback(RuntimeProbe& runtime, std::ostream& out) {
         + " goldBefore=" + std::to_string(before.progressionGoldBalance)
         + " goldAfter=" + std::to_string(snapshot.progressionGoldBalance)
         + " award=\"" + snapshot.progressionAwardText + "\"");
-    summary(out, counts);
-    return exitCode(counts);
-}
-
-int runStoryEvilRyuSuperRecovery(RuntimeProbe& runtime, std::ostream& out) {
-    Counts counts;
-    if (!runtime.setup("EvilRyu", "TMNT OpenBOR Street", ScenarioMode::Story, out, 1)) {
-        record(out, counts, Status::Blocked, "setup", "Evil Ryu Story setup failed");
-        summary(out, counts);
-        return exitCode(counts);
-    }
-    header(out, runtime, "story-evilryu-super-recovery");
-
-    const bool activeFight = waitForActiveFight(runtime, 420);
-    record(out, counts, activeFight ? Status::Pass : Status::Fail,
-        "story_fight_phase_ready",
-        "match_phase=" + std::to_string(runtime.snapshot().matchPhase));
-    if (!activeFight) {
-        summary(out, counts);
-        return exitCode(counts);
-    }
-
-    runtime.setArenaCpuFrozen(true);
-    runtime.setFighterPosition(0, 220.0f, 0.0f);
-    runtime.setFighterPosition(1, 315.0f, 0.0f);
-    runtime.setFighterDepth(0, 0.0f);
-    runtime.setFighterDepth(1, 0.0f);
-    runtime.setFighterControl(0, false);
-    runtime.setFighterControl(1, false);
-    runtime.setFighterPower(0, 3000);
-    runtime.setFighterVar(0, 28, 0);
-    runtime.setFighterLife(1, 1000);
-    runtime.forceFighterState(0, 3885);
-
-    bool sawSuperPause = false;
-    bool sawPauseClear = false;
-    bool sawHelper = false;
-    bool sawHit = false;
-    bool recovered = false;
-    int maxPause = 0;
-    int maxHelpers = 0;
-    int longestPoseStall = 0;
-    int poseStall = 0;
-    int previousState = -1;
-    int previousAnimTick = -1;
-    int previousStateTime = -1;
-    FighterSnapshot finalP1;
-    FighterSnapshot finalP2;
-    std::string lastHitText;
-
-    for (int frame = 0; frame < 520; ++frame) {
-        runtime.step({}, 1);
-        const auto snap = runtime.snapshot();
-        finalP1 = snap.p1;
-        finalP2 = snap.p2;
-        maxPause = std::max(maxPause, snap.globalPauseTicks);
-        maxHelpers = std::max(maxHelpers, snap.activeHelpers);
-        sawSuperPause = sawSuperPause || (snap.globalPauseIsSuper && snap.globalPauseTicks > 0);
-        sawPauseClear = sawPauseClear || (sawSuperPause && snap.globalPauseTicks == 0);
-        sawHelper = sawHelper || snap.activeHelpers > 0;
-        sawHit = sawHit || snap.p1.moveHit || snap.comboHits > 0 || snap.lastHitText.find("P1 hit") != std::string::npos;
-        if (!snap.lastHitText.empty()) {
-            lastHitText = snap.lastHitText;
-        }
-
-        if (snap.p1.stateNo == previousState
-            && snap.p1.animTick == previousAnimTick
-            && snap.p1.stateTime == previousStateTime
-            && snap.globalPauseTicks == 0
-            && snap.p1.hitPauseTicks == 0) {
-            ++poseStall;
-        } else {
-            poseStall = 0;
-            previousState = snap.p1.stateNo;
-            previousAnimTick = snap.p1.animTick;
-            previousStateTime = snap.p1.stateTime;
-        }
-        longestPoseStall = std::max(longestPoseStall, poseStall);
-
-        recovered = snap.globalPauseTicks == 0
-            && snap.p1.stateNo == 0
-            && snap.p1.moveType == 'I'
-            && snap.p1.ctrl
-            && snap.activeHelpers <= 1;
-        if (recovered) {
-            break;
-        }
-    }
-
-    record(out, counts, sawSuperPause ? Status::Pass : Status::Fail,
-        "story_superpause_observed",
-        "max_pause=" + std::to_string(maxPause));
-    record(out, counts, sawPauseClear ? Status::Pass : Status::Fail,
-        "story_superpause_clears",
-        "final_pause=" + std::to_string(runtime.snapshot().globalPauseTicks));
-    record(out, counts, sawHelper ? Status::Pass : Status::Fail,
-        "story_super_helper_spawns",
-        "max_helpers=" + std::to_string(maxHelpers));
-    record(out, counts, sawHit ? Status::Pass : Status::Fail,
-        "story_super_can_hit_enemy",
-        "last_hit=\"" + lastHitText + "\"");
-    record(out, counts, longestPoseStall < 90 ? Status::Pass : Status::Fail,
-        "story_super_no_post_pause_pose_stall",
-        "longest_stall=" + std::to_string(longestPoseStall)
-            + " final_state=" + std::to_string(finalP1.stateNo)
-            + " final_time=" + std::to_string(finalP1.stateTime));
-    record(out, counts, recovered ? Status::Pass : Status::Fail,
-        "story_super_recovers_gameplay",
-        "final_p1_state=" + std::to_string(finalP1.stateNo)
-            + " final_p1_time=" + std::to_string(finalP1.stateTime)
-            + " final_p2_state=" + std::to_string(finalP2.stateNo));
-
     summary(out, counts);
     return exitCode(counts);
 }

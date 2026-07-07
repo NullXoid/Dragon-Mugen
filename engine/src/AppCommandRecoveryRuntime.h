@@ -704,11 +704,15 @@ void updateControlledFighter(
     const bool holdingHorizontal = commandInput.left != commandInput.right;
     const bool holdingUp = commandInput.up;
     const bool movementLocked = fighterHasAssertSpecialFlag(fighter, "nowalk");
+    const bool holdingDepthWalk = arenaDepth && input.depthModifier && input.up != input.down;
+    const bool holdingWalkMovement = holdingHorizontal || holdingDepthWalk;
     if (shouldQueueHeldJumpRepeat(fighter, commandInput, attackButtonHeld, holdingDown, movementLocked)) {
         fighter.jumpInputBufferTicks = 1;
         fighter.jumpInputConsumedWhileHeld = false;
     }
-    const int heldWalkAction = ((fighter.facing >= 0 && input.right) || (fighter.facing < 0 && input.left)) ? 20 : 21;
+    const bool holdingForward = (fighter.facing >= 0 && input.right) || (fighter.facing < 0 && input.left);
+    const bool holdingBack = (fighter.facing >= 0 && input.left) || (fighter.facing < 0 && input.right);
+    const int heldWalkAction = holdingForward ? 20 : (holdingBack ? 21 : 20);
     const auto startFallbackJump = [&state, &fighter, &input]() {
         const int sourceStateNo = fighter.stateNo;
         consumeJumpInputBuffer(fighter);
@@ -788,9 +792,9 @@ void updateControlledFighter(
         ? applyPreferredCommandState(state, fighter, opponent, commands, *preferredCommandEntry)
         : applyCommandState(state, fighter, opponent, commands);
 
-    if (!changedStateFromCommand && fighter.stateNo == 20 && (!holdingHorizontal || holdingDown || holdingUp || !fighter.ctrl)) {
+    if (!changedStateFromCommand && fighter.stateNo == 20 && (!holdingWalkMovement || holdingDown || holdingUp || !fighter.ctrl)) {
         enterState(state, fighter, 0);
-    } else if (!changedStateFromCommand && fighter.stateNo == 20 && holdingHorizontal) {
+    } else if (!changedStateFromCommand && fighter.stateNo == 20 && holdingWalkMovement) {
         if (findExactClipForActor(state, fighter, heldWalkAction)) {
             setFighterAction(fighter, heldWalkAction);
         }
@@ -817,7 +821,7 @@ void updateControlledFighter(
             fighter.vx = 0.0f;
             fighter.jumpBaseAction = 0;
             fighter.jumpPeakActionApplied = false;
-            if (!changedStateFromCommand && !movementLocked && !holdingDown && !holdingUp && fighter.ctrl && holdingHorizontal) {
+            if (!changedStateFromCommand && !movementLocked && !holdingDown && !holdingUp && fighter.ctrl && holdingWalkMovement) {
                 if (findStateDefinitionForActor(state, fighter, 20)) {
                     enterState(state, fighter, 20);
                     if (findExactClipForActor(state, fighter, heldWalkAction)) {
@@ -825,10 +829,9 @@ void updateControlledFighter(
                     }
                 } else {
                     const CharacterConstants& constants = characterConstantsForActor(state, fighter);
-                    const bool movingForward = (fighter.facing >= 0 && input.right) || (fighter.facing < 0 && input.left);
-                    const float localVelocity = movingForward
-                        ? constants.velocityWalkFwdX
-                        : constants.velocityWalkBackX;
+                    const float localVelocity = holdingHorizontal
+                        ? (holdingForward ? constants.velocityWalkFwdX : constants.velocityWalkBackX)
+                        : 0.0f;
                     fighter.vx = localVelocity * static_cast<float>(fighter.facing);
                 }
             }

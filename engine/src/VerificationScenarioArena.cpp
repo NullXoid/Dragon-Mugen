@@ -15,13 +15,11 @@ enum class Status {
     Fail,
     Blocked,
 };
-
 struct Counts {
     int pass = 0;
     int fail = 0;
     int blocked = 0;
 };
-
 const char* statusText(Status status) {
     switch (status) {
     case Status::Pass:
@@ -33,7 +31,6 @@ const char* statusText(Status status) {
         return "BLOCKED";
     }
 }
-
 void record(std::ostream& out, Counts& counts, Status status, std::string_view name, std::string_view detail) {
     out << statusText(status) << ' ' << name << "\n";
     if (!detail.empty()) {
@@ -47,13 +44,11 @@ void record(std::ostream& out, Counts& counts, Status status, std::string_view n
         ++counts.blocked;
     }
 }
-
 int exitCode(const Counts& counts) {
     if (counts.fail > 0) return 1;
     if (counts.blocked > 0) return 2;
     return 0;
 }
-
 void summary(std::ostream& out, const Counts& counts) {
     out << "SUMMARY pass=" << counts.pass << " partial=0 fail=" << counts.fail
         << " blocked=" << counts.blocked << "\n";
@@ -155,7 +150,8 @@ int runArenaZKeyboardControls(RuntimeProbe& runtime, std::ostream& out) {
         && std::fabs(depthAfter.p1.y - depthBefore.p1.y) <= 0.5f
         && depthAfter.p1.stateType != 'C';
     const bool walkingAction = depthAfter.p1.action == 20 || depthAfter.p1.action == 21;
-    record(out, counts, movedDepth && stayedGrounded && walkingAction && depthAfter.arenaCameraRotationActive
+    const bool walkAnimationAdvanced = depthAfter.p1.animTick > depthBefore.p1.animTick;
+    record(out, counts, movedDepth && stayedGrounded && walkingAction && walkAnimationAdvanced && depthAfter.arenaCameraRotationActive
             ? Status::Pass
             : Status::Fail,
         "shift_down_moves_depth_without_crouch",
@@ -166,7 +162,8 @@ int runArenaZKeyboardControls(RuntimeProbe& runtime, std::ostream& out) {
         + " state_type=" + std::string(1, depthAfter.p1.stateType)
         + " state=" + std::to_string(depthAfter.p1.stateNo)
         + " action=" + std::to_string(depthAfter.p1.action)
-        + " anim_tick=" + std::to_string(depthAfter.p1.animTick));
+        + " anim_tick_before=" + std::to_string(depthBefore.p1.animTick)
+        + " anim_tick_after=" + std::to_string(depthAfter.p1.animTick));
 
     runtime.positionFighters(-160.0f, 160.0f);
     runtime.setFighterControl(1, false);
@@ -237,7 +234,8 @@ int runArenaZGamepadControls(RuntimeProbe& runtime, std::ostream& out) {
         && depthAfter.p1.onGround
         && depthAfter.p1.stateType != 'C';
     const bool walkingAction = depthAfter.p1.action == 20 || depthAfter.p1.action == 21;
-    record(out, counts, leftTriggerDepth && walkingAction && depthAfter.arenaCameraRotationActive
+    const bool walkAnimationAdvanced = depthAfter.p1.animTick > depthBefore.p1.animTick;
+    record(out, counts, leftTriggerDepth && walkingAction && walkAnimationAdvanced && depthAfter.arenaCameraRotationActive
             ? Status::Pass
             : Status::Fail,
         "left_trigger_down_moves_depth",
@@ -247,7 +245,8 @@ int runArenaZGamepadControls(RuntimeProbe& runtime, std::ostream& out) {
         + " state_type=" + std::string(1, depthAfter.p1.stateType)
         + " y_after=" + std::to_string(depthAfter.p1.y)
         + " action=" + std::to_string(depthAfter.p1.action)
-        + " anim_tick=" + std::to_string(depthAfter.p1.animTick));
+        + " anim_tick_before=" + std::to_string(depthBefore.p1.animTick)
+        + " anim_tick_after=" + std::to_string(depthAfter.p1.animTick));
 
     record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
     summary(out, counts);

@@ -1,5 +1,6 @@
 #include "FramePerformance.h"
 
+#include "DragonUi.h"
 #include "UiRenderContext.h"
 #include "UiRenderPrimitives.h"
 
@@ -249,54 +250,56 @@ void drawFramePerformanceHud(const UiRenderContext& ui, const FramePerfState& pe
         return;
     }
 
+    const DragonUiMetrics metrics = dragonUiMetricsForContext(ui);
+    const float s = metrics.pixelScale;
     const int fps = static_cast<int>(std::lround(std::max(0.0, perf.currentFps())));
     if (mode == PerformanceHudMode::Fps) {
         const std::string text = "FPS " + std::to_string(fps) + "  " + resolutionText(ui);
-        const float w = static_cast<float>(text.size()) * 8.0f + 8.0f;
-        const float x = static_cast<float>(ui.logicalWidth) - w - 4.0f;
-        constexpr float y = 4.0f;
+        const float w = static_cast<float>(text.size()) * 8.0f * s + 8.0f * s;
+        const float x = static_cast<float>(ui.logicalWidth) - w - 4.0f * s;
+        const float y = 4.0f * s;
         const Uint8 red = fps < 50 ? 222 : 118;
         const Uint8 green = fps < 50 ? 80 : 226;
         setColor(ui.renderer, 4, 7, 12, 182);
-        fillRect(ui.renderer, x, y, w, 12.0f);
+        fillRect(ui.renderer, x, y, w, 12.0f * s);
         setColor(ui.renderer, red, green, 160, 220);
-        drawRect(ui.renderer, x, y, w, 12.0f);
+        drawRect(ui.renderer, x, y, w, 12.0f * s);
         setColor(ui.renderer, 224, 238, 242, 240);
-        debugText(ui.renderer, x + 4.0f, y + 3.0f, text);
+        scaledDebugText(ui.renderer, s, x + 4.0f * s, y + 3.0f * s, text);
         return;
     }
 
     const FramePerfSummary summary = perf.summary(true);
     const FramePerfCounters& counters = summary.latestCounters;
-    constexpr float w = 154.0f;
-    constexpr float h = 60.0f;
-    const float x = std::max(4.0f, static_cast<float>(ui.logicalWidth) - w - 4.0f);
-    constexpr float y = 4.0f;
+    const float w = 154.0f * s;
+    const float h = 60.0f * s;
+    const float x = std::max(4.0f * s, static_cast<float>(ui.logicalWidth) - w - 4.0f * s);
+    const float y = 4.0f * s;
     const Uint8 alert = summary.fpsEquivalent > 0.0 && summary.fpsEquivalent < 55.0 ? 222 : 118;
     setColor(ui.renderer, 4, 7, 12, 196);
     fillRect(ui.renderer, x, y, w, h);
     setColor(ui.renderer, alert, summary.fpsEquivalent < 55.0 ? 96 : 226, 180, 226);
     drawRect(ui.renderer, x, y, w, h);
     setColor(ui.renderer, 224, 238, 242, 240);
-    debugText(ui.renderer, x + 4.0f, y + 4.0f, "FPS " + std::to_string(fps)
+    scaledDebugText(ui.renderer, s, x + 4.0f * s, y + 4.0f * s, "FPS " + std::to_string(fps)
         + " AVG " + fixed1(summary.avgFrameMs) + "ms");
     setColor(ui.renderer, 170, 210, 245, 238);
-    debugText(ui.renderer, x + 4.0f, y + 14.0f, "P95 " + fixed1(summary.p95FrameMs)
+    scaledDebugText(ui.renderer, s, x + 4.0f * s, y + 14.0f * s, "P95 " + fixed1(summary.p95FrameMs)
         + " W " + fixed1(summary.worstFrameMs));
     setColor(ui.renderer, 245, 220, 124, 238);
     const size_t dominantIndex = static_cast<size_t>(summary.dominantSection);
     const double dominantMs = dominantIndex < summary.avgSectionMs.size() ? summary.avgSectionMs[dominantIndex] : 0.0;
-    debugText(ui.renderer, x + 4.0f, y + 24.0f, "DOM "
+    scaledDebugText(ui.renderer, s, x + 4.0f * s, y + 24.0f * s, "DOM "
         + std::string(framePerfSectionLabel(summary.dominantSection)) + " " + fixed1(dominantMs));
     setColor(ui.renderer, 190, 224, 210, 238);
-    debugText(ui.renderer, x + 4.0f, y + 34.0f, "F" + std::to_string(counters.fighters)
+    scaledDebugText(ui.renderer, s, x + 4.0f * s, y + 34.0f * s, "F" + std::to_string(counters.fighters)
         + " H" + std::to_string(counters.helpers)
         + " P" + std::to_string(counters.projectiles)
         + " FX" + std::to_string(counters.effects)
         + " D" + std::to_string(counters.drawCalls)
         + "/" + std::to_string(counters.skippedDraws));
     setColor(ui.renderer, 224, 238, 242, 220);
-    debugText(ui.renderer, x + 4.0f, y + 44.0f, "RES " + resolutionText(ui));
+    scaledDebugText(ui.renderer, s, x + 4.0f * s, y + 44.0f * s, "RES " + resolutionText(ui));
 }
 
 void appendFramePerformanceLog(const std::filesystem::path& gameRoot, const FramePerfState& perf, int frameNumber) {

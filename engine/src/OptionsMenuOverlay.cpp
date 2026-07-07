@@ -13,20 +13,21 @@ namespace dragon {
 
 void drawOptionsMenuOverlay(const UiRenderContext& ui, const OptionsMenuView& view) {
     SDL_Renderer* renderer = ui.renderer;
-    const float centerX = static_cast<float>(ui.logicalWidth) * 0.5f;
     const DragonUiMetrics metrics = dragonUiMetricsForContext(ui);
+    const SDL_FRect safe = dragonPixelUiSafeArea(CanvasDimensions{ ui.logicalWidth, ui.logicalHeight });
+    const float centerX = safe.x + safe.w * 0.5f;
     const auto& tokens = dragonUiTokens();
     const float s = metrics.pixelScale;
 
     setColor(renderer, tokens.panelBase, 226);
-    fillRect(renderer, 0.0f, 0.0f, static_cast<float>(ui.logicalWidth), metrics.topBarH);
+    fillRect(renderer, safe.x, safe.y, safe.w, metrics.topBarH);
     setColor(renderer, tokens.separatorRed);
-    fillRect(renderer, 0.0f, metrics.topBarH - metrics.border, static_cast<float>(ui.logicalWidth), metrics.border);
+    fillRect(renderer, safe.x, safe.y + metrics.topBarH - metrics.border, safe.w, metrics.border);
     setColor(renderer, tokens.mutedGold);
-    scaledDebugText(renderer, s, 10.0f * s, 8.0f * s, "DRAGON MUGEN CORE");
+    scaledDebugText(renderer, s, safe.x + 10.0f * s, safe.y + 8.0f * s, "DRAGON MUGEN CORE");
     setColor(renderer, tokens.primaryTeal);
     const std::string title = view.title.empty() ? "OPTIONS" : view.title;
-    scaledDebugText(renderer, s, centerX - static_cast<float>(title.size()) * 4.0f * s, 8.0f * s, title);
+    scaledDebugText(renderer, s, centerX - static_cast<float>(title.size()) * 4.0f * s, safe.y + 8.0f * s, title);
 
     std::vector<UiMenuListRowView> rows;
     rows.reserve(view.rows.size());
@@ -54,10 +55,14 @@ void drawOptionsMenuOverlay(const UiRenderContext& ui, const OptionsMenuView& vi
         UiMenuListStyle{
             metrics.topBarH + 16.0f * s,
             300.0f * s,
-            std::min(static_cast<float>(ui.logicalWidth) - 20.0f * s, 430.0f * s),
+            std::min(safe.w - 20.0f * s, 430.0f * s),
             metrics.rowH,
             true,
             s,
+            safe.x,
+            safe.y,
+            safe.w,
+            safe.h,
         });
 }
 
