@@ -10,8 +10,17 @@
 namespace dragon {
 namespace {
 
-float fightResultVirtualWidth(const UiRenderContext& ui) {
-    return ui.logicalWidth <= 340 ? 320.0f : 426.0f;
+struct FightResultCanvas {
+    float width = 426.0f;
+    float height = 240.0f;
+    bool hd = false;
+};
+
+FightResultCanvas fightResultCanvas(const UiRenderContext& ui) {
+    if (ui.logicalWidth >= 854 && ui.logicalHeight >= 480) {
+        return { 640.0f, 360.0f, true };
+    }
+    return { ui.logicalWidth <= 340 ? 320.0f : 426.0f, 240.0f, false };
 }
 
 void drawRoundPips(const UiRenderContext& ui, float x, float y, FightRoundPipsView pips) {
@@ -41,29 +50,32 @@ void drawRoundCalloutBand(const UiRenderContext& ui, const FightRoundCalloutView
         return;
     }
 
-    const float virtualWidth = fightResultVirtualWidth(ui);
-    ScopedVirtualCanvas virtualCanvas(ui, virtualWidth, 240.0f);
+    const FightResultCanvas canvas = fightResultCanvas(ui);
+    ScopedVirtualCanvas virtualCanvas(ui, canvas.width, canvas.height);
 
-    const float centerX = virtualWidth * 0.5f;
+    const float centerX = canvas.width * 0.5f;
+    const float scale = canvas.height / 240.0f;
     const float pulse = 0.5f + 0.5f * std::sin(static_cast<float>(view.frame) * 0.18f);
     const float pop = std::max(0.0f, 1.0f - static_cast<float>(view.frame) / 14.0f);
-    const float bandW = std::min(virtualWidth - 32.0f, 232.0f + pop * 22.0f);
+    const float bandW = std::min(canvas.width - 48.0f, (232.0f + pop * 22.0f) * scale);
+    const float bandY = 75.0f * scale;
+    const float panelY = 82.0f * scale;
 
     setColor(ui.renderer, 4, 6, 10, 180);
-    fillRect(ui.renderer, 0.0f, 75.0f, virtualWidth, 48.0f);
+    fillRect(ui.renderer, 0.0f, bandY, canvas.width, 48.0f * scale);
     setColor(ui.renderer, 6, 8, 14, 226);
-    fillRect(ui.renderer, centerX - bandW * 0.5f, 82.0f, bandW, 34.0f);
+    fillRect(ui.renderer, centerX - bandW * 0.5f, panelY, bandW, 34.0f * scale);
     setColor(ui.renderer, 30, 38, 58, 236);
-    fillRect(ui.renderer, centerX - bandW * 0.5f + 3.0f, 85.0f, bandW - 6.0f, 28.0f);
+    fillRect(ui.renderer, centerX - bandW * 0.5f + 3.0f, panelY + 3.0f * scale, bandW - 6.0f, 28.0f * scale);
     setColor(ui.renderer, view.r, view.g, view.b, static_cast<Uint8>(176 + pulse * 64.0f));
-    fillRect(ui.renderer, centerX - bandW * 0.5f + 5.0f, 84.0f, bandW - 10.0f, 2.0f);
-    fillRect(ui.renderer, centerX - bandW * 0.5f + 5.0f, 114.0f, bandW - 10.0f, 2.0f);
+    fillRect(ui.renderer, centerX - bandW * 0.5f + 5.0f, panelY + 2.0f * scale, bandW - 10.0f, 2.0f);
+    fillRect(ui.renderer, centerX - bandW * 0.5f + 5.0f, panelY + 32.0f * scale, bandW - 10.0f, 2.0f);
     setColor(ui.renderer, 158, 64, 58, 190);
-    fillRect(ui.renderer, centerX - 86.0f, 89.0f, 172.0f, 1.0f);
+    fillRect(ui.renderer, centerX - 86.0f * scale, panelY + 7.0f * scale, 172.0f * scale, 1.0f);
     setColor(ui.renderer, 6, 8, 12);
-    debugTextCentered(ui.renderer, centerX + 1.0f, 97.0f, fitDebugText(view.text, 28));
+    debugTextCentered(ui.renderer, centerX + 1.0f, panelY + 15.0f * scale, fitDebugText(view.text, 28));
     setColor(ui.renderer, view.r, view.g, view.b);
-    debugTextCentered(ui.renderer, centerX, 96.0f, fitDebugText(view.text, 28));
+    debugTextCentered(ui.renderer, centerX, panelY + 14.0f * scale, fitDebugText(view.text, 28));
 }
 
 } // namespace
@@ -81,43 +93,111 @@ void drawRoundResultOverlay(const UiRenderContext& ui, const FightRoundResultVie
         return;
     }
 
-    const float virtualWidth = fightResultVirtualWidth(ui);
-    ScopedVirtualCanvas virtualCanvas(ui, virtualWidth, 240.0f);
+    const FightResultCanvas canvas = fightResultCanvas(ui);
+    ScopedVirtualCanvas virtualCanvas(ui, canvas.width, canvas.height);
 
-    const float centerX = virtualWidth * 0.5f;
+    const float centerX = canvas.width * 0.5f;
+    const float scale = canvas.height / 240.0f;
     const float pulse = 0.5f + 0.5f * std::sin(static_cast<float>(view.frame) * 0.15f);
     setColor(ui.renderer, 4, 6, 10, 180);
-    fillRect(ui.renderer, centerX - 130.0f, 68, 260, 86);
+    fillRect(ui.renderer, centerX - 130.0f * scale, 68.0f * scale, 260.0f * scale, 86.0f * scale);
     setColor(ui.renderer, 6, 8, 14, 232);
-    fillRect(ui.renderer, centerX - 104.0f, 74, 208, 74);
+    fillRect(ui.renderer, centerX - 104.0f * scale, 74.0f * scale, 208.0f * scale, 74.0f * scale);
     setColor(ui.renderer, 24, 32, 48, 238);
-    fillRect(ui.renderer, centerX - 100.0f, 78, 200, 24);
+    fillRect(ui.renderer, centerX - 100.0f * scale, 78.0f * scale, 200.0f * scale, 24.0f * scale);
     setColor(ui.renderer, 230, 190, 105);
-    drawRect(ui.renderer, centerX - 104.0f, 74, 208, 74);
+    drawRect(ui.renderer, centerX - 104.0f * scale, 74.0f * scale, 208.0f * scale, 74.0f * scale);
     setColor(ui.renderer, 230, 190, 105, static_cast<Uint8>(170 + pulse * 60.0f));
-    fillRect(ui.renderer, centerX - 100.0f, 77, 200, 2);
-    fillRect(ui.renderer, centerX - 100.0f, 145, 200, 2);
+    fillRect(ui.renderer, centerX - 100.0f * scale, 77.0f * scale, 200.0f * scale, 2.0f);
+    fillRect(ui.renderer, centerX - 100.0f * scale, 145.0f * scale, 200.0f * scale, 2.0f);
 
     setColor(ui.renderer, 222, 226, 232);
-    debugTextCentered(ui.renderer, centerX, 94, fitDebugText(view.resultText, 24));
+    debugTextCentered(ui.renderer, centerX, 94.0f * scale, fitDebugText(view.resultText, 24));
     if (view.p1RoundPips.required > 0 || view.p2RoundPips.required > 0) {
         setColor(ui.renderer, 230, 220, 172);
-        drawRoundPips(ui, centerX - 42.0f, 112, view.p1RoundPips);
+        drawRoundPips(ui, centerX - 42.0f * scale, 112.0f * scale, view.p1RoundPips);
         setColor(ui.renderer, 230, 220, 172);
-        debugTextCentered(ui.renderer, centerX, 111, "-");
-        drawRoundPips(ui, centerX + 42.0f, 112, view.p2RoundPips);
+        debugTextCentered(ui.renderer, centerX, 111.0f * scale, "-");
+        drawRoundPips(ui, centerX + 42.0f * scale, 112.0f * scale, view.p2RoundPips);
     }
     setColor(ui.renderer, 174, 184, 196);
-    debugTextCentered(ui.renderer, centerX, 130, view.footerText);
+    debugTextCentered(ui.renderer, centerX, 130.0f * scale, view.footerText);
 }
 
 void drawMatchResultScreen(const UiRenderContext& ui, const FightMatchResultView& view) {
-    const float virtualWidth = fightResultVirtualWidth(ui);
-    ScopedVirtualCanvas virtualCanvas(ui, virtualWidth, 240.0f);
-    const float widthF = virtualWidth;
-    const float heightF = 240.0f;
+    const FightResultCanvas canvas = fightResultCanvas(ui);
+    ScopedVirtualCanvas virtualCanvas(ui, canvas.width, canvas.height);
+    const float widthF = canvas.width;
+    const float heightF = canvas.height;
     const float centerX = widthF * 0.5f;
     const float pulse = 0.5f + 0.5f * std::sin(static_cast<float>(view.frame) * 0.12f);
+
+    if (canvas.hd) {
+        setColor(ui.renderer, 5, 8, 13, 242);
+        fillRect(ui.renderer, 0, 0, widthF, heightF);
+        setColor(ui.renderer, 7, 16, 25);
+        fillRect(ui.renderer, 0, 0, widthF, 44.0f);
+        setColor(ui.renderer, 198, 79, 85);
+        fillRect(ui.renderer, 0, 44.0f, widthF, 2.0f);
+
+        setColor(ui.renderer, 230, 220, 172);
+        debugText(ui.renderer, 20.0f, 17.0f, "MATCH COMPLETE");
+        setColor(ui.renderer, 128, 171, 225);
+        debugTextCentered(ui.renderer, centerX, 17.0f, view.modeLabel);
+
+        const float panelX = 46.0f;
+        const float panelY = 74.0f;
+        const float panelW = widthF - panelX * 2.0f;
+        const float panelH = 132.0f;
+        setColor(ui.renderer, 7, 16, 25, 232);
+        fillRect(ui.renderer, panelX, panelY, panelW, panelH);
+        setColor(ui.renderer, 78, 90, 112);
+        drawRect(ui.renderer, panelX, panelY, panelW, panelH);
+        setColor(ui.renderer, 230, 190, 105);
+        fillRect(ui.renderer, panelX + 6.0f, panelY + 6.0f, panelW - 12.0f, 2.0f);
+
+        setColor(ui.renderer, 222, 226, 232);
+        debugTextCentered(ui.renderer, centerX, panelY + 36.0f, fitDebugText(view.winnerText, 36));
+        setColor(ui.renderer, 230, 190, 105);
+        debugTextCentered(ui.renderer, centerX, panelY + 64.0f, view.scoreText);
+        setColor(ui.renderer, 174, 184, 196);
+        debugTextCentered(ui.renderer, centerX, panelY + 84.0f, view.methodText);
+
+        float infoY = panelY + 104.0f;
+        if (!view.progressionText.empty()) {
+            setColor(ui.renderer, 124, 222, 170);
+            debugTextCentered(ui.renderer, centerX, infoY, fitDebugText(view.progressionText, 58));
+            infoY += 16.0f;
+        }
+        setColor(ui.renderer, 174, 184, 196);
+        if (!view.quoteText.empty()) {
+            debugTextCentered(ui.renderer, centerX, infoY, fitDebugText("\"" + view.quoteText + "\"", 54));
+            infoY += 16.0f;
+        }
+        debugTextCentered(ui.renderer, centerX, infoY, fitDebugText(view.stageText, 44));
+
+        const int rowCount = std::clamp(view.menuRowCount, 0, static_cast<int>(view.menuRows.size()));
+        const float menuStartY = 230.0f;
+        for (int i = 0; i < rowCount; ++i) {
+            const auto& row = view.menuRows[static_cast<size_t>(i)];
+            const float y = menuStartY + static_cast<float>(i * 22);
+            if (row.selected) {
+                setColor(ui.renderer, 74, 170, 134, static_cast<Uint8>(190 + pulse * 48.0f));
+                fillRect(ui.renderer, centerX - 92.0f, y - 5.0f, 184.0f, 16.0f);
+                setColor(ui.renderer, 230, 220, 172);
+                fillRect(ui.renderer, centerX - 86.0f, y + 12.0f, 172.0f, 1.0f);
+                setColor(ui.renderer, 8, 12, 16);
+            } else {
+                setColor(ui.renderer, 174, 184, 196);
+            }
+            debugTextCentered(ui.renderer, centerX, y, row.label);
+        }
+
+        setColor(ui.renderer, 130, 142, 156);
+        debugTextCentered(ui.renderer, centerX, 334.0f, "ENTER SELECT");
+        return;
+    }
+
     setColor(ui.renderer, 6, 8, 14, 238);
     fillRect(ui.renderer, 0, 0, widthF, heightF);
     setColor(ui.renderer, 24, 32, 48);
