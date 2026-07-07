@@ -114,7 +114,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - VS Mode enters character select.
 - Arena Mode enters character select and then Arena Setup.
 - Story Mode enters character select, prefers `TMNT OpenBOR Street` when available, starts through VS/loading, and reaches a side-scrolling enemy-wave fight.
-- Story Mode Stage Select uses the Story-only connected episode-card/map presentation, cycles all available stages with Left/Right, changes Story difficulty with Up/Down, includes the six-board test route, defaults back to `TMNT OpenBOR Street`, and Enter still opens the shared VS/loading screen.
+- Story Mode Stage Select uses the Story-only connected episode-card/map presentation, cycles all available stages with Left/Right, changes Story difficulty with Up/Down, includes the six-board test route, defaults back to `TMNT OpenBOR Street`, and Enter still opens the shared VS/loading screen. The selected board, stage, wave count, difficulty, and target rows should remain readable on the stable virtual layout instead of crowding five clipped cards onto the HD output.
 - Story Mode enemy labels/status use `EASY`/`MED`/`HARD` difficulty, and difficulty scales enemy life/attack/defence without applying the player profile level to enemies.
 - Story Mode `Soundcheck Alley` starts its configured WAV background music through normal stage `[Music] bgmusic` metadata.
 - When `game/data/external_content.local.def` points at the local Scott Pilgrim Versus package, Story Mode Stage Select includes `Tram_Rooftop`, the stage loads through the shared VS/loading screen, SFF v2 PNG/palette stage art and first-pass animated BG elements render, and `Run Scott Run.mp3` starts through normal stage `[Music] bgmusic` metadata.

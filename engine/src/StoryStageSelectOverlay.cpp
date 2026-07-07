@@ -161,17 +161,17 @@ void drawStoryStageSelectOverlay(const UiRenderContext& ui, const StoryStageSele
     }
 
     const int stageCount = static_cast<int>(view.stages.size());
-    const int visibleCount = std::min(stageCount, widthF < 360.0f ? 3 : 5);
+    const int visibleCount = std::min(stageCount, 3);
     const int first = firstVisibleStage(std::clamp(view.selectedIndex, 0, stageCount - 1), stageCount, visibleCount);
     const int last = first + visibleCount;
     const float margin = widthF < 360.0f ? 18.0f : 26.0f;
     const float cardGap = widthF < 360.0f ? 12.0f : 16.0f;
-    const float maxCardW = visibleCount <= 3 ? 118.0f : 92.0f;
+    const float maxCardW = 118.0f;
     const float cardW = std::clamp((widthF - margin * 2.0f - cardGap * static_cast<float>(visibleCount - 1))
             / static_cast<float>(std::max(1, visibleCount)),
         64.0f,
         maxCardW);
-    const float cardH = widthF < 360.0f ? 53.0f : 58.0f;
+    const float cardH = widthF < 360.0f ? 53.0f : 64.0f;
     const float rowW = cardW * static_cast<float>(visibleCount) + cardGap * static_cast<float>(visibleCount - 1);
     const float rowX = centerX - rowW * 0.5f;
     const float rowY = 50.0f;
@@ -191,36 +191,42 @@ void drawStoryStageSelectOverlay(const UiRenderContext& ui, const StoryStageSele
 
     const float panelX = std::max(18.0f, centerX - 184.0f);
     const float panelW = std::min(widthF - panelX * 2.0f, 368.0f);
-    const float panelY = heightF - 78.0f;
-    const float panelH = 53.0f;
+    const float panelY = heightF - 90.0f;
+    const float panelH = 72.0f;
     setColor(renderer, 5, 8, 15, 200);
     fillRect(renderer, panelX, panelY, panelW, panelH);
     setColor(renderer, 26, 42, 60, 210);
-    fillRect(renderer, panelX, panelY, panelW, 12.0f);
+    fillRect(renderer, panelX, panelY, panelW, 13.0f);
     setColor(renderer, 54, 188, 202, 230);
     fillRect(renderer, panelX, panelY, panelW, 1.0f);
     setColor(renderer, 248, 210, 80, 210);
-    fillRect(renderer, panelX + 10.0f, panelY + 24.0f, panelW - 20.0f, 1.0f);
+    fillRect(renderer, panelX + 10.0f, panelY + 34.0f, panelW - 20.0f, 1.0f);
     drawComicCorners(renderer, panelX, panelY, panelW, panelH, SDL_Color{ 56, 188, 202, 210 });
 
     const int selectedOneBased = std::clamp(view.selectedIndex + 1, 1, stageCount);
     storyText(renderer, panelX + 12.0f, panelY + 4.0f, "EPISODE " + std::to_string(selectedOneBased) + "/" + std::to_string(stageCount), 246, 226, 112);
-    storyText(renderer, panelX + 102.0f, panelY + 4.0f, fitDebugText(view.selectedStageName, 24), 150, 226, 252);
+    storyTextRight(renderer, panelX + panelW - 12.0f, panelY + 4.0f, "DIFF " + fitDebugText(view.difficultyLabel, 6), 246, 226, 112);
+    storyText(renderer, panelX + 12.0f, panelY + 18.0f,
+        fitDebugText(view.selectedStageName, std::max(10, static_cast<int>((panelW - 24.0f) / 8.0f))),
+        150, 226, 252);
     const bool compactDetails = widthF < 360.0f;
     storyText(
         renderer,
         panelX + 12.0f,
-        panelY + 30.0f,
+        panelY + 40.0f,
         fitDebugText(view.selectedNodeKind.empty() ? "NODE" : view.selectedNodeKind, compactDetails ? 9 : 11),
         120,
         226,
         218);
-    storyText(renderer, panelX + (compactDetails ? 100.0f : 112.0f), panelY + 30.0f, "WAVES " + std::to_string(std::max(1, view.waveCount)), 220, 232, 242);
-    storyText(renderer, panelX + (compactDetails ? 170.0f : 190.0f), panelY + 30.0f, "DIFF " + fitDebugText(view.difficultyLabel, 4), 246, 226, 112);
+    storyText(renderer, panelX + (compactDetails ? 100.0f : 118.0f), panelY + 40.0f, "WAVES " + std::to_string(std::max(1, view.waveCount)), 220, 232, 242);
     if (!view.selectedNodeTarget.empty()) {
-        storyTextRight(renderer, panelX + panelW - 12.0f, panelY + 30.0f, fitDebugText(view.selectedNodeTarget, 12), 196, 206, 220);
+        storyText(renderer, panelX + 12.0f, panelY + 54.0f,
+            fitDebugText("TARGET " + view.selectedNodeTarget, std::max(10, static_cast<int>((panelW - 24.0f) / 8.0f))),
+            196, 206, 220);
     } else {
-        storyTextRight(renderer, panelX + panelW - 12.0f, panelY + 30.0f, fitDebugText(view.selectedStageAuthor, 12), 196, 206, 220);
+        storyText(renderer, panelX + 12.0f, panelY + 54.0f,
+            fitDebugText(view.selectedStageAuthor, std::max(10, static_cast<int>((panelW - 24.0f) / 8.0f))),
+            196, 206, 220);
     }
 
     setColor(renderer, 6, 8, 12, 190);
