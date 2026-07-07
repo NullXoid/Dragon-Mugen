@@ -42,30 +42,43 @@ void loadingTextRight(SDL_Renderer* renderer, float rightX, float y, const std::
 }
 
 void drawLoadingBackdrop(SDL_Renderer* renderer, float width, float height) {
-    const float topH = height * 0.13f;
-    const float heroH = height * 0.29f;
-    const float floorY = topH + heroH;
+    const float topH = std::max(24.0f, height * 0.12f);
+    const float horizonY = height * 0.56f;
 
-    setColor(renderer, 5, 9, 14);
+    setColor(renderer, 4, 8, 13);
     fillRect(renderer, 0.0f, 0.0f, width, height);
-
     setColor(renderer, 7, 16, 25);
     fillRect(renderer, 0.0f, 0.0f, width, topH);
-    setColor(renderer, 12, 22, 34, 235);
-    fillRect(renderer, 0.0f, topH, width, heroH);
-    setColor(renderer, 5, 8, 13, 230);
-    fillRect(renderer, 0.0f, floorY, width, height - floorY);
+    setColor(renderer, 10, 20, 32, 230);
+    fillRect(renderer, 0.0f, topH, width, horizonY - topH);
+    setColor(renderer, 5, 8, 13, 242);
+    fillRect(renderer, 0.0f, horizonY, width, height - horizonY);
 
-    setColor(renderer, 81, 210, 198, 42);
-    fillRect(renderer, width * 0.04f, topH + heroH * 0.58f, width * 0.92f, 1.0f);
-    setColor(renderer, 231, 195, 90, 36);
-    fillRect(renderer, width * 0.08f, floorY + height * 0.18f, width * 0.84f, 1.0f);
-    setColor(renderer, 198, 79, 85, 220);
+    for (int i = 0; i < 7; ++i) {
+        const float t = static_cast<float>(i) / 6.0f;
+        const float y = topH + (horizonY - topH) * t;
+        setColor(renderer, 81, 210, 198, static_cast<Uint8>(18 + i * 4));
+        fillRect(renderer, width * (0.10f + t * 0.08f), y, width * (0.80f - t * 0.16f), 1.0f);
+    }
+
+    for (int i = 0; i < 6; ++i) {
+        const float t = static_cast<float>(i) / 5.0f;
+        const float y = horizonY + (height - horizonY) * t;
+        setColor(renderer, 81, 210, 198, static_cast<Uint8>(16 + i * 7));
+        fillRect(renderer, 0.0f, y, width, 1.0f);
+    }
+
+    const float centerX = width * 0.5f;
+    for (int i = -4; i <= 4; ++i) {
+        const float offset = static_cast<float>(i) * width * 0.09f;
+        setColor(renderer, 81, 210, 198, 18);
+        fillRect(renderer, centerX + offset, horizonY, 1.0f, height - horizonY);
+    }
+
+    setColor(renderer, 231, 195, 90, 62);
+    fillRect(renderer, width * 0.08f, horizonY + (height - horizonY) * 0.47f, width * 0.84f, 1.0f);
+    setColor(renderer, 198, 79, 85, 230);
     fillRect(renderer, 0.0f, topH - 2.0f, width, 2.0f);
-
-    setColor(renderer, 12, 18, 26, 165);
-    fillRect(renderer, width * 0.08f, floorY + height * 0.08f, width * 0.22f, height * 0.19f);
-    fillRect(renderer, width * 0.70f, floorY + height * 0.05f, width * 0.20f, height * 0.22f);
 }
 
 void drawFixedOpponentSlot(
@@ -197,10 +210,10 @@ void drawVersusScreenOverlayHd(SDL_Renderer* renderer, const VsScreenView& view,
     loadingTextCentered(renderer, centerX, 18.0f, fitDebugText(view.modeTitle.empty() ? "LOADING" : view.modeTitle, 24), 81, 210, 198);
     loadingTextRight(renderer, widthF - 18.0f, 18.0f, progressText, 137, 150, 167);
 
-    const float panelX = 46.0f;
-    const float panelY = 70.0f;
-    const float panelW = widthF - panelX * 2.0f;
-    const float panelH = 218.0f;
+    const float panelW = std::min(540.0f, widthF - 64.0f);
+    const float panelX = centerX - panelW * 0.5f;
+    const float panelY = 62.0f;
+    const float panelH = 226.0f;
     setColor(renderer, 7, 16, 25, 226);
     fillRect(renderer, panelX, panelY, panelW, panelH);
     setColor(renderer, 26, 144, 138, 235);
@@ -217,8 +230,8 @@ void drawVersusScreenOverlayHd(SDL_Renderer* renderer, const VsScreenView& view,
         150,
         167);
 
-    const float cardW = 150.0f;
-    const float cardH = 112.0f;
+    const float cardW = 156.0f;
+    const float cardH = 122.0f;
     const float cardY = panelY + 44.0f;
     drawLoadingPortraitCard(renderer, view.p1Portrait, panelX + 24.0f, cardY, cardW, cardH, view.p1Name, "P1");
     drawLoadingPortraitCard(renderer, view.opponentPortrait, panelX + panelW - 24.0f - cardW, cardY, cardW, cardH, view.opponentName, view.opponentSlotLabel);

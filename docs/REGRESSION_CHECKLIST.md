@@ -139,6 +139,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Stage confirmation opens the VS screen first.
 - Fight view loads selected character and selected stage after VS.
 - VS/Arena/Story loading shows actual load progress for character, stage, sprite/sound/runtime preparation, not only static `PLEASE WAIT` text. Loading and match-result presentation should use the same stable virtual layout rules as menus so the HD/fullscreen output improves clarity without shrinking the content into the top strip.
+- Loading and match-result overlays should keep centered Dragon-style panels on the stable virtual layout. HD result screens should dim, not fully erase, the fight context behind the compact result and menu panels, and `vs-loading-progress-bar` should still support screenshot proof through `DRAGON_LOADING_SCREENSHOT`.
 - Fight view fully repaints the window during hitpause, camera shake, and result overlays; no stale desktop/debug text should appear around the game viewport.
 - Video Options exposes Performance HUD `FPS`/`PERF`/`OFF`. `FPS` keeps the compact top-right counter visible by default; `PERF` shows frame-time/workload telemetry so live performance drops can be distinguished from gameplay hitpause, superpause, or state timing.
 - Video resolution presets are output presets, not alternate game-layout canvases. `video-resolution-stable-virtual-layout` must stay green so Classic, Wide, Extra, SD, and HD keep one stable virtual presentation grid across menus and options.

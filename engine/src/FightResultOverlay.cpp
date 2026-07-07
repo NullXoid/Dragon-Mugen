@@ -133,68 +133,78 @@ void drawMatchResultScreen(const UiRenderContext& ui, const FightMatchResultView
     const float pulse = 0.5f + 0.5f * std::sin(static_cast<float>(view.frame) * 0.12f);
 
     if (canvas.hd) {
-        setColor(ui.renderer, 5, 8, 13, 242);
+        setColor(ui.renderer, 4, 6, 10, 192);
         fillRect(ui.renderer, 0, 0, widthF, heightF);
-        setColor(ui.renderer, 7, 16, 25);
-        fillRect(ui.renderer, 0, 0, widthF, 44.0f);
-        setColor(ui.renderer, 198, 79, 85);
-        fillRect(ui.renderer, 0, 44.0f, widthF, 2.0f);
+        setColor(ui.renderer, 7, 16, 25, 240);
+        fillRect(ui.renderer, 0, 0, widthF, 38.0f);
+        setColor(ui.renderer, 198, 79, 85, 235);
+        fillRect(ui.renderer, 0, 38.0f, widthF, 2.0f);
 
         setColor(ui.renderer, 230, 220, 172);
-        debugText(ui.renderer, 20.0f, 17.0f, "MATCH COMPLETE");
+        debugText(ui.renderer, 18.0f, 14.0f, "MATCH COMPLETE");
         setColor(ui.renderer, 128, 171, 225);
-        debugTextCentered(ui.renderer, centerX, 17.0f, view.modeLabel);
+        debugTextCentered(ui.renderer, centerX, 14.0f, view.modeLabel);
 
-        const float panelX = 46.0f;
-        const float panelY = 74.0f;
-        const float panelW = widthF - panelX * 2.0f;
-        const float panelH = 132.0f;
-        setColor(ui.renderer, 7, 16, 25, 232);
+        const float panelW = std::min(548.0f, widthF - 64.0f);
+        const float panelX = centerX - panelW * 0.5f;
+        const float panelY = 58.0f;
+        const float panelH = 176.0f;
+        setColor(ui.renderer, 7, 16, 25, 236);
         fillRect(ui.renderer, panelX, panelY, panelW, panelH);
-        setColor(ui.renderer, 78, 90, 112);
+        setColor(ui.renderer, 78, 90, 112, 235);
         drawRect(ui.renderer, panelX, panelY, panelW, panelH);
-        setColor(ui.renderer, 230, 190, 105);
+        setColor(ui.renderer, 16, 26, 39, 230);
+        fillRect(ui.renderer, panelX + 1.0f, panelY + 1.0f, panelW - 2.0f, 24.0f);
+        setColor(ui.renderer, 230, 190, 105, 235);
         fillRect(ui.renderer, panelX + 6.0f, panelY + 6.0f, panelW - 12.0f, 2.0f);
+        setColor(ui.renderer, 198, 79, 85, 235);
+        fillRect(ui.renderer, panelX + 1.0f, panelY + 25.0f, panelW - 2.0f, 2.0f);
 
-        setColor(ui.renderer, 222, 226, 232);
-        debugTextCentered(ui.renderer, centerX, panelY + 36.0f, fitDebugText(view.winnerText, 36));
+        setColor(ui.renderer, 233, 237, 243);
+        debugTextCentered(ui.renderer, centerX, panelY + 42.0f, fitDebugText(view.winnerText, 40));
         setColor(ui.renderer, 230, 190, 105);
-        debugTextCentered(ui.renderer, centerX, panelY + 64.0f, view.scoreText);
+        debugTextCentered(ui.renderer, centerX, panelY + 70.0f, view.scoreText);
         setColor(ui.renderer, 174, 184, 196);
-        debugTextCentered(ui.renderer, centerX, panelY + 84.0f, view.methodText);
+        debugTextCentered(ui.renderer, centerX, panelY + 92.0f, view.methodText);
 
-        float infoY = panelY + 104.0f;
+        float infoY = panelY + 116.0f;
         if (!view.progressionText.empty()) {
             setColor(ui.renderer, 124, 222, 170);
-            debugTextCentered(ui.renderer, centerX, infoY, fitDebugText(view.progressionText, 58));
+            debugTextCentered(ui.renderer, centerX, infoY, fitDebugText(view.progressionText, 60));
             infoY += 16.0f;
         }
         setColor(ui.renderer, 174, 184, 196);
         if (!view.quoteText.empty()) {
-            debugTextCentered(ui.renderer, centerX, infoY, fitDebugText("\"" + view.quoteText + "\"", 54));
+            debugTextCentered(ui.renderer, centerX, infoY, fitDebugText("\"" + view.quoteText + "\"", 56));
             infoY += 16.0f;
         }
-        debugTextCentered(ui.renderer, centerX, infoY, fitDebugText(view.stageText, 44));
+        debugTextCentered(ui.renderer, centerX, infoY, fitDebugText(view.stageText, 48));
 
         const int rowCount = std::clamp(view.menuRowCount, 0, static_cast<int>(view.menuRows.size()));
-        const float menuStartY = 230.0f;
+        const float menuW = 258.0f;
+        const float menuX = centerX - menuW * 0.5f;
+        const float menuY = 254.0f;
+        setColor(ui.renderer, 7, 16, 25, 220);
+        fillRect(ui.renderer, menuX, menuY - 12.0f, menuW, std::max(42.0f, 20.0f * static_cast<float>(std::max(1, rowCount)) + 10.0f));
+        setColor(ui.renderer, 26, 144, 138, 200);
+        drawRect(ui.renderer, menuX, menuY - 12.0f, menuW, std::max(42.0f, 20.0f * static_cast<float>(std::max(1, rowCount)) + 10.0f));
         for (int i = 0; i < rowCount; ++i) {
             const auto& row = view.menuRows[static_cast<size_t>(i)];
-            const float y = menuStartY + static_cast<float>(i * 22);
+            const float y = menuY + static_cast<float>(i * 20);
             if (row.selected) {
                 setColor(ui.renderer, 74, 170, 134, static_cast<Uint8>(190 + pulse * 48.0f));
-                fillRect(ui.renderer, centerX - 92.0f, y - 5.0f, 184.0f, 16.0f);
+                fillRect(ui.renderer, centerX - 96.0f, y - 5.0f, 192.0f, 16.0f);
                 setColor(ui.renderer, 230, 220, 172);
-                fillRect(ui.renderer, centerX - 86.0f, y + 12.0f, 172.0f, 1.0f);
+                fillRect(ui.renderer, centerX - 90.0f, y + 12.0f, 180.0f, 1.0f);
                 setColor(ui.renderer, 8, 12, 16);
             } else {
                 setColor(ui.renderer, 174, 184, 196);
             }
-            debugTextCentered(ui.renderer, centerX, y, row.label);
+            debugTextCentered(ui.renderer, centerX, y, fitDebugText(row.label, 26));
         }
 
         setColor(ui.renderer, 130, 142, 156);
-        debugTextCentered(ui.renderer, centerX, 334.0f, "ENTER SELECT");
+        debugTextCentered(ui.renderer, centerX, 340.0f, "ENTER SELECT");
         return;
     }
 

@@ -1,5 +1,9 @@
 #include "VerificationScenario.h"
 
+#include "AppTypes.h"
+
+#include <cstdlib>
+#include <filesystem>
 #include <ostream>
 #include <string>
 #include <string_view>
@@ -56,28 +60,54 @@ void summary(std::ostream& out, const Counts& counts) {
         << " blocked=" << counts.blocked << "\n";
 }
 
+void captureOptionalScreenshot(RuntimeProbe& runtime, std::ostream& out, Counts& counts) {
+    const char* screenshotPath = std::getenv("DRAGON_LOADING_SCREENSHOT");
+    if (!screenshotPath || !*screenshotPath) {
+        screenshotPath = std::getenv("DRAGON_SCREENSHOT_PATH");
+    }
+    if (!screenshotPath || !*screenshotPath) {
+        return;
+    }
+    const bool captured = runtime.captureScreenshot(std::filesystem::path(screenshotPath));
+    record(out, counts, captured ? Status::Pass : Status::Fail, "loading_screenshot", screenshotPath);
+}
+
 } // namespace
 
 int runVsLoadingProgressBar(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
     out << "VERIFY vs-loading-progress-bar\n";
-    if (!runtime.setup("Dcat_Leo", "TMNT OpenBOR Street", ScenarioMode::Story, out, 1)) {
-        record(out, counts, Status::Blocked, "setup", "Story loading setup failed");
+    if (!runtime.setupStageSelect("A.Ben", ScenarioMode::Story, out)) {
+        record(out, counts, Status::Blocked, "setup_stage_select", "Story loading setup failed");
         summary(out, counts);
         return exitCode(counts);
     }
 
-    const auto snapshot = runtime.snapshot();
+    runtime.pressKey("enter");
+    const auto loadingSnapshot = runtime.snapshot();
     record(out, counts,
-        snapshot.loadingProgressActive && !snapshot.loadingProgressFailed ? Status::Pass : Status::Fail,
+        loadingSnapshot.screen == static_cast<int>(Screen::VersusScreen)
+            && loadingSnapshot.loadingProgressActive
+            && !loadingSnapshot.loadingProgressFailed
+            ? Status::Pass : Status::Fail,
         "loading_progress_active",
-        "active=" + std::to_string(snapshot.loadingProgressActive ? 1 : 0)
-            + " failed=" + std::to_string(snapshot.loadingProgressFailed ? 1 : 0));
+        "screen=" + std::to_string(loadingSnapshot.screen)
+            + " active=" + std::to_string(loadingSnapshot.loadingProgressActive ? 1 : 0)
+            + " failed=" + std::to_string(loadingSnapshot.loadingProgressFailed ? 1 : 0));
+    captureOptionalScreenshot(runtime, out, counts);
+
+    if (!runtime.setup("A.Ben", "TMNT OpenBOR Street", ScenarioMode::Story, out, 1)) {
+        record(out, counts, Status::Blocked, "setup_prepared_loading", "Prepared story loading setup failed");
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    const auto readySnapshot = runtime.snapshot();
     record(out, counts,
-        snapshot.loadingProgressFraction >= 0.999f ? Status::Pass : Status::Fail,
+        readySnapshot.loadingProgressFraction >= 0.999f ? Status::Pass : Status::Fail,
         "loading_progress_reaches_ready",
-        "fraction=" + std::to_string(snapshot.loadingProgressFraction)
-            + " phase=\"" + snapshot.loadingProgressPhase + "\"");
+        "fraction=" + std::to_string(readySnapshot.loadingProgressFraction)
+            + " phase=\"" + readySnapshot.loadingProgressPhase + "\"");
     summary(out, counts);
     return exitCode(counts);
 }
