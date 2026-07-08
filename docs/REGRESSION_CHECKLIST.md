@@ -131,6 +131,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Character select moves with Up/Down/Left/Right only when a character exists in the destination cell.
 - Character select does not load full character runtime data.
 - Character and stage select labels do not duplicate, overlap, or show the wrong mode name.
+- Character select uses the same stable virtual-layout rule as Main Menu, Options, Story Select, loading, and results. At HD/fullscreen, the selected fighter card, opponent/mode card, roster grid, stage row, and footer controls should stay centered and readable instead of falling back to far-left/far-right `320x240` composition.
 - Training character select shows one clear dummy opponent card.
 - Stage select opens after character confirmation.
 - Stage select previews the selected stage behind the menu, shows the stage name at the bottom, and refreshes when changing stages with Left/Right.

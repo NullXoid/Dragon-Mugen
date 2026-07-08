@@ -3,6 +3,7 @@
 #include "UiRenderPrimitives.h"
 
 #include <SDL3/SDL_pixels.h>
+#include <SDL3/SDL_rect.h>
 #include <SDL3/SDL_render.h>
 
 #include <algorithm>
@@ -83,6 +84,87 @@ void drawCellCursor(
     }
 }
 
+float textWidth(const std::string& text) {
+    return static_cast<float>(text.size() * 8);
+}
+
+void drawSelectText(SDL_Renderer* renderer, float x, float y, const std::string& text, Uint8 r, Uint8 g, Uint8 b) {
+    setColor(renderer, 2, 4, 8, 230);
+    debugText(renderer, x + 1.0f, y + 1.0f, text);
+    setColor(renderer, r, g, b);
+    debugText(renderer, x, y, text);
+}
+
+void drawSelectTextCentered(SDL_Renderer* renderer, float centerX, float y, const std::string& text, Uint8 r, Uint8 g, Uint8 b) {
+    drawSelectText(renderer, centerX - textWidth(text) * 0.5f, y, text, r, g, b);
+}
+
+void drawSelectFrame(SDL_Renderer* renderer, float x, float y, float w, float h, bool selected = false) {
+    setColor(renderer, 4, 8, 13, 224);
+    fillRect(renderer, x + 4.0f, y + 5.0f, w, h);
+    setColor(renderer, 7, 16, 25, 232);
+    fillRect(renderer, x, y, w, h);
+    setColor(renderer, 45, 151, 148, 230);
+    drawRect(renderer, x, y, w, h);
+    if (selected) {
+        setColor(renderer, 231, 195, 90, 235);
+        drawRect(renderer, x + 2.0f, y + 2.0f, w - 4.0f, h - 4.0f);
+    }
+}
+
+void drawPortraitBox(SDL_Renderer* renderer, const UiSpriteView& sprite, float x, float y, float w, float h) {
+    setColor(renderer, 7, 10, 14, 224);
+    fillRect(renderer, x, y, w, h);
+    setColor(renderer, 54, 62, 76);
+    drawRect(renderer, x, y, w, h);
+
+    if (!hasTexture(sprite) || sprite.width <= 0 || sprite.height <= 0) {
+        setColor(renderer, 34, 38, 46, 210);
+        fillRect(renderer, x + 2.0f, y + 2.0f, w - 4.0f, h - 4.0f);
+        return;
+    }
+
+    SDL_FRect src{
+        0.0f,
+        0.0f,
+        static_cast<float>(sprite.width),
+        static_cast<float>(sprite.height),
+    };
+    if (sprite.height > sprite.width * 1.25f) {
+        src.x = static_cast<float>(sprite.width) * 0.30f;
+        src.w = static_cast<float>(sprite.width) * 0.40f;
+        src.y = static_cast<float>(sprite.height) * 0.03f;
+        src.h = static_cast<float>(sprite.height) * 0.24f;
+    }
+
+    const float scale = std::min((w - 6.0f) / src.w, (h - 6.0f) / src.h);
+    SDL_FRect dst{
+        x + (w - src.w * scale) * 0.5f,
+        y + (h - src.h * scale) * 0.5f,
+        src.w * scale,
+        src.h * scale,
+    };
+    SDL_RenderTextureRotated(renderer, sprite.texture, &src, &dst, 0.0, nullptr, SDL_FLIP_NONE);
+}
+
+void drawWaveOpponentSlot(SDL_Renderer* renderer, float x, float y, float w, float h) {
+    setColor(renderer, 12, 14, 18);
+    fillRect(renderer, x, y, w, h);
+    setColor(renderer, 54, 62, 76);
+    drawRect(renderer, x, y, w, h);
+    const float laneX = x + w * 0.18f;
+    const float laneW = w * 0.64f;
+    setColor(renderer, 20, 26, 34);
+    fillRect(renderer, laneX, y + h * 0.70f, laneW, h * 0.10f);
+    setColor(renderer, 81, 210, 198, 210);
+    fillRect(renderer, laneX, y + h * 0.30f, laneW * 0.28f, h * 0.08f);
+    fillRect(renderer, laneX + laneW * 0.36f, y + h * 0.46f, laneW * 0.28f, h * 0.08f);
+    setColor(renderer, 231, 195, 90, 225);
+    fillRect(renderer, laneX + laneW * 0.72f, y + h * 0.32f, laneW * 0.16f, h * 0.16f);
+    setColor(renderer, 198, 79, 85, 210);
+    fillRect(renderer, laneX + laneW * 0.50f, y + h * 0.54f, laneW * 0.34f, h * 0.04f);
+}
+
 } // namespace
 
 void drawCharacterSelectOverlay(const UiRenderContext& ui, const CharacterSelectView& view) {
@@ -95,102 +177,104 @@ void drawCharacterSelectOverlay(const UiRenderContext& ui, const CharacterSelect
     const float centerX = widthF * 0.5f;
     const bool classic = widthF <= 340.0f;
     const bool expanded = widthF >= 600.0f;
-    const float titleY = expanded ? 12.0f : 8.0f;
-    const float subtitleY = expanded ? 27.0f : 20.0f;
-    const float profileY = expanded ? 42.0f : 32.0f;
-    const float portraitW = expanded ? 142.0f : (classic ? 86.0f : 118.0f);
-    const float portraitH = expanded ? 124.0f : (classic ? 92.0f : 116.0f);
-    const float portraitY = expanded ? 66.0f : (classic ? 48.0f : 44.0f);
-    const float leftPortraitX = expanded ? 28.0f : (classic ? 10.0f : 16.0f);
-    const float rightPortraitX = widthF - leftPortraitX - portraitW;
-    const float gridCellSize = expanded ? 24.0f : (classic ? 20.0f : 22.0f);
-    const float gridCellSpacing = expanded ? 5.0f : (classic ? 2.0f : 3.0f);
-    const float gridY = expanded ? 202.0f : (classic ? 159.0f : 157.0f);
-    const float footerStatusY = expanded ? heightF - 58.0f : (classic ? 202.0f : 204.0f);
-    const float footerStageY = expanded ? heightF - 42.0f : (classic ? 214.0f : 216.0f);
-    const float footerControlsY = expanded ? heightF - 24.0f : (classic ? 226.0f : 228.0f);
+    const float topBarH = expanded ? 48.0f : 34.0f;
+    const float panelX = expanded ? 70.0f : (classic ? 8.0f : 18.0f);
+    const float panelY = expanded ? 56.0f : (classic ? 38.0f : 38.0f);
+    const float panelW = widthF - panelX * 2.0f;
+    const float panelH = heightF - panelY - (expanded ? 8.0f : 6.0f);
+    const float cardGap = expanded ? 28.0f : (classic ? 8.0f : 14.0f);
+    const float cardW = expanded ? 176.0f : (classic ? 136.0f : 160.0f);
+    const float cardH = expanded ? 128.0f : (classic ? 88.0f : 96.0f);
+    const float cardY = expanded ? 72.0f : (classic ? 52.0f : 50.0f);
+    const float leftCardX = centerX - cardGap * 0.5f - cardW;
+    const float rightCardX = centerX + cardGap * 0.5f;
+    const float portraitPad = expanded ? 10.0f : 7.0f;
+    const float portraitBoxY = cardY + (expanded ? 30.0f : 24.0f);
+    const float portraitBoxH = expanded ? 66.0f : (classic ? 42.0f : 48.0f);
+    const float gridCellSize = expanded ? 28.0f : (classic ? 21.0f : 23.0f);
+    const float gridCellSpacing = expanded ? 5.0f : 3.0f;
+    const float gridY = cardY + cardH + (expanded ? 16.0f : 10.0f);
+    const float footerStatusY = heightF - (expanded ? 62.0f : 41.0f);
+    const float footerStageY = heightF - (expanded ? 44.0f : 28.0f);
+    const float footerControlsY = heightF - (expanded ? 26.0f : 15.0f);
+    const int titleMaxChars = expanded ? 58 : (classic ? 32 : 42);
 
-    setColor(renderer, 235, 240, 248);
-    debugTextCentered(renderer, centerX, titleY, view.modeTitle);
-    setColor(renderer, 246, 214, 92);
-    debugTextCentered(renderer, centerX, subtitleY, view.showP2Cursor ? "P1 / P2 SELECT YOUR FIGHTERS" : view.activePlayerLabel + " SELECT YOUR FIGHTER");
+    setColor(renderer, 4, 9, 16, 232);
+    fillRect(renderer, 0.0f, 0.0f, widthF, topBarH);
+    setColor(renderer, 198, 79, 85, 235);
+    fillRect(renderer, 0.0f, topBarH - 2.0f, widthF, 2.0f);
+
+    drawSelectText(renderer, expanded ? 20.0f : 10.0f, expanded ? 14.0f : 9.0f, fitDebugText(view.modeTitle, 22), 231, 195, 90);
+    drawSelectTextCentered(renderer, centerX, expanded ? 14.0f : 9.0f, "CHARACTER SELECT", 81, 210, 198);
+    const std::string selectLine = view.showP2Cursor ? "P1 / P2 SELECT YOUR FIGHTERS" : view.activePlayerLabel + " SELECT YOUR FIGHTER";
+    drawSelectTextCentered(renderer, centerX, expanded ? 31.0f : 22.0f, fitDebugText(selectLine, titleMaxChars), 246, 226, 112);
     if (!view.profileName.empty()) {
-        setColor(renderer, 128, 171, 225);
         std::string profileLine = "P1 " + view.profileName;
         if (!view.opponentProfileName.empty()) {
             profileLine += "   P2 " + view.opponentProfileName;
         }
-        debugTextCentered(renderer, centerX, profileY, fitDebugText("PROFILE " + profileLine, classic ? 30 : (expanded ? 54 : 42)));
+        drawSelectTextCentered(renderer, centerX, expanded ? 44.0f : 32.0f, fitDebugText("PROFILE " + profileLine, titleMaxChars), 128, 171, 225);
     }
 
+    drawSelectFrame(renderer, panelX, panelY, panelW, panelH);
+    setColor(renderer, 198, 79, 85, 220);
+    fillRect(renderer, panelX + 4.0f, panelY + 20.0f, panelW - 8.0f, 2.0f);
+
     if (view.cells.empty()) {
-        setColor(renderer, 235, 110, 100);
-        debugTextCentered(renderer, centerX, heightF * 0.45f, "NO CHARACTERS IN SELECT.DEF");
-        setColor(renderer, 156, 166, 180);
-        debugTextCentered(renderer, centerX, footerControlsY, "ESC mode select");
+        drawSelectTextCentered(renderer, centerX, heightF * 0.45f, "NO CHARACTERS IN SELECT.DEF", 235, 110, 100);
+        drawSelectTextCentered(renderer, centerX, footerControlsY, "ESC mode select", 156, 166, 180);
         return;
     }
 
-    setColor(renderer, 7, 10, 14, 224);
-    fillRect(renderer, leftPortraitX - 2.0f, portraitY - 2.0f, portraitW + 4.0f, portraitH + 4.0f);
-    setColor(renderer, 86, 96, 116);
-    drawRect(renderer, leftPortraitX - 2.0f, portraitY - 2.0f, portraitW + 4.0f, portraitH + 4.0f);
-    if (hasTexture(view.selectedPortrait) && view.selectedPortrait.width > 0 && view.selectedPortrait.height > 0) {
-        const float portraitScale = std::min({
-            1.0f,
-            portraitW / static_cast<float>(view.selectedPortrait.width),
-            portraitH / static_cast<float>(view.selectedPortrait.height),
-        });
-        const float portraitX = leftPortraitX + (portraitW - static_cast<float>(view.selectedPortrait.width) * portraitScale) * 0.5f;
-        const float portraitDrawY = portraitY + (portraitH - static_cast<float>(view.selectedPortrait.height) * portraitScale) * 0.5f;
-        drawSpriteTopLeft(renderer, view.selectedPortrait, portraitX, portraitDrawY, portraitScale);
-    } else {
-        setColor(renderer, 34, 38, 46, 210);
-        fillRect(renderer, leftPortraitX, portraitY, portraitW, portraitH);
-        setColor(renderer, 94, 108, 130);
-        drawRect(renderer, leftPortraitX, portraitY, portraitW, portraitH);
-    }
     const bool opponentHasPortrait = hasTexture(view.opponentPortrait)
         && view.opponentPortrait.width > 0
         && view.opponentPortrait.height > 0;
-    setColor(renderer, 7, 10, 14, 224);
-    fillRect(renderer, rightPortraitX - 2.0f, portraitY - 2.0f, portraitW + 4.0f, portraitH + 4.0f);
-    setColor(renderer, 86, 96, 116);
-    drawRect(renderer, rightPortraitX - 2.0f, portraitY - 2.0f, portraitW + 4.0f, portraitH + 4.0f);
+
+    drawSelectFrame(renderer, leftCardX, cardY, cardW, cardH, true);
+    drawSelectFrame(renderer, rightCardX, cardY, cardW, cardH, view.showP2Cursor);
+    drawSelectText(renderer, leftCardX + 8.0f, cardY + 8.0f, fitDebugText(view.showP2Cursor ? "PLAYER 1" : view.activePlayerLabel, 14), 231, 195, 90);
+    drawSelectText(renderer, rightCardX + 8.0f, cardY + 8.0f, fitDebugText(view.showP2Cursor ? "PLAYER 2" : (view.opponentName == "ENEMY WAVES" ? "STORY ROUTE" : "OPPONENT"), 14), 231, 195, 90);
+
+    drawPortraitBox(
+        renderer,
+        view.selectedPortrait,
+        leftCardX + portraitPad,
+        portraitBoxY,
+        cardW - portraitPad * 2.0f,
+        portraitBoxH);
     if (opponentHasPortrait) {
-        const float portraitScale = std::min({
-            1.0f,
-            portraitW / static_cast<float>(view.opponentPortrait.width),
-            portraitH / static_cast<float>(view.opponentPortrait.height),
-        });
-        const float portraitX = rightPortraitX + (portraitW - static_cast<float>(view.opponentPortrait.width) * portraitScale) * 0.5f;
-        const float portraitDrawY = portraitY + (portraitH - static_cast<float>(view.opponentPortrait.height) * portraitScale) * 0.5f;
-        drawSpriteTopLeft(renderer, view.opponentPortrait, portraitX, portraitDrawY, portraitScale);
+        drawPortraitBox(
+            renderer,
+            view.opponentPortrait,
+            rightCardX + portraitPad,
+            portraitBoxY,
+            cardW - portraitPad * 2.0f,
+            portraitBoxH);
+    } else if (view.opponentName == "ENEMY WAVES") {
+        drawWaveOpponentSlot(
+            renderer,
+            rightCardX + portraitPad,
+            portraitBoxY,
+            cardW - portraitPad * 2.0f,
+            portraitBoxH);
     } else {
-        drawFixedOpponentSlot(renderer, rightPortraitX, portraitY, portraitW, portraitH, view.opponentIsDummy);
+        drawFixedOpponentSlot(
+            renderer,
+            rightCardX + portraitPad,
+            portraitBoxY,
+            cardW - portraitPad * 2.0f,
+            portraitBoxH,
+            view.opponentIsDummy);
     }
 
-    setColor(renderer, 235, 240, 248);
-    debugText(renderer, leftPortraitX, portraitY + portraitH + 6.0f, fitDebugText(view.selectedName, classic ? 12 : (expanded ? 18 : 16)));
+    const int cardNameChars = expanded ? 18 : (classic ? 14 : 16);
+    drawSelectText(renderer, leftCardX + 8.0f, cardY + cardH - 26.0f, fitDebugText(view.selectedName, cardNameChars), 235, 240, 248);
     if (!view.selectedProgressionLabel.empty()) {
-        setColor(renderer, 120, 230, 170);
-        debugText(renderer, leftPortraitX, portraitY + portraitH + 18.0f, fitDebugText(view.selectedProgressionLabel, classic ? 14 : (expanded ? 22 : 18)));
+        drawSelectText(renderer, leftCardX + 8.0f, cardY + cardH - 13.0f, fitDebugText(view.selectedProgressionLabel, cardNameChars), 120, 230, 170);
     }
-    setColor(renderer, 235, 240, 248);
-    if (opponentHasPortrait) {
-        const std::string opponentName = fitDebugText(view.opponentName, classic ? 12 : (expanded ? 18 : 16));
-        debugText(
-            renderer,
-            rightPortraitX + portraitW - static_cast<float>(opponentName.size() * 8),
-            portraitY + portraitH + 6.0f,
-            opponentName);
-    } else {
-        debugTextCentered(renderer, rightPortraitX + portraitW * 0.5f, portraitY + portraitH + 6.0f, fitDebugText(view.opponentName, classic ? 12 : (expanded ? 18 : 16)));
-    }
+    drawSelectText(renderer, rightCardX + 8.0f, cardY + cardH - 26.0f, fitDebugText(view.opponentName, cardNameChars), 235, 240, 248);
     if (!view.opponentProgressionLabel.empty()) {
-        setColor(renderer, 120, 230, 170);
-        const std::string progression = fitDebugText(view.opponentProgressionLabel, classic ? 14 : (expanded ? 22 : 18));
-        debugText(renderer, rightPortraitX + portraitW - static_cast<float>(progression.size() * 8), portraitY + portraitH + 18.0f, progression);
+        drawSelectText(renderer, rightCardX + 8.0f, cardY + cardH - 13.0f, fitDebugText(view.opponentProgressionLabel, cardNameChars), 120, 230, 170);
     }
 
     const int columns = std::max(1, view.columns);
@@ -242,25 +326,28 @@ void drawCharacterSelectOverlay(const UiRenderContext& ui, const CharacterSelect
         drawCellCursor(renderer, p2CursorX, p2CursorY, 80, 175, 255, view.p2Confirmed, view.frame, inset, gridCellSize + 2.0f);
     }
 
-    setColor(renderer, 238, 210, 94);
     if (view.showP2Cursor) {
-        debugTextCentered(
+        drawSelectTextCentered(
             renderer,
             centerX,
             footerStatusY,
-            std::string("P1 ") + (view.p1Confirmed ? "OK" : "choose") + "   P2 " + (view.p2Confirmed ? "OK" : "choose"));
+            std::string("P1 ") + (view.p1Confirmed ? "OK" : "choose") + "   P2 " + (view.p2Confirmed ? "OK" : "choose"),
+            238,
+            210,
+            94);
     } else {
-        debugTextCentered(renderer, centerX, footerStatusY, view.activePlayerLabel);
+        drawSelectTextCentered(renderer, centerX, footerStatusY, view.activePlayerLabel, 238, 210, 94);
     }
-    setColor(renderer, 210, 218, 230);
-    debugTextCentered(renderer, centerX, footerStageY, fitDebugText("STAGE: " + view.preferredStageLabel, classic ? 32 : 46));
+    drawSelectTextCentered(renderer, centerX, footerStageY, fitDebugText("STAGE: " + view.preferredStageLabel, classic ? 32 : (expanded ? 54 : 46)), 210, 218, 230);
 
-    setColor(renderer, 156, 166, 180);
-    debugTextCentered(
+    drawSelectTextCentered(
         renderer,
         centerX,
         footerControlsY,
-        view.showP2Cursor ? "P1 arrows/ENTER  P2 IJKL/;  ESC back" : "ARROWS choose  ENTER stage  ESC back");
+        view.showP2Cursor ? "P1 arrows/ENTER  P2 IJKL/;  ESC back" : "ARROWS choose  ENTER stage  ESC back",
+        156,
+        166,
+        180);
 }
 
 } // namespace dragon

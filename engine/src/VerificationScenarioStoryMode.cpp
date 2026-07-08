@@ -11,8 +11,6 @@
 #include <cmath>
 #include <exception>
 #include <filesystem>
-#include <fstream>
-#include <iterator>
 #include <optional>
 #include <ostream>
 #include <string>
@@ -150,14 +148,6 @@ int expectedStoryEnemyTotalForDifficulty(StoryDifficulty difficulty) {
     return 3;
 }
 
-std::string readTextFile(const std::filesystem::path& path) {
-    std::ifstream in(path);
-    if (!in) {
-        return {};
-    }
-    return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
-}
-
 void captureOptionalScreenshot(
     RuntimeProbe& runtime,
     std::ostream& out,
@@ -194,18 +184,33 @@ int runStoryModeMenuRoute(RuntimeProbe& runtime, std::ostream& out) {
         + " active=" + std::to_string(snapshot.storyActiveEnemies)
         + " total=" + std::to_string(snapshot.storyTotalEnemies)
         + " board_waves=" + std::to_string(snapshot.storySelectedBoardWaves));
-    const auto root = std::filesystem::path(runtime.rootText());
-    const auto repoRoot = root.filename() == "game" ? root.parent_path() : root;
-    const std::string storyStateText = readTextFile(repoRoot / "engine" / "src" / "StoryModeState.h");
+    StoryBoardRoute parsedRoute;
+    try {
+        parsedRoute = loadStoryBoardRouteFile(std::filesystem::path(runtime.rootText()) / "data" / "story_boards.def");
+    } catch (const std::exception& ex) {
+        record(out, counts, Status::Blocked, "story_route_role_enemy_file_loads", ex.what());
+    }
+    const auto roleNode = std::find_if(parsedRoute.nodes.begin(), parsedRoute.nodes.end(), [](const StoryBoardNode& node) {
+        return node.kind == StoryBoardNodeKind::SideScroller;
+    });
+    const bool roleRefsConfigured = roleNode != parsedRoute.nodes.end()
+        && roleNode->regularEnemyRef == "kfm"
+        && roleNode->midBossEnemyRef == "EvilKen"
+        && roleNode->bossEnemyRef == "EvilRyu";
     record(out, counts,
-        storyStateText.find("\"I.Chie\"") != std::string::npos
-            && storyStateText.find("\"A.Ben\"") != std::string::npos
-            && storyStateText.find("\"kfm\"") == std::string::npos
-            && storyStateText.find("\"evilken\"") == std::string::npos
-            && storyStateText.find("\"evilryu\"") == std::string::npos
-            ? Status::Pass : Status::Fail,
-        "story_preferred_enemies_owned_first",
-        "runtime story preferences should not point at unowned public characters");
+        roleRefsConfigured ? Status::Pass : Status::Fail,
+        "story_route_role_enemy_refs_configured",
+        roleNode != parsedRoute.nodes.end()
+            ? "regular=" + roleNode->regularEnemyRef
+                + " midboss=" + roleNode->midBossEnemyRef
+                + " boss=" + roleNode->bossEnemyRef
+            : "missing side-scroller board");
+    record(out, counts,
+        snapshot.p2CharacterId == "kfm" || containsNoCase(snapshot.p2CharacterName, "kung fu")
+            ? Status::Pass
+            : Status::Fail,
+        "story_first_wave_uses_regular_enemy",
+        "p2_id=" + snapshot.p2CharacterId + " p2_name=" + snapshot.p2CharacterName);
     summary(out, counts);
     return exitCode(counts);
 }
