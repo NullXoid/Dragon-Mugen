@@ -458,12 +458,21 @@ MoveListPresentationOverrides loadMoveListPresentationOverrides(const CharacterF
 
     const auto doc = parseMugenTextFile(sidecar);
     for (const auto& section : doc.sections) {
-        if (!equalsNoCase(section.name, "Dragon.MoveList")) {
+        const bool dragonMoveListSection = equalsNoCase(section.name, "Dragon.MoveList");
+        const bool legacyCommandLabelsSection = equalsNoCase(section.name, "CommandLabels");
+        if (!dragonMoveListSection && !legacyCommandLabelsSection) {
             continue;
         }
         for (const auto& property : section.properties) {
             std::string label = unquote(trim(property.value));
             if (label.empty()) {
+                continue;
+            }
+            if (legacyCommandLabelsSection) {
+                std::string command = lowercaseCopy(trim(property.key));
+                if (!command.empty()) {
+                    overrides.commandLabels.push_back({ std::move(command), std::move(label) });
+                }
                 continue;
             }
             if (const auto state = moveListStateKey(property.key)) {

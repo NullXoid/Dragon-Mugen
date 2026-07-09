@@ -651,4 +651,91 @@ int runTrainingCommandHeldButtonPrompt(RuntimeProbe& runtime, std::ostream& out)
     return exitCode(counts);
 }
 
+int runABenTrainingMoveListFromCharacter(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    if (!runtime.setup("A.Ben", "Mountainside", ScenarioMode::Training, out)) {
+        record(out, counts, Status::Blocked, "setup", "A.Ben/Mountainside Training setup failed");
+        summary(out, counts);
+        return 2;
+    }
+    header(out, runtime, "aben-training-move-list-from-character");
+
+    const bool idle = waitForControllableIdle(runtime, 420);
+    record(out, counts, idle ? Status::Pass : Status::Fail, "controllable_idle_ready",
+        "state=" + std::to_string(runtime.snapshot().p1.stateNo));
+    if (!idle) {
+        summary(out, counts);
+        return exitCode(counts);
+    }
+
+    const auto moves = runtime.trainingMoves();
+    std::string labels;
+    for (const auto& move : moves) {
+        if (!labels.empty()) {
+            labels += ", ";
+        }
+        labels += move.label;
+        if (labels.size() > 240) {
+            labels += ", ...";
+            break;
+        }
+    }
+
+    const auto hasLabel = [&](std::string_view label) {
+        return std::any_of(moves.begin(), moves.end(), [&](const TrainingMoveInfo& move) {
+            return move.label == label;
+        });
+    };
+    const auto hasForeignLabel = [&]() {
+        const std::vector<std::string_view> foreignTerms = {
+            "Hadouken",
+            "Shoryuken",
+            "Shippu",
+            "Zankuu",
+            "RoundHouse",
+            "Roundhouse"
+        };
+        return std::any_of(moves.begin(), moves.end(), [&](const TrainingMoveInfo& move) {
+            return std::any_of(foreignTerms.begin(), foreignTerms.end(), [&](std::string_view term) {
+                return move.label.find(term) != std::string::npos;
+            });
+        });
+    };
+
+    const std::vector<int> abenOwnedStates = {
+        100, 105, 195,
+        200, 210, 220, 230, 240, 250,
+        1000, 1010, 1020,
+        1100, 1110, 1120,
+        3000
+    };
+    const bool allTargetsAreAbenStates = std::all_of(moves.begin(), moves.end(), [&](const TrainingMoveInfo& move) {
+        return move.targetState < 0
+            || std::find(abenOwnedStates.begin(), abenOwnedStates.end(), move.targetState) != abenOwnedStates.end();
+    });
+
+    record(out, counts, !moves.empty() ? Status::Pass : Status::Fail,
+        "aben_training_move_list_not_empty",
+        "labels=\"" + labels + "\"");
+    record(out, counts, hasLabel("Quick Jab") ? Status::Pass : Status::Fail,
+        "aben_sidecar_quick_jab_label",
+        "labels=\"" + labels + "\"");
+    record(out, counts, hasLabel("Side Kick") ? Status::Pass : Status::Fail,
+        "aben_sidecar_side_kick_label",
+        "labels=\"" + labels + "\"");
+    record(out, counts, hasLabel("Boost Shot Medium") ? Status::Pass : Status::Fail,
+        "aben_cmd_special_label_present",
+        "labels=\"" + labels + "\"");
+    record(out, counts, !hasForeignLabel() ? Status::Pass : Status::Fail,
+        "foreign_character_moves_absent",
+        "labels=\"" + labels + "\"");
+    record(out, counts, allTargetsAreAbenStates ? Status::Pass : Status::Fail,
+        "aben_training_targets_are_character_states",
+        "count=" + std::to_string(moves.size()));
+
+    record(out, counts, Status::Pass, "clean_exit", "scenario completed without crash");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
 } // namespace dragon::verification
