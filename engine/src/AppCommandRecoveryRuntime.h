@@ -661,7 +661,10 @@ void updateControlledFighter(
     }
     const bool depthModifierPressedThisFrame = arenaDepth && input.depthModifier && !fighter.arenaDepthModifierHeld;
     fighter.arenaDepthModifierHeld = arenaDepth && input.depthModifier;
-    const bool depthInputActive = arenaDepth && input.depthModifier;
+    const bool storyDepthBoard = state.frontend.pendingMode == PendingMode::Story;
+    const bool depthInputActive = arenaDepth
+        && input.up != input.down
+        && (input.depthModifier || storyDepthBoard);
     if (depthInputActive) {
         commandInput.up = false;
         commandInput.down = false;
@@ -704,7 +707,7 @@ void updateControlledFighter(
     const bool holdingHorizontal = commandInput.left != commandInput.right;
     const bool holdingUp = commandInput.up;
     const bool movementLocked = fighterHasAssertSpecialFlag(fighter, "nowalk");
-    const bool holdingDepthWalk = arenaDepth && input.depthModifier && input.up != input.down;
+    const bool holdingDepthWalk = depthInputActive;
     const bool holdingWalkMovement = holdingHorizontal || holdingDepthWalk;
     if (shouldQueueHeldJumpRepeat(fighter, commandInput, attackButtonHeld, holdingDown, movementLocked)) {
         fighter.jumpInputBufferTicks = 1;
@@ -712,7 +715,16 @@ void updateControlledFighter(
     }
     const bool holdingForward = (fighter.facing >= 0 && input.right) || (fighter.facing < 0 && input.left);
     const bool holdingBack = (fighter.facing >= 0 && input.left) || (fighter.facing < 0 && input.right);
-    const int heldWalkAction = holdingForward ? 20 : (holdingBack ? 21 : 20);
+    const auto chooseHeldWalkAction = [&state, &fighter, holdingDepthWalk, holdingHorizontal, holdingForward, holdingBack, &input]() {
+        if (holdingDepthWalk && !holdingHorizontal) {
+            const int depthWalkAction = input.down ? 24 : 25;
+            if (findExactClipForActor(state, fighter, depthWalkAction)) {
+                return depthWalkAction;
+            }
+        }
+        return holdingForward ? 20 : (holdingBack ? 21 : 20);
+    };
+    const int heldWalkAction = chooseHeldWalkAction();
     const auto startFallbackJump = [&state, &fighter, &input]() {
         const int sourceStateNo = fighter.stateNo;
         consumeJumpInputBuffer(fighter);
@@ -773,7 +785,7 @@ void updateControlledFighter(
             if (fighter.arenaDepthSidestepTicks > 0) {
                 fighter.depthVz = fighter.arenaDepthSidestepVelocity;
                 --fighter.arenaDepthSidestepTicks;
-            } else if (input.depthModifier && input.up != input.down) {
+            } else if (depthInputActive) {
                 fighter.depthVz = input.down ? state.arenaConfig.depthMoveSpeed : -state.arenaConfig.depthMoveSpeed;
             } else {
                 fighter.depthVz = 0.0f;

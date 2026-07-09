@@ -31,13 +31,15 @@ python tools/dragon_asset_lab/app.py --repo-root C:\Users\kasom\projects\dragon-
 - Validates selected frame numbers against the action source frame count before saving.
 - Writes manifest edits atomically and creates timestamped `.bak` files before replacing JSON.
 - Runs `engine/tools/ltx_sprite_pipeline.py promote` from the browser for action-specific LTX runs and shows stdout/stderr in the page.
+- Promotes selected frames into a wider `512x672` cell by default so crouch, kick, and reach poses keep more horizontal room before the SFF builder crops to the visible sprite.
 - Creates manifest backups before promotion because the existing promote tool rewrites run and curated manifests.
 - Blocks unsafe promotion for derived actions whose run manifest action does not match the curated action, such as current A.Ben `crouch` derived from the `jump` run.
-- Exposes A.Ben sprite rebuild buttons for the full curated action-source-root path and walk-only rebuild path.
+- Exposes A.Ben sprite rebuild buttons for the full curated action-source-root path and walk-only rebuild path. Depth movement currently reuses the normal walk cycle.
 - Imports/registers completed source videos into `game/chars/<character>/source_videos`, with optional `ltx_sprite_pipeline.py prepare`.
 - Stores local Comfy/LTX configuration in ignored `artifacts/asset_lab/dragon_asset_lab_config.json`.
 - Supports optional direct Comfy HTTP submission to `/prompt` only when explicitly enabled and a workflow JSON path is configured.
 - Shows image-to-image workflow configuration/status and submits that workflow JSON as-is when configured.
+- Queues a practical image-to-video job from the browser by uploading a local reference image path to Comfy, patching the configured video workflow with prompt, size, fps, duration, and output prefix, then posting to `/prompt`.
 - Provides proof helper buttons for `dev_check --skip-build`, CPU baseline, owned-character readiness, and broader roster compatibility smoke with `DRAGON_ROSTER_SCREENSHOT_DIR` set under `artifacts/asset_lab`.
 - Keeps live game launch as a command stub instead of inventing screen automation.
 - Serves only allowed local media suffixes from inside the repo root.
@@ -45,7 +47,8 @@ python tools/dragon_asset_lab/app.py --repo-root C:\Users\kasom\projects\dragon-
 ## Limits / Remaining
 
 - I.Chie has no dedicated SFF builder yet, so the browser reports that instead of guessing.
-- Direct Comfy submission does not mutate workflow graphs or inject prompts; import completed videos for stable handoff.
+- Direct Comfy image-to-video workflow patching is heuristic and expects Comfy API workflow JSON with normal `LoadImage`, text prompt, dimension, fps/frame-count, and output-prefix fields.
+- Completed Comfy videos still need to be imported explicitly after generation finishes; the lab does not monitor the Comfy queue yet.
 - Browser promotion is only enabled when the curated action has an action-matching LTX run manifest.
 - Source video imports are explicit user actions and are limited to owned characters.
 - Local probe characters remain browse-only; do not track or copy third-party character assets.

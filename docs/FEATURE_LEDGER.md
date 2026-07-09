@@ -37,6 +37,8 @@ Static audits do not count as live verification. Parsed M.U.G.E.N controllers re
 
 Latest pass: Runtime performance diagnostics and safe render-only culling were added with ownership in `FramePerformance`, `WorldRender`, and verifier performance modules. `AppVerificationBridge.h` was kept under the hard file-size threshold by extracting performance/probe helpers. Current file-size guard output on this branch reports `engine/src/App.cpp` at `12633` lines plus existing oversized verifier/training files; no new performance helper file is over the hard threshold. Previous freeze-watch and air-special recovery details remain preserved in the feature rows below.
 
+Cleanup preservation note: the owned player roster remains `A.Ben` and `I.Chie` in `game/data/select.def`, while Story enemy combat roles are now editable through `[Enemy Setup]` in `game/data/story_boards.def` (`grunts`, `mini_bosses`, and `bosses`) so KFM/Ken/Ryu-style compatibility fixtures can be used as enemy examples without becoming player-selectable owned content. A.Ben depth movement intentionally reuses promoted walk frames through generated SFF groups `24` and `25` instead of maintaining separate up/down walk source videos, and `owned-character-readiness`, Story route/wave verifiers, Arena depth-walk verification, shop movement/collision verification, `dev_check.py --skip-build`, `git diff --check`, and `check_file_sizes.py` are the preservation gate for this cleanup.
+
 ## Current Runtime Features To Preserve
 
 | Status | Area | Current Behavior | Preserve Until |

@@ -96,12 +96,12 @@ int runShopOverlaySdLayout(RuntimeProbe&, std::ostream& out) {
     const std::string panelText = readTextFile(root / "engine" / "src" / "ShopDemoPanelOverlay.h");
     const DragonUiMetrics metrics = dragonUiMetricsForPreset(CanvasPreset::Sd854x480);
     record(out, counts,
-        metrics.pixelScale == 1.0f
-            && metrics.topBarH == 24.0f
+        metrics.pixelScale == 2.0f
+            && metrics.topBarH == 48.0f
             && panelText.find("320.0f, 335.0f") != std::string::npos
             ? Status::Pass : Status::Fail,
-        "sd_panel_and_stable_density",
-        "854x480 is an output preset; Dragon UI keeps the stable presentation grid");
+        "sd_panel_and_two_x_density",
+        "854x480 uses the stable composition with crisp 2x pixel UI density");
     summary(out, counts);
     return exitCode(counts);
 }
@@ -113,12 +113,12 @@ int runShopOverlayHdLayout(RuntimeProbe&, std::ostream& out) {
     const std::string panelText = readTextFile(root / "engine" / "src" / "ShopDemoPanelOverlay.h");
     const DragonUiMetrics metrics = dragonUiMetricsForPreset(CanvasPreset::Hd1280x720);
     record(out, counts,
-        metrics.pixelScale == 1.0f
-            && metrics.topBarH == 24.0f
+        metrics.pixelScale == 3.0f
+            && metrics.topBarH == 72.0f
             && panelText.find("470.0f, 486.0f") != std::string::npos
             ? Status::Pass : Status::Fail,
-        "hd_panel_and_stable_density",
-        "1280x720 is an output preset; Dragon UI keeps the stable presentation grid");
+        "hd_panel_and_three_x_density",
+        "1280x720 uses the stable composition with crisp 3x pixel UI density");
     summary(out, counts);
     return exitCode(counts);
 }
@@ -310,11 +310,11 @@ int runDragonUiSdTwoXScaling(RuntimeProbe&, std::ostream& out) {
     const DragonUiMetrics metrics = dragonUiMetricsForPreset(CanvasPreset::Sd854x480);
     const SDL_FRect safe = dragonPixelUiSafeArea(dimensionsForPreset(CanvasPreset::Sd854x480));
     record(out, counts,
-        metrics.pixelScale == 1.0f
-            && metrics.rowH == 18.0f
+        metrics.pixelScale == 2.0f
+            && metrics.rowH == 36.0f
             && safe.x == 0.0f && safe.w == 854.0f && safe.h == 480.0f
             ? Status::Pass : Status::Fail,
-        "sd_output_preset_keeps_stable_ui_density",
+        "sd_output_preset_uses_two_x_pixel_ui_density",
         "safe=" + std::to_string(static_cast<int>(safe.w)) + "x" + std::to_string(static_cast<int>(safe.h)));
     summary(out, counts);
     return exitCode(counts);
@@ -326,11 +326,11 @@ int runDragonUiHdThreeXScaling(RuntimeProbe&, std::ostream& out) {
     const DragonUiMetrics metrics = dragonUiMetricsForPreset(CanvasPreset::Hd1280x720);
     const SDL_FRect safe = dragonPixelUiSafeArea(dimensionsForPreset(CanvasPreset::Hd1280x720));
     record(out, counts,
-        metrics.pixelScale == 1.0f
-            && metrics.rowH == 18.0f
+        metrics.pixelScale == 3.0f
+            && metrics.rowH == 54.0f
             && safe.x == 0.0f && safe.w == 1280.0f && safe.h == 720.0f
             ? Status::Pass : Status::Fail,
-        "hd_output_preset_keeps_stable_ui_density",
+        "hd_output_preset_uses_three_x_pixel_ui_density",
         "safe=" + std::to_string(static_cast<int>(safe.w)) + "x" + std::to_string(static_cast<int>(safe.h)));
     summary(out, counts);
     return exitCode(counts);

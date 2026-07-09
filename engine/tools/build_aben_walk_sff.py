@@ -23,6 +23,8 @@ CROUCH_TARGET_HEIGHT = 88
 IDLE_GROUP = 0
 CROUCH_GROUP = 10
 WALK_GROUP = 20
+DEPTH_TOWARD_GROUP = 24
+DEPTH_AWAY_GROUP = 25
 ACTION_GROUPS = {
     "dash": 100,
     "jump": 40,
@@ -38,6 +40,8 @@ DEFAULT_ACTION_SOURCE_ROOTS = (
     CHAR_DIR / "source_art" / "curated_game_sprites" / "frames",
 )
 DEFAULT_SHOP_FRAME_DIR = CHAR_DIR / "shop" / "walk"
+PORTRAIT_GROUP = 9000
+PORTRAIT_BIG_IMAGE = 1
 IDLE_FRAME_SEQUENCE = (
     ("punch", 0),
     ("punch", 1),
@@ -253,6 +257,21 @@ def _load_action_frames(source_root: Path) -> tuple[list[Sprite], dict[str, list
     return sprites, previews
 
 
+def _clone_walk_group(walk_sprites: list[Sprite], group: int) -> list[Sprite]:
+    return [
+        Sprite(
+            group=group,
+            image=sprite.image,
+            axis_x=sprite.axis_x,
+            axis_y=sprite.axis_y,
+            data=sprite.data,
+            linked_index=sprite.linked_index,
+            shared_palette=sprite.shared_palette,
+        )
+        for sprite in walk_sprites
+    ]
+
+
 def _load_crouch_frames(source_root: Path) -> tuple[list[Sprite], list[Image.Image]]:
     crouch_dir = source_root / "crouch"
     frame_paths = sorted(crouch_dir.glob("crouch_*.png"))
@@ -366,6 +385,55 @@ def _load_idle_frames(source_root: Path) -> tuple[list[Sprite], list[Image.Image
     return sprites, preview_frames
 
 
+def _cover_resize(image: Image.Image, target_size: tuple[int, int]) -> Image.Image:
+    target_width, target_height = target_size
+    scale = max(target_width / image.width, target_height / image.height)
+    resized = image.resize(
+        (max(1, round(image.width * scale)), max(1, round(image.height * scale))),
+        Image.Resampling.LANCZOS,
+    )
+    left = max(0, (resized.width - target_width) // 2)
+    top = max(0, (resized.height - target_height) // 2)
+    return resized.crop((left, top, left + target_width, top + target_height))
+
+
+def _load_big_portrait(path: Path, existing_sprites: list[Sprite]) -> tuple[Sprite, Image.Image]:
+    if not path.exists():
+        raise FileNotFoundError(path)
+
+    existing = next(
+        (
+            sprite
+            for sprite in existing_sprites
+            if sprite.group == PORTRAIT_GROUP and sprite.image == PORTRAIT_BIG_IMAGE
+        ),
+        None,
+    )
+    target_size = (120, 140)
+    axis_x = target_size[0] // 2
+    axis_y = target_size[1] - 1
+    if existing:
+        try:
+            with Image.open(io.BytesIO(existing.data)) as old_image:
+                target_size = old_image.size
+        except Exception:
+            target_size = (max(1, existing.axis_x * 2), max(1, existing.axis_y + 1))
+        axis_x = existing.axis_x
+        axis_y = existing.axis_y
+
+    portrait = _cover_resize(Image.open(path).convert("RGBA"), target_size)
+    return (
+        Sprite(
+            group=PORTRAIT_GROUP,
+            image=PORTRAIT_BIG_IMAGE,
+            axis_x=axis_x,
+            axis_y=axis_y,
+            data=_rgba_to_indexed_pcx(portrait),
+        ),
+        portrait,
+    )
+
+
 def _write_sff_v1(path: Path, header: bytearray, sprites: list[Sprite]) -> None:
     if len(header) != 512:
         raise ValueError("SFF v1 header must be 512 bytes")
@@ -453,6 +521,8 @@ def main() -> int:
     parser.add_argument("--char-dir", type=Path, default=CHAR_DIR, help="A.Ben character directory")
     parser.add_argument("--action-source-root", type=Path, help="Folder containing crouch/dash/jump/punch/kick frame folders")
     parser.add_argument("--skip-actions", action="store_true", help="Only rebuild the walk cycle")
+    parser.add_argument("--big-portrait", type=Path, help="PNG used to replace SFF sprite 9000,1")
+    parser.add_argument("--portrait-only", action="store_true", help="Replace only SFF sprite 9000,1")
     parser.add_argument("--preview", type=Path, help="Optional output GIF preview path")
     parser.add_argument(
         "--shop-frame-dir",
@@ -462,40 +532,63 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    if args.portrait_only and not args.big_portrait:
+        parser.error("--portrait-only requires --big-portrait")
     char_dir = args.char_dir
-    source_dir = _resolve_source_dir(args.source_dir)
-    action_source_root = None if args.skip_actions else _resolve_action_source_root(args.action_source_root)
+    source_dir = None if args.portrait_only else _resolve_source_dir(args.source_dir)
+    action_source_root = None if args.skip_actions or args.portrait_only else _resolve_action_source_root(args.action_source_root)
     sff_path = char_dir / "A.Ben.sff"
 
     header, existing_sprites = _read_sff_v1(sff_path)
-    generated_groups = {WALK_GROUP}
+    generated_groups = set() if args.portrait_only else {WALK_GROUP, DEPTH_TOWARD_GROUP, DEPTH_AWAY_GROUP}
     if action_source_root:
         generated_groups.add(IDLE_GROUP)
         generated_groups.add(CROUCH_GROUP)
         generated_groups.update(ACTION_GROUPS.values())
-    kept_sprites = [sprite for sprite in existing_sprites if sprite.group not in generated_groups]
-    walk_sprites, preview_frames = _load_walk_frames(source_dir)
+    kept_sprites = [
+        sprite
+        for sprite in existing_sprites
+        if sprite.group not in generated_groups
+        and not (args.big_portrait and sprite.group == PORTRAIT_GROUP and sprite.image == PORTRAIT_BIG_IMAGE)
+    ]
+    walk_sprites: list[Sprite] = []
+    preview_frames: list[Image.Image] = []
     idle_sprites: list[Sprite] = []
     crouch_sprites: list[Sprite] = []
     action_sprites: list[Sprite] = []
+    depth_sprites: list[Sprite] = []
     action_previews: dict[str, list[Image.Image]] = {}
+    portrait_sprites: list[Sprite] = []
+    if source_dir:
+        walk_sprites, preview_frames = _load_walk_frames(source_dir)
+        depth_sprites.extend(_clone_walk_group(walk_sprites, DEPTH_TOWARD_GROUP))
+        depth_sprites.extend(_clone_walk_group(walk_sprites, DEPTH_AWAY_GROUP))
     if action_source_root:
         idle_sprites, _ = _load_idle_frames(action_source_root)
         crouch_sprites, _ = _load_crouch_frames(action_source_root)
         action_sprites, action_previews = _load_action_frames(action_source_root)
+    if args.big_portrait:
+        portrait_sprite, portrait_preview = _load_big_portrait(args.big_portrait, existing_sprites)
+        portrait_sprites.append(portrait_sprite)
+        portrait_preview.save(char_dir / "A.Ben_face_preview.png")
 
-    _write_sff_v1(sff_path, header, kept_sprites + idle_sprites + crouch_sprites + walk_sprites + action_sprites)
-    if args.shop_frame_dir:
+    _write_sff_v1(
+        sff_path,
+        header,
+        kept_sprites + portrait_sprites + idle_sprites + crouch_sprites + walk_sprites + depth_sprites + action_sprites,
+    )
+    if args.shop_frame_dir and preview_frames:
         shop_frame_dir = args.shop_frame_dir
         if not shop_frame_dir.is_absolute():
             shop_frame_dir = REPO_ROOT / shop_frame_dir
         _write_shop_frames(shop_frame_dir, preview_frames)
-    if args.preview:
+    if args.preview and preview_frames:
         args.preview.parent.mkdir(parents=True, exist_ok=True)
         _write_preview(args.preview, preview_frames)
 
     print(f"Updated {sff_path}")
-    print(f"Kept {len(kept_sprites)} existing sprites; added {len(walk_sprites)} walk sprites from {source_dir}")
+    if source_dir:
+        print(f"Kept {len(kept_sprites)} existing sprites; added {len(walk_sprites)} walk sprites from {source_dir}")
     for sprite in walk_sprites:
         print(
             f"  {sprite.group},{sprite.image}: axis=({sprite.axis_x},{sprite.axis_y}) "
@@ -508,7 +601,15 @@ def main() -> int:
         for action_name, group in ACTION_GROUPS.items():
             count = len(action_previews.get(action_name, []))
             print(f"  {action_name}: group={group} frames={count}")
-    if args.shop_frame_dir:
+        print(f"  depth_toward: group={DEPTH_TOWARD_GROUP} frames={len(walk_sprites)} source=walk fallback")
+        print(f"  depth_away: group={DEPTH_AWAY_GROUP} frames={len(walk_sprites)} source=walk fallback")
+    if portrait_sprites:
+        sprite = portrait_sprites[0]
+        print(
+            f"Replaced big portrait {sprite.group},{sprite.image}: "
+            f"axis=({sprite.axis_x},{sprite.axis_y}) bytes={len(sprite.data)}"
+        )
+    if args.shop_frame_dir and preview_frames:
         print(f"Wrote shop walk PNGs to {shop_frame_dir}")
     return 0
 

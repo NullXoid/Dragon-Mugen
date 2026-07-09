@@ -17,6 +17,7 @@ Pass criteria for this trial:
 - Fighter idle/standing loads from group `0`.
 - Fighter duck/crouch loads from group `10`.
 - Fighter walk loads from group `20`.
+- Fighter depth movement reuses the walk cycle in groups `24` and `25`.
 - Fighter dash source is available in the curated action set for the next movement pass.
 - Fighter neutral jump loads from group `40`.
 - Fighter forward diagonal jump loads from group `42`.

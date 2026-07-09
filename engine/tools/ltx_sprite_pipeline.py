@@ -25,8 +25,18 @@ from PIL import Image, ImageDraw, ImageOps
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CHARACTER_ROOT = REPO_ROOT / "game" / "chars"
-SUPPORTED_ACTIONS = {"idle", "walk", "dash", "jump", "jump_forward", "jump_back", "punch", "kick"}
-DEFAULT_CELL_WIDTH = 384
+SUPPORTED_ACTIONS = {
+    "idle",
+    "crouch",
+    "walk",
+    "dash",
+    "jump",
+    "jump_forward",
+    "jump_back",
+    "punch",
+    "kick",
+}
+DEFAULT_CELL_WIDTH = 512
 DEFAULT_CELL_HEIGHT = 672
 
 
@@ -185,6 +195,57 @@ def _remove_green_screen(image: Image.Image) -> Image.Image:
     return Image.fromarray(arr, "RGBA")
 
 
+def _border_connected_mask(candidate: np.ndarray) -> np.ndarray:
+    height, width = candidate.shape
+    visited = np.zeros(candidate.shape, dtype=bool)
+    queue: deque[tuple[int, int]] = deque()
+
+    for x in range(width):
+        if candidate[0, x]:
+            queue.append((0, x))
+            visited[0, x] = True
+        if candidate[height - 1, x] and not visited[height - 1, x]:
+            queue.append((height - 1, x))
+            visited[height - 1, x] = True
+    for y in range(height):
+        if candidate[y, 0] and not visited[y, 0]:
+            queue.append((y, 0))
+            visited[y, 0] = True
+        if candidate[y, width - 1] and not visited[y, width - 1]:
+            queue.append((y, width - 1))
+            visited[y, width - 1] = True
+
+    while queue:
+        cy, cx = queue.popleft()
+        for ny, nx in ((cy - 1, cx), (cy + 1, cx), (cy, cx - 1), (cy, cx + 1)):
+            if 0 <= ny < height and 0 <= nx < width and candidate[ny, nx] and not visited[ny, nx]:
+                visited[ny, nx] = True
+                queue.append((ny, nx))
+    return visited
+
+
+def _remove_studio_background(image: Image.Image) -> Image.Image:
+    rgba = image.convert("RGBA")
+    arr = np.array(rgba)
+    rgb = arr[:, :, :3].astype(np.int16)
+    alpha = arr[:, :, 3]
+    red = rgb[:, :, 0]
+    green = rgb[:, :, 1]
+    blue = rgb[:, :, 2]
+    mean = (red + green + blue) / 3.0
+    max_delta = np.maximum.reduce((abs(red - green), abs(red - blue), abs(green - blue)))
+
+    chroma_green = (alpha > 0) & (green > red + 18) & (green > blue + 18) & (green > 42)
+    chroma_magenta = (alpha > 0) & (red > green + 28) & (blue > green + 28) & (red > 110) & (blue > 110)
+    bright_neutral = (alpha > 0) & (mean > 205) & (max_delta < 24)
+    light_gray = (alpha > 0) & (mean > 150) & (max_delta < 12)
+
+    background = _border_connected_mask(chroma_green | chroma_magenta | bright_neutral | light_gray)
+    arr[background, 0:3] = 0
+    arr[background, 3] = 0
+    return Image.fromarray(arr, "RGBA")
+
+
 def _drop_disconnected_alpha_debris(image: Image.Image, min_alpha: int = 8) -> Image.Image:
     rgba = image.convert("RGBA")
     arr = np.array(rgba)
@@ -229,7 +290,7 @@ def _write_clean_frames(raw_frames: list[Path], clean_dir: Path) -> list[Path]:
     clean_paths: list[Path] = []
     for raw_frame in raw_frames:
         output_path = clean_dir / raw_frame.name
-        _remove_green_screen(Image.open(raw_frame)).save(output_path)
+        _remove_studio_background(Image.open(raw_frame)).save(output_path)
         clean_paths.append(output_path)
     return clean_paths
 
@@ -510,7 +571,7 @@ def promote(args: argparse.Namespace) -> int:
         source_path = source_frames[source_index]
         source_image = Image.open(source_path)
         if source_dir.name == "frames_raw":
-            source_image = _remove_green_screen(source_image)
+            source_image = _remove_studio_background(source_image)
         normalized = _drop_disconnected_alpha_debris(_fit_frame(source_image, cell_width, cell_height))
         output_path = action_dir / f"{action}_{output_index:02d}_src{source_index:03d}_{cell_width}x{cell_height}.png"
         normalized.save(output_path)

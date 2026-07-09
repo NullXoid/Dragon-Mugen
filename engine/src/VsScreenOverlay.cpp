@@ -199,7 +199,6 @@ void drawLoadingPortraitCard(
 void drawVersusScreenOverlayHd(SDL_Renderer* renderer, const VsScreenView& view, float widthF, float heightF) {
     const float centerX = widthF * 0.5f;
     const float progress = std::clamp(view.loadProgress, 0.0f, 1.0f);
-    const std::string phaseText = view.loadPhaseText.empty() ? "Preparing" : view.loadPhaseText;
     const std::string progressText = view.loadProgressText.empty()
         ? std::to_string(static_cast<int>(progress * 100.0f + 0.5f)) + "%"
         : view.loadProgressText;
@@ -208,7 +207,6 @@ void drawVersusScreenOverlayHd(SDL_Renderer* renderer, const VsScreenView& view,
 
     loadingText(renderer, 18.0f, 18.0f, "DRAGON MUGEN CORE", 231, 195, 90);
     loadingTextCentered(renderer, centerX, 18.0f, fitDebugText(view.modeTitle.empty() ? "LOADING" : view.modeTitle, 24), 81, 210, 198);
-    loadingTextRight(renderer, widthF - 18.0f, 18.0f, progressText, 137, 150, 167);
 
     const float panelW = std::min(540.0f, widthF - 64.0f);
     const float panelX = centerX - panelW * 0.5f;
@@ -256,30 +254,6 @@ void drawVersusScreenOverlayHd(SDL_Renderer* renderer, const VsScreenView& view,
     loadingText(renderer, loadX + 66.0f, loadY + 9.0f, fitDebugText(view.stageName, 43), 233, 237, 243);
     loadingTextRight(renderer, loadX + loadW - 8.0f, loadY + 9.0f, progressText, 231, 195, 90);
     drawLoadingProgressBar(renderer, loadX + 8.0f, loadY + 27.0f, loadW - 16.0f, 7.0f, progress, view.loadStatus);
-
-    const float phaseY = 306.0f;
-    setColor(renderer, 7, 16, 25, 230);
-    fillRect(renderer, panelX, phaseY, panelW, 30.0f);
-    setColor(renderer, 26, 144, 138, 210);
-    drawRect(renderer, panelX, phaseY, panelW, 30.0f);
-    loadingText(renderer, panelX + 12.0f, phaseY + 9.0f, fitDebugText(phaseText, 44), 137, 150, 167);
-
-    const char* statusText = "PLEASE WAIT";
-    Uint8 statusR = 155;
-    Uint8 statusG = 164;
-    Uint8 statusB = 174;
-    if (view.loadStatus == VsScreenLoadStatus::Ready) {
-        statusText = "ENTER START";
-        statusR = 81;
-        statusG = 210;
-        statusB = 198;
-    } else if (view.loadStatus == VsScreenLoadStatus::Failed) {
-        statusText = "LOAD FAILED";
-        statusR = 230;
-        statusG = 130;
-        statusB = 120;
-    }
-    loadingTextRight(renderer, panelX + panelW - 12.0f, phaseY + 9.0f, statusText, statusR, statusG, statusB);
 }
 
 } // namespace
@@ -302,7 +276,6 @@ void drawVersusScreenOverlay(const UiRenderContext& ui, const VsScreenView& view
     const bool classic = widthF <= 340.0f;
 
     const float progress = std::clamp(view.loadProgress, 0.0f, 1.0f);
-    const std::string phaseText = view.loadPhaseText.empty() ? "Preparing" : view.loadPhaseText;
     const std::string progressText = view.loadProgressText.empty()
         ? std::to_string(static_cast<int>(progress * 100.0f + 0.5f)) + "%"
         : view.loadProgressText;
@@ -316,7 +289,6 @@ void drawVersusScreenOverlay(const UiRenderContext& ui, const VsScreenView& view
 
     loadingText(renderer, classic ? 8.0f : 12.0f, 9.0f, fitDebugText("DRAGON MUGEN CORE", classic ? 15 : 18), 231, 195, 90);
     loadingTextCentered(renderer, centerX, 9.0f, fitDebugText(view.modeTitle.empty() ? "LOADING" : view.modeTitle, classic ? 12 : 18), 81, 210, 198);
-    loadingTextRight(renderer, widthF - (classic ? 8.0f : 12.0f), 9.0f, progressText, 137, 150, 167);
 
     const float panelX = classic ? 10.0f : 18.0f;
     const float panelY = 42.0f;
@@ -373,30 +345,6 @@ void drawVersusScreenOverlay(const UiRenderContext& ui, const VsScreenView& view
         loadingTextRight(renderer, loadX + loadW - 6.0f, loadY + 6.0f, progressText, 231, 195, 90);
     }
     drawLoadingProgressBar(renderer, loadX + 6.0f, loadY + 21.0f, loadW - 12.0f, 6.0f, progress, view.loadStatus);
-
-    const float phaseY = 200.0f;
-    setColor(renderer, 7, 16, 25, 230);
-    fillRect(renderer, panelX, phaseY, panelW, 27.0f);
-    setColor(renderer, 26, 144, 138, 210);
-    drawRect(renderer, panelX, phaseY, panelW, 27.0f);
-    loadingText(renderer, panelX + 9.0f, phaseY + 7.0f, fitDebugText(phaseText, static_cast<std::size_t>(std::max(10.0f, (panelW - 112.0f) / 8.0f))), 137, 150, 167);
-
-    const char* statusText = "PLEASE WAIT";
-    Uint8 statusR = 155;
-    Uint8 statusG = 164;
-    Uint8 statusB = 174;
-    if (view.loadStatus == VsScreenLoadStatus::Ready) {
-        statusText = "ENTER START";
-        statusR = 81;
-        statusG = 210;
-        statusB = 198;
-    } else if (view.loadStatus == VsScreenLoadStatus::Failed) {
-        statusText = "LOAD FAILED";
-        statusR = 230;
-        statusG = 130;
-        statusB = 120;
-    }
-    loadingTextRight(renderer, panelX + panelW - 9.0f, phaseY + 7.0f, statusText, statusR, statusG, statusB);
 }
 
 } // namespace dragon

@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
+#include <initializer_list>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -61,10 +62,17 @@ struct StoryBoardNode {
     float shopDoorRadiusZ = 44.0f;
 };
 
+struct StoryEnemyRoleSetup {
+    std::vector<std::string> grunts;
+    std::vector<std::string> miniBosses;
+    std::vector<std::string> bosses;
+};
+
 struct StoryBoardRoute {
     std::string id = "default";
     std::string title = "STORY ROUTE";
     std::string forwardCueImagePath = "data/story/wave_clear_arrow.png";
+    StoryEnemyRoleSetup enemySetup;
     std::vector<StoryBoardNode> nodes;
 };
 
@@ -149,6 +157,118 @@ inline std::vector<float> storyBoardFloatList(std::string_view value) {
         out.push_back(storyBoardFloatValue(part, 0.0f));
     }
     return out;
+}
+
+inline std::vector<std::string> storyBoardPropertyCsv(const MugenSection& section, std::string_view key) {
+    return storyBoardCsvValues(storyBoardPropertyValue(section, key));
+}
+
+inline void storyBoardAssignFirstNonEmptyList(
+    std::vector<std::string>& target,
+    const MugenSection& section,
+    std::initializer_list<std::string_view> keys) {
+    if (!target.empty()) {
+        return;
+    }
+    for (std::string_view key : keys) {
+        target = storyBoardPropertyCsv(section, key);
+        if (!target.empty()) {
+            return;
+        }
+    }
+}
+
+inline const MugenSection* storyBoardFindSectionNoCase(const MugenDocument& doc, std::string_view wanted) {
+    for (const MugenSection& section : doc.sections) {
+        if (storyBoardEqualsNoCase(trim(section.name), wanted)) {
+            return &section;
+        }
+    }
+    return nullptr;
+}
+
+inline StoryEnemyRoleSetup storyBoardEnemySetupFromDocument(const MugenDocument& doc) {
+    StoryEnemyRoleSetup setup;
+    const MugenSection* section = storyBoardFindSectionNoCase(doc, "Enemy Setup");
+    if (!section) {
+        section = storyBoardFindSectionNoCase(doc, "Story Enemies");
+    }
+    if (!section) {
+        return setup;
+    }
+
+    storyBoardAssignFirstNonEmptyList(
+        setup.grunts,
+        *section,
+        { "grunts", "grunt", "normal_enemies", "normal_enemy", "regular_enemies", "regular_enemy", "wave_enemies", "wave_enemy" });
+    storyBoardAssignFirstNonEmptyList(
+        setup.miniBosses,
+        *section,
+        { "mini_bosses", "mini_boss", "mid_bosses", "mid_boss", "midbosses", "midboss", "midboss_enemy", "mid_boss_enemy" });
+    storyBoardAssignFirstNonEmptyList(
+        setup.bosses,
+        *section,
+        { "bosses", "boss", "boss_enemy", "arena_bosses", "arena_boss" });
+    return setup;
+}
+
+inline std::string storyBoardFirstRoleRef(const std::vector<std::string>& refs) {
+    return refs.empty() ? std::string{} : refs.front();
+}
+
+inline std::string storyBoardResolveEnemyRoleToken(const StoryEnemyRoleSetup& setup, std::string_view token) {
+    const std::string normalized = storyBoardLowercase(trim(token));
+    if (normalized == "grunt" || normalized == "grunts"
+        || normalized == "normal" || normalized == "normal_enemy" || normalized == "normal_enemies"
+        || normalized == "regular" || normalized == "regular_enemy" || normalized == "regular_enemies"
+        || normalized == "wave_enemy" || normalized == "wave_enemies") {
+        return storyBoardFirstRoleRef(setup.grunts);
+    }
+    if (normalized == "mini_boss" || normalized == "mini_bosses"
+        || normalized == "mid_boss" || normalized == "mid_bosses"
+        || normalized == "midboss" || normalized == "midbosses") {
+        return storyBoardFirstRoleRef(setup.miniBosses);
+    }
+    if (normalized == "boss" || normalized == "bosses" || normalized == "arena_boss" || normalized == "arena_bosses") {
+        return storyBoardFirstRoleRef(setup.bosses);
+    }
+    return {};
+}
+
+inline std::string storyBoardResolveEnemyRef(const StoryEnemyRoleSetup& setup, std::string_view value) {
+    if (const std::string resolved = storyBoardResolveEnemyRoleToken(setup, value); !resolved.empty()) {
+        return resolved;
+    }
+    return trim(value);
+}
+
+inline void storyBoardApplyEnemySetupToNode(const StoryEnemyRoleSetup& setup, StoryBoardNode& node) {
+    if (node.regularEnemyRef.empty()) {
+        node.regularEnemyRef = storyBoardFirstRoleRef(setup.grunts);
+    } else {
+        node.regularEnemyRef = storyBoardResolveEnemyRef(setup, node.regularEnemyRef);
+    }
+    if (node.midBossEnemyRef.empty()) {
+        node.midBossEnemyRef = storyBoardFirstRoleRef(setup.miniBosses);
+    } else {
+        node.midBossEnemyRef = storyBoardResolveEnemyRef(setup, node.midBossEnemyRef);
+    }
+    if (node.bossEnemyRef.empty()) {
+        node.bossEnemyRef = storyBoardFirstRoleRef(setup.bosses);
+    } else {
+        node.bossEnemyRef = storyBoardResolveEnemyRef(setup, node.bossEnemyRef);
+    }
+    if (!node.enemyRef.empty()) {
+        node.enemyRef = storyBoardResolveEnemyRef(setup, node.enemyRef);
+    }
+}
+
+inline void storyBoardResolveWaveEnemyRefs(const StoryEnemyRoleSetup& setup, StoryBoardWaveSpec& wave) {
+    for (StoryBoardWaveEnemy& enemy : wave.enemies) {
+        if (!enemy.enemyRef.empty()) {
+            enemy.enemyRef = storyBoardResolveEnemyRef(setup, enemy.enemyRef);
+        }
+    }
 }
 
 inline bool storyBoardReadFirstIntAfter(std::string_view value, size_t start, int& out) {
@@ -263,6 +383,7 @@ inline StoryBoardRoute loadStoryBoardRouteFile(const std::filesystem::path& path
     const MugenDocument doc = parseMugenTextFile(path);
 
     StoryBoardRoute route;
+    route.enemySetup = storyBoardEnemySetupFromDocument(doc);
     if (const MugenSection* routeSection = findSection(doc, "Route")) {
         route.id = storyBoardPropertyValue(*routeSection, "id", route.id);
         route.title = storyBoardPropertyValue(*routeSection, "title", route.title);
@@ -312,6 +433,7 @@ inline StoryBoardRoute loadStoryBoardRouteFile(const std::filesystem::path& path
         node.shopDoorOffsetX = std::max(0.0f, storyBoardFloatValue(storyBoardPropertyValue(section, "shop_door_x_offset", "160"), 160.0f));
         node.shopDoorRadiusX = std::max(8.0f, storyBoardFloatValue(storyBoardPropertyValue(section, "shop_door_radius_x", "56"), 56.0f));
         node.shopDoorRadiusZ = std::max(0.0f, storyBoardFloatValue(storyBoardPropertyValue(section, "shop_door_radius_z", "44"), 44.0f));
+        storyBoardApplyEnemySetupToNode(route.enemySetup, node);
         if (node.kind == StoryBoardNodeKind::Shop && node.waves <= 0) {
             node.waves = 1;
         }
@@ -332,6 +454,7 @@ inline StoryBoardRoute loadStoryBoardRouteFile(const std::filesystem::path& path
             node.waveSpecs.resize(static_cast<size_t>(waveIndex + 1));
         }
         node.waveSpecs[static_cast<size_t>(waveIndex)] = storyBoardWaveSpecFromSection(section);
+        storyBoardResolveWaveEnemyRefs(route.enemySetup, node.waveSpecs[static_cast<size_t>(waveIndex)]);
         node.waves = std::max(node.waves, waveIndex + 1);
     }
 

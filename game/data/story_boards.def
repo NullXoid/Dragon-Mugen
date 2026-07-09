@@ -8,14 +8,23 @@
 ;   arena_boss    - boss encounter board
 ;
 ; Wave sections use [Board N.Wave M].
-;   enemies    = character refs for enemy slots, comma-separated
+;   enemies    = character refs or enemy role names for slots, comma-separated
 ;   spawn_x    = per-slot X offsets from the wave spawn anchor
 ;   spawn_z    = per-slot arena-depth offsets
 ;   reward_xp  = optional reward when the wave clears
 ;   reward_gold = optional reward when the wave clears
 ; Board sections can also use board_reward_xp/board_reward_gold,
-; clear_cue_image, shop_cue_image, regular_enemy, midboss_enemy,
-; and boss_enemy.
+; clear_cue_image, shop_cue_image, grunt/normal enemy refs,
+; mini boss refs, and boss refs.
+;
+; Enemy Setup maps story roles to actual character folders.
+; Swap these values to change who appears as grunts, mini-bosses,
+; and bosses without changing the engine.
+
+[Enemy Setup]
+grunts = kfm
+mini_bosses = EvilKen
+bosses = EvilRyu
 
 [Route]
 id = aben_arena_mall_route
@@ -28,16 +37,13 @@ type = side_scroller
 title = STREET PATROL
 stage = stages/tmnt_openbor_street.def
 waves = 2
-regular_enemy = kfm
-midboss_enemy = EvilKen
-boss_enemy = EvilRyu
 wave_clear_text = WAVE CLEAR
 clear_cue_image = data/story/wave_clear_arrow.png
 board_reward_xp = 10
 board_reward_gold = 15
 
 [Board 0.Wave 0]
-enemies = kfm
+enemies = grunts
 spawn_x = 0
 spawn_z = 0
 clear_text = WAVE CLEAR
@@ -45,7 +51,7 @@ reward_xp = 3
 reward_gold = 5
 
 [Board 0.Wave 1]
-enemies = kfm, kfm
+enemies = grunts, grunts
 spawn_x = 0, 46
 spawn_z = -18, 18
 clear_text = ROUTE CLEAR
@@ -58,16 +64,13 @@ type = side_scroller
 title = COMIC STREET
 stage = stages/comic_street_rumble.def
 waves = 2
-regular_enemy = kfm
-midboss_enemy = EvilKen
-boss_enemy = EvilRyu
 wave_clear_text = WAVE CLEAR
 clear_cue_image = data/story/wave_clear_arrow.png
 board_reward_xp = 12
 board_reward_gold = 18
 
 [Board 1.Wave 0]
-enemies = kfm
+enemies = grunts
 spawn_x = 0
 spawn_z = 0
 clear_text = WAVE CLEAR
@@ -75,7 +78,7 @@ reward_xp = 4
 reward_gold = 6
 
 [Board 1.Wave 1]
-enemies = kfm, kfm
+enemies = grunts, grunts
 spawn_x = -18, 42
 spawn_z = -22, 22
 clear_text = ROUTE CLEAR
@@ -87,15 +90,14 @@ id = sewer_midboss
 type = mid_boss
 title = SEWER MID BOSS
 stage = stages/tmnt_sewer_patrol.def
-enemy = EvilKen
-midboss_enemy = EvilKen
+enemy = mini_bosses
 waves = 1
 clear_cue_image = data/story/wave_clear_arrow.png
 board_reward_xp = 20
 board_reward_gold = 30
 
 [Board 2.Wave 0]
-enemies = EvilKen
+enemies = mini_bosses
 spawn_x = 10
 spawn_z = 0
 clear_text = MID BOSS CLEAR
@@ -123,15 +125,14 @@ id = arena_mall_boss
 type = arena_boss
 title = ARENA MALL BOSS
 stage = stages/openbor_scroll.def
-enemy = EvilRyu
-boss_enemy = EvilRyu
+enemy = bosses
 waves = 1
 clear_cue_image = data/story/wave_clear_arrow.png
 board_reward_xp = 30
 board_reward_gold = 45
 
 [Board 4.Wave 0]
-enemies = EvilRyu
+enemies = bosses
 spawn_x = 0
 spawn_z = 0
 clear_text = BOSS CLEAR

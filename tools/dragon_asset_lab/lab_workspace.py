@@ -298,7 +298,7 @@ def configured_build_modes(root: Path, character: str) -> list[dict[str, str]]:
         {
             "mode": "full",
             "label": "Rebuild A.Ben SFF with curated actions",
-            "description": "Uses build_aben_walk_sff.py with --action-source-root for idle, crouch, dash, jump, punch, kick, and walk.",
+            "description": "Uses build_aben_walk_sff.py with --action-source-root for idle, crouch, dash, jump, punch, kick, and walk. Depth movement reuses the walk cycle.",
         },
         {
             "mode": "walk",

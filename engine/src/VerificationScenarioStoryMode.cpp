@@ -1,6 +1,8 @@
 #include "VerificationScenario.h"
 
 #include "AppTypes.h"
+#include "VerificationStoryDepthWalkChecks.h"
+#include "VerificationStoryEnemyRoles.h"
 #include "dragon/Sff.h"
 
 #include <algorithm>
@@ -112,17 +114,6 @@ bool setupStory(RuntimeProbe& runtime, std::ostream& out, Counts& counts, std::s
     return true;
 }
 
-std::string lowercase(std::string value) {
-    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char ch) {
-        return static_cast<char>(std::tolower(ch));
-    });
-    return value;
-}
-
-bool containsNoCase(const std::string& value, std::string_view needle) {
-    return lowercase(value).find(lowercase(std::string(needle))) != std::string::npos;
-}
-
 bool decodedSpriteHasVisibleColor(const DecodedSprite& decoded) {
     for (size_t i = 0; i + 3 < decoded.rgba.size(); i += 4) {
         const bool visible = decoded.rgba[i + 3] > 0;
@@ -193,23 +184,18 @@ int runStoryModeMenuRoute(RuntimeProbe& runtime, std::ostream& out) {
     const auto roleNode = std::find_if(parsedRoute.nodes.begin(), parsedRoute.nodes.end(), [](const StoryBoardNode& node) {
         return node.kind == StoryBoardNodeKind::SideScroller;
     });
-    const bool roleRefsConfigured = roleNode != parsedRoute.nodes.end()
-        && roleNode->regularEnemyRef == "kfm"
-        && roleNode->midBossEnemyRef == "EvilKen"
-        && roleNode->bossEnemyRef == "EvilRyu";
+    const bool roleRefsConfigured = storyRouteEnemySetupConfigured(
+        parsedRoute,
+        roleNode != parsedRoute.nodes.end() ? &*roleNode : nullptr);
     record(out, counts,
         roleRefsConfigured ? Status::Pass : Status::Fail,
-        "story_route_role_enemy_refs_configured",
-        roleNode != parsedRoute.nodes.end()
-            ? "regular=" + roleNode->regularEnemyRef
-                + " midboss=" + roleNode->midBossEnemyRef
-                + " boss=" + roleNode->bossEnemyRef
-            : "missing side-scroller board");
+        "story_route_enemy_roles_configured",
+        storyRouteEnemySetupDetail(parsedRoute, roleNode != parsedRoute.nodes.end() ? &*roleNode : nullptr));
     record(out, counts,
-        snapshot.p2CharacterId == "kfm" || containsNoCase(snapshot.p2CharacterName, "kung fu")
+        characterRefMatchesSnapshot(snapshot.p2CharacterId, snapshot.p2CharacterName, firstRoleRef(parsedRoute.enemySetup.grunts))
             ? Status::Pass
             : Status::Fail,
-        "story_first_wave_uses_regular_enemy",
+        "story_first_wave_uses_grunt_role",
         "p2_id=" + snapshot.p2CharacterId + " p2_name=" + snapshot.p2CharacterName);
     summary(out, counts);
     return exitCode(counts);
@@ -328,17 +314,12 @@ int runStoryDifficultyEnemyScaling(RuntimeProbe& runtime, std::ostream& out) {
     const auto roleNode = std::find_if(parsedRoute.nodes.begin(), parsedRoute.nodes.end(), [](const StoryBoardNode& node) {
         return node.kind == StoryBoardNodeKind::SideScroller;
     });
-    const bool roleRefsConfigured = roleNode != parsedRoute.nodes.end()
-        && roleNode->regularEnemyRef == "kfm"
-        && roleNode->midBossEnemyRef == "EvilKen"
-        && roleNode->bossEnemyRef == "EvilRyu";
+    const bool roleRefsConfigured = storyRouteEnemySetupConfigured(
+        parsedRoute,
+        roleNode != parsedRoute.nodes.end() ? &*roleNode : nullptr);
     record(out, counts, roleRefsConfigured ? Status::Pass : Status::Fail,
-        "story_role_enemy_refs_configured",
-        roleNode != parsedRoute.nodes.end()
-            ? "regular=" + roleNode->regularEnemyRef
-                + " midboss=" + roleNode->midBossEnemyRef
-                + " boss=" + roleNode->bossEnemyRef
-            : "missing side-scroller board");
+        "story_enemy_roles_configured",
+        storyRouteEnemySetupDetail(parsedRoute, roleNode != parsedRoute.nodes.end() ? &*roleNode : nullptr));
 
     if (!runtime.setup("A.Ben", "TMNT OpenBOR Street", ScenarioMode::Story, out, 1)) {
         record(out, counts, Status::Blocked, "setup_medium_story", "Story setup failed");
@@ -348,10 +329,10 @@ int runStoryDifficultyEnemyScaling(RuntimeProbe& runtime, std::ostream& out) {
     waitForActiveFight(runtime, 420);
     const auto medium = runtime.snapshot();
     record(out, counts,
-        medium.p2CharacterId == "kfm" || containsNoCase(medium.p2CharacterName, "kung fu")
+        characterRefMatchesSnapshot(medium.p2CharacterId, medium.p2CharacterName, firstRoleRef(parsedRoute.enemySetup.grunts))
             ? Status::Pass
             : Status::Fail,
-        "story_medium_first_wave_uses_kfm",
+        "story_medium_first_wave_uses_grunt_role",
         "p2_id=" + medium.p2CharacterId + " p2_name=" + medium.p2CharacterName);
 
     if (!runtime.setupStageSelect("A.Ben", ScenarioMode::Story, out)) {
@@ -411,6 +392,24 @@ int runStoryOpenBorStageDefault(RuntimeProbe& runtime, std::ostream& out) {
         "story_depth_projection_enabled",
         "depth_active=" + std::to_string(snapshot.arenaZAxisEnabled ? 1 : 0)
         + " p1_depth=" + std::to_string(snapshot.p1.depthZ));
+
+    runtime.setArenaCpuFrozen(true);
+    const auto depthProbe = probeStoryDepthWalkAnimation(runtime);
+    record(out, counts, depthProbe.idle ? Status::Pass : Status::Fail,
+        "story_controllable_idle_ready",
+        "state=" + std::to_string(depthProbe.idleState)
+            + " ctrl=" + std::to_string(depthProbe.idleCtrl ? 1 : 0)
+            + " p1_id=" + depthProbe.p1CharacterId
+            + " p1_name=" + depthProbe.p1CharacterName);
+    if (!depthProbe.idle) {
+        record(out, counts, Status::Blocked, "story_depth_walk_checks", "controllable idle gate failed");
+        summary(out, counts);
+        return exitCode(counts);
+    }
+    record(out, counts, depthProbe.forwardPass ? Status::Pass : Status::Fail,
+        "story_depth_walk_animates_without_modifier", depthProbe.forwardDetail);
+    record(out, counts, depthProbe.reversePass ? Status::Pass : Status::Fail,
+        "story_depth_walk_animates_reverse_without_modifier", depthProbe.reverseDetail);
     summary(out, counts);
     return exitCode(counts);
 }
@@ -441,8 +440,8 @@ int runStoryStageBoardExpansion(RuntimeProbe& runtime, std::ostream& out) {
     for (int i = 0; i < cycles; ++i) {
         const std::string stageName = runtime.stageName();
         const auto snap = runtime.snapshot();
-        sawSewer = sawSewer || containsNoCase(stageName, "sewer");
-        sawComic = sawComic || containsNoCase(stageName, "comic");
+        sawSewer = sawSewer || storyVerifierContainsNoCase(stageName, "sewer");
+        sawComic = sawComic || storyVerifierContainsNoCase(stageName, "comic");
         sawShop = sawShop || snap.storySelectedBoardShop;
         sawBoss = sawBoss || snap.storySelectedBoardKind == "arena_boss";
         if (!sawMusic && snap.selectedStageHasMusic) {
@@ -821,6 +820,15 @@ int runStoryShopRouteResume(RuntimeProbe& runtime, std::ostream& out) {
 
 int runStoryWaveSpawnScroll(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
+    StoryBoardRoute parsedRoute;
+    try {
+        parsedRoute = loadStoryBoardRouteFile(std::filesystem::path(runtime.rootText()) / "data" / "story_boards.def");
+    } catch (const std::exception& ex) {
+        record(out, counts, Status::Blocked, "story_wave_role_route_loads", ex.what());
+    }
+    const std::string expectedMiniBoss = firstRoleRef(parsedRoute.enemySetup.miniBosses);
+    const std::string expectedBoss = firstRoleRef(parsedRoute.enemySetup.bosses);
+
     if (!setupStory(runtime, out, counts, "story-wave-spawn-scroll", "TMNT OpenBOR Street")) {
         return exitCode(counts);
     }
@@ -839,29 +847,27 @@ int runStoryWaveSpawnScroll(RuntimeProbe& runtime, std::ostream& out) {
 
     clearCurrentWave(runtime);
     const auto wave2 = runtime.snapshot();
-    const bool midBossIsKen = containsNoCase(wave2.p2CharacterId, "ken")
-        || containsNoCase(wave2.p2CharacterName, "ken");
+    const bool midBossUsesRole = characterRefMatchesSnapshot(wave2.p2CharacterId, wave2.p2CharacterName, expectedMiniBoss);
     record(out, counts, wave2.storyWaveIndex == 1 && wave2.storyActiveEnemies == 1 && wave2.storyLivingEnemies == 1 ? Status::Pass : Status::Fail,
         "story_spawns_medium_midboss_wave", "wave=" + std::to_string(wave2.storyWaveIndex)
         + " active=" + std::to_string(wave2.storyActiveEnemies) + " living=" + std::to_string(wave2.storyLivingEnemies)
         + " defeated=" + std::to_string(wave2.storyEnemiesDefeated));
-    record(out, counts, midBossIsKen ? Status::Pass : Status::Fail,
-        "story_medium_midboss_is_ken",
-        "p2_id=" + wave2.p2CharacterId + " p2_name=" + wave2.p2CharacterName);
+    record(out, counts, midBossUsesRole ? Status::Pass : Status::Fail,
+        "story_medium_midboss_uses_mini_boss_role",
+        "expected=" + expectedMiniBoss + " p2_id=" + wave2.p2CharacterId + " p2_name=" + wave2.p2CharacterName);
 
     clearCurrentWave(runtime);
     const auto wave3 = runtime.snapshot();
-    const bool bossIsRyu = containsNoCase(wave3.p2CharacterId, "ryu")
-        || containsNoCase(wave3.p2CharacterName, "ryu");
+    const bool bossUsesRole = characterRefMatchesSnapshot(wave3.p2CharacterId, wave3.p2CharacterName, expectedBoss);
     record(out, counts, wave3.storyWaveIndex == 2 && wave3.storyActiveEnemies == 1 && wave3.storyLivingEnemies == 1 ? Status::Pass : Status::Fail,
         "story_spawns_medium_boss_wave",
         "wave=" + std::to_string(wave3.storyWaveIndex)
             + " active=" + std::to_string(wave3.storyActiveEnemies)
             + " living=" + std::to_string(wave3.storyLivingEnemies)
             + " defeated=" + std::to_string(wave3.storyEnemiesDefeated));
-    record(out, counts, bossIsRyu ? Status::Pass : Status::Fail,
-        "story_medium_boss_is_ryu",
-        "p2_id=" + wave3.p2CharacterId + " p2_name=" + wave3.p2CharacterName);
+    record(out, counts, bossUsesRole ? Status::Pass : Status::Fail,
+        "story_medium_boss_uses_boss_role",
+        "expected=" + expectedBoss + " p2_id=" + wave3.p2CharacterId + " p2_name=" + wave3.p2CharacterName);
     summary(out, counts);
     return exitCode(counts);
 }

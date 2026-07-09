@@ -404,6 +404,24 @@ int runShopRoomMovementCollision(RuntimeProbe&, std::ostream& out) {
             ? Status::Pass : Status::Fail,
         "shop_depth_walk_animates",
         "Up/Down movement participates in the same walk-frame loop as horizontal walking");
+    bool visitedWalkFrame[8] = {};
+    float depthWalkFrame = 0.0f;
+    int distinctWalkFrames = 0;
+    for (int i = 0; i < 60; ++i) {
+        depthWalkFrame += 0.16f;
+        while (depthWalkFrame >= 8.0f) {
+            depthWalkFrame -= 8.0f;
+        }
+        const int frameIndex = std::clamp(static_cast<int>(depthWalkFrame), 0, 7);
+        if (!visitedWalkFrame[frameIndex]) {
+            visitedWalkFrame[frameIndex] = true;
+            ++distinctWalkFrames;
+        }
+    }
+    record(out, counts,
+        distinctWalkFrames >= 6 ? Status::Pass : Status::Fail,
+        "shop_depth_walk_visits_multiple_frames",
+        "depth-only movement frame indices visited=" + std::to_string(distinctWalkFrames));
 
     summary(out, counts);
     return exitCode(counts);

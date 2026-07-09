@@ -124,31 +124,47 @@ int runArenaZAbenWalkAnimation(RuntimeProbe& runtime, std::ostream& out) {
     const bool stayedGrounded = after.p1.onGround
         && std::fabs(after.p1.y - before.p1.y) <= 0.5f
         && after.p1.stateType != 'C';
-    const bool walkAction = after.p1.action == 20 || after.p1.action == 21;
+    const bool walkState = after.p1.stateNo == 20;
+    const bool walkAction = after.p1.action == 24;
     const bool walkTickAdvanced = after.p1.animTick > before.p1.animTick;
+    runtime.step(SymbolicInput{ .down = true, .depthModifier = true }, 24);
+    const auto afterMore = runtime.snapshot();
+    const bool walkElemAdvanced = afterMore.p1AnimElem != after.p1AnimElem;
     record(out, counts, loadedAben ? Status::Pass : Status::Fail,
         "aben_loaded_for_depth_walk",
         "p1_id=" + after.p1CharacterId + " p1_name=" + after.p1CharacterName);
-    record(out, counts, movedDepth && stayedGrounded && walkAction && walkTickAdvanced ? Status::Pass : Status::Fail,
+    record(out, counts, movedDepth && stayedGrounded && walkState && walkAction && walkTickAdvanced && walkElemAdvanced ? Status::Pass : Status::Fail,
         "aben_depth_walk_animates",
         "depth_before=" + std::to_string(before.p1.depthZ)
             + " depth_after=" + std::to_string(after.p1.depthZ)
+            + " depth_after_more=" + std::to_string(afterMore.p1.depthZ)
             + " state=" + std::to_string(after.p1.stateNo)
             + " action=" + std::to_string(after.p1.action)
             + " anim_tick_before=" + std::to_string(before.p1.animTick)
             + " anim_tick_after=" + std::to_string(after.p1.animTick)
+            + " elem_after=" + std::to_string(after.p1AnimElem)
+            + " elem_after_more=" + std::to_string(afterMore.p1AnimElem)
             + " state_type=" + std::string(1, after.p1.stateType));
 
     runtime.step(SymbolicInput{ .up = true, .depthModifier = true }, 36);
     const auto reverse = runtime.snapshot();
-    const bool reversedDepth = reverse.p1.depthZ < after.p1.depthZ - 8.0f;
-    const bool reverseWalkTickAdvanced = reverse.p1.animTick > after.p1.animTick;
-    record(out, counts, reversedDepth && reverseWalkTickAdvanced ? Status::Pass : Status::Fail,
+    runtime.step(SymbolicInput{ .up = true, .depthModifier = true }, 24);
+    const auto reverseMore = runtime.snapshot();
+    const bool reversedDepth = reverse.p1.depthZ < afterMore.p1.depthZ - 8.0f;
+    const bool reverseWalkTickAdvanced = reverseMore.p1.animTick > reverse.p1.animTick;
+    const bool reverseElemAdvanced = reverseMore.p1AnimElem != reverse.p1AnimElem;
+    const bool reverseWalkState = reverse.p1.stateNo == 20;
+    const bool reverseWalkAction = reverse.p1.action == 25;
+    record(out, counts, reversedDepth && reverseWalkState && reverseWalkAction && reverseWalkTickAdvanced && reverseElemAdvanced ? Status::Pass : Status::Fail,
         "aben_depth_walk_animates_reverse",
-        "depth_after_down=" + std::to_string(after.p1.depthZ)
+        "depth_after_down=" + std::to_string(afterMore.p1.depthZ)
             + " depth_after_up=" + std::to_string(reverse.p1.depthZ)
-            + " anim_tick_down=" + std::to_string(after.p1.animTick)
+            + " depth_after_up_more=" + std::to_string(reverseMore.p1.depthZ)
             + " anim_tick_up=" + std::to_string(reverse.p1.animTick)
+            + " anim_tick_up_more=" + std::to_string(reverseMore.p1.animTick)
+            + " elem_up=" + std::to_string(reverse.p1AnimElem)
+            + " elem_up_more=" + std::to_string(reverseMore.p1AnimElem)
+            + " state=" + std::to_string(reverse.p1.stateNo)
             + " action=" + std::to_string(reverse.p1.action));
 
     summary(out, counts);

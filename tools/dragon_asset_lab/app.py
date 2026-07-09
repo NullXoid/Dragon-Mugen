@@ -22,6 +22,8 @@ from lab_ops import (
     run_proof,
     save_config,
     save_selected_frames,
+    submit_comfy_image_to_video,
+    submit_comfy_smoke_video,
     submit_comfy_workflow,
 )
 from lab_paths import (
@@ -215,7 +217,7 @@ def render_action_cards(summary: dict, root: Path, selected_character: str) -> s
                   <button type="submit" name="op" value="save_selection"{edit_disabled}>Save selection</button>
                   <button type="submit" name="op" value="promote_selection"{promote_disabled}>Promote selected</button>
                 </div>
-                <p class="note">{esc(edit_note or "Save writes the curated manifest with a backup; promote runs the existing LTX pipeline with backups first.")}</p>
+                <p class="note">{esc(edit_note or "Save writes the curated manifest with a backup; promote uses a 512x672 cell so wide poses keep more horizontal room.")}</p>
               </form>
             </article>
             """
@@ -294,7 +296,7 @@ def render_video_import(root: Path, selected_character: str) -> str:
     """
 
 
-def render_comfy_config(root: Path) -> str:
+def render_comfy_config(root: Path, selected_character: str) -> str:
     config = load_config(root)
     video_status = path_status(str(config.get("workflow_json", "")), root)
     i2i_status = path_status(str(config.get("image_to_image_workflow_json", "")), root)
@@ -303,8 +305,10 @@ def render_comfy_config(root: Path) -> str:
     i2i_ready = bool(config.get("enable_direct_submit") and config.get("comfy_server_url") and i2i_status == "present")
     direct_disabled = "" if direct_ready else " disabled"
     i2i_disabled = "" if i2i_ready else " disabled"
+    i2v_disabled = "" if direct_ready and selected_character in OWNED_CHARACTERS else " disabled"
     checked = " checked" if config.get("enable_direct_submit") else ""
     default_server = esc(str(config.get("comfy_server_url", "")).rstrip("/") or "http://127.0.0.1:8188")
+    action_options = "".join(f'<option value="{esc(action)}">{esc(action)}</option>' for action in ACTIONS)
     return f"""
     <section class="panel">
       <h2>Comfy / LTX Config</h2>
@@ -336,7 +340,33 @@ def render_comfy_config(root: Path) -> str:
           <button type="submit" name="op" value="submit_comfy"{i2i_disabled}>Submit configured workflow</button>
         </form>
       </div>
-      <p class="note">Direct Comfy calls are off unless explicitly enabled. Asset Lab submits workflow API JSON as-is and relies on the import form for completed videos.</p>
+      <form method="post" class="grid-form">
+        <h3 class="wide">Image + prompt to video</h3>
+        <input type="hidden" name="char" value="{esc(selected_character)}">
+        <label>Action<select name="action"{i2v_disabled}>{action_options}</select></label>
+        <label>Run name<input name="run_name" placeholder="optional, e.g. dash_v03"{i2v_disabled}></label>
+        <label>Width<input name="width" value="512"{i2v_disabled}></label>
+        <label>Height<input name="height" value="672"{i2v_disabled}></label>
+        <label>FPS<input name="fps" value="12"{i2v_disabled}></label>
+        <label>Duration seconds<input name="duration_seconds" value="6"{i2v_disabled}></label>
+        <label class="wide">Reference image path<input name="reference_image_path" placeholder="C:\\path\\to\\reference.png"{i2v_disabled}></label>
+        <label class="wide">Positive prompt<textarea name="positive_prompt" spellcheck="false"{i2v_disabled}>full body A.Ben fighting game sprite animation, complete character visible, side view, wide margins, clean background, smooth motion</textarea></label>
+        <label class="wide">Negative prompt<textarea name="negative_prompt" spellcheck="false"{i2v_disabled}>cropped body, cut off feet, cut off hands, missing limbs, extra limbs, camera close-up, blurry, duplicate character</textarea></label>
+        <div class="wide"><button type="submit" name="op" value="submit_comfy_i2v"{i2v_disabled}>Upload image and queue video</button></div>
+      </form>
+      <form method="post" class="grid-form">
+        <h3 class="wide">Connection smoke MP4</h3>
+        <input type="hidden" name="char" value="{esc(selected_character)}">
+        <label>Action<select name="action"{i2v_disabled}>{action_options}</select></label>
+        <label>Run name<input name="run_name" placeholder="optional, e.g. smoke_01"{i2v_disabled}></label>
+        <label>Width<input name="width" value="512"{i2v_disabled}></label>
+        <label>Height<input name="height" value="672"{i2v_disabled}></label>
+        <label>FPS<input name="fps" value="12"{i2v_disabled}></label>
+        <label>Duration seconds<input name="duration_seconds" value="2"{i2v_disabled}></label>
+        <label class="wide">Reference image path<input name="reference_image_path" placeholder="C:\\path\\to\\reference.png"{i2v_disabled}></label>
+        <div class="wide"><button type="submit" name="op" value="submit_comfy_smoke"{i2v_disabled}>Upload image and queue smoke MP4</button></div>
+      </form>
+      <p class="note">Direct Comfy calls are off unless explicitly enabled. The image-to-video helper uploads a local reference image to Comfy, patches the configured video workflow, queues it, then relies on the import form for the completed MP4.</p>
     </section>
     """
 
@@ -528,7 +558,7 @@ def render_page(root: Path, selected_character: str, result: CommandResult | Non
     {render_action_cards(summary, root, selected_character)}
     {render_build_tools(root, selected_character)}
     {render_video_import(root, selected_character)}
-    {render_comfy_config(root)}
+    {render_comfy_config(root, selected_character)}
     {render_proof_tools(root)}
     {render_manifest_viewer(summary)}
   </main>
@@ -594,6 +624,10 @@ class DragonAssetLabHandler(BaseHTTPRequestHandler):
             return save_config(self.repo_root, form)
         if op == "submit_comfy":
             return submit_comfy_workflow(self.repo_root, form.get("workflow_kind", ["video"])[0])
+        if op == "submit_comfy_i2v":
+            return submit_comfy_image_to_video(self.repo_root, character, action, form)
+        if op == "submit_comfy_smoke":
+            return submit_comfy_smoke_video(self.repo_root, character, action, form)
         if op == "run_proof":
             return run_proof(self.repo_root, form.get("proof_kind", [""])[0])
         return CommandResult(title="Unknown action", command=op, returncode=1, stderr=f"Unknown operation: {op}")

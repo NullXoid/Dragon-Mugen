@@ -1,22 +1,18 @@
 from __future__ import annotations
 
-import json
 import os
 import shutil
-import subprocess
 import sys
-import urllib.error
-import urllib.request
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from lab_comfy import submit_comfy_image_to_video, submit_comfy_smoke_video, submit_comfy_workflow
+from lab_config import configured_path, load_config, save_config
 from lab_paths import (
     ACTIONS,
     OWNED_CHARACTERS,
     VIDEO_SUFFIXES,
     backup_file,
-    config_path,
     curated_root,
     load_json,
     parse_selected_frames,
@@ -25,53 +21,11 @@ from lab_paths import (
     timestamp,
     write_json_atomic_with_backup,
 )
+from lab_result import CommandResult, result_error, run_command, shell_text
 from lab_workspace import character_summary, run_summary_for_action
 
-
-@dataclass
-class CommandResult:
-    title: str
-    command: str
-    returncode: int
-    stdout: str = ""
-    stderr: str = ""
-
-    @property
-    def ok(self) -> bool:
-        return self.returncode == 0
-
-
-def shell_text(command: list[str]) -> str:
-    return subprocess.list2cmdline(command)
-
-
-def result_error(title: str, command: str, message: str) -> CommandResult:
-    return CommandResult(title=title, command=command, returncode=1, stderr=message)
-
-
-def run_command(root: Path, title: str, command: list[str], env: dict[str, str] | None = None, timeout: int = 600) -> CommandResult:
-    merged_env = os.environ.copy()
-    if env:
-        merged_env.update(env)
-    try:
-        completed = subprocess.run(command, cwd=root, env=merged_env, capture_output=True, text=True, timeout=timeout)
-    except FileNotFoundError as exc:
-        return result_error(title, shell_text(command), f"Required executable not found: {exc.filename}")
-    except subprocess.TimeoutExpired as exc:
-        return CommandResult(
-            title=title,
-            command=shell_text(command),
-            returncode=1,
-            stdout=exc.stdout or "",
-            stderr=(exc.stderr or "") + f"\nTimed out after {timeout} seconds.",
-        )
-    return CommandResult(
-        title=title,
-        command=shell_text(command),
-        returncode=completed.returncode,
-        stdout=completed.stdout,
-        stderr=completed.stderr,
-    )
+PROMOTE_CELL_WIDTH = 512
+PROMOTE_CELL_HEIGHT = 672
 
 
 def require_owned_character(character: str) -> None:
@@ -173,6 +127,10 @@ def promote_selected_frames(root: Path, character: str, action: str, raw_selecte
             str(run_dir),
             "--selected",
             ",".join(str(frame) for frame in selected),
+            "--cell-width",
+            str(PROMOTE_CELL_WIDTH),
+            "--cell-height",
+            str(PROMOTE_CELL_HEIGHT),
         ]
         result = run_command(root, title, command, timeout=900)
         backup_lines = "\n".join(f"Backup: {path}" for path in backups)
@@ -202,82 +160,6 @@ def build_sprites(root: Path, character: str, mode: str) -> CommandResult:
         return run_command(root, title, command, timeout=900)
     except (OSError, ValueError) as exc:
         return result_error(title, "build_aben_walk_sff.py", str(exc))
-
-
-def default_config() -> dict[str, Any]:
-    return {
-        "comfy_server_url": "",
-        "workflow_json": "",
-        "image_to_image_workflow_json": "",
-        "video_output_dir": "",
-        "enable_direct_submit": False,
-    }
-
-
-def load_config(root: Path) -> dict[str, Any]:
-    config = default_config()
-    saved = load_json(config_path(root))
-    for key in config:
-        if key in saved:
-            config[key] = saved[key]
-    config["enable_direct_submit"] = bool(config.get("enable_direct_submit"))
-    return config
-
-
-def save_config(root: Path, form: dict[str, list[str]]) -> CommandResult:
-    title = "Save Comfy/LTX config"
-    config = default_config()
-    config["comfy_server_url"] = form.get("comfy_server_url", [""])[0].strip()
-    config["workflow_json"] = form.get("workflow_json", [""])[0].strip()
-    config["image_to_image_workflow_json"] = form.get("image_to_image_workflow_json", [""])[0].strip()
-    config["video_output_dir"] = form.get("video_output_dir", [""])[0].strip()
-    config["enable_direct_submit"] = form.get("enable_direct_submit", [""])[0] == "1"
-    path = config_path(root)
-    backup = write_json_atomic_with_backup(path, config)
-    backup_text = f"\nBackup: {backup}" if backup else ""
-    return CommandResult(title=title, command=f"write {path}", returncode=0, stdout=f"Saved config: {path}{backup_text}")
-
-
-def configured_path(root: Path, raw_value: str) -> Path | None:
-    if not raw_value.strip():
-        return None
-    path = Path(raw_value).expanduser()
-    if not path.is_absolute():
-        path = root / path
-    return path.resolve()
-
-
-def submit_comfy_workflow(root: Path, workflow_kind: str) -> CommandResult:
-    title = "Submit Comfy workflow"
-    config = load_config(root)
-    if not config.get("enable_direct_submit"):
-        return result_error(title, "POST /prompt", "Direct Comfy submission is disabled in Asset Lab config.")
-    server_url = str(config.get("comfy_server_url", "")).rstrip("/")
-    if not server_url:
-        return result_error(title, "POST /prompt", "Comfy server URL is not configured.")
-    workflow_key = "image_to_image_workflow_json" if workflow_kind == "image_to_image" else "workflow_json"
-    workflow_path = configured_path(root, str(config.get(workflow_key, "")))
-    if not workflow_path or not workflow_path.exists():
-        return result_error(title, "POST /prompt", f"Workflow JSON is missing for {workflow_kind}.")
-    try:
-        workflow = json.loads(workflow_path.read_text(encoding="utf-8"))
-        payload = json.dumps({"prompt": workflow, "client_id": "dragon_asset_lab"}).encode("utf-8")
-        request = urllib.request.Request(
-            server_url + "/prompt",
-            data=payload,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(request, timeout=20) as response:
-            body = response.read().decode("utf-8", errors="replace")
-        return CommandResult(
-            title=title,
-            command=f"POST {server_url}/prompt",
-            returncode=0,
-            stdout=f"Submitted {workflow_path}\nResponse:\n{body}",
-        )
-    except (OSError, json.JSONDecodeError, urllib.error.URLError) as exc:
-        return result_error(title, f"POST {server_url}/prompt", str(exc))
 
 
 def copy_video_to_source_folder(root: Path, character: str, video_path: str, overwrite: bool) -> tuple[Path, str]:

@@ -18,6 +18,7 @@ Current curated action targets:
 - standing/idle: SFF group `0`
 - ducking/crouch: SFF group `10`
 - walking: SFF group `20`
+- depth movement walk fallback: SFF groups `24` and `25`
 - dash: SFF group `100`
 - neutral jumping: SFF group `40`
 - forward diagonal jumping: SFF group `42`
@@ -26,6 +27,7 @@ Current curated action targets:
 - kicking: SFF group `230`
 
 The current diagonal jump frames are derived from the curated neutral jump source and stored in `source_art/curated_game_sprites/frames/jump_forward` and `source_art/curated_game_sprites/frames/jump_back`.
+The current depth movement groups are generated from the walk cycle so up/down movement animates without separate directional art.
 
 The old derived bridge-frame prototype path has been retired. New action revisions should come through source videos, `engine/tools/ltx_sprite_pipeline.py`, and the curated `source_art/curated_game_sprites` folders.
 
