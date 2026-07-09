@@ -58,9 +58,9 @@ verification::RuntimePerformanceResult measureVerificationPerformance(
         gFightInputOverride = previous;
 
         if (renderEachFrame) {
-            clearPhysicalFrame(renderer);
-            applyLogicalPresentation(renderer, state);
+            beginPresentationFrame(renderer, state);
             drawFightViewFrame(renderer, state, false);
+            presentPresentationFrame(renderer, state);
         }
 
         collectFramePerformanceCounters(state);

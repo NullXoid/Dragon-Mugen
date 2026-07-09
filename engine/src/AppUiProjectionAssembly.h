@@ -4,8 +4,17 @@
 // UI context, Arena projection, sprite drawing, and versus loading helpers.
 
 CanvasDimensions activeCanvasDimensions(const AppState& state) {
-    return dimensionsForPreset(state.mainSettings.canvasPreset);
+    (void)state;
+    return presentationDimensions();
 }
+
+CanvasDimensions selectedOutputDimensions(const AppState& state) {
+    return outputDimensionsForPreset(state.mainSettings.canvasPreset);
+}
+
+void beginPresentationFrame(SDL_Renderer* renderer, const AppState& state);
+void presentPresentationFrame(SDL_Renderer* renderer, const AppState& state);
+void destroyPresentationFrameTarget();
 
 int logicalWidth(const AppState& state) {
     return activeCanvasDimensions(state).width;
@@ -50,13 +59,14 @@ float uiScale(const AppState& state) {
 
 UiRenderContext uiRenderContext(SDL_Renderer* renderer, const AppState& state) {
     const CanvasDimensions canvas = activeCanvasDimensions(state);
+    const CanvasDimensions output = selectedOutputDimensions(state);
     return UiRenderContext{
         renderer,
         canvas.width,
         canvas.height,
         uiScale(state),
-        canvas.width,
-        canvas.height,
+        output.width,
+        output.height,
     };
 }
 
@@ -491,14 +501,10 @@ void presentVersusLoadingProgress(SDL_Renderer* renderer, AppState& state) {
         return;
     }
     SDL_PumpEvents();
-    SDL_SetRenderLogicalPresentation(
-        renderer,
-        logicalWidth(state),
-        logicalHeight(state),
-        SDL_LOGICAL_PRESENTATION_LETTERBOX);
+    beginPresentationFrame(renderer, state);
     drawVersusScreenOverlay(uiRenderContext(renderer, state), versusScreenView(state));
     drawFpsCounter(renderer, state);
-    SDL_RenderPresent(renderer);
+    presentPresentationFrame(renderer, state);
 }
 
 SDL_Texture* createTexture(SDL_Renderer* renderer, const DecodedSprite& sprite) {

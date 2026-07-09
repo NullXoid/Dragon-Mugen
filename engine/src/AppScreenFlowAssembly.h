@@ -27,7 +27,7 @@ void drawArenaSetup(SDL_Renderer* renderer, AppState& state) {
     view.frame = state.frame;
     drawArenaSetupOverlay(uiRenderContext(renderer, state), view);
     drawFpsCounter(renderer, state);
-    SDL_RenderPresent(renderer);
+    presentPresentationFrame(renderer, state);
 }
 
 void drawStageLayer(SDL_Renderer* renderer, const AppState& state, int layerNo);
@@ -116,7 +116,7 @@ void drawStageSelect(SDL_Renderer* renderer, AppState& state) {
         }
         drawStoryStageSelectOverlay(uiRenderContext(renderer, state), view);
         drawFpsCounter(renderer, state);
-        SDL_RenderPresent(renderer);
+        presentPresentationFrame(renderer, state);
         return;
     }
 
@@ -145,7 +145,7 @@ void drawStageSelect(SDL_Renderer* renderer, AppState& state) {
 
     drawStageSelectOverlay(uiRenderContext(renderer, state), view);
     drawFpsCounter(renderer, state);
-    SDL_RenderPresent(renderer);
+    presentPresentationFrame(renderer, state);
 }
 
 void drawVersusScreen(SDL_Renderer* renderer, const AppState& state) {
@@ -153,7 +153,7 @@ void drawVersusScreen(SDL_Renderer* renderer, const AppState& state) {
         uiRenderContext(renderer, state),
         versusScreenView(state));
     drawFpsCounter(renderer, state);
-    SDL_RenderPresent(renderer);
+    presentPresentationFrame(renderer, state);
 }
 
 bool hasSelectedStageBackground(const AppState& state) {

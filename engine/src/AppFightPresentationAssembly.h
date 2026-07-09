@@ -346,19 +346,26 @@ void drawLightFightPauseOverlay(SDL_Renderer* renderer, const AppState& state) {
         return;
     }
 
-    const float panelW = 122.0f;
-    const float panelH = 39.0f;
-    const float x = screenCenterX(state) - panelW * 0.5f;
-    constexpr float y = 102.0f;
-    setColor(renderer, 4, 7, 12, 182);
+    const UiRenderContext ui = uiRenderContext(renderer, state);
+    const DragonUiMetrics metrics = dragonUiMetricsForContext(ui);
+    const auto& tokens = dragonUiTokens();
+    const float s = metrics.pixelScale;
+    const float panelW = 172.0f * s;
+    const float panelH = 70.0f * s;
+    const float x = std::floor((static_cast<float>(ui.logicalWidth) - panelW) * 0.5f);
+    const float y = std::floor((static_cast<float>(ui.logicalHeight) - panelH) * 0.5f);
+    setColor(renderer, tokens.panelBase, 226);
     fillRect(renderer, x, y, panelW, panelH);
-    setColor(renderer, 78, 96, 128, 210);
+    setColor(renderer, tokens.primaryTeal, 230);
     drawRect(renderer, x, y, panelW, panelH);
-    setColor(renderer, 230, 220, 172, 236);
-    debugText(renderer, x + 35.0f, y + 5.0f, "PAUSED");
-    setColor(renderer, 160, 178, 205, 224);
-    debugText(renderer, x + 10.0f, y + 18.0f, "START:RESUME");
-    debugText(renderer, x + 10.0f, y + 27.0f, "SEL:OPTIONS");
+    setColor(renderer, tokens.separatorRed, 230);
+    fillRect(renderer, x + 2.0f * s, y + 23.0f * s, panelW - 4.0f * s, metrics.border);
+    setColor(renderer, tokens.mutedGold, 245);
+    scaledDebugText(renderer, s, x + 55.0f * s, y + 8.0f * s, "PAUSED");
+    setColor(renderer, tokens.primaryText, 235);
+    scaledDebugText(renderer, s, x + 25.0f * s, y + 34.0f * s, "START  RESUME");
+    setColor(renderer, tokens.mutedText, 230);
+    scaledDebugText(renderer, s, x + 25.0f * s, y + 48.0f * s, "SELECT OPTIONS");
 }
 
 void drawScreenshotFreezeOverlay(SDL_Renderer* renderer, const AppState& state) {
@@ -583,7 +590,7 @@ void drawFightViewFrame(SDL_Renderer* renderer, const AppState& state, bool pres
     }
     if (present) {
         FramePerfScope scope(state.framePerf, FramePerfSection::Present);
-        SDL_RenderPresent(renderer);
+        presentPresentationFrame(renderer, state);
     }
 }
 

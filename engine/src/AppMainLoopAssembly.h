@@ -212,4 +212,120 @@ void clearPhysicalFrame(SDL_Renderer* renderer) {
     SDL_RenderClear(renderer);
 }
 
+SDL_Texture* gPresentationFrameTarget = nullptr;
+int gPresentationFrameTargetWidth = 0;
+int gPresentationFrameTargetHeight = 0;
+bool gPresentationFrameTargetActive = false;
+
+void destroyPresentationFrameTarget() {
+    if (gPresentationFrameTarget) {
+        SDL_DestroyTexture(gPresentationFrameTarget);
+        gPresentationFrameTarget = nullptr;
+    }
+    gPresentationFrameTargetWidth = 0;
+    gPresentationFrameTargetHeight = 0;
+    gPresentationFrameTargetActive = false;
+}
+
+bool ensurePresentationFrameTarget(SDL_Renderer* renderer, const AppState& state) {
+    const CanvasDimensions target = selectedOutputDimensions(state);
+    if (target.width <= 0 || target.height <= 0) {
+        return false;
+    }
+
+    if (gPresentationFrameTarget
+        && gPresentationFrameTargetWidth == target.width
+        && gPresentationFrameTargetHeight == target.height) {
+        return true;
+    }
+
+    destroyPresentationFrameTarget();
+    gPresentationFrameTarget = SDL_CreateTexture(
+        renderer,
+        SDL_PIXELFORMAT_RGBA32,
+        SDL_TEXTUREACCESS_TARGET,
+        target.width,
+        target.height);
+    if (!gPresentationFrameTarget) {
+        SDL_Log("SDL_CreateTexture presentation target %dx%d failed: %s", target.width, target.height, SDL_GetError());
+        return false;
+    }
+
+    SDL_SetTextureScaleMode(gPresentationFrameTarget, SDL_SCALEMODE_LINEAR);
+    gPresentationFrameTargetWidth = target.width;
+    gPresentationFrameTargetHeight = target.height;
+    return true;
+}
+
+SDL_FRect centeredOutputRectForTarget(SDL_Renderer* renderer, int targetWidth, int targetHeight) {
+    int outputWidth = 0;
+    int outputHeight = 0;
+    if (!SDL_GetCurrentRenderOutputSize(renderer, &outputWidth, &outputHeight) || outputWidth <= 0 || outputHeight <= 0) {
+        return SDL_FRect{
+            0.0f,
+            0.0f,
+            static_cast<float>(std::max(1, targetWidth)),
+            static_cast<float>(std::max(1, targetHeight)),
+        };
+    }
+
+    const float scale = std::min(
+        static_cast<float>(outputWidth) / static_cast<float>(std::max(1, targetWidth)),
+        static_cast<float>(outputHeight) / static_cast<float>(std::max(1, targetHeight)));
+    const float width = static_cast<float>(targetWidth) * scale;
+    const float height = static_cast<float>(targetHeight) * scale;
+    return SDL_FRect{
+        (static_cast<float>(outputWidth) - width) * 0.5f,
+        (static_cast<float>(outputHeight) - height) * 0.5f,
+        width,
+        height,
+    };
+}
+
+void beginPresentationFrame(SDL_Renderer* renderer, const AppState& state) {
+    if (!renderer || !ensurePresentationFrameTarget(renderer, state)) {
+        gPresentationFrameTargetActive = false;
+        clearPhysicalFrame(renderer);
+        applyLogicalPresentation(renderer, state);
+        return;
+    }
+
+    if (!SDL_SetRenderTarget(renderer, gPresentationFrameTarget)) {
+        SDL_Log("SDL_SetRenderTarget presentation target failed: %s", SDL_GetError());
+        gPresentationFrameTargetActive = false;
+        clearPhysicalFrame(renderer);
+        applyLogicalPresentation(renderer, state);
+        return;
+    }
+
+    gPresentationFrameTargetActive = true;
+    SDL_SetRenderViewport(renderer, nullptr);
+    applyLogicalPresentation(renderer, state);
+    setColor(renderer, 10, 12, 16);
+    SDL_RenderClear(renderer);
+}
+
+void presentPresentationFrame(SDL_Renderer* renderer, const AppState& state) {
+    (void)state;
+    if (!renderer) {
+        return;
+    }
+
+    if (!gPresentationFrameTargetActive || !gPresentationFrameTarget) {
+        SDL_RenderPresent(renderer);
+        return;
+    }
+
+    gPresentationFrameTargetActive = false;
+    SDL_SetRenderTarget(renderer, nullptr);
+    clearPhysicalFrame(renderer);
+    SDL_SetTextureScaleMode(gPresentationFrameTarget, SDL_SCALEMODE_LINEAR);
+    const SDL_FRect dst = centeredOutputRectForTarget(
+        renderer,
+        gPresentationFrameTargetWidth,
+        gPresentationFrameTargetHeight);
+    SDL_RenderTexture(renderer, gPresentationFrameTarget, nullptr, &dst);
+    SDL_RenderPresent(renderer);
+}
+
 #include "AppVerificationBridge.h"

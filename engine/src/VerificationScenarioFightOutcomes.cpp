@@ -2,6 +2,8 @@
 
 #include "AppTypes.h"
 
+#include <cstdlib>
+#include <filesystem>
 #include <ostream>
 #include <string>
 #include <string_view>
@@ -186,6 +188,13 @@ void recordLightPauseResume(
     }
     runtime.pressKey("enter");
     const auto paused = runtime.snapshot();
+    if (name == "single_player") {
+        if (const char* screenshotPath = std::getenv("DRAGON_LIGHT_PAUSE_SCREENSHOT");
+            screenshotPath && *screenshotPath) {
+            const bool captured = runtime.captureScreenshot(std::filesystem::path(screenshotPath));
+            record(out, counts, captured ? Status::Pass : Status::Fail, "light_pause_screenshot_captured", screenshotPath);
+        }
+    }
     runtime.pressKey("enter");
     const auto resumed = runtime.snapshot();
     const bool ok = paused.fightPauseOpen

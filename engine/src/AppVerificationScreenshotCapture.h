@@ -16,8 +16,7 @@ bool captureVerificationScreenshot(SDL_Renderer* renderer, AppState& state, cons
     const bool oldSuppressFps = state.suppressFpsCounter;
     state.suppressFpsCounter = true;
     const auto renderActiveScreen = [&]() {
-        clearPhysicalFrame(renderer);
-        applyLogicalPresentation(renderer, state);
+        beginPresentationFrame(renderer, state);
         switch (state.frontend.screen) {
         case Screen::ModeSelect:
             drawModeSelect(renderer, state);
@@ -42,7 +41,7 @@ bool captureVerificationScreenshot(SDL_Renderer* renderer, AppState& state, cons
             break;
         case Screen::FightView:
         default:
-            drawFightViewFrame(renderer, state, false);
+            drawFightViewFrame(renderer, state, true);
             break;
         }
     };

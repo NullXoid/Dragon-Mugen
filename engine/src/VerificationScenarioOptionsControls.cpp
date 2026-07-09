@@ -303,30 +303,32 @@ int runMainMenuResponsiveLayout(RuntimeProbe&, std::ostream& out) {
     } };
 
     for (const Case& item : cases) {
-        const CanvasDimensions dimensions = dimensionsForPreset(item.preset);
-        const DragonUiMetrics metrics = dragonUiMetricsForCanvas(dimensions, 1.0f);
+        const CanvasDimensions canvas = presentationDimensions();
+        const CanvasDimensions output = outputDimensionsForPreset(item.preset);
+        const DragonUiMetrics metrics = dragonUiMetricsForCanvas(canvas, 1.0f);
         const UiRenderContext ui{
             nullptr,
-            dimensions.width,
-            dimensions.height,
+            canvas.width,
+            canvas.height,
             1.0f,
-            dimensions.width,
-            dimensions.height,
+            output.width,
+            output.height,
         };
         const SDL_FRect rect = dragon::mainMenuPanelRect(ui);
         const bool inside =
             rect.x >= -0.01f
             && rect.y >= metrics.topBarH - 0.01f
-            && rect.x + rect.w <= static_cast<float>(dimensions.width) + 0.01f
-            && rect.y + rect.h <= static_cast<float>(dimensions.height) + 0.01f;
+            && rect.x + rect.w <= static_cast<float>(canvas.width) + 0.01f
+            && rect.y + rect.h <= static_cast<float>(canvas.height) + 0.01f;
         record(out, counts, inside ? Status::Pass : Status::Fail,
-            std::string(item.name) + "_panel_inside_canvas",
+            std::string(item.name) + "_panel_inside_stable_canvas",
             "x=" + std::to_string(rect.x)
                 + " y=" + std::to_string(rect.y)
                 + " w=" + std::to_string(rect.w)
-                + " h=" + std::to_string(rect.h));
+                + " h=" + std::to_string(rect.h)
+                + " output=" + std::to_string(output.width) + "x" + std::to_string(output.height));
 
-        const float availableH = static_cast<float>(dimensions.height) - metrics.topBarH;
+        const float availableH = static_cast<float>(canvas.height) - metrics.topBarH;
         const bool heightReasonable = rect.h <= availableH * 0.84f;
         record(out, counts, heightReasonable ? Status::Pass : Status::Fail,
             std::string(item.name) + "_panel_height_reasonable",
@@ -337,7 +339,7 @@ int runMainMenuResponsiveLayout(RuntimeProbe&, std::ostream& out) {
         const bool normalizedScale = std::fabs(rect.w - expectedW) <= 0.01f
             && std::fabs(rect.h - expectedH) <= 0.01f;
         record(out, counts, normalizedScale ? Status::Pass : Status::Fail,
-            std::string(item.name) + "_active_canvas_ui_size",
+            std::string(item.name) + "_stable_canvas_ui_size",
             "expected=" + std::to_string(expectedW) + "x" + std::to_string(expectedH)
                 + " actual=" + std::to_string(rect.w) + "x" + std::to_string(rect.h));
     }
@@ -551,7 +553,7 @@ int runMainMenuEditableLayoutData(RuntimeProbe& runtime, std::ostream& out) {
     return exitCode(counts);
 }
 
-int runVideoResolutionStableVirtualLayout(RuntimeProbe&, std::ostream& out) {
+int runVideoResolutionStableVirtualLayout(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
     out << "VERIFY video-resolution-stable-virtual-layout\n";
 
@@ -568,24 +570,26 @@ int runVideoResolutionStableVirtualLayout(RuntimeProbe&, std::ostream& out) {
     } };
 
     for (const Case& item : cases) {
-        const CanvasDimensions canvas = dimensionsForPreset(item.preset);
+        const CanvasDimensions canvas = presentationDimensions();
+        const CanvasDimensions output = outputDimensionsForPreset(item.preset);
         const DragonUiMetrics metrics = dragonUiMetricsForCanvas(canvas, 1.0f);
         const UiRenderContext ui{
             nullptr,
             canvas.width,
             canvas.height,
             1.0f,
-            canvas.width,
-            canvas.height,
+            output.width,
+            output.height,
         };
 
         record(out, counts,
-            ui.logicalWidth == canvas.width && ui.logicalHeight == canvas.height
-                    && ui.outputWidth == canvas.width && ui.outputHeight == canvas.height
+            ui.logicalWidth == presentationDimensions().width && ui.logicalHeight == presentationDimensions().height
+                    && ui.outputWidth == output.width && ui.outputHeight == output.height
                 ? Status::Pass
                 : Status::Fail,
-            std::string(item.name) + "_active_canvas_matches_preset",
-            std::to_string(canvas.width) + "x" + std::to_string(canvas.height));
+            std::string(item.name) + "_stable_layout_preserves_output_preset",
+            "layout=" + std::to_string(canvas.width) + "x" + std::to_string(canvas.height)
+                + " output=" + std::to_string(output.width) + "x" + std::to_string(output.height));
 
         const SDL_FRect mainPanel = mainMenuPanelRect(ui);
         const bool panelInside =
@@ -595,7 +599,7 @@ int runVideoResolutionStableVirtualLayout(RuntimeProbe&, std::ostream& out) {
             && mainPanel.y + mainPanel.h <= static_cast<float>(canvas.height) + 0.01f;
         record(out, counts,
             panelInside ? Status::Pass : Status::Fail,
-            std::string(item.name) + "_main_menu_panel_inside_active_canvas",
+            std::string(item.name) + "_main_menu_panel_inside_stable_canvas",
             "panel=" + std::to_string(static_cast<int>(mainPanel.x)) + ","
                 + std::to_string(static_cast<int>(mainPanel.y)) + " "
                 + std::to_string(static_cast<int>(mainPanel.w)) + "x"
@@ -640,9 +644,28 @@ int runVideoResolutionStableVirtualLayout(RuntimeProbe&, std::ostream& out) {
             });
         record(out, counts,
             optionsGeometry.ok ? Status::Pass : Status::Fail,
-            std::string(item.name) + "_options_geometry_fits_active_canvas",
+            std::string(item.name) + "_options_geometry_fits_stable_canvas",
             optionsGeometry.detail);
     }
+
+    const auto repoRoot = std::filesystem::path(runtime.rootText()).parent_path();
+    const std::string loopText = verificationReadTextFile(repoRoot / "engine" / "src" / "AppMainLoopAssembly.h");
+    const std::string appText = verificationReadTextFile(repoRoot / "engine" / "src" / "App.cpp");
+    record(out, counts,
+        loopText.find("SDL_TEXTUREACCESS_TARGET") != std::string::npos
+                && loopText.find("selectedOutputDimensions(state)") != std::string::npos
+                && loopText.find("SDL_SetRenderTarget(renderer, gPresentationFrameTarget)") != std::string::npos
+            ? Status::Pass
+            : Status::Fail,
+        "render_path_uses_selected_output_target",
+        "presentation frame renders into the selected output-sized texture");
+    record(out, counts,
+        appText.find("beginPresentationFrame(renderer, state)") != std::string::npos
+                && loopText.find("presentPresentationFrame(SDL_Renderer* renderer, const AppState& state)") != std::string::npos
+            ? Status::Pass
+            : Status::Fail,
+        "main_loop_uses_presentation_frame_target",
+        "main loop begins and presents through the shared presentation target");
 
     summary(out, counts);
     return exitCode(counts);

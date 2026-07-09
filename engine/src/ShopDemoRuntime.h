@@ -974,7 +974,7 @@ void drawShopDemo(SDL_Renderer* renderer, AppState& state) {
     drawShopDemoTransactionBanner(renderer, state);
 
     drawFpsCounter(renderer, state);
-    SDL_RenderPresent(renderer);
+    presentPresentationFrame(renderer, state);
 }
 
 } // namespace

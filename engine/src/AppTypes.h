@@ -21,8 +21,8 @@ inline constexpr int kHdLogicalHeight = 720;
 inline constexpr int kLogicalWidth = kDefaultLogicalWidth;
 inline constexpr int kDesignLogicalWidth = kDefaultLogicalWidth;
 inline constexpr int kDesignLogicalHeight = kLogicalHeight;
-inline constexpr int kPresentationLogicalWidth = kDesignLogicalWidth;
-inline constexpr int kPresentationLogicalHeight = kDesignLogicalHeight;
+inline constexpr int kPresentationLogicalWidth = kHdLogicalWidth;
+inline constexpr int kPresentationLogicalHeight = kHdLogicalHeight;
 inline constexpr int kTrainingOptionCount = 20;
 inline constexpr int kTrainingOptionRows = 10;
 inline constexpr int kTrainingMoveListRows = 10;
@@ -163,9 +163,8 @@ inline CanvasDimensions presentationDimensions() {
     return { kPresentationLogicalWidth, kPresentationLogicalHeight };
 }
 
-inline bool canvasPresetChangesLayout(CanvasPreset preset) {
-    return dimensionsForPreset(preset).width != dimensionsForPreset(kStandardCanvasPreset).width
-        || dimensionsForPreset(preset).height != dimensionsForPreset(kStandardCanvasPreset).height;
+inline bool canvasPresetChangesLayout(CanvasPreset) {
+    return false;
 }
 
 enum class DragonLayoutClass {

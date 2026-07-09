@@ -246,7 +246,7 @@ void drawModeSelect(SDL_Renderer* renderer, const AppState& state) {
         mainMenuLogoView(state.systemScreens) });
 
     drawFpsCounter(renderer, state);
-    SDL_RenderPresent(renderer);
+    presentPresentationFrame(renderer, state);
 }
 
 void drawMainSettings(SDL_Renderer* renderer, const AppState& state) {
@@ -259,7 +259,7 @@ void drawMainSettings(SDL_Renderer* renderer, const AppState& state) {
         view);
 
     drawFpsCounter(renderer, state);
-    SDL_RenderPresent(renderer);
+    presentPresentationFrame(renderer, state);
 }
 
 std::string_view opponentSlotLabel(PendingMode mode) {
@@ -386,9 +386,9 @@ void drawCharacterSelect(SDL_Renderer* renderer, const AppState& state) {
             state.selection.p1CharacterConfirmed,
             state.selection.p2CharacterConfirmed,
             activeOpponentType(state) == OpponentType::Dummy,
-        });
+    });
     drawFpsCounter(renderer, state);
-    SDL_RenderPresent(renderer);
+    presentPresentationFrame(renderer, state);
 }
 
 const AnimationClip* findClip(const AppState& state, int action) {

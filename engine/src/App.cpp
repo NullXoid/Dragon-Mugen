@@ -311,8 +311,7 @@ int runApp(const std::filesystem::path& gameRoot, const AppStartupOptions& start
             state.framePerf.addDroppedAccumulatorFrame();
         }
 
-        clearPhysicalFrame(renderer);
-        applyLogicalPresentation(renderer, state);
+        beginPresentationFrame(renderer, state);
 
         if (state.frontend.screen == Screen::ModeSelect) {
             drawModeSelect(renderer, state);
@@ -355,6 +354,7 @@ int runApp(const std::filesystem::path& gameRoot, const AppStartupOptions& start
     closeAllGamepads(state);
     destroyVisualAssets(state);
     destroyAudioAssets(state);
+    destroyPresentationFrameTarget();
     SDL_DestroyRenderer(renderer);
     SDL_DestroyWindow(window);
     SDL_Quit();
