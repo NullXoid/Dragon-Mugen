@@ -8,7 +8,23 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from PIL import Image
+
 from lab_config import configured_path, load_config
+from lab_comfy_workflow import (
+    UI_DIRECT_ONLY_TYPES,
+    clip_text_role,
+    node_title,
+    set_if_missing,
+    ui_input_links,
+    ui_links_by_id,
+    ui_node_title,
+    ui_node_type,
+    ui_nodes_by_id,
+    ui_output_source_for_link,
+    ui_widget_inputs,
+    workflow_graph,
+)
 from lab_paths import ACTIONS, OWNED_CHARACTERS, safe_run_name, timestamp
 from lab_result import CommandResult, result_error
 
@@ -84,164 +100,6 @@ def comfy_upload_image(server_url: str, image_path: Path) -> dict[str, Any]:
         return json.loads(response.read().decode("utf-8", errors="replace"))
 
 
-def node_title(node: dict[str, Any]) -> str:
-    meta = node.get("_meta")
-    meta_title = meta.get("title", "") if isinstance(meta, dict) else ""
-    return " ".join(str(part).lower() for part in (node.get("class_type", ""), node.get("title", ""), meta_title) if part)
-
-
-def workflow_graph(workflow: dict[str, Any]) -> dict[str, Any]:
-    prompt = workflow.get("prompt")
-    if isinstance(prompt, dict):
-        return prompt
-    return workflow
-
-
-UI_WIDGET_INPUTS: dict[str, tuple[str, ...]] = {
-    "RandomNoise": ("noise_seed",),
-    "KSamplerSelect": ("sampler_name",),
-    "ManualSigmas": ("sigmas",),
-    "CFGGuider": ("cfg",),
-    "LoraLoaderModelOnly": ("lora_name", "strength_model"),
-    "ResizeImagesByLongerEdge": ("longer_edge",),
-    "LTXVImgToVideoInplace": ("strength", "bypass"),
-    "LTXVPreprocess": ("img_compression",),
-    "EmptyLTXVLatentVideo": ("width", "height", "length", "batch_size"),
-    "LTXVConditioning": ("frame_rate",),
-    "LTXVEmptyLatentAudio": ("frames_number", "frame_rate", "batch_size"),
-    "CreateVideo": ("fps",),
-    "LatentUpscaleModelLoader": ("model_name",),
-    "CLIPTextEncode": ("text",),
-    "VAEDecodeTiled": ("tile_size", "overlap", "temporal_size", "temporal_overlap"),
-    "CheckpointLoaderSimple": ("ckpt_name",),
-    "LTXAVTextEncoderLoader": ("text_encoder", "ckpt_name", "device"),
-    "LTXVAudioVAELoader": ("ckpt_name",),
-    "SaveVideo": ("filename_prefix", "format", "codec"),
-    "LoadImage": ("image",),
-}
-
-UI_DIRECT_ONLY_TYPES = {
-    "MarkdownNote",
-    "PrimitiveBoolean",
-    "PrimitiveInt",
-    "PrimitiveStringMultiline",
-    "ComfyMathExpression",
-    "Reroute",
-}
-
-
-def ui_node_type(node: dict[str, Any]) -> str:
-    return str(node.get("type") or node.get("class_type") or "")
-
-
-def ui_node_title(node: dict[str, Any]) -> str:
-    return " ".join(str(part).lower() for part in (node.get("type", ""), node.get("title", "")) if part)
-
-
-def ui_nodes_by_id(nodes: list[dict[str, Any]]) -> dict[int, dict[str, Any]]:
-    return {int(node["id"]): node for node in nodes if isinstance(node, dict) and "id" in node}
-
-
-def ui_links_by_id(links: list[Any]) -> dict[int, dict[str, Any]]:
-    by_id: dict[int, dict[str, Any]] = {}
-    for link in links:
-        if isinstance(link, dict):
-            by_id[int(link["id"])] = link
-        elif isinstance(link, list) and len(link) >= 6:
-            by_id[int(link[0])] = {
-                "id": int(link[0]),
-                "origin_id": int(link[1]),
-                "origin_slot": int(link[2]),
-                "target_id": int(link[3]),
-                "target_slot": int(link[4]),
-                "type": link[5],
-            }
-    return by_id
-
-
-def ui_widget_inputs(node: dict[str, Any]) -> dict[str, Any]:
-    widget_names = UI_WIDGET_INPUTS.get(ui_node_type(node), ())
-    widgets = node.get("widgets_values")
-    if not isinstance(widgets, list):
-        return {}
-    return {name: widgets[index] for index, name in enumerate(widget_names) if index < len(widgets)}
-
-
-def ui_input_links(node: dict[str, Any]) -> list[tuple[str, int | None]]:
-    inputs = node.get("inputs")
-    if not isinstance(inputs, list):
-        return []
-    result: list[tuple[str, int | None]] = []
-    for entry in inputs:
-        if not isinstance(entry, dict):
-            continue
-        name = str(entry.get("name") or "")
-        link = entry.get("link")
-        result.append((name, int(link) if isinstance(link, int) else None))
-    return result
-
-
-def ui_output_source_for_link(
-    link_id: int | None,
-    links_by_id: dict[int, dict[str, Any]],
-    nodes_by_id: dict[int, dict[str, Any]],
-    external_image_source: list[Any],
-    external_values: dict[int, Any] | None = None,
-) -> Any | None:
-    if link_id is None:
-        return None
-    link = links_by_id.get(link_id)
-    if not link:
-        return None
-    origin_id = int(link.get("origin_id", -1))
-    origin_slot = int(link.get("origin_slot", 0))
-    if origin_id == -10:
-        if external_values and origin_slot in external_values:
-            return external_values[origin_slot]
-        return external_image_source if str(link.get("type", "")).startswith("IMAGE") else None
-    origin_node = nodes_by_id.get(origin_id)
-    if not origin_node:
-        return None
-    if ui_node_type(origin_node) == "Reroute":
-        upstream = None
-        for _, candidate in ui_input_links(origin_node):
-            upstream = candidate
-            break
-        return ui_output_source_for_link(upstream, links_by_id, nodes_by_id, external_image_source, external_values)
-    if ui_node_type(origin_node) in UI_DIRECT_ONLY_TYPES:
-        return None
-    return [str(origin_id), origin_slot]
-
-
-def set_if_missing(inputs: dict[str, Any], key: str, value: Any) -> None:
-    if key not in inputs:
-        inputs[key] = value
-
-
-def clip_text_role(
-    node: dict[str, Any],
-    links_by_id: dict[int, dict[str, Any]],
-    nodes_by_id: dict[int, dict[str, Any]],
-) -> str:
-    node_id = int(node["id"])
-    title = ui_node_title(node)
-    if "negative" in title:
-        return "negative"
-    if "positive" in title or "prompt" in title:
-        return "positive"
-    for link in links_by_id.values():
-        if int(link.get("origin_id", -1)) != node_id:
-            continue
-        target = nodes_by_id.get(int(link.get("target_id", -1)))
-        if target and ui_node_type(target) == "LTXVConditioning":
-            return "negative" if int(link.get("target_slot", 0)) == 1 else "positive"
-    widgets = node.get("widgets_values")
-    default_text = str(widgets[0]).lower() if isinstance(widgets, list) and widgets else ""
-    if any(token in default_text for token in ("ugly", "blurry", "low quality", "bad anatomy")):
-        return "negative"
-    return "positive"
-
-
 def comfy_object_info(server_url: str) -> dict[str, Any]:
     request = urllib.request.Request(server_url.rstrip("/") + "/object_info", method="GET")
     with urllib.request.urlopen(request, timeout=15) as response:
@@ -280,6 +138,77 @@ def comfy_uploaded_image_name(uploaded_image: Any) -> str:
             name = f"{name} [{image_type}]"
         return name
     return str(uploaded_image)
+
+
+def sprite_reference_upload_dir(root: Path) -> Path:
+    upload_dir = root / "artifacts" / "asset_lab" / "comfy_uploads"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    return upload_dir
+
+
+def alpha_content_bbox(image: Image.Image) -> tuple[int, int, int, int] | None:
+    if "A" not in image.getbands():
+        return None
+    return image.getchannel("A").getbbox()
+
+
+def prepare_sprite_reference_for_comfy(
+    root: Path,
+    image_path: Path,
+    character: str,
+    action: str,
+    run_name: str,
+    width: int,
+    height: int,
+) -> Path:
+    source = Image.open(image_path).convert("RGBA")
+    bbox = alpha_content_bbox(source)
+    cropped = source.crop(bbox) if bbox else source
+
+    margin_x = max(32, int(width * 0.12))
+    margin_y = max(32, int(height * 0.08))
+    fit_width = max(1, width - margin_x * 2)
+    fit_height = max(1, height - margin_y * 2)
+    scale = min(fit_width / cropped.width, fit_height / cropped.height)
+    scale = min(scale, 1.35)
+    scaled_size = (max(1, int(round(cropped.width * scale))), max(1, int(round(cropped.height * scale))))
+    resampling = getattr(Image.Resampling, "LANCZOS", Image.LANCZOS)
+    fitted = cropped.resize(scaled_size, resampling)
+
+    canvas = Image.new("RGBA", (width, height), (245, 245, 245, 255))
+    x = (width - fitted.width) // 2
+    y = height - margin_y - fitted.height
+    if y < margin_y:
+        y = margin_y
+    canvas.alpha_composite(fitted, (x, y))
+
+    upload_dir = sprite_reference_upload_dir(root)
+    output_name = safe_run_name(f"{character}_{action}_{run_name}_reference_{width}x{height}") + ".png"
+    output_path = upload_dir / output_name
+    canvas.convert("RGB").save(output_path)
+    return output_path
+
+
+def append_prompt_guardrails(positive_prompt: str, negative_prompt: str) -> tuple[str, str]:
+    positive_guardrail = (
+        " Full body centered inside frame with extra empty margin around hands and shoes."
+        " Locked side-view fighting game sprite camera."
+        " Character remains fully visible from head to feet."
+        " Plain solid white studio background."
+        " No scene background."
+    )
+    negative_guardrail = (
+        "cropped, cut off hands, cut off feet, missing shoes, missing fingers, out of frame,"
+        " close-up, camera zoom, camera pan, checkerboard background, patterned wall,"
+        " dotted wall, fence, mesh, net, lattice, chain-link, crowd, stadium,"
+        " busy background, extra limbs, duplicate body"
+    )
+    combined_positive = f"{positive_prompt.rstrip()} {positive_guardrail}".strip()
+    if negative_prompt:
+        combined_negative = f"{negative_prompt.rstrip()}, {negative_guardrail}"
+    else:
+        combined_negative = negative_guardrail
+    return combined_positive, combined_negative
 
 
 def first_matching_choice(choices: list[str], *needles: str) -> str | None:
@@ -420,18 +349,59 @@ def convert_ltx_ui_workflow_to_api_prompt(
     frame_count = max(9, fps * duration_seconds + 1)
     prompt: dict[str, Any] = {}
     uploaded_image_name = comfy_uploaded_image_name(uploaded_image)
-    external_values: dict[int, Any] = {
-        0: external_image_source,
-        1: positive_prompt,
-        2: width,
-        3: height,
-        4: duration_seconds,
-        5: "ltx-2-19b-distilled.safetensors",
-        6: "ltx-2.3-22b-distilled-lora-384.safetensors",
-        7: "gemma_3_12B_it_fp4_mixed.safetensors",
-        8: "ltx-2.3-spatial-upscaler-x2-1.0.safetensors",
-        9: fps,
-    }
+    subgraph_name = str(subgraph.get("name", "")).lower()
+    if "first-last-frame" in subgraph_name:
+        external_values: dict[int, Any] = {
+            0: external_image_source,
+            1: external_image_source,
+            2: positive_prompt,
+            3: width,
+            4: height,
+            5: duration_seconds,
+            6: fps,
+            7: 0,
+            8: "ltx-2-19b-distilled.safetensors",
+            9: "gemma_3_12B_it_fp4_mixed.safetensors",
+        }
+    elif "canny" in subgraph_name:
+        external_values = {
+            0: positive_prompt,
+            1: external_image_source,
+            2: 1.0,
+            3: False,
+            4: external_image_source,
+            5: "ltx-2-19b-distilled.safetensors",
+            6: "ltx-2-19b-ic-lora-canny-control.safetensors",
+            7: "gemma_3_12B_it_fp4_mixed.safetensors",
+            8: "ltx-2.3-22b-distilled-lora-384.safetensors",
+            9: "ltx-2.3-spatial-upscaler-x2-1.0.safetensors",
+        }
+    elif "pose" in subgraph_name:
+        external_values = {
+            0: positive_prompt,
+            1: external_image_source,
+            2: external_image_source,
+            3: 1.0,
+            4: False,
+            5: "ltx-2-19b-distilled.safetensors",
+            6: "ltx-2-19b-ic-lora-pose-control.safetensors",
+            7: "gemma_3_12B_it_fp4_mixed.safetensors",
+            8: "ltx-2.3-22b-distilled-lora-384.safetensors",
+            9: "ltx-2.3-spatial-upscaler-x2-1.0.safetensors",
+        }
+    else:
+        external_values = {
+            0: external_image_source,
+            1: positive_prompt,
+            2: width,
+            3: height,
+            4: duration_seconds,
+            5: "ltx-2-19b-distilled.safetensors",
+            6: "ltx-2.3-22b-distilled-lora-384.safetensors",
+            7: "gemma_3_12B_it_fp4_mixed.safetensors",
+            8: "ltx-2.3-spatial-upscaler-x2-1.0.safetensors",
+            9: fps,
+        }
 
     prompt[load_node_id] = {
         "class_type": "LoadImage",
@@ -500,6 +470,15 @@ def convert_ltx_ui_workflow_to_api_prompt(
             set_if_missing(inputs, "bypass", False)
         if node_type == "LTXVEmptyLatentAudio":
             set_if_missing(inputs, "batch_size", 1)
+        if node_type == "LTXVAddGuide":
+            set_if_missing(inputs, "frame_idx", 0)
+            set_if_missing(inputs, "strength", 1.0)
+        if node_type == "LTXVScheduler":
+            set_if_missing(inputs, "steps", 20)
+            set_if_missing(inputs, "max_shift", 2.05)
+            set_if_missing(inputs, "base_shift", 0.95)
+            set_if_missing(inputs, "stretch", True)
+            set_if_missing(inputs, "terminal", 0.1)
 
         prompt[node_id] = {"class_type": node_type, "inputs": inputs}
 
@@ -785,16 +764,26 @@ def submit_comfy_image_to_video(root: Path, character: str, action: str, form: d
         fps = positive_int(form.get("fps", [""])[0], 12, "fps", 1, 60)
         duration_seconds = positive_int(form.get("duration_seconds", [""])[0], 6, "duration_seconds", 1, 30)
         run_name = safe_run_name(form.get("run_name", [""])[0]) or safe_run_name(f"{action}_{timestamp()}")
+        comfy_reference_path = prepare_sprite_reference_for_comfy(
+            root,
+            image_path,
+            character,
+            action,
+            run_name,
+            width,
+            height,
+        )
+        patched_positive_prompt, patched_negative_prompt = append_prompt_guardrails(positive_prompt, negative_prompt)
 
-        uploaded = comfy_upload_image(server_url, image_path)
-        uploaded_name = str(uploaded.get("name") or image_path.name)
+        uploaded = comfy_upload_image(server_url, comfy_reference_path)
+        uploaded_name = comfy_uploaded_image_name(uploaded)
         output_prefix = f"dragon_asset_lab/{character}_{action}_{run_name}"
         workflow = json.loads(workflow_path.read_text(encoding="utf-8"))
         prompt_graph, notes = patch_comfy_i2v_workflow(
             workflow,
             uploaded_name,
-            positive_prompt,
-            negative_prompt,
+            patched_positive_prompt,
+            patched_negative_prompt,
             width,
             height,
             fps,
@@ -809,7 +798,8 @@ def submit_comfy_image_to_video(root: Path, character: str, action: str, form: d
             [
                 f"Queued Comfy image-to-video prompt: {prompt_id}",
                 f"Workflow: {workflow_path}",
-                f"Reference image uploaded: {image_path} -> {uploaded_name}",
+                f"Original reference: {image_path}",
+                f"Sprite-safe reference uploaded: {comfy_reference_path} -> {uploaded_name}",
                 f"Output prefix: {output_prefix}",
                 f"Requested: {width}x{height}, {fps} fps, {duration_seconds}s",
                 "",
