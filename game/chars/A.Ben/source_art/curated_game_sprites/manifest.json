@@ -113,39 +113,39 @@
     "kick": {
       "selected_source_frames": [
         0,
+        2,
+        4,
+        6,
         8,
-        10,
         12,
-        15,
-        16,
-        15,
-        12,
-        10,
-        8
+        38,
+        40,
+        44,
+        48
       ],
       "preview_fps": 8.0,
-      "notes": "Strong source with clear knee lift and extended kick. Frames 24/36/48 have a practical boot repair because the source video cropped the extended foot at the cell edge.",
-      "run_manifest": "ltx_runs/kick_stationary_safe_5s_v02/manifest.json",
-      "source_frame_dir": "ltx_runs/kick_stationary_safe_5s_v02/frames_clean",
+      "notes": "Sprite-safe Comfy/LTX source with full-body framing. Selected frames use a forward-and-reverse curation pass because the generated kick holds the extended pose longer than the game action needs.",
+      "run_manifest": "ltx_runs/kick_karate_safe_6s_v01/manifest.json",
+      "source_frame_dir": "ltx_runs/kick_karate_safe_6s_v01/frames_clean",
       "full_sheet": "curated_game_sprites/sheets/kick_selected_512x672.png",
       "cropped_sheet": "curated_game_sprites/sheets/kick_selected_cropped_512x672.png",
       "contact": "curated_game_sprites/contacts/kick_selected_contact.png",
       "gif_preview": "curated_game_sprites/previews/kick_selected_preview.gif",
       "promoted_frames": [
         "curated_game_sprites/frames/kick/kick_00_src000_512x672.png",
-        "curated_game_sprites/frames/kick/kick_01_src008_512x672.png",
-        "curated_game_sprites/frames/kick/kick_02_src010_512x672.png",
-        "curated_game_sprites/frames/kick/kick_03_src012_512x672.png",
-        "curated_game_sprites/frames/kick/kick_04_src015_512x672.png",
-        "curated_game_sprites/frames/kick/kick_05_src016_512x672.png",
-        "curated_game_sprites/frames/kick/kick_06_src015_512x672.png",
-        "curated_game_sprites/frames/kick/kick_07_src012_512x672.png",
-        "curated_game_sprites/frames/kick/kick_08_src010_512x672.png",
-        "curated_game_sprites/frames/kick/kick_09_src008_512x672.png"
+        "curated_game_sprites/frames/kick/kick_01_src002_512x672.png",
+        "curated_game_sprites/frames/kick/kick_02_src004_512x672.png",
+        "curated_game_sprites/frames/kick/kick_03_src006_512x672.png",
+        "curated_game_sprites/frames/kick/kick_04_src008_512x672.png",
+        "curated_game_sprites/frames/kick/kick_05_src012_512x672.png",
+        "curated_game_sprites/frames/kick/kick_06_src038_512x672.png",
+        "curated_game_sprites/frames/kick/kick_07_src040_512x672.png",
+        "curated_game_sprites/frames/kick/kick_08_src044_512x672.png",
+        "curated_game_sprites/frames/kick/kick_09_src048_512x672.png"
       ],
       "cropped_cell": {
-        "width": 362,
-        "height": 395
+        "width": 327,
+        "height": 361
       }
     },
     "walk": {
