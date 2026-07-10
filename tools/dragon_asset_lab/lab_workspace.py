@@ -157,16 +157,37 @@ def frame_paths(folder: Path | None) -> list[Path]:
     return sorted(folder.glob("*.png"))
 
 
+def latest_run_manifest_for_action(source_art: Path, action: str) -> Path | None:
+    runs_root = source_art / "ltx_runs"
+    if not runs_root.exists():
+        return None
+    candidates: list[Path] = []
+    for manifest_path in runs_root.glob("*/manifest.json"):
+        manifest = load_json(manifest_path)
+        if str(manifest.get("action", "")).lower() == action:
+            candidates.append(manifest_path)
+    if not candidates:
+        return None
+    return max(candidates, key=lambda path: path.stat().st_mtime)
+
+
 def run_summary_for_action(root: Path, character: str, action: str, manifest_action: dict[str, Any]) -> dict[str, Any]:
     source_art = source_art_root(root, character)
     default_manifest_path = source_art / "ltx_runs" / action / "manifest.json"
     run_manifest_path = localize_manifest_path(manifest_action.get("run_manifest"), source_art, root) or (
         default_manifest_path if default_manifest_path.exists() else None
     )
+    latest_manifest_path = latest_run_manifest_for_action(source_art, action)
+    using_latest_unlinked_run = False
+    if latest_manifest_path and (
+        not run_manifest_path or latest_manifest_path.stat().st_mtime > run_manifest_path.stat().st_mtime
+    ):
+        run_manifest_path = latest_manifest_path
+        using_latest_unlinked_run = True
     run_manifest = load_json(run_manifest_path) if run_manifest_path else {}
     run_dir = run_manifest_path.parent if run_manifest_path else None
 
-    source_dir = localize_manifest_path(manifest_action.get("source_frame_dir"), source_art, root)
+    source_dir = None if using_latest_unlinked_run else localize_manifest_path(manifest_action.get("source_frame_dir"), source_art, root)
     paths = run_manifest.get("paths", {}) if isinstance(run_manifest.get("paths"), dict) else {}
     if not source_dir and run_dir:
         source_dir = localize_manifest_path(paths.get("frames_clean"), run_dir, root) or localize_manifest_path(paths.get("frames_raw"), run_dir, root)

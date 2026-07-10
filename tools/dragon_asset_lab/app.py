@@ -349,6 +349,7 @@ def render_comfy_config(root: Path, selected_character: str) -> str:
         <label>Height<input name="height" value="672"{i2v_disabled}></label>
         <label>FPS<input name="fps" value="12"{i2v_disabled}></label>
         <label>Duration seconds<input name="duration_seconds" value="6"{i2v_disabled}></label>
+        <label class="wide"><input type="checkbox" name="sprite_safe_first_pass" value="1" checked{i2v_disabled}> Sprite-safe first pass avoids LTX upscale artifacts</label>
         <label class="wide">Reference image path<input name="reference_image_path" placeholder="C:\\path\\to\\reference.png"{i2v_disabled}></label>
         <label class="wide">Positive prompt<textarea name="positive_prompt" spellcheck="false"{i2v_disabled}>full body A.Ben fighting game sprite animation, complete character visible, side view, wide margins, clean background, smooth motion</textarea></label>
         <label class="wide">Negative prompt<textarea name="negative_prompt" spellcheck="false"{i2v_disabled}>cropped body, cut off feet, cut off hands, missing limbs, extra limbs, camera close-up, blurry, duplicate character</textarea></label>

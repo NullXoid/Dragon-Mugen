@@ -304,6 +304,43 @@ def coerce_prompt_for_comfy_server(
     return notes
 
 
+def prompt_node_sort_key(node_id: Any) -> tuple[int, int | str]:
+    text = str(node_id)
+    return (0, int(text)) if text.lstrip("-").isdigit() else (1, text)
+
+
+def route_decode_to_first_ltx_video_latent(prompt: dict[str, Any]) -> list[str]:
+    first_video_latent_id: str | None = None
+    for node_id, node in sorted(prompt.items(), key=lambda item: prompt_node_sort_key(item[0])):
+        if isinstance(node, dict) and node.get("class_type") == "LTXVSeparateAVLatent":
+            first_video_latent_id = str(node_id)
+            break
+
+    decode_node: dict[str, Any] | None = None
+    decode_node_id: str | None = None
+    for node_id, node in sorted(prompt.items(), key=lambda item: prompt_node_sort_key(item[0])):
+        if (
+            isinstance(node, dict)
+            and node.get("class_type") in {"VAEDecode", "VAEDecodeTiled"}
+            and isinstance(node.get("inputs"), dict)
+            and "samples" in node["inputs"]
+        ):
+            decode_node = node
+            decode_node_id = str(node_id)
+
+    if first_video_latent_id is None:
+        return ["warning: sprite-safe first-pass mode could not find an LTX video latent split node"]
+    if decode_node is None or decode_node_id is None:
+        return ["warning: sprite-safe first-pass mode could not find a VAE decode node to reroute"]
+
+    decode_node["inputs"]["samples"] = [first_video_latent_id, 0]
+    return [
+        f"sprite-safe first-pass mode: routed decode node {decode_node_id} to first video latent {first_video_latent_id}",
+        "sprite-safe first-pass mode: bypassed the LTX latent upscaler/second sampler to avoid lattice artifacts",
+        "sprite-safe first-pass mode: output may be lower resolution than requested; promote still normalizes frames",
+    ]
+
+
 def convert_ltx_ui_workflow_to_api_prompt(
     workflow: dict[str, Any],
     uploaded_image: Any,
@@ -314,6 +351,7 @@ def convert_ltx_ui_workflow_to_api_prompt(
     fps: int,
     duration_seconds: int,
     output_prefix: str,
+    sprite_safe_first_pass: bool = False,
 ) -> tuple[dict[str, Any] | None, list[str]]:
     nodes = workflow.get("nodes")
     definitions = workflow.get("definitions")
@@ -511,6 +549,7 @@ def convert_ltx_ui_workflow_to_api_prompt(
         "_meta": {"title": "Save Asset Lab Video"},
     }
 
+    sprite_safe_notes = route_decode_to_first_ltx_video_latent(prompt) if sprite_safe_first_pass else []
     notes = [
         "converted Comfy UI LTX image-to-video template to API prompt",
         "using blueprint wrapper external inputs" if uses_blueprint_wrapper else "using top-level LoadImage/SaveVideo nodes",
@@ -522,6 +561,7 @@ def convert_ltx_ui_workflow_to_api_prompt(
         "size fields patched: 4",
         "fps fields patched: 3",
         "output prefix fields patched: 1",
+        *sprite_safe_notes,
     ]
     return prompt, notes
 
@@ -537,6 +577,7 @@ def patch_comfy_i2v_workflow(
     duration_seconds: int,
     output_prefix: str,
     server_url: str = "",
+    sprite_safe_first_pass: bool = False,
 ) -> tuple[dict[str, Any], list[str]]:
     converted_graph, converted_notes = convert_ltx_ui_workflow_to_api_prompt(
         workflow,
@@ -548,6 +589,7 @@ def patch_comfy_i2v_workflow(
         fps,
         duration_seconds,
         output_prefix,
+        sprite_safe_first_pass,
     )
     if converted_graph is not None:
         converted_notes.extend(coerce_prompt_for_comfy_server(converted_graph, server_url))
@@ -764,6 +806,7 @@ def submit_comfy_image_to_video(root: Path, character: str, action: str, form: d
         fps = positive_int(form.get("fps", [""])[0], 12, "fps", 1, 60)
         duration_seconds = positive_int(form.get("duration_seconds", [""])[0], 6, "duration_seconds", 1, 30)
         run_name = safe_run_name(form.get("run_name", [""])[0]) or safe_run_name(f"{action}_{timestamp()}")
+        sprite_safe_first_pass = form.get("sprite_safe_first_pass", [""])[0].lower() in {"1", "true", "on", "yes"}
         comfy_reference_path = prepare_sprite_reference_for_comfy(
             root,
             image_path,
@@ -790,6 +833,7 @@ def submit_comfy_image_to_video(root: Path, character: str, action: str, form: d
             duration_seconds,
             output_prefix,
             server_url,
+            sprite_safe_first_pass,
         )
         response_data = submit_comfy_prompt(server_url, prompt_graph)
         body = str(response_data.get("_raw_body", ""))
@@ -802,6 +846,7 @@ def submit_comfy_image_to_video(root: Path, character: str, action: str, form: d
                 f"Sprite-safe reference uploaded: {comfy_reference_path} -> {uploaded_name}",
                 f"Output prefix: {output_prefix}",
                 f"Requested: {width}x{height}, {fps} fps, {duration_seconds}s",
+                f"Sprite-safe first pass: {'on' if sprite_safe_first_pass else 'off'}",
                 "",
                 "Patch report:",
                 *notes,
