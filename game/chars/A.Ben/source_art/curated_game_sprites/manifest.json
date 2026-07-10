@@ -2,7 +2,7 @@
   "source": "source_videos",
   "description": "Curated selected-frame sheets from LTX 6-second A.Ben action revisions.",
   "cell_full": {
-    "width": 384,
+    "width": 512,
     "height": 672
   },
   "actions": {
@@ -138,36 +138,36 @@
     },
     "walk": {
       "selected_source_frames": [
-        62,
-        68,
-        74,
-        80,
-        86,
-        92,
-        98,
-        104
+        0,
+        5,
+        10,
+        15,
+        20,
+        25,
+        30,
+        35
       ],
-      "preview_fps": 24.0,
+      "preview_fps": 8.0,
       "notes": "",
-      "run_manifest": "ltx_runs/2026-07-06_aben_walk_v02/manifest.json",
-      "source_frame_dir": "ltx_runs/2026-07-06_aben_walk_v02/frames_clean",
-      "full_sheet": "curated_game_sprites/sheets/walk_selected_384x672.png",
-      "cropped_sheet": "curated_game_sprites/sheets/walk_selected_cropped_384x672.png",
+      "run_manifest": "ltx_runs/walk_sprite_safe_5s_v01/manifest.json",
+      "source_frame_dir": "ltx_runs/walk_sprite_safe_5s_v01/frames_clean",
+      "full_sheet": "curated_game_sprites/sheets/walk_selected_512x672.png",
+      "cropped_sheet": "curated_game_sprites/sheets/walk_selected_cropped_512x672.png",
       "contact": "curated_game_sprites/contacts/walk_selected_contact.png",
       "gif_preview": "curated_game_sprites/previews/walk_selected_preview.gif",
       "promoted_frames": [
-        "curated_game_sprites/frames/walk/walk_00_src062_384x672.png",
-        "curated_game_sprites/frames/walk/walk_01_src068_384x672.png",
-        "curated_game_sprites/frames/walk/walk_02_src074_384x672.png",
-        "curated_game_sprites/frames/walk/walk_03_src080_384x672.png",
-        "curated_game_sprites/frames/walk/walk_04_src086_384x672.png",
-        "curated_game_sprites/frames/walk/walk_05_src092_384x672.png",
-        "curated_game_sprites/frames/walk/walk_06_src098_384x672.png",
-        "curated_game_sprites/frames/walk/walk_07_src104_384x672.png"
+        "curated_game_sprites/frames/walk/walk_00_src000_512x672.png",
+        "curated_game_sprites/frames/walk/walk_01_src005_512x672.png",
+        "curated_game_sprites/frames/walk/walk_02_src010_512x672.png",
+        "curated_game_sprites/frames/walk/walk_03_src015_512x672.png",
+        "curated_game_sprites/frames/walk/walk_04_src020_512x672.png",
+        "curated_game_sprites/frames/walk/walk_05_src025_512x672.png",
+        "curated_game_sprites/frames/walk/walk_06_src030_512x672.png",
+        "curated_game_sprites/frames/walk/walk_07_src035_512x672.png"
       ],
       "cropped_cell": {
-        "width": 353,
-        "height": 648
+        "width": 271,
+        "height": 439
       }
     },
     "idle": {
