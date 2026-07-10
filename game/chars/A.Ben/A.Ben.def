@@ -16,6 +16,7 @@ stcommon = common1.cns
 sprite   = A.Ben.sff
 anim     = A.Ben.air
 sound    = A.Ben.snd
+movelist = A.Ben.movelist
 
 [Arcade]
 intro.storyboard =

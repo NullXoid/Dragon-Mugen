@@ -723,8 +723,14 @@ int runABenTrainingMoveListFromCharacter(RuntimeProbe& runtime, std::ostream& ou
     record(out, counts, hasLabel("Side Kick") ? Status::Pass : Status::Fail,
         "aben_sidecar_side_kick_label",
         "labels=\"" + labels + "\"");
-    record(out, counts, hasLabel("Boost Shot Medium") ? Status::Pass : Status::Fail,
-        "aben_cmd_special_label_present",
+    record(out, counts, hasLabel("Straight Punch") ? Status::Pass : Status::Fail,
+        "aben_movelist_straight_punch_label",
+        "labels=\"" + labels + "\"");
+    record(out, counts, moves.size() == 6 ? Status::Pass : Status::Fail,
+        "aben_movelist_is_authoritative",
+        "count=" + std::to_string(moves.size()) + " labels=\"" + labels + "\"");
+    record(out, counts, !hasLabel("Boost Shot Medium") ? Status::Pass : Status::Fail,
+        "aben_unlisted_special_hidden",
         "labels=\"" + labels + "\"");
     record(out, counts, !hasForeignLabel() ? Status::Pass : Status::Fail,
         "foreign_character_moves_absent",

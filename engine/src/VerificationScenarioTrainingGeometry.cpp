@@ -272,9 +272,24 @@ int runTrainingCommandListTabs(RuntimeProbe& runtime, std::ostream& out) {
         }
         return true;
     };
-    record(out, counts, allMoves.front().section == "STANDING NORMAL" ? Status::Pass : Status::Fail,
+    const auto containsSection = [](const std::vector<TrainingMoveInfo>& moves, const std::string& section) {
+        for (const auto& move : moves) {
+            if (move.section == section) {
+                return true;
+            }
+        }
+        return false;
+    };
+    const auto normalFirstOrUnavailable = [&containsSection](const std::vector<TrainingMoveInfo>& moves) {
+        return !containsSection(moves, "STANDING NORMAL") || moves.front().section == "STANDING NORMAL";
+    };
+    const auto firstMoveDetail = [&containsSection](const std::vector<TrainingMoveInfo>& moves) {
+        return "first=\"" + moves.front().label + "\" section=\"" + moves.front().section + "\""
+            + " standing_normals_present=" + (containsSection(moves, "STANDING NORMAL") ? "true" : "false");
+    };
+    record(out, counts, normalFirstOrUnavailable(allMoves) ? Status::Pass : Status::Fail,
         "all_tab_starts_on_standard_normals",
-        "first=\"" + allMoves.front().label + "\" section=\"" + allMoves.front().section + "\"");
+        firstMoveDetail(allMoves));
     record(out, counts, sectionOrderValid(allMoves) ? Status::Pass : Status::Fail,
         "all_tab_section_order",
         "first=\"" + allMoves.front().section + "\" last=\"" + allMoves.back().section + "\"");
@@ -288,9 +303,9 @@ int runTrainingCommandListTabs(RuntimeProbe& runtime, std::ostream& out) {
         "main_subset_valid",
         "main=" + std::to_string(mainMoves.size()) + " all=" + std::to_string(allMoves.size()));
     if (!mainMoves.empty()) {
-        record(out, counts, mainMoves.front().section == "STANDING NORMAL" ? Status::Pass : Status::Fail,
+        record(out, counts, normalFirstOrUnavailable(mainMoves) ? Status::Pass : Status::Fail,
             "main_tab_starts_on_standard_normals",
-            "first=\"" + mainMoves.front().label + "\" section=\"" + mainMoves.front().section + "\"");
+            firstMoveDetail(mainMoves));
         record(out, counts, sectionOrderValid(mainMoves) ? Status::Pass : Status::Fail,
             "main_tab_section_order",
             "first=\"" + mainMoves.front().section + "\" last=\"" + mainMoves.back().section + "\"");

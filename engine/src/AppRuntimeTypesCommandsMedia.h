@@ -8,6 +8,7 @@ struct CommandStateEntry {
     std::string displayLabel;
     std::string displayInput;
     bool presentationOverride = false;
+    bool moveListListed = false;
     std::vector<std::string> requiredCommands;
     std::vector<std::string> forbiddenCommands;
     std::vector<std::vector<std::string>> commandOptionGroups;

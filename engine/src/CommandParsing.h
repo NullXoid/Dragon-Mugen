@@ -242,6 +242,7 @@ struct MoveListPresentationOverrides {
     std::vector<std::pair<int, std::string>> stateLabels;
     std::vector<std::pair<std::string, std::string>> commandLabels;
     std::vector<std::pair<std::string, std::string>> labelInputs;
+    std::vector<std::string> listedLabelKeys;
 };
 
 std::filesystem::path characterDragonSidecarPath(const CharacterFiles& files) {
@@ -442,6 +443,7 @@ void loadIkemenMoveListPresentationOverrides(const CharacterFiles& files, MoveLi
         const std::string key = normalizeMoveListPresentationName(label);
         const std::string inputText = formatIkemenMoveListInput(notation);
         if (!key.empty() && !inputText.empty()) {
+            overrides.listedLabelKeys.push_back(key);
             overrides.labelInputs.push_back({ key, inputText });
         }
     }
@@ -517,11 +519,18 @@ const std::string* findMoveListInputByLabel(const MoveListPresentationOverrides&
     return nullptr;
 }
 
+bool moveListExplicitlyListsLabel(const MoveListPresentationOverrides& overrides, std::string_view label) {
+    const std::string key = normalizeMoveListPresentationName(label);
+    return !key.empty()
+        && std::find(overrides.listedLabelKeys.begin(), overrides.listedLabelKeys.end(), key) != overrides.listedLabelKeys.end();
+}
+
 void applyMoveListPresentationOverride(CommandStateEntry& entry, const MoveListPresentationOverrides& overrides) {
     if (const auto targetState = parsePlainIntValue(entry.targetStateExpression)) {
         if (const std::string* label = findStateMoveListLabel(overrides, *targetState)) {
             entry.displayLabel = *label;
             entry.presentationOverride = true;
+            entry.moveListListed = moveListExplicitlyListsLabel(overrides, *label);
             if (const std::string* input = findMoveListInputByLabel(overrides, *label)) {
                 entry.displayInput = *input;
             }
@@ -533,6 +542,7 @@ void applyMoveListPresentationOverride(CommandStateEntry& entry, const MoveListP
         if (const std::string* label = findCommandMoveListLabel(overrides, command)) {
             entry.displayLabel = *label;
             entry.presentationOverride = true;
+            entry.moveListListed = moveListExplicitlyListsLabel(overrides, *label);
             if (const std::string* input = findMoveListInputByLabel(overrides, *label)) {
                 entry.displayInput = *input;
             }
@@ -544,6 +554,7 @@ void applyMoveListPresentationOverride(CommandStateEntry& entry, const MoveListP
             if (const std::string* label = findCommandMoveListLabel(overrides, command)) {
                 entry.displayLabel = *label;
                 entry.presentationOverride = true;
+                entry.moveListListed = moveListExplicitlyListsLabel(overrides, *label);
                 if (const std::string* input = findMoveListInputByLabel(overrides, *label)) {
                     entry.displayInput = *input;
                 }
@@ -556,6 +567,7 @@ void applyMoveListPresentationOverride(CommandStateEntry& entry, const MoveListP
     if (const std::string* input = findMoveListInputByLabel(overrides, label)) {
         entry.displayInput = *input;
         entry.presentationOverride = true;
+        entry.moveListListed = true;
     }
 }
 

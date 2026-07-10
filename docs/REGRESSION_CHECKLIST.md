@@ -174,6 +174,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Training dummy behavior still works.
 - Training command HUD Show Me still starts from keyboard `H`, P1 controller L3/R3/touchpad, or a 2-second Select/Back hold; short Select/Back tap still advances to the next move.
 - Training command HUD prefers optional Ikemen `movelist.dat` presentation text for move inputs, so human command cards can show diagonals such as `DB` even when CMD recognition uses a lenient shorthand.
+- When a character DEF declares an Ikemen-style `movelist` file, Training command HUD/full command list treats that file as the authoritative displayed move list; unlisted internal command states should stay hidden.
 - Training command HUD/input history shows action-strength labels (`LP/MP/SP` and `LK/MK/SK`) instead of keyboard letters.
 - Training command HUD/full command list switches to assigned P1 controller prompts when a controller is detected: Xbox-style `X/Y/LB` and `A/B/RB`, or PlayStation-style `SQ/TRI/L1` and `X/O/R1`.
 - Training command HUD/full command list render facing-aware physical arrows when fighters switch sides, while live/recent input and D-pad guides show the actual physical direction pressed.

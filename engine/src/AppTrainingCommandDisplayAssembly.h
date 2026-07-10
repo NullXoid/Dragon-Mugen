@@ -489,6 +489,9 @@ bool commandEntryMatchesMoveCategory(const CommandStateEntry& entry, TrainingMov
 
 std::vector<const CommandStateEntry*> displayableMoveListEntries(const AppState& state) {
     std::vector<const CommandStateEntry*> entries;
+    const bool hasAuthoritativeMoveList = std::any_of(state.commandEntries.begin(), state.commandEntries.end(), [](const CommandStateEntry& entry) {
+        return entry.moveListListed;
+    });
     const auto sameDisplayMove = [](const CommandStateEntry& lhs, const CommandStateEntry& rhs) {
         return lhs.label == rhs.label
             && lhs.targetStateExpression == rhs.targetStateExpression
@@ -509,6 +512,9 @@ std::vector<const CommandStateEntry*> displayableMoveListEntries(const AppState&
         return priority;
     };
     for (const auto& entry : state.commandEntries) {
+        if (hasAuthoritativeMoveList && !entry.moveListListed) {
+            continue;
+        }
         if (entry.requiredCommands.empty() && entry.commandOptionGroups.empty()) {
             continue;
         }
