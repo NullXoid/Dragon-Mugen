@@ -82,12 +82,23 @@ void drawStageSelect(SDL_Renderer* renderer, AppState& state) {
     if (state.frontend.pendingMode == PendingMode::Story) {
         std::vector<StoryStageCardView> stages;
         stages.reserve(state.story.boardRoute.nodes.size());
+        int selectedDisplayIndex = 0;
         for (int i = 0; i < static_cast<int>(state.story.boardRoute.nodes.size()); ++i) {
             const StoryBoardNode& node = state.story.boardRoute.nodes[static_cast<std::size_t>(i)];
+            if (!storyBoardNodeSelectable(node)) {
+                continue;
+            }
+            const int displayIndex = static_cast<int>(stages.size());
+            if (i == state.story.selectedBoardNode) {
+                selectedDisplayIndex = displayIndex;
+            }
             const int stageIndex = storyStageIndexForNode(state, node);
             const StageSlot* stage = stageSlotAt(state.selection, stageIndex);
+            const std::string cardTitle = !node.boardTitle.empty()
+                ? node.boardTitle
+                : (node.title.empty() ? (stage ? stage->displayName : node.id) : node.title);
             stages.push_back(StoryStageCardView{
-                node.title.empty() ? (stage ? stage->displayName : node.id) : node.title,
+                cardTitle,
                 node.id,
                 stage && !stage->author.empty() ? stage->author : std::string("STORY BOARD"),
                 storyBoardNodeKindLabel(node.kind),
@@ -102,12 +113,14 @@ void drawStageSelect(SDL_Renderer* renderer, AppState& state) {
         view.stages = stages;
         view.fighterLabel = selectedCharacterName(state.selection);
         view.routeTitle = state.story.boardRoute.title;
-        view.selectedIndex = state.story.selectedBoardNode;
+        view.selectedIndex = selectedDisplayIndex;
         view.waveCount = storySelectedBoardWaveCount(state);
         view.frame = state.frame;
         view.difficultyLabel = std::string(storyDifficultyShortLabel(state.story.difficulty));
         if (const StoryBoardNode* node = selectedStoryBoardNode(state)) {
-            view.selectedStageName = node->title.empty() ? node->id : node->title;
+            view.selectedStageName = !node->boardTitle.empty()
+                ? node->boardTitle
+                : (node->title.empty() ? node->id : node->title);
             view.selectedNodeKind = storyBoardNodeKindLabel(node->kind);
             view.selectedNodeTarget = !node->shopRef.empty() ? node->shopRef : node->enemyRef;
         }

@@ -206,6 +206,11 @@ const StoryBoardNode* nextStoryBoardNode(const AppState& state) {
     return storyBoardNodeAt(state, state.story.activeBoardNode + 1);
 }
 
+int nextStoryRouteBoardNodeIndex(const AppState& state, int startIndex) {
+    const int nextIndex = startIndex + 1;
+    return storyBoardNodeAt(state, nextIndex) ? nextIndex : -1;
+}
+
 const StoryBoardNode* nextStoryShopBoardNode(const AppState& state) {
     const StoryBoardNode* node = nextStoryBoardNode(state);
     if (!node || node->kind != StoryBoardNodeKind::Shop) {
@@ -218,6 +223,35 @@ bool storyBoardNodeStartsFight(const StoryBoardNode& node) {
     return node.kind != StoryBoardNodeKind::Shop;
 }
 
+bool storyBoardNodeSelectable(const StoryBoardNode& node) {
+    return storyBoardNodeStartsFight(node) && node.segmentIndex <= 0;
+}
+
+int storySelectableBoardNodeCount(const AppState& state) {
+    int count = 0;
+    for (const StoryBoardNode& node : state.story.boardRoute.nodes) {
+        if (storyBoardNodeSelectable(node)) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+int storySelectedBoardDisplayIndex(const AppState& state) {
+    int displayIndex = 0;
+    for (int i = 0; i < static_cast<int>(state.story.boardRoute.nodes.size()); ++i) {
+        const StoryBoardNode& node = state.story.boardRoute.nodes[static_cast<size_t>(i)];
+        if (!storyBoardNodeSelectable(node)) {
+            continue;
+        }
+        if (i == state.story.selectedBoardNode) {
+            return displayIndex;
+        }
+        ++displayIndex;
+    }
+    return 0;
+}
+
 int nextStoryPlayableBoardNodeIndex(const AppState& state, int startIndex) {
     for (int i = startIndex + 1; i < static_cast<int>(state.story.boardRoute.nodes.size()); ++i) {
         if (storyBoardNodeStartsFight(state.story.boardRoute.nodes[static_cast<size_t>(i)])) {
@@ -225,6 +259,14 @@ int nextStoryPlayableBoardNodeIndex(const AppState& state, int startIndex) {
         }
     }
     return -1;
+}
+
+bool storyCanContinueRoute(const AppState& state) {
+    const bool storyWinComplete = state.story.stageClear
+        || (state.matchComplete && state.roundWinner == 1 && !state.story.stageFailed);
+    return state.frontend.pendingMode == PendingMode::Story
+        && storyWinComplete
+        && nextStoryRouteBoardNodeIndex(state, state.story.activeBoardNode) >= 0;
 }
 
 StoryBoardRoute fallbackStoryBoardRoute(const AppState& state) {
@@ -236,11 +278,14 @@ StoryBoardRoute fallbackStoryBoardRoute(const AppState& state) {
         StoryBoardNode node;
         node.id = stage.id;
         node.title = stage.displayName;
+        node.boardTitle = node.title;
         node.stageRef = stage.defPath.generic_string();
         node.kind = stage.openborScrolling || stage.legacyOpenBorSection
             ? StoryBoardNodeKind::SideScroller
             : StoryBoardNodeKind::ArenaBoss;
         node.waves = kStoryWaveCount;
+        node.boardIndex = static_cast<int>(route.nodes.size());
+        node.segmentIndex = -1;
         route.nodes.push_back(std::move(node));
     }
     return route;
@@ -328,7 +373,7 @@ void selectStoryDefaultBoardNode(AppState& state) {
     int selected = 0;
     for (int i = 0; i < static_cast<int>(state.story.boardRoute.nodes.size()); ++i) {
         const StoryBoardNode& node = state.story.boardRoute.nodes[static_cast<size_t>(i)];
-        if (node.kind != StoryBoardNodeKind::Shop) {
+        if (storyBoardNodeSelectable(node)) {
             selected = i;
             break;
         }
@@ -344,7 +389,15 @@ void moveStoryBoardNodeSelection(AppState& state, int direction) {
     if (count <= 0) {
         return;
     }
-    state.story.selectedBoardNode = (state.story.selectedBoardNode + direction + count) % count;
+    int selected = std::clamp(state.story.selectedBoardNode, 0, count - 1);
+    for (int step = 0; step < count; ++step) {
+        selected = (selected + direction + count) % count;
+        if (storyBoardNodeSelectable(state.story.boardRoute.nodes[static_cast<size_t>(selected)])) {
+            state.story.selectedBoardNode = selected;
+            syncStorySelectedStageToBoardNode(state);
+            return;
+        }
+    }
     syncStorySelectedStageToBoardNode(state);
 }
 

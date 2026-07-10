@@ -208,7 +208,10 @@ std::string_view arenaMatchResultLabel(int option) {
     return labels[static_cast<size_t>(std::clamp(option, 0, kMatchResultOptionCount - 1))];
 }
 
-std::string_view storyMatchResultLabel(int option) {
+std::string_view storyMatchResultLabel(const AppState& state, int option) {
+    if (option == 0 && storyCanContinueRoute(state)) {
+        return "CONTINUE";
+    }
     static constexpr std::array<std::string_view, kMatchResultOptionCount> labels{
         "TRY AGAIN",
         "FIGHTER SELECT",
@@ -304,7 +307,7 @@ FightMatchResultView matchResultScreenView(const AppState& state) {
         if (state.frontend.pendingMode == PendingMode::Arena) {
             row.label = std::string(arenaMatchResultLabel(i));
         } else if (state.frontend.pendingMode == PendingMode::Story) {
-            row.label = std::string(storyMatchResultLabel(i));
+            row.label = std::string(storyMatchResultLabel(state, i));
         } else {
             row.label = std::string(matchResultLabel(i));
         }

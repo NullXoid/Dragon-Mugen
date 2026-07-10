@@ -205,7 +205,14 @@ bool handleSingleFightCharacterSelectKey(AppState& state, int playerIndex, Front
     return true;
 }
 
+#include "FrontendMatchResultFlow.inl"
+
 void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
+    if (isMatchMode(state) && state.matchPhase == MatchPhase::MatchResult) {
+        handleMatchResultKey(renderer, state, key);
+        return;
+    }
+
     if (state.frontend.screen == Screen::ModeSelect) {
         const FrontendKey frontendKey = frontendKeyFromSdl(key);
         if (state.frontend.exitConfirmOpen) {
@@ -619,87 +626,6 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
                 return;
             }
 
-            if (state.matchPhase == MatchPhase::MatchResult) {
-                switch (key) {
-                case SDLK_UP:
-                    state.frontend.selectedMatchResultOption =
-                        (state.frontend.selectedMatchResultOption + kMatchResultOptionCount - 1) % kMatchResultOptionCount;
-                    break;
-                case SDLK_DOWN:
-                    state.frontend.selectedMatchResultOption =
-                        (state.frontend.selectedMatchResultOption + 1) % kMatchResultOptionCount;
-                    break;
-                case SDLK_R:
-                    resetFightState(state);
-                    break;
-                case SDLK_RETURN:
-                case SDLK_KP_ENTER:
-                case SDLK_SPACE:
-                    if (state.frontend.pendingMode == PendingMode::Arena) {
-                        switch (state.frontend.selectedMatchResultOption) {
-                        case 0:
-                            resetFightState(state);
-                            break;
-                        case 1:
-                            unloadCharacterRuntime(state);
-                            state.frontend.screen = Screen::ArenaSetup;
-                            state.frontend.screenFrame = 0;
-                            break;
-                        case 2:
-                            unloadCharacterRuntime(state);
-                            resetSingleFightCharacterConfirms(state);
-                            state.frontend.screen = Screen::CharacterSelect;
-                            state.frontend.screenFrame = 0;
-                            break;
-                        case 3:
-                            unloadCharacterRuntime(state);
-                            state.frontend.exitConfirmOpen = false;
-                            state.frontend.screen = Screen::ModeSelect;
-                            state.frontend.screenFrame = 0;
-                            break;
-                        default:
-                            break;
-                        }
-                    } else {
-                        switch (state.frontend.selectedMatchResultOption) {
-                        case 0:
-                            resetFightState(state);
-                            break;
-                        case 1:
-                            unloadCharacterRuntime(state);
-                            resetSingleFightCharacterConfirms(state);
-                            state.frontend.screen = Screen::CharacterSelect;
-                            state.frontend.screenFrame = 0;
-                            break;
-                        case 2:
-                            unloadCharacterRuntime(state);
-                            state.frontend.screen = Screen::StageSelect;
-                            state.frontend.screenFrame = 0;
-                            break;
-                        case 3:
-                            unloadCharacterRuntime(state);
-                            state.frontend.exitConfirmOpen = false;
-                            state.frontend.screen = Screen::ModeSelect;
-                            state.frontend.screenFrame = 0;
-                            break;
-                        default:
-                            break;
-                        }
-                    }
-                    break;
-                case SDLK_ESCAPE:
-                case SDLK_F2:
-                    unloadCharacterRuntime(state);
-                    state.frontend.exitConfirmOpen = false;
-                    state.frontend.screen = Screen::ModeSelect;
-                    state.frontend.screenFrame = 0;
-                    break;
-                default:
-                    break;
-                }
-                return;
-            }
-
             if (startPauseKey(state, key)) {
                 openLightFightPause(state);
             } else if (key == SDLK_ESCAPE || key == SDLK_F2) {
@@ -858,6 +784,21 @@ void handleGamepadButton(
 }
 
 std::optional<SDL_Keycode> gamepadMenuKeyForButton(const AppState& state, SDL_GamepadButton button) {
+    if (isMatchMode(state) && state.matchPhase == MatchPhase::MatchResult) {
+        if (button == SDL_GAMEPAD_BUTTON_DPAD_UP) {
+            return SDLK_UP;
+        }
+        if (button == SDL_GAMEPAD_BUTTON_DPAD_DOWN) {
+            return SDLK_DOWN;
+        }
+        if (button == SDL_GAMEPAD_BUTTON_SOUTH || button == SDL_GAMEPAD_BUTTON_START) {
+            return SDLK_RETURN;
+        }
+        if (button == SDL_GAMEPAD_BUTTON_BACK || button == SDL_GAMEPAD_BUTTON_EAST) {
+            return SDLK_ESCAPE;
+        }
+    }
+
     const bool fightOverlayOpen =
         state.frontend.screen == Screen::FightView
         && (state.frontend.fightPauseOpen

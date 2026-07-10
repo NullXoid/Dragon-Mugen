@@ -130,10 +130,13 @@ struct RuntimeSnapshot {
     int storyTotalEnemies = 0;
     int storyDifficulty = 1;
     int storyBoardNodeCount = 0;
+    int storySelectableBoardNodeCount = 0;
     int storySelectedBoardNode = 0;
     int storyActiveBoardNode = 0;
+    int storyNextRouteBoardNode = -1;
     int storySelectedBoardWaves = 0;
     bool storySelectedBoardShop = false;
+    bool storyCanContinueRoute = false;
     bool storyForwardCueVisible = false;
     bool storyForwardCueImageLoaded = false;
     bool storyShopDoorAvailable = false;
@@ -264,6 +267,7 @@ public:
     virtual void step(const SymbolicInput& p1Input, int frames) = 0;
     virtual void step(const SymbolicInput& p1Input, const SymbolicInput& p2Input, int frames) = 0;
     virtual void pressKey(std::string_view key) = 0;
+    virtual bool preparePendingFight() = 0;
     virtual void positionFighters(float p1X, float p2X) = 0;
     virtual void setFighterPosition(int fighterIndex, float x, float y) = 0;
     virtual void setFighterDepth(int fighterIndex, float depthZ) = 0;

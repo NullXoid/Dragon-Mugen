@@ -46,6 +46,9 @@ build\dragon_mugen.exe --verify arena-openbor-scroll-stage
 build\dragon_mugen.exe --verify arena-tmnt-openbor-stage
 build\dragon_mugen.exe --verify story-mode-menu-route
 build\dragon_mugen.exe --verify story-stage-select-map
+build\dragon_mugen.exe --verify story-board-route-plan
+build\dragon_mugen.exe --verify story-shop-door-trigger
+build\dragon_mugen.exe --verify story-shop-route-resume
 build\dragon_mugen.exe --verify story-openbor-stage-default
 build\dragon_mugen.exe --verify story-stage-board-expansion
 build\dragon_mugen.exe --verify story-wave-spawn-scroll
@@ -114,11 +117,12 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - VS Mode enters character select.
 - Arena Mode enters character select and then Arena Setup.
 - Story Mode enters character select, prefers `TMNT OpenBOR Street` when available, starts through VS/loading, and reaches a side-scrolling enemy-wave fight.
-- Story Mode Stage Select uses the Story-only connected episode-card/map presentation, cycles all available stages with Left/Right, changes Story difficulty with Up/Down, includes the six-board test route, defaults back to `TMNT OpenBOR Street`, and Enter still opens the shared VS/loading screen. The selected board, stage, wave count, difficulty, and target rows should remain readable on the stable virtual layout instead of crowding five clipped cards onto the HD output; at `1280x720`, all five board cards should sit in one centered route strip with a centered details panel and footer controls.
+- Story Mode Stage Select uses the Story-only connected episode-card/map presentation, cycles selectable parent boards with Left/Right, changes Story difficulty with Up/Down, keeps internal route nodes hidden from direct selection, defaults back to the configured OpenBOR board, and Enter still opens the shared VS/loading screen. The selected board, stage, wave count, difficulty, and target rows should remain readable on the stable virtual layout instead of crowding clipped cards onto the HD output.
 - Story Mode enemy labels/status use `EASY`/`MED`/`HARD` difficulty, and difficulty scales enemy life/attack/defence without applying the player profile level to enemies.
 - Story Mode `Soundcheck Alley` starts its configured WAV background music through normal stage `[Music] bgmusic` metadata.
 - When `game/data/external_content.local.def` points at the local Scott Pilgrim Versus package, Story Mode Stage Select includes `Tram_Rooftop`, the stage loads through the shared VS/loading screen, SFF v2 PNG/palette stage art and first-pass animated BG elements render, and `Run Scott Run.mp3` starts through normal stage `[Music] bgmusic` metadata.
-- Story Mode spawns difficulty-owned board waves: `EASY` ends with one boss wave, `MEDIUM` runs three waves with a midboss then boss, and `HARD` runs five waves with midboss checkpoints before the boss. The OpenBOR test board should use KFM-style regular enemies, Evil Ken as the mini/midboss role, and Evil Ryu as the boss role so wave transitions are visually obvious.
+- Story Mode spawns difficulty-owned board waves: `EASY` ends with one boss wave, `MEDIUM` runs three waves with a midboss then boss, and `HARD` runs five waves with midboss checkpoints before the boss. The OpenBOR test board should use editable `[Enemy Setup]` roles named `grunts`, `mini_bosses`, and `bosses` so wave transitions are visually obvious without hardcoding specific character names in engine code.
+- Story Mode route shop stops are data-driven: clearing a board before a shop node should show the configured shop-door cue, enter the Shop Hub, and resume the next playable route board after exiting the shop.
 - Story Mode keeps inactive future-wave enemies invisible, scrolls forward only to the current wave gate, and has enemies chase P1 rather than each other.
 - Story Mode clears to `STAGE CLEAR` after all waves, fails to `MISSION FAILED` when P1 is defeated, returns through match-result options, and awards P1 profile-owned Dragon XP/gold on clear with current balance in the result summary. Result overlays must keep text/panels inside the stable virtual layout instead of slipping back to 320x240 positioning at HD output.
 - Evil Ryu Story supers briefly pause as authored, then recover to gameplay after helper/projectile hit runtime; Ryu must not remain stuck after the super.

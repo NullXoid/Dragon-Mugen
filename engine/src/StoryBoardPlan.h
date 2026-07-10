@@ -39,6 +39,7 @@ struct StoryBoardWaveSpec {
 struct StoryBoardNode {
     std::string id;
     std::string title;
+    std::string boardTitle;
     std::string stageRef;
     std::string enemyRef;
     std::string regularEnemyRef;
@@ -57,6 +58,8 @@ struct StoryBoardNode {
     int rewardXp = 0;
     int rewardGold = 0;
     bool optional = false;
+    int boardIndex = -1;
+    int segmentIndex = -1;
     float shopDoorOffsetX = 160.0f;
     float shopDoorRadiusX = 56.0f;
     float shopDoorRadiusZ = 44.0f;
@@ -286,20 +289,50 @@ inline bool storyBoardReadFirstIntAfter(std::string_view value, size_t start, in
     return out >= 0;
 }
 
-inline bool storyBoardSectionIndices(std::string_view name, int& boardIndex, int& waveIndex) {
-    boardIndex = -1;
-    waveIndex = -1;
+struct StoryBoardSectionAddress {
+    int boardIndex = -1;
+    int segmentIndex = -1;
+    int waveIndex = -1;
+};
+
+inline bool storyBoardSectionAddress(std::string_view name, StoryBoardSectionAddress& address) {
+    address = {};
     const std::string normalized = storyBoardLowercase(trim(name));
     if (!storyBoardStartsWithNoCase(normalized, "board")) {
         return false;
     }
-    const size_t wavePos = normalized.find("wave");
-    if (!storyBoardReadFirstIntAfter(normalized, 5, boardIndex)) {
+    if (!storyBoardReadFirstIntAfter(normalized, 5, address.boardIndex)) {
         return false;
     }
-    if (wavePos != std::string::npos) {
-        return storyBoardReadFirstIntAfter(normalized, wavePos + 4, waveIndex);
+    size_t segmentPos = normalized.find("segment");
+    size_t segmentTokenSize = 7;
+    if (segmentPos == std::string::npos) {
+        segmentPos = normalized.find("stage");
+        segmentTokenSize = 5;
     }
+    if (segmentPos == std::string::npos) {
+        segmentPos = normalized.find("step");
+        segmentTokenSize = 4;
+    }
+    if (segmentPos != std::string::npos) {
+        storyBoardReadFirstIntAfter(normalized, segmentPos + segmentTokenSize, address.segmentIndex);
+    }
+    const size_t wavePos = normalized.find("wave");
+    if (wavePos != std::string::npos) {
+        return storyBoardReadFirstIntAfter(normalized, wavePos + 4, address.waveIndex);
+    }
+    return true;
+}
+
+inline bool storyBoardSectionIndices(std::string_view name, int& boardIndex, int& waveIndex) {
+    StoryBoardSectionAddress address;
+    if (!storyBoardSectionAddress(name, address) || address.segmentIndex >= 0) {
+        boardIndex = -1;
+        waveIndex = -1;
+        return false;
+    }
+    boardIndex = address.boardIndex;
+    waveIndex = address.waveIndex;
     return true;
 }
 
@@ -379,6 +412,81 @@ inline std::string storyBoardNodeKindLabel(StoryBoardNodeKind kind) {
     }
 }
 
+inline StoryBoardNode storyBoardNodeFromSection(
+    const MugenSection& section,
+    std::string fallbackId,
+    const StoryBoardNode* parent = nullptr) {
+    StoryBoardNode node;
+    if (parent) {
+        node = *parent;
+        node.waveSpecs.clear();
+        node.rewardXp = 0;
+        node.rewardGold = 0;
+        node.optional = false;
+    }
+
+    node.id = storyBoardPropertyValue(section, "id", fallbackId);
+    node.title = storyBoardPropertyValue(section, "title", parent ? parent->title : node.id);
+    node.boardTitle = storyBoardPropertyValue(section, "board_title", parent ? parent->boardTitle : node.boardTitle);
+    node.stageRef = storyBoardPropertyValue(section, "stage", node.stageRef);
+    node.enemyRef = storyBoardPropertyValue(section, "enemy", node.enemyRef);
+    node.regularEnemyRef = storyBoardPropertyValue(section, "regular_enemy", node.regularEnemyRef);
+    node.regularEnemyRef = storyBoardPropertyValue(section, "normal_enemy", node.regularEnemyRef);
+    node.regularEnemyRef = storyBoardPropertyValue(section, "wave_enemy", node.regularEnemyRef);
+    node.midBossEnemyRef = storyBoardPropertyValue(section, "midboss_enemy", node.midBossEnemyRef);
+    node.midBossEnemyRef = storyBoardPropertyValue(section, "mid_boss_enemy", node.midBossEnemyRef);
+    node.midBossEnemyRef = storyBoardPropertyValue(section, "mini_boss_enemy", node.midBossEnemyRef);
+    node.bossEnemyRef = storyBoardPropertyValue(section, "boss_enemy", node.bossEnemyRef);
+    node.shopRef = storyBoardPropertyValue(section, "shop", node.shopRef);
+    node.shopDoorPrompt = storyBoardPropertyValue(section, "shop_prompt", node.shopDoorPrompt);
+    node.shopDoorEnterText = storyBoardPropertyValue(section, "shop_enter_text", node.shopDoorEnterText);
+    node.shopDoorOpenText = storyBoardPropertyValue(section, "shop_open_text", node.shopDoorOpenText);
+    node.waveClearText = storyBoardPropertyValue(section, "wave_clear_text", node.waveClearText);
+    node.clearCueImagePath = storyBoardPropertyValue(section, "clear_cue_image", node.clearCueImagePath);
+    node.clearCueImagePath = storyBoardPropertyValue(section, "cue_image", node.clearCueImagePath);
+    node.shopCueImagePath = storyBoardPropertyValue(section, "shop_cue_image", node.shopCueImagePath);
+    node.kind = storyBoardNodeKindFromText(storyBoardPropertyValue(section, "type", storyBoardNodeKindTag(node.kind)));
+    node.waves = std::clamp(
+        storyBoardIntValue(storyBoardPropertyValue(section, "waves", std::to_string(node.waves)), node.waves),
+        1,
+        8);
+    node.rewardXp = std::max(0, storyBoardIntValue(storyBoardPropertyValue(section, "reward_xp", std::to_string(node.rewardXp)), node.rewardXp));
+    node.rewardXp = std::max(0, storyBoardIntValue(storyBoardPropertyValue(section, "board_reward_xp", std::to_string(node.rewardXp)), node.rewardXp));
+    node.rewardGold = std::max(0, storyBoardIntValue(storyBoardPropertyValue(section, "reward_gold", std::to_string(node.rewardGold)), node.rewardGold));
+    node.rewardGold = std::max(0, storyBoardIntValue(storyBoardPropertyValue(section, "board_reward_gold", std::to_string(node.rewardGold)), node.rewardGold));
+    node.optional = storyBoardBoolValue(storyBoardPropertyValue(section, "optional", node.optional ? "1" : "0"), node.optional);
+    node.shopDoorOffsetX = std::max(0.0f, storyBoardFloatValue(storyBoardPropertyValue(section, "shop_door_x_offset", std::to_string(node.shopDoorOffsetX)), node.shopDoorOffsetX));
+    node.shopDoorRadiusX = std::max(8.0f, storyBoardFloatValue(storyBoardPropertyValue(section, "shop_door_radius_x", std::to_string(node.shopDoorRadiusX)), node.shopDoorRadiusX));
+    node.shopDoorRadiusZ = std::max(0.0f, storyBoardFloatValue(storyBoardPropertyValue(section, "shop_door_radius_z", std::to_string(node.shopDoorRadiusZ)), node.shopDoorRadiusZ));
+    if (node.boardTitle.empty()) {
+        node.boardTitle = parent && !parent->boardTitle.empty() ? parent->boardTitle : node.title;
+    }
+    return node;
+}
+
+inline void storyBoardAssignWaveSpec(
+    StoryBoardNode& node,
+    int waveIndex,
+    StoryBoardWaveSpec wave,
+    const StoryEnemyRoleSetup& setup) {
+    if (waveIndex < 0 || waveIndex >= 8) {
+        return;
+    }
+    if (static_cast<int>(node.waveSpecs.size()) <= waveIndex) {
+        node.waveSpecs.resize(static_cast<size_t>(waveIndex + 1));
+    }
+    storyBoardResolveWaveEnemyRefs(setup, wave);
+    node.waveSpecs[static_cast<size_t>(waveIndex)] = std::move(wave);
+    node.waves = std::max(node.waves, waveIndex + 1);
+}
+
+inline void storyBoardFinalizeRouteNode(const StoryEnemyRoleSetup& setup, StoryBoardNode& node) {
+    storyBoardApplyEnemySetupToNode(setup, node);
+    if (node.kind == StoryBoardNodeKind::Shop && node.waves <= 0) {
+        node.waves = 1;
+    }
+}
+
 inline StoryBoardRoute loadStoryBoardRouteFile(const std::filesystem::path& path) {
     const MugenDocument doc = parseMugenTextFile(path);
 
@@ -396,66 +504,145 @@ inline StoryBoardRoute loadStoryBoardRouteFile(const std::filesystem::path& path
         route.forwardCueImagePath = storyBoardPropertyValue(*routeDefault, "clear_cue_image", route.forwardCueImagePath);
     }
 
+    std::vector<StoryBoardNode> boardNodes;
+    std::vector<bool> boardSeen;
+    std::vector<std::vector<StoryBoardNode>> segmentNodes;
+    std::vector<std::vector<bool>> segmentSeen;
+
+    auto ensureBoardSlot = [&](int boardIndex) {
+        const size_t needed = static_cast<size_t>(boardIndex + 1);
+        if (boardNodes.size() < needed) {
+            boardNodes.resize(needed);
+            boardSeen.resize(needed, false);
+            segmentNodes.resize(needed);
+            segmentSeen.resize(needed);
+        }
+    };
+
+    auto ensureSegmentSlot = [&](int boardIndex, int segmentIndex) {
+        ensureBoardSlot(boardIndex);
+        const size_t needed = static_cast<size_t>(segmentIndex + 1);
+        if (segmentNodes[static_cast<size_t>(boardIndex)].size() < needed) {
+            segmentNodes[static_cast<size_t>(boardIndex)].resize(needed);
+            segmentSeen[static_cast<size_t>(boardIndex)].resize(needed, false);
+        }
+    };
+
     for (const MugenSection& section : doc.sections) {
-        int boardIndex = -1;
-        int waveIndex = -1;
-        if (!storyBoardSectionIndices(section.name, boardIndex, waveIndex) || waveIndex >= 0) {
+        StoryBoardSectionAddress address;
+        if (!storyBoardSectionAddress(section.name, address)
+            || address.segmentIndex >= 0
+            || address.waveIndex >= 0) {
             continue;
         }
-
-        StoryBoardNode node;
-        node.id = storyBoardPropertyValue(section, "id", "board_" + std::to_string(route.nodes.size() + 1));
-        node.title = storyBoardPropertyValue(section, "title", node.id);
-        node.stageRef = storyBoardPropertyValue(section, "stage");
-        node.enemyRef = storyBoardPropertyValue(section, "enemy");
-        node.regularEnemyRef = storyBoardPropertyValue(section, "regular_enemy");
-        node.regularEnemyRef = storyBoardPropertyValue(section, "normal_enemy", node.regularEnemyRef);
-        node.regularEnemyRef = storyBoardPropertyValue(section, "wave_enemy", node.regularEnemyRef);
-        node.midBossEnemyRef = storyBoardPropertyValue(section, "midboss_enemy");
-        node.midBossEnemyRef = storyBoardPropertyValue(section, "mid_boss_enemy", node.midBossEnemyRef);
-        node.midBossEnemyRef = storyBoardPropertyValue(section, "mini_boss_enemy", node.midBossEnemyRef);
-        node.bossEnemyRef = storyBoardPropertyValue(section, "boss_enemy");
-        node.shopRef = storyBoardPropertyValue(section, "shop");
-        node.shopDoorPrompt = storyBoardPropertyValue(section, "shop_prompt", node.shopDoorPrompt);
-        node.shopDoorEnterText = storyBoardPropertyValue(section, "shop_enter_text", node.shopDoorEnterText);
-        node.shopDoorOpenText = storyBoardPropertyValue(section, "shop_open_text", node.shopDoorOpenText);
-        node.waveClearText = storyBoardPropertyValue(section, "wave_clear_text", node.waveClearText);
-        node.clearCueImagePath = storyBoardPropertyValue(section, "clear_cue_image", node.clearCueImagePath);
-        node.clearCueImagePath = storyBoardPropertyValue(section, "cue_image", node.clearCueImagePath);
-        node.shopCueImagePath = storyBoardPropertyValue(section, "shop_cue_image", node.shopCueImagePath);
-        node.kind = storyBoardNodeKindFromText(storyBoardPropertyValue(section, "type", "side_scroller"));
-        node.waves = std::clamp(storyBoardIntValue(storyBoardPropertyValue(section, "waves", "3"), 3), 1, 8);
-        node.rewardXp = std::max(0, storyBoardIntValue(storyBoardPropertyValue(section, "reward_xp", "0"), 0));
-        node.rewardXp = std::max(0, storyBoardIntValue(storyBoardPropertyValue(section, "board_reward_xp", std::to_string(node.rewardXp)), node.rewardXp));
-        node.rewardGold = std::max(0, storyBoardIntValue(storyBoardPropertyValue(section, "reward_gold", "0"), 0));
-        node.rewardGold = std::max(0, storyBoardIntValue(storyBoardPropertyValue(section, "board_reward_gold", std::to_string(node.rewardGold)), node.rewardGold));
-        node.optional = storyBoardBoolValue(storyBoardPropertyValue(section, "optional", "0"), false);
-        node.shopDoorOffsetX = std::max(0.0f, storyBoardFloatValue(storyBoardPropertyValue(section, "shop_door_x_offset", "160"), 160.0f));
-        node.shopDoorRadiusX = std::max(8.0f, storyBoardFloatValue(storyBoardPropertyValue(section, "shop_door_radius_x", "56"), 56.0f));
-        node.shopDoorRadiusZ = std::max(0.0f, storyBoardFloatValue(storyBoardPropertyValue(section, "shop_door_radius_z", "44"), 44.0f));
-        storyBoardApplyEnemySetupToNode(route.enemySetup, node);
-        if (node.kind == StoryBoardNodeKind::Shop && node.waves <= 0) {
-            node.waves = 1;
+        ensureBoardSlot(address.boardIndex);
+        StoryBoardNode node = storyBoardNodeFromSection(
+            section,
+            "board_" + std::to_string(address.boardIndex + 1));
+        node.boardIndex = address.boardIndex;
+        node.segmentIndex = -1;
+        if (node.boardTitle.empty()) {
+            node.boardTitle = node.title;
         }
-        route.nodes.push_back(std::move(node));
+        boardNodes[static_cast<size_t>(address.boardIndex)] = std::move(node);
+        boardSeen[static_cast<size_t>(address.boardIndex)] = true;
     }
 
     for (const MugenSection& section : doc.sections) {
-        int boardIndex = -1;
-        int waveIndex = -1;
-        if (!storyBoardSectionIndices(section.name, boardIndex, waveIndex) || waveIndex < 0) {
+        StoryBoardSectionAddress address;
+        if (!storyBoardSectionAddress(section.name, address)
+            || address.segmentIndex < 0
+            || address.waveIndex >= 0) {
             continue;
         }
-        if (boardIndex < 0 || boardIndex >= static_cast<int>(route.nodes.size()) || waveIndex >= 8) {
+        ensureSegmentSlot(address.boardIndex, address.segmentIndex);
+        const StoryBoardNode* parent = boardSeen[static_cast<size_t>(address.boardIndex)]
+            ? &boardNodes[static_cast<size_t>(address.boardIndex)]
+            : nullptr;
+        const std::string fallbackId = (parent && !parent->id.empty() ? parent->id : "board_" + std::to_string(address.boardIndex + 1))
+            + "_segment_" + std::to_string(address.segmentIndex + 1);
+        StoryBoardNode node = storyBoardNodeFromSection(section, fallbackId, parent);
+        node.boardIndex = address.boardIndex;
+        node.segmentIndex = address.segmentIndex;
+        if (node.boardTitle.empty()) {
+            node.boardTitle = parent && !parent->boardTitle.empty() ? parent->boardTitle : node.title;
+        }
+        segmentNodes[static_cast<size_t>(address.boardIndex)][static_cast<size_t>(address.segmentIndex)] = std::move(node);
+        segmentSeen[static_cast<size_t>(address.boardIndex)][static_cast<size_t>(address.segmentIndex)] = true;
+    }
+
+    for (const MugenSection& section : doc.sections) {
+        StoryBoardSectionAddress address;
+        if (!storyBoardSectionAddress(section.name, address) || address.waveIndex < 0) {
             continue;
         }
-        StoryBoardNode& node = route.nodes[static_cast<size_t>(boardIndex)];
-        if (static_cast<int>(node.waveSpecs.size()) <= waveIndex) {
-            node.waveSpecs.resize(static_cast<size_t>(waveIndex + 1));
+        if (address.segmentIndex >= 0) {
+            ensureSegmentSlot(address.boardIndex, address.segmentIndex);
+            if (!segmentSeen[static_cast<size_t>(address.boardIndex)][static_cast<size_t>(address.segmentIndex)]) {
+                const StoryBoardNode* parent = boardSeen[static_cast<size_t>(address.boardIndex)]
+                    ? &boardNodes[static_cast<size_t>(address.boardIndex)]
+                    : nullptr;
+                const std::string fallbackId = (parent && !parent->id.empty() ? parent->id : "board_" + std::to_string(address.boardIndex + 1))
+                    + "_segment_" + std::to_string(address.segmentIndex + 1);
+                segmentNodes[static_cast<size_t>(address.boardIndex)][static_cast<size_t>(address.segmentIndex)] =
+                    parent ? StoryBoardNode(*parent) : StoryBoardNode{};
+                segmentNodes[static_cast<size_t>(address.boardIndex)][static_cast<size_t>(address.segmentIndex)].id = fallbackId;
+                segmentNodes[static_cast<size_t>(address.boardIndex)][static_cast<size_t>(address.segmentIndex)].title =
+                    parent && !parent->title.empty() ? parent->title : fallbackId;
+                segmentNodes[static_cast<size_t>(address.boardIndex)][static_cast<size_t>(address.segmentIndex)].boardTitle =
+                    parent && !parent->boardTitle.empty() ? parent->boardTitle : segmentNodes[static_cast<size_t>(address.boardIndex)][static_cast<size_t>(address.segmentIndex)].title;
+                segmentNodes[static_cast<size_t>(address.boardIndex)][static_cast<size_t>(address.segmentIndex)].boardIndex = address.boardIndex;
+                segmentNodes[static_cast<size_t>(address.boardIndex)][static_cast<size_t>(address.segmentIndex)].segmentIndex = address.segmentIndex;
+                segmentNodes[static_cast<size_t>(address.boardIndex)][static_cast<size_t>(address.segmentIndex)].waveSpecs.clear();
+                segmentSeen[static_cast<size_t>(address.boardIndex)][static_cast<size_t>(address.segmentIndex)] = true;
+            }
+            storyBoardAssignWaveSpec(
+                segmentNodes[static_cast<size_t>(address.boardIndex)][static_cast<size_t>(address.segmentIndex)],
+                address.waveIndex,
+                storyBoardWaveSpecFromSection(section),
+                route.enemySetup);
+            continue;
         }
-        node.waveSpecs[static_cast<size_t>(waveIndex)] = storyBoardWaveSpecFromSection(section);
-        storyBoardResolveWaveEnemyRefs(route.enemySetup, node.waveSpecs[static_cast<size_t>(waveIndex)]);
-        node.waves = std::max(node.waves, waveIndex + 1);
+        ensureBoardSlot(address.boardIndex);
+        if (!boardSeen[static_cast<size_t>(address.boardIndex)]) {
+            boardNodes[static_cast<size_t>(address.boardIndex)].id = "board_" + std::to_string(address.boardIndex + 1);
+            boardNodes[static_cast<size_t>(address.boardIndex)].title = boardNodes[static_cast<size_t>(address.boardIndex)].id;
+            boardNodes[static_cast<size_t>(address.boardIndex)].boardTitle = boardNodes[static_cast<size_t>(address.boardIndex)].title;
+            boardNodes[static_cast<size_t>(address.boardIndex)].boardIndex = address.boardIndex;
+            boardNodes[static_cast<size_t>(address.boardIndex)].segmentIndex = -1;
+            boardSeen[static_cast<size_t>(address.boardIndex)] = true;
+        }
+        storyBoardAssignWaveSpec(
+            boardNodes[static_cast<size_t>(address.boardIndex)],
+            address.waveIndex,
+            storyBoardWaveSpecFromSection(section),
+            route.enemySetup);
+    }
+
+    for (size_t boardIndex = 0; boardIndex < boardNodes.size(); ++boardIndex) {
+        bool hasSegments = false;
+        if (boardIndex < segmentSeen.size()) {
+            for (bool seen : segmentSeen[boardIndex]) {
+                hasSegments = hasSegments || seen;
+            }
+        }
+        if (hasSegments) {
+            for (size_t segmentIndex = 0; segmentIndex < segmentNodes[boardIndex].size(); ++segmentIndex) {
+                if (segmentIndex >= segmentSeen[boardIndex].size() || !segmentSeen[boardIndex][segmentIndex]) {
+                    continue;
+                }
+                StoryBoardNode node = std::move(segmentNodes[boardIndex][segmentIndex]);
+                storyBoardFinalizeRouteNode(route.enemySetup, node);
+                route.nodes.push_back(std::move(node));
+            }
+            continue;
+        }
+        if (!boardSeen[boardIndex]) {
+            continue;
+        }
+        StoryBoardNode node = std::move(boardNodes[boardIndex]);
+        storyBoardFinalizeRouteNode(route.enemySetup, node);
+        route.nodes.push_back(std::move(node));
     }
 
     return route;

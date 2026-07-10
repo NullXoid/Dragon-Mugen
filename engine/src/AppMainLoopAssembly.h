@@ -170,7 +170,8 @@ void consumeStoryShopDoorTransition(SDL_Renderer* renderer, AppState& state) {
     state.story.pendingShopDoorTransition = false;
     state.story.shopDoorAvailable = false;
     playMenuCursorDoneSound(state);
-    enterStoryRouteShopDemo(renderer, state, state.story.activeBoardNode + 1);
+    const int shopBoard = nextStoryRouteBoardNodeIndex(state, state.story.activeBoardNode);
+    enterStoryRouteShopDemo(renderer, state, shopBoard);
 }
 
 void fixedUpdate(SDL_Renderer* renderer, AppState& state) {

@@ -30,11 +30,13 @@ In scope:
 - Main-menu Story Mode route into character select, stage select, VS/loading, fight, and match-result screens.
 - Story-only comic-map stage select presentation with connected episode cards and a selected mission panel.
 - Story-owned difficulty selection on the map: `EASY`, `MEDIUM`, and `HARD`.
-- Six-board Story Stage Select smoke route using normal stage entries, including sewer, comic-street, and WAV-music board fixtures.
+- Configurable Story board routes from `game/data/story_boards.def`, with parent boards shown on Stage Select and internal side-scroller, mid-boss, shop, and arena-boss route nodes hidden from direct selection.
+- Generic enemy-role setup (`grunts`, `mini_bosses`, and `bosses`) so boards reference editable roles instead of hardcoding KFM/Ken/Ryu-style fixtures in runtime code.
 - Stage `[Music] bgmusic/bgvolume` parsing and WAV-backed stage BGM playback on a dedicated loop channel.
 - Story default stage selection that prefers a converted OpenBOR-style scrolling stage, especially the TMNT OpenBOR Street fixture.
 - One local player versus three reusable enemy runtime slots.
-- Three enemy waves with `1`, `2`, then `3` active enemies, for six total enemy defeats.
+- Difficulty-derived wave plans: `EASY` runs one boss wave, `MEDIUM` runs grunt, mid-boss, and boss waves, and `HARD` runs five waves with mid-boss checkpoints before the final boss.
+- A route shop-door stop that can pause Story after a cleared board, enter the existing Shop Hub, and resume the next route fight when the player exits the shop.
 - OpenBOR-style forward scrolling camera gates that advance with wave progress.
 - Story depth/projection using the existing Arena depth systems so enemies can separate on the Z axis.
 - Enemy targeting that sends all living enemies after P1 and keeps enemies from attacking each other.
@@ -45,7 +47,7 @@ In scope:
 Out of scope:
 
 - Full OpenBOR `.pak` execution or level-script runtime.
-- Branching campaign, cutscenes, shops, tournament structure, hazards, platforms, pickups, equipment application, or persistent story-map progress.
+- Branching campaign, cutscenes, multiple shops, tournament structure, hazards, platforms, pickups, equipment application to combat, or persistent story-map progress.
 - Team play, online play, or more than one local player in Story.
 - Character-file edits or character-specific fixes for Leonardo, KFM, Evil Ryu, Evil Ken, or any other fighter.
 - Applying Dragon level/item bonuses to live combat constants.
@@ -57,11 +59,13 @@ This is a playable Story Mode foundation, not broad OpenBOR compatibility. It pr
 ## Ownership
 
 - `StoryModeTypes.h` owns Story state data.
+- `StoryBoardPlan.h` owns editable Story board config parsing, parent/segment route expansion, enemy-role setup, wave overrides, rewards, and route cue metadata.
 - `StoryModeDifficulty.h` owns Story difficulty labels and tuning values.
-- `StoryModeState.h` owns Story mode selection helpers, default enemy/stage choices, targeting helpers, and status text.
+- `StoryModeState.h` owns Story mode selection helpers, route node selection, default enemy/stage choices, targeting helpers, and status text.
 - `StoryModeSession.h` owns Story round reset, wave spawning, and scroller-gate setup.
-- `StoryModeRuntime.h` owns Story fight-loop behavior: P1 input, enemy CPU targeting, hit routing, camera scroll, wave clear, stage clear, and player defeat.
+- `StoryModeRuntime.h` owns Story fight-loop behavior: P1 input, enemy CPU targeting, hit routing, camera scroll, wave clear, route shop-door availability, stage clear, and player defeat.
 - `StoryStageSelectOverlay.h/.cpp` owns Story-specific stage-select presentation. Shared stage selection mutation and routing stay in `FrontendFlow.h`.
+- `AppMainLoopAssembly.h` and `ShopDemoRuntime.h` own the Story route shop handoff/resume path without moving inventory or shop-economy rules into Story code.
 - `MugenData.cpp` parses stage music metadata, and `AudioRuntime.h` owns the first WAV-only stage BGM loop channel.
 - `RuntimeLoading.h` reuses the per-fighter Arena runtime vector for Story's player and enemy runtime bundles.
 - `FrontendMenu.cpp`, `FrontendFlow.h`, and overlay preparation code provide thin routing/presentation integration only.
@@ -73,11 +77,13 @@ This is a playable Story Mode foundation, not broad OpenBOR compatibility. It pr
 - [x] Add Story-owned state and helper modules instead of placing the whole mode in `App.cpp`.
 - [x] Add a Story-only map-style stage-select overlay without changing Training, Single Player, VS, or Arena stage-select behavior.
 - [x] Add Story difficulty selection and keep enemy scaling separate from player progression/level display.
-- [x] Expand the Story board route to six stage entries for map scrolling/selection coverage.
+- [x] Expand Story boards to a parent route with hidden internal side-scroller, mid-boss, shop, and arena-boss nodes.
+- [x] Add editable enemy-role setup for `grunts`, `mini_bosses`, and `bosses` in `game/data/story_boards.def`.
 - [x] Add a first stage-music hook through normal `[Music] bgmusic` metadata and WAV loop playback.
 - [x] Prefer converted OpenBOR-style stages for Story defaults.
 - [x] Load full per-fighter runtimes for P1 and enemy slots.
-- [x] Spawn three enemy waves with active slot counts `1`, `2`, and `3`.
+- [x] Spawn difficulty-owned wave plans: one boss wave on `EASY`, three waves with a mid-boss on `MEDIUM`, and five waves with two mid-boss checkpoints on `HARD`.
+- [x] Add a Story route shop-door stop that enters Shop Hub and resumes the next route fight on exit.
 - [x] Keep inactive future-wave enemy slots out of rendering and combat.
 - [x] Scroll OpenBOR-style stages forward with wave gates and clamp the player to the current playable segment.
 - [x] Route enemies toward P1 and prevent enemy-vs-enemy targeting.
@@ -96,6 +102,9 @@ cmake --build build --target dragon_mugen
 build\dragon_mugen.exe --verify story-mode-menu-route
 build\dragon_mugen.exe --verify story-stage-select-map
 build\dragon_mugen.exe --verify story-difficulty-enemy-scaling
+build\dragon_mugen.exe --verify story-board-route-plan
+build\dragon_mugen.exe --verify story-shop-door-trigger
+build\dragon_mugen.exe --verify story-shop-route-resume
 build\dragon_mugen.exe --verify story-openbor-stage-default
 build\dragon_mugen.exe --verify story-stage-board-expansion
 build\dragon_mugen.exe --verify story-wave-spawn-scroll
@@ -123,13 +132,14 @@ Manual smoke:
 
 - Open Story Mode from the main menu.
 - Select Leonardo or another roster character.
-- Confirm the Story Stage Select uses connected episode cards, highlights the selected stage, and keeps left/right/enter/escape behavior clear.
+- Confirm the Story Stage Select shows the parent board as the selectable unit while internal route nodes stay hidden from direct selection.
 - Confirm Up/Down changes Story difficulty and enemy HUD labels show difficulty, not player level.
 - Confirm the default stage is `TMNT OpenBOR Street`.
-- Confirm Left/Right can reach `TMNT Sewer Patrol`, `Comic Street Rumble`, and `Soundcheck Alley`.
+- Confirm configured board roles drive the visible enemy mix: regular enemies, mini/midbosses, and bosses come from `[Enemy Setup]`.
 - Confirm `Soundcheck Alley` starts its background music after loading.
-- Start the match and verify P1 fights one enemy, then two, then three.
+- Start the match and verify `EASY` reaches a single boss wave, `MEDIUM` routes through a mid-boss then a boss, and `HARD` routes through five waves with mid-boss checkpoints before the boss.
 - Walk right and confirm the camera scrolls forward but does not skip past the active wave gate.
+- Clear a board that leads to a shop node, confirm the route shop-door cue appears, enter it, exit the Shop Hub, and confirm Story resumes at the next playable route node.
 - Confirm enemies chase P1 instead of fighting each other.
 - Use Evil Ryu in Story and confirm supers consume visible meter, pause briefly as authored, hit, and return control without leaving Ryu stuck.
 - Clear all waves and confirm `STAGE CLEAR`, match result options, and XP feedback.
@@ -143,10 +153,10 @@ Manual observations:
 ## Done Means
 
 - Story Mode is selectable and reaches a working side-scrolling fight.
-- Story Stage Select presents the available stages as a small map/episode route and still routes through the normal VS/loading path.
-- Story board expansion and the first WAV-backed stage BGM hook are covered by focused verification.
+- Story Stage Select presents parent boards and keeps internal route segments data-driven and hidden from direct selection.
+- Story board expansion, enemy role setup, shop-door route resume, and the first WAV-backed stage BGM hook are covered by focused verification.
 - The mode uses the loaded character/stage data and Dragon metadata; it does not require character-file edits.
 - OpenBOR-style scrolling is present as a controlled converted-stage subset, not a claim of full OpenBOR compatibility.
-- Wave spawning, enemy targeting, stage clear, player defeat, and XP award are covered by focused verifiers.
+- Wave spawning, enemy targeting, difficulty wave plans, stage clear, player defeat, route shop stop/resume, and XP award are covered by focused verifiers.
 - Story difficulty and Story Evil Ryu super recovery are covered by focused verifiers.
 - The feature is recorded in the unified roadmap, ledger, and regression checklist.

@@ -7,15 +7,21 @@
 ;   shop          - route stop that enters the shop hub
 ;   arena_boss    - boss encounter board
 ;
-; Wave sections use [Board N.Wave M].
-;   enemies    = character refs or enemy role names for slots, comma-separated
-;   spawn_x    = per-slot X offsets from the wave spawn anchor
-;   spawn_z    = per-slot arena-depth offsets
-;   reward_xp  = optional reward when the wave clears
+; Board sections may contain internal segments:
+;   [Board N]                  parent board/defaults
+;   [Board N.Segment M]        playable route segment
+;   [Board N.Segment M.Wave K] wave setup for that segment
+;
+; Legacy flat sections are still supported:
+;   [Board N]
+;   [Board N.Wave M]
+;
+; Wave sections:
+;   enemies     = character refs or enemy role names for slots, comma-separated
+;   spawn_x     = per-slot X offsets from the wave spawn anchor
+;   spawn_z     = per-slot arena-depth offsets
+;   reward_xp   = optional reward when the wave clears
 ;   reward_gold = optional reward when the wave clears
-; Board sections can also use board_reward_xp/board_reward_gold,
-; clear_cue_image, shop_cue_image, grunt/normal enemy refs,
-; mini boss refs, and boss refs.
 ;
 ; Enemy Setup maps story roles to actual character folders.
 ; Swap these values to change who appears as grunts, mini-bosses,
@@ -32,17 +38,26 @@ title = A.BEN ARENA MALL ROUTE
 forward_cue_image = data/story/wave_clear_arrow.png
 
 [Board 0]
+id = arena_mall_story_board
+type = side_scroller
+title = ARENA MALL STORY BOARD
+stage = stages/tmnt_openbor_street.def
+wave_clear_text = WAVE CLEAR
+clear_cue_image = data/story/wave_clear_arrow.png
+regular_enemy = grunts
+mid_boss_enemy = mini_bosses
+boss_enemy = bosses
+
+[Board 0.Segment 0]
 id = street_patrol
 type = side_scroller
 title = STREET PATROL
 stage = stages/tmnt_openbor_street.def
 waves = 2
-wave_clear_text = WAVE CLEAR
-clear_cue_image = data/story/wave_clear_arrow.png
 board_reward_xp = 10
 board_reward_gold = 15
 
-[Board 0.Wave 0]
+[Board 0.Segment 0.Wave 0]
 enemies = grunts
 spawn_x = 0
 spawn_z = 0
@@ -50,7 +65,7 @@ clear_text = WAVE CLEAR
 reward_xp = 3
 reward_gold = 5
 
-[Board 0.Wave 1]
+[Board 0.Segment 0.Wave 1]
 enemies = grunts, grunts
 spawn_x = 0, 46
 spawn_z = -18, 18
@@ -58,18 +73,16 @@ clear_text = ROUTE CLEAR
 reward_xp = 5
 reward_gold = 8
 
-[Board 1]
+[Board 0.Segment 1]
 id = comic_street
 type = side_scroller
 title = COMIC STREET
 stage = stages/comic_street_rumble.def
 waves = 2
-wave_clear_text = WAVE CLEAR
-clear_cue_image = data/story/wave_clear_arrow.png
 board_reward_xp = 12
 board_reward_gold = 18
 
-[Board 1.Wave 0]
+[Board 0.Segment 1.Wave 0]
 enemies = grunts
 spawn_x = 0
 spawn_z = 0
@@ -77,7 +90,7 @@ clear_text = WAVE CLEAR
 reward_xp = 4
 reward_gold = 6
 
-[Board 1.Wave 1]
+[Board 0.Segment 1.Wave 1]
 enemies = grunts, grunts
 spawn_x = -18, 42
 spawn_z = -22, 22
@@ -85,18 +98,17 @@ clear_text = ROUTE CLEAR
 reward_xp = 6
 reward_gold = 10
 
-[Board 2]
+[Board 0.Segment 2]
 id = sewer_midboss
 type = mid_boss
 title = SEWER MID BOSS
 stage = stages/tmnt_sewer_patrol.def
 enemy = mini_bosses
 waves = 1
-clear_cue_image = data/story/wave_clear_arrow.png
 board_reward_xp = 20
 board_reward_gold = 30
 
-[Board 2.Wave 0]
+[Board 0.Segment 2.Wave 0]
 enemies = mini_bosses
 spawn_x = 10
 spawn_z = 0
@@ -104,7 +116,7 @@ clear_text = MID BOSS CLEAR
 reward_xp = 8
 reward_gold = 12
 
-[Board 3]
+[Board 0.Segment 3]
 id = ichie_shop_door
 type = shop
 title = I.CHIE SHOP DOOR
@@ -120,18 +132,17 @@ shop_door_x_offset = 160
 shop_door_radius_x = 56
 shop_door_radius_z = 44
 
-[Board 4]
+[Board 0.Segment 4]
 id = arena_mall_boss
 type = arena_boss
 title = ARENA MALL BOSS
 stage = stages/openbor_scroll.def
 enemy = bosses
 waves = 1
-clear_cue_image = data/story/wave_clear_arrow.png
 board_reward_xp = 30
 board_reward_gold = 45
 
-[Board 4.Wave 0]
+[Board 0.Segment 4.Wave 0]
 enemies = bosses
 spawn_x = 0
 spawn_z = 0
