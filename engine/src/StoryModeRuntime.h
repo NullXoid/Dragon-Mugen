@@ -458,24 +458,40 @@ bool storyShopDoorPromptVisible(const AppState& state, const StageSlot& stage) {
         && storyPlayerInsideShopDoor(state, stage);
 }
 
-bool storyShopDoorActionPressed(const AppState& state) {
-    if (state.fighters.empty() || state.fighters[0].inputHistory.empty()) {
-        return false;
-    }
-    const auto& history = state.fighters[0].inputHistory;
-    const bool now = history.back().input.a;
-    const bool previous = history.size() >= 2 && history[history.size() - 2].input.a;
-    return now && !previous;
+FighterInputState storyShopDoorLiveInput(AppState& state) {
+    const bool* keys = gFightInputOverride ? nullptr : SDL_GetKeyboardState(nullptr);
+    return gFightInputOverride && gFightInputOverride->p1
+        ? *gFightInputOverride->p1
+        : collectMappedFighterInput(keys, controlProfileForPlayer(state, 0), assignedGamepad(state, 0));
+}
+
+bool storyShopDoorActionPressed(AppState& state) {
+    const bool now = storyShopDoorLiveInput(state).a;
+    const bool pressed = now && !state.story.shopDoorActionHeld;
+    state.story.shopDoorActionHeld = now;
+    return pressed;
 }
 
 void updateStoryShopDoorTrigger(AppState& state, const StageSlot& stage) {
-    if (!storyShopDoorPromptVisible(state, stage)) {
+    const bool visible = storyShopDoorPromptVisible(state, stage);
+    const bool actionPressed = storyShopDoorActionPressed(state);
+    if (!visible) {
+        if (state.story.shopDoorPromptWasVisible && state.story.shopDoorAvailable && actionPressed) {
+            state.story.pendingShopDoorTransition = true;
+            state.story.shopDoorPromptWasVisible = false;
+            state.messages.lastHitText = storyShopDoorEnterText(state);
+            state.messages.lastHitTextTicks = 30;
+            return;
+        }
+        state.story.shopDoorPromptWasVisible = false;
         return;
     }
+    state.story.shopDoorPromptWasVisible = true;
     state.messages.lastHitText = storyShopDoorPromptText(state);
     state.messages.lastHitTextTicks = std::max(state.messages.lastHitTextTicks, 6);
-    if (storyShopDoorActionPressed(state)) {
+    if (actionPressed) {
         state.story.pendingShopDoorTransition = true;
+        state.story.shopDoorPromptWasVisible = false;
         state.messages.lastHitText = storyShopDoorEnterText(state);
         state.messages.lastHitTextTicks = 30;
     }

@@ -96,6 +96,8 @@ void startStoryWave(AppState& state, const StageSlot& stage, bool resetPlayer) {
     state.story.enemyRewarded = {};
     state.story.shopDoorAvailable = false;
     state.story.pendingShopDoorTransition = false;
+    state.story.shopDoorActionHeld = false;
+    state.story.shopDoorPromptWasVisible = false;
     const float halfWidth = storyGameplayHalfWidth(state, stage);
     const float minCamera = storyScrollMinCamera(stage);
     const float maxCamera = storyWaveCameraGate(state, stage);
@@ -167,6 +169,8 @@ void resetStoryFightRound(AppState& state) {
     state.story.waveTransitionTicks = 0;
     state.story.shopDoorAvailable = false;
     state.story.pendingShopDoorTransition = false;
+    state.story.shopDoorActionHeld = false;
+    state.story.shopDoorPromptWasVisible = false;
     state.story.stageClear = false;
     state.story.stageFailed = false;
     state.story.enemyRewarded = {};

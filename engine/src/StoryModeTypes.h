@@ -52,6 +52,8 @@ struct StoryModeState {
     bool boardRouteLoaded = false;
     bool shopDoorAvailable = false;
     bool pendingShopDoorTransition = false;
+    bool shopDoorActionHeld = false;
+    bool shopDoorPromptWasVisible = false;
     bool resumeRouteAfterShop = false;
     int resumeBoardNodeAfterShop = -1;
     bool stageClear = false;
