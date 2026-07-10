@@ -175,6 +175,7 @@ Check these when touching menu, input, loading, fight flow, or runtime behavior:
 - Training full command list keeps selected bottom entries visible in both Main Techniques and All Techniques even when section headers are inserted into the visible rows.
 - Training full command list starts on standard standing punches/kicks and orders sections as standing normals, crouching normals, air normals, specials, supers, throws, then counters.
 - Training command HUD uses a compact top command strip plus a smaller live-input panel, not a large lower command card that covers the fight.
+- Training command HUD, controller guide, and lightweight pause/help overlay render inside the Dragon safe area at HD/output presets; at `1280x720`, they remain readable without shrinking into old `320x240` coordinates or covering the fight.
 - Training command HUD keeps live input/expected rows as lightweight floating clusters without a hard panel box, renders empty input history as plain `- - -` instead of a placeholder button, keeps the controller guide right-aligned without a redundant player label, uses the expected input highlight as the progress cue, reserves the top-right command strip status for real result feedback such as completion instead of a generic ready state, and renders the top objective as a strongly faded-end band without corner ticks.
 - Training command HUD shows a full-command completion flash/checkmark when the selected input sequence is completed.
 - Training P2 control still switches the opponent to local P2 behavior.

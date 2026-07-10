@@ -20,7 +20,7 @@ float debugTextWidth(const std::string& text) {
 bool explicitButtonToken(std::string_view text);
 
 float clampedVisualScale(const CommandInputRenderOptions& options) {
-    return std::clamp(options.visualScale, 0.75f, 1.75f);
+    return std::clamp(options.visualScale, 0.75f, 4.0f);
 }
 
 void fillChipPill(SDL_Renderer* renderer, float scale, float x, float y, float w, float h) {
@@ -510,7 +510,7 @@ float drawCommandInputChip(
     const std::string& text,
     const CommandInputRenderOptions& options) {
     if (drawCommandInputIcon(renderer, x, y, text, options, true)) {
-        return commandInputIconWidth(text, options);
+        return commandInputIconWidth(text, options) * clampedVisualScale(options);
     }
 
     const std::string displayText = commandInputPresentedText(text, options);
@@ -525,8 +525,10 @@ float drawCommandInputChip(
     fillChipPill(renderer, options.scale, x + 1.0f, y + 1.0f, chipW - 2.0f, chipH - 2.0f);
     setChipTextColor(renderer, options.tone, direction);
 
-    const float textX = x + std::max(2.0f, (chipW - debugTextWidth(displayText)) * 0.5f);
-    const float textY = y + std::max(1.0f, (chipH - 7.0f) * 0.5f);
+    const float textW = debugTextWidth(displayText) * options.scale;
+    const float textH = 7.0f * options.scale;
+    const float textX = x + std::max(2.0f * options.scale, (chipW - textW) * 0.5f);
+    const float textY = y + std::max(1.0f * options.scale, (chipH - textH) * 0.5f);
     scaledDebugText(renderer, options.scale, textX, textY, displayText);
     return chipW;
 }

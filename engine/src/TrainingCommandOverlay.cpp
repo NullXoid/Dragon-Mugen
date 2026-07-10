@@ -1,5 +1,6 @@
 #include "TrainingCommandOverlay.h"
 
+#include "DragonUi.h"
 #include "TrainingCommandInputRenderer.h"
 #include "UiRenderPrimitives.h"
 #include "UiSpriteView.h"
@@ -41,7 +42,7 @@ CommandInputRenderOptions commandInputOptions(
     options.scale = scale;
     options.tone = tone;
     options.iconAtlas = view.commandIcons;
-    options.visualScale = visualScale;
+    options.visualScale = visualScale * scale;
     if (view.physicalDirections) {
         options.directionPresentation = CommandInputDirectionPresentation::Physical;
         options.facing = view.facing;
@@ -57,6 +58,7 @@ CommandInputRenderOptions liveInputOptions(
     options.scale = scale;
     options.tone = tone;
     options.iconAtlas = view.commandIcons;
+    options.visualScale = scale;
     return options;
 }
 
@@ -192,14 +194,14 @@ void drawCompletionSweep(
     setColor(renderer, flashOn ? 34 : 18, flashOn ? 118 : 88, flashOn ? 78 : 58, flashOn ? 112 : 72);
     fillScaledRect(renderer, scale, x, y, w, h);
 
-    const float sweepW = 34.0f;
+    const float sweepW = 34.0f * scale;
     const float sweepX = x - sweepW + (w + sweepW * 1.6f) * std::clamp(progress, 0.0f, 1.0f);
     setColor(renderer, 255, 236, 142, 80);
     fillScaledRect(renderer, scale, sweepX, y, sweepW, h);
     setColor(renderer, 136, 255, 192, 112);
     fillScaledRect(renderer, scale, sweepX + sweepW * 0.35f, y, sweepW * 0.32f, h);
     setColor(renderer, 238, 255, 246, 120);
-    fillScaledRect(renderer, scale, sweepX + sweepW * 0.50f, y + 1.0f, 2.0f, h - 2.0f);
+    fillScaledRect(renderer, scale, sweepX + sweepW * 0.50f, y + 1.0f * scale, 2.0f * scale, h - 2.0f * scale);
 }
 
 void drawCompletionCheckBadge(
@@ -211,23 +213,23 @@ void drawCompletionCheckBadge(
     float progress,
     bool flashOn) {
     const float pulse = 1.0f + (flashOn ? 0.12f : 0.0f) + std::max(0.0f, 1.0f - progress * 3.0f) * 0.18f;
-    const float glowRadius = 12.0f * pulse;
+    const float glowRadius = 12.0f * scale * pulse;
     setColor(renderer, 34, 245, 146, flashOn ? 94 : 54);
     fillScaledCircle(renderer, scale, centerX, centerY, glowRadius);
     setColor(renderer, 255, 224, 132, flashOn ? 120 : 72);
     fillScaledCircle(renderer, scale, centerX, centerY, glowRadius * 0.72f);
 
-    const float size = 18.0f * pulse;
+    const float size = 18.0f * scale * pulse;
     if (hasTexture(check)) {
         drawScaledUiSprite(renderer, scale, check, centerX - size * 0.5f, centerY - size * 0.5f, size, size);
         return;
     }
 
     setColor(renderer, 130, 255, 190, 255);
-    fillScaledRect(renderer, scale, centerX - 6.0f, centerY + 1.0f, 4.0f, 4.0f);
-    fillScaledRect(renderer, scale, centerX - 2.0f, centerY + 3.0f, 4.0f, 4.0f);
-    fillScaledRect(renderer, scale, centerX + 2.0f, centerY - 1.0f, 4.0f, 4.0f);
-    fillScaledRect(renderer, scale, centerX + 6.0f, centerY - 5.0f, 4.0f, 4.0f);
+    fillScaledRect(renderer, scale, centerX - 6.0f * scale, centerY + 1.0f * scale, 4.0f * scale, 4.0f * scale);
+    fillScaledRect(renderer, scale, centerX - 2.0f * scale, centerY + 3.0f * scale, 4.0f * scale, 4.0f * scale);
+    fillScaledRect(renderer, scale, centerX + 2.0f * scale, centerY - 1.0f * scale, 4.0f * scale, 4.0f * scale);
+    fillScaledRect(renderer, scale, centerX + 6.0f * scale, centerY - 5.0f * scale, 4.0f * scale, 4.0f * scale);
 }
 
 void setGuideButtonColors(
@@ -262,7 +264,10 @@ bool drawGuideGlyph(
     CommandInputRenderOptions options;
     options.scale = scale;
     options.iconAtlas = commandIcons;
-    return drawCommandInputIconGlyph(renderer, centerX - w * 0.5f, centerY - h * 0.5f, w, h, token, options);
+    options.visualScale = scale;
+    const float glyphW = w * scale;
+    const float glyphH = h * scale;
+    return drawCommandInputIconGlyph(renderer, centerX - glyphW * 0.5f, centerY - glyphH * 0.5f, glyphW, glyphH, token, options);
 }
 
 void drawGuideButton(
@@ -274,10 +279,11 @@ void drawGuideButton(
     const CommandInputIconAtlasView& commandIcons,
     bool flash,
     float radius = 6.2f) {
+    const float r = radius * scale;
     setGuideButtonColors(renderer, button, true, flash);
-    fillScaledCircle(renderer, scale, centerX, centerY, radius);
+    fillScaledCircle(renderer, scale, centerX, centerY, r);
     setGuideButtonColors(renderer, button, false, flash);
-    fillScaledCircle(renderer, scale, centerX, centerY, std::max(1.0f, radius - 1.0f));
+    fillScaledCircle(renderer, scale, centerX, centerY, std::max(1.0f * scale, r - 1.0f * scale));
 
     if (button.matched || (flash && button.required)) {
         setColor(renderer, 210, 255, 226);
@@ -302,7 +308,7 @@ void drawGuideButton(
     } else {
         label = fitDebugText(label, 2);
     }
-    scaledDebugText(renderer, scale, centerX - debugTextWidth(label) * 0.5f, centerY - 3.0f, label);
+    scaledDebugText(renderer, scale, centerX - debugTextWidth(label) * scale * 0.5f, centerY - 3.0f * scale, label);
 }
 
 std::string directionGuideIconToken(const std::string& label) {
@@ -323,43 +329,43 @@ std::string directionGuideIconToken(const std::string& label) {
 
 void drawGuideDirectionArrow(SDL_Renderer* renderer, float scale, float centerX, float centerY, const std::string& label) {
     if (label == "^") {
-        fillScaledRect(renderer, scale, centerX - 4.0f, centerY - 4.0f, 9.0f, 1.0f);
-        fillScaledRect(renderer, scale, centerX - 3.0f, centerY - 3.0f, 7.0f, 1.0f);
-        fillScaledRect(renderer, scale, centerX - 2.0f, centerY - 2.0f, 5.0f, 1.0f);
-        fillScaledRect(renderer, scale, centerX - 1.0f, centerY - 1.0f, 3.0f, 1.0f);
-        fillScaledRect(renderer, scale, centerX, centerY, 1.0f, 1.0f);
-        fillScaledRect(renderer, scale, centerX - 1.0f, centerY + 1.0f, 3.0f, 4.0f);
+        fillScaledRect(renderer, scale, centerX - 4.0f * scale, centerY - 4.0f * scale, 9.0f * scale, 1.0f * scale);
+        fillScaledRect(renderer, scale, centerX - 3.0f * scale, centerY - 3.0f * scale, 7.0f * scale, 1.0f * scale);
+        fillScaledRect(renderer, scale, centerX - 2.0f * scale, centerY - 2.0f * scale, 5.0f * scale, 1.0f * scale);
+        fillScaledRect(renderer, scale, centerX - 1.0f * scale, centerY - 1.0f * scale, 3.0f * scale, 1.0f * scale);
+        fillScaledRect(renderer, scale, centerX, centerY, 1.0f * scale, 1.0f * scale);
+        fillScaledRect(renderer, scale, centerX - 1.0f * scale, centerY + 1.0f * scale, 3.0f * scale, 4.0f * scale);
         return;
     }
     if (label == "v") {
-        fillScaledRect(renderer, scale, centerX - 1.0f, centerY - 5.0f, 3.0f, 4.0f);
-        fillScaledRect(renderer, scale, centerX, centerY, 1.0f, 1.0f);
-        fillScaledRect(renderer, scale, centerX - 1.0f, centerY + 1.0f, 3.0f, 1.0f);
-        fillScaledRect(renderer, scale, centerX - 2.0f, centerY + 2.0f, 5.0f, 1.0f);
-        fillScaledRect(renderer, scale, centerX - 3.0f, centerY + 3.0f, 7.0f, 1.0f);
-        fillScaledRect(renderer, scale, centerX - 4.0f, centerY + 4.0f, 9.0f, 1.0f);
+        fillScaledRect(renderer, scale, centerX - 1.0f * scale, centerY - 5.0f * scale, 3.0f * scale, 4.0f * scale);
+        fillScaledRect(renderer, scale, centerX, centerY, 1.0f * scale, 1.0f * scale);
+        fillScaledRect(renderer, scale, centerX - 1.0f * scale, centerY + 1.0f * scale, 3.0f * scale, 1.0f * scale);
+        fillScaledRect(renderer, scale, centerX - 2.0f * scale, centerY + 2.0f * scale, 5.0f * scale, 1.0f * scale);
+        fillScaledRect(renderer, scale, centerX - 3.0f * scale, centerY + 3.0f * scale, 7.0f * scale, 1.0f * scale);
+        fillScaledRect(renderer, scale, centerX - 4.0f * scale, centerY + 4.0f * scale, 9.0f * scale, 1.0f * scale);
         return;
     }
     if (label == "<") {
-        fillScaledRect(renderer, scale, centerX - 4.0f, centerY, 1.0f, 1.0f);
-        fillScaledRect(renderer, scale, centerX - 3.0f, centerY - 1.0f, 1.0f, 3.0f);
-        fillScaledRect(renderer, scale, centerX - 2.0f, centerY - 2.0f, 1.0f, 5.0f);
-        fillScaledRect(renderer, scale, centerX - 1.0f, centerY - 3.0f, 1.0f, 7.0f);
-        fillScaledRect(renderer, scale, centerX, centerY - 4.0f, 1.0f, 9.0f);
-        fillScaledRect(renderer, scale, centerX + 1.0f, centerY - 1.0f, 4.0f, 3.0f);
+        fillScaledRect(renderer, scale, centerX - 4.0f * scale, centerY, 1.0f * scale, 1.0f * scale);
+        fillScaledRect(renderer, scale, centerX - 3.0f * scale, centerY - 1.0f * scale, 1.0f * scale, 3.0f * scale);
+        fillScaledRect(renderer, scale, centerX - 2.0f * scale, centerY - 2.0f * scale, 1.0f * scale, 5.0f * scale);
+        fillScaledRect(renderer, scale, centerX - 1.0f * scale, centerY - 3.0f * scale, 1.0f * scale, 7.0f * scale);
+        fillScaledRect(renderer, scale, centerX, centerY - 4.0f * scale, 1.0f * scale, 9.0f * scale);
+        fillScaledRect(renderer, scale, centerX + 1.0f * scale, centerY - 1.0f * scale, 4.0f * scale, 3.0f * scale);
         return;
     }
     if (label == ">") {
-        fillScaledRect(renderer, scale, centerX - 5.0f, centerY - 1.0f, 4.0f, 3.0f);
-        fillScaledRect(renderer, scale, centerX, centerY - 4.0f, 1.0f, 9.0f);
-        fillScaledRect(renderer, scale, centerX + 1.0f, centerY - 3.0f, 1.0f, 7.0f);
-        fillScaledRect(renderer, scale, centerX + 2.0f, centerY - 2.0f, 1.0f, 5.0f);
-        fillScaledRect(renderer, scale, centerX + 3.0f, centerY - 1.0f, 1.0f, 3.0f);
-        fillScaledRect(renderer, scale, centerX + 4.0f, centerY, 1.0f, 1.0f);
+        fillScaledRect(renderer, scale, centerX - 5.0f * scale, centerY - 1.0f * scale, 4.0f * scale, 3.0f * scale);
+        fillScaledRect(renderer, scale, centerX, centerY - 4.0f * scale, 1.0f * scale, 9.0f * scale);
+        fillScaledRect(renderer, scale, centerX + 1.0f * scale, centerY - 3.0f * scale, 1.0f * scale, 7.0f * scale);
+        fillScaledRect(renderer, scale, centerX + 2.0f * scale, centerY - 2.0f * scale, 1.0f * scale, 5.0f * scale);
+        fillScaledRect(renderer, scale, centerX + 3.0f * scale, centerY - 1.0f * scale, 1.0f * scale, 3.0f * scale);
+        fillScaledRect(renderer, scale, centerX + 4.0f * scale, centerY, 1.0f * scale, 1.0f * scale);
         return;
     }
 
-    scaledDebugText(renderer, scale, centerX - debugTextWidth(label) * 0.5f, centerY - 3.0f, label);
+    scaledDebugText(renderer, scale, centerX - debugTextWidth(label) * scale * 0.5f, centerY - 3.0f * scale, label);
 }
 
 void drawDirectionGuideButton(
@@ -376,11 +382,11 @@ void drawDirectionGuideButton(
         direction.required,
         direction.matched,
     };
-    constexpr float radius = 5.6f;
+    const float radius = 5.6f * scale;
     setGuideButtonColors(renderer, button, true, flash);
     fillScaledCircle(renderer, scale, centerX, centerY, radius);
     setGuideButtonColors(renderer, button, false, flash);
-    fillScaledCircle(renderer, scale, centerX, centerY, radius - 1.0f);
+    fillScaledCircle(renderer, scale, centerX, centerY, radius - 1.0f * scale);
 
     if (button.matched || (flash && button.required)) {
         setColor(renderer, 210, 255, 226);
@@ -416,10 +422,10 @@ void drawGuideCluster(
     const CommandInputIconAtlasView& commandIcons,
     bool flash) {
     const std::array<std::pair<float, float>, 4> centers{
-        std::pair<float, float>{ x + 9.0f, y + 22.0f },
-        std::pair<float, float>{ x + 19.0f, y + 12.0f },
-        std::pair<float, float>{ x + 19.0f, y + 32.0f },
-        std::pair<float, float>{ x + 29.0f, y + 22.0f },
+        std::pair<float, float>{ x + 9.0f * scale, y + 22.0f * scale },
+        std::pair<float, float>{ x + 19.0f * scale, y + 12.0f * scale },
+        std::pair<float, float>{ x + 19.0f * scale, y + 32.0f * scale },
+        std::pair<float, float>{ x + 29.0f * scale, y + 22.0f * scale },
     };
     for (std::size_t i = 0; i < centers.size(); ++i) {
         if constexpr (std::is_same_v<ButtonView, TrainingCommandDirectionGuideButtonView>) {
@@ -498,8 +504,14 @@ float dynamicInputHudWidth(const TrainingCommandHudView& view) {
 TrainingCommandHudLayout trainingCommandHudLayout(
     const TrainingCommandHudView& view,
     float widthF,
-    float heightF) {
+    float heightF,
+    float scale = 1.0f,
+    float originX = 0.0f,
+    float originY = 0.0f) {
     TrainingCommandHudLayout layout;
+    const auto scaledRect = [scale, originX, originY](float x, float y, float w, float h) {
+        return TrainingHudRect{ originX + x * scale, originY + y * scale, w * scale, h * scale };
+    };
 
     if (view.commandsVisible) {
         const float commandW = clampUi(widthF - 126.0f, 246.0f, 306.0f);
@@ -507,20 +519,20 @@ TrainingCommandHudLayout trainingCommandHudLayout(
         const float commandY = 49.0f;
         const float commandH = 50.0f;
         const float statusW = widthF < 360.0f ? 42.0f : 64.0f;
-        layout.objective = TrainingHudRect{ commandX, commandY, commandW, commandH };
-        layout.stepX = commandX + 8.0f;
-        layout.stepY = commandY + 28.0f;
-        layout.stepRight = commandX + commandW - statusW - 8.0f;
+        layout.objective = scaledRect(commandX, commandY, commandW, commandH);
+        layout.stepX = originX + (commandX + 8.0f) * scale;
+        layout.stepY = originY + (commandY + 28.0f) * scale;
+        layout.stepRight = originX + (commandX + commandW - statusW - 8.0f) * scale;
         layout.objectiveVisible = true;
-        layout.commandIconsVisible = layout.stepRight - layout.stepX >= 54.0f;
+        layout.commandIconsVisible = (commandW - statusW - 16.0f) >= 54.0f;
     }
 
     const bool showAnyGuide = (view.buttonGuide.visible || view.directionGuide.visible) && !view.paused;
     constexpr float inputX = 24.0f;
-    constexpr float inputY = 158.0f;
     constexpr float inputH = 64.0f;
     constexpr float guideW = 104.0f;
     constexpr float guideH = 64.0f;
+    const float inputY = clampUi(heightF - guideH - 9.0f, 104.0f, 158.0f);
     if (showAnyGuide) {
         const float desiredGuideX = widthF - guideW - 20.0f;
         float guideX = clampUi(desiredGuideX, 8.0f, widthF - guideW - 8.0f);
@@ -534,17 +546,17 @@ TrainingCommandHudLayout trainingCommandHudLayout(
                 inputW = std::clamp(guideX - inputX - 12.0f, 112.0f, desiredInputW);
             }
         }
-        layout.guide = TrainingHudRect{ guideX, inputY - 1.0f, guideW, guideH };
-        layout.guideVisible = layout.guide.x >= 8.0f
-            && layout.guide.x + layout.guide.w <= widthF - 8.0f
-            && layout.guide.y + layout.guide.h <= heightF - 8.0f;
+        layout.guide = scaledRect(guideX, inputY - 1.0f, guideW, guideH);
+        layout.guideVisible = guideX >= 8.0f
+            && guideX + guideW <= widthF - 8.0f
+            && inputY - 1.0f + guideH <= heightF - 8.0f;
         if (view.input.visible) {
-            layout.input = TrainingHudRect{ inputX - 8.0f, inputY - 7.0f, inputW + 6.0f, inputH };
+            layout.input = scaledRect(inputX - 8.0f, inputY - 7.0f, inputW + 6.0f, inputH);
             layout.inputVisible = true;
         }
     } else if (view.input.visible) {
         const float inputW = std::min(dynamicInputHudWidth(view), widthF - inputX - 18.0f);
-        layout.input = TrainingHudRect{ inputX - 8.0f, inputY - 7.0f, inputW + 6.0f, inputH };
+        layout.input = scaledRect(inputX - 8.0f, inputY - 7.0f, inputW + 6.0f, inputH);
         layout.inputVisible = true;
     }
 
@@ -552,16 +564,17 @@ TrainingCommandHudLayout trainingCommandHudLayout(
 }
 
 void drawCornerAccents(SDL_Renderer* renderer, float scale, const TrainingHudRect& rect, Uint8 alpha) {
-    constexpr float tick = 9.0f;
+    const float tick = 9.0f * scale;
+    const float line = std::max(1.0f, scale);
     setColor(renderer, 72, 208, 246, alpha);
-    fillScaledRect(renderer, scale, rect.x, rect.y, tick, 1.0f);
-    fillScaledRect(renderer, scale, rect.x, rect.y, 1.0f, tick);
-    fillScaledRect(renderer, scale, rect.x + rect.w - tick, rect.y, tick, 1.0f);
-    fillScaledRect(renderer, scale, rect.x + rect.w - 1.0f, rect.y, 1.0f, tick);
-    fillScaledRect(renderer, scale, rect.x, rect.y + rect.h - 1.0f, tick, 1.0f);
-    fillScaledRect(renderer, scale, rect.x, rect.y + rect.h - tick, 1.0f, tick);
-    fillScaledRect(renderer, scale, rect.x + rect.w - tick, rect.y + rect.h - 1.0f, tick, 1.0f);
-    fillScaledRect(renderer, scale, rect.x + rect.w - 1.0f, rect.y + rect.h - tick, 1.0f, tick);
+    fillScaledRect(renderer, scale, rect.x, rect.y, tick, line);
+    fillScaledRect(renderer, scale, rect.x, rect.y, line, tick);
+    fillScaledRect(renderer, scale, rect.x + rect.w - tick, rect.y, tick, line);
+    fillScaledRect(renderer, scale, rect.x + rect.w - line, rect.y, line, tick);
+    fillScaledRect(renderer, scale, rect.x, rect.y + rect.h - line, tick, line);
+    fillScaledRect(renderer, scale, rect.x, rect.y + rect.h - tick, line, tick);
+    fillScaledRect(renderer, scale, rect.x + rect.w - tick, rect.y + rect.h - line, tick, line);
+    fillScaledRect(renderer, scale, rect.x + rect.w - line, rect.y + rect.h - tick, line, tick);
 }
 
 void drawTrainingGuideDock(
@@ -577,22 +590,21 @@ void drawTrainingGuideDock(
         return;
     }
 
-    constexpr float dockW = 104.0f;
     constexpr float dockH = 64.0f;
     setColor(renderer, 170, 178, 188, 22);
-    fillScaledRect(renderer, scale, x + 51.0f, y + 7.0f, 1.0f, dockH - 14.0f);
+    fillScaledRect(renderer, scale, x + 51.0f * scale, y + 7.0f * scale, 1.0f * scale, (dockH - 14.0f) * scale);
 
     if (directionGuide.visible) {
-        drawGuideCluster(renderer, scale, x + 8.0f, y + 6.0f, directionGuide.directions, commandIcons, flash);
+        drawGuideCluster(renderer, scale, x + 8.0f * scale, y + 6.0f * scale, directionGuide.directions, commandIcons, flash);
     }
     if (buttonGuide.visible) {
-        drawGuideCluster(renderer, scale, x + 60.0f, y + 6.0f, buttonGuide.buttons, commandIcons, flash);
+        drawGuideCluster(renderer, scale, x + 60.0f * scale, y + 6.0f * scale, buttonGuide.buttons, commandIcons, flash);
         if (buttonGuide.systemButtonVisible) {
             drawGuideButton(
                 renderer,
                 scale,
-                x + 79.0f,
-                y + 51.0f,
+                x + 79.0f * scale,
+                y + 51.0f * scale,
                 buttonGuide.systemButton,
                 commandIcons,
                 flash,
@@ -614,7 +626,7 @@ void drawPauseLegendRow(
     setColor(renderer, r, g, b, 238);
     scaledDebugText(renderer, scale, x, y, label);
     setColor(renderer, 176, 188, 204, 224);
-    scaledDebugText(renderer, scale, x + 88.0f, y, text);
+    scaledDebugText(renderer, scale, x + 88.0f * scale, y, text);
 }
 
 std::string liveStatusText(const TrainingCommandHudView& view) {
@@ -632,71 +644,73 @@ void drawTrainingCommandOverlay(const UiRenderContext& ui, const TrainingCommand
     }
 
     SDL_Renderer* renderer = ui.renderer;
-    const float scale = ui.scale;
-    const float widthF = static_cast<float>(ui.logicalWidth);
-    const float heightF = static_cast<float>(ui.logicalHeight);
-    const TrainingCommandHudLayout layout = trainingCommandHudLayout(view, widthF, heightF);
+    const DragonUiMetrics metrics = dragonUiMetricsForContext(ui);
+    const SDL_FRect safe = dragonPixelUiSafeArea(CanvasDimensions{ ui.logicalWidth, ui.logicalHeight });
+    const float scale = metrics.pixelScale;
+    const float widthF = safe.w / std::max(0.01f, scale);
+    const float heightF = safe.h / std::max(0.01f, scale);
+    const TrainingCommandHudLayout layout = trainingCommandHudLayout(view, widthF, heightF, scale, safe.x, safe.y);
 
     if (view.commandsVisible) {
         const bool flashOn = view.completeFlash && ((SDL_GetTicks() / 120) % 2 == 0);
         const float completeProgress = completionProgress(view);
         constexpr float objectiveIconScale = 1.25f;
         const TrainingHudRect& command = layout.objective;
-        const float statusDividerX = layout.stepRight + 4.0f;
+        const float statusDividerX = layout.stepRight + 4.0f * scale;
         const float bandY = command.y + command.h * 0.05f;
         const float bandH = command.h * 0.90f;
-        const float fadeW = std::max(24.0f, command.w * 0.12f);
+        const float fadeW = std::max(24.0f * scale, command.w * 0.12f);
         drawFadedHorizontalBand(renderer, scale, command.x, bandY, command.w, bandH, 3, 6, 12, view.paused ? 84 : 116, fadeW);
-        drawFadedHorizontalBand(renderer, scale, command.x + 1.0f, bandY + 1.0f, command.w - 2.0f, bandH - 2.0f, 28, 42, 62, view.paused ? 54 : 74, fadeW - 1.0f);
-        drawFadedHorizontalBand(renderer, scale, command.x + 10.0f, bandY, command.w - 20.0f, 1.0f, 66, 202, 246, view.paused ? 28 : 38, fadeW);
-        drawFadedHorizontalBand(renderer, scale, command.x + 8.0f, command.y + 20.0f, command.w - 16.0f, 1.0f, 224, 190, 82, view.paused ? 104 : 168, fadeW);
+        drawFadedHorizontalBand(renderer, scale, command.x + 1.0f * scale, bandY + 1.0f * scale, command.w - 2.0f * scale, bandH - 2.0f * scale, 28, 42, 62, view.paused ? 54 : 74, fadeW - 1.0f * scale);
+        drawFadedHorizontalBand(renderer, scale, command.x + 10.0f * scale, bandY, command.w - 20.0f * scale, 1.0f * scale, 66, 202, 246, view.paused ? 28 : 38, fadeW);
+        drawFadedHorizontalBand(renderer, scale, command.x + 8.0f * scale, command.y + 20.0f * scale, command.w - 16.0f * scale, 1.0f * scale, 224, 190, 82, view.paused ? 104 : 168, fadeW);
 
         if (view.completeFlash) {
             drawFadedHorizontalBand(
                 renderer,
                 scale,
-                command.x + 1.0f,
-                bandY + 1.0f,
-                command.w - 2.0f,
-                17.0f,
+                command.x + 1.0f * scale,
+                bandY + 1.0f * scale,
+                command.w - 2.0f * scale,
+                17.0f * scale,
                 flashOn ? 52 : 26,
                 flashOn ? 162 : 108,
                 flashOn ? 118 : 92,
                 flashOn ? 164 : 104,
-                fadeW - 1.0f);
+                fadeW - 1.0f * scale);
             setColor(renderer, 216, 255, 230);
         } else if (view.demoActive) {
-            drawFadedHorizontalBand(renderer, scale, command.x + 1.0f, bandY + 1.0f, command.w - 2.0f, 17.0f, 34, 78, 132, 94, fadeW - 1.0f);
+            drawFadedHorizontalBand(renderer, scale, command.x + 1.0f * scale, bandY + 1.0f * scale, command.w - 2.0f * scale, 17.0f * scale, 34, 78, 132, 94, fadeW - 1.0f * scale);
             setColor(renderer, 222, 236, 252);
         } else {
             setColor(renderer, 128, 216, 242);
         }
-        scaledDebugText(renderer, scale, command.x + 8.0f, command.y + 7.0f, "MOVE:");
+        scaledDebugText(renderer, scale, command.x + 8.0f * scale, command.y + 7.0f * scale, "MOVE:");
         setColor(renderer, view.completeFlash ? 184 : 90, view.completeFlash ? 255 : 226, view.completeFlash ? 212 : 246);
-        const float nameX = command.x + 48.0f;
+        const float nameX = command.x + 48.0f * scale;
         const std::size_t nameChars = static_cast<std::size_t>(
-            std::max(6.0f, (statusDividerX - nameX - 5.0f) / 8.0f));
-        scaledDebugText(renderer, scale, nameX, command.y + 7.0f, fitDebugText(view.currentMoveName, nameChars));
+            std::max(6.0f, (statusDividerX - nameX - 5.0f * scale) / (8.0f * scale)));
+        scaledDebugText(renderer, scale, nameX, command.y + 7.0f * scale, fitDebugText(view.currentMoveName, nameChars));
         const std::string statusText = liveStatusText(view);
         const bool completeStatus = view.completeFlash || view.completionVisible;
         if (!statusText.empty()) {
             setColor(renderer, 52, 118, 144, view.paused ? 54 : 86);
-            fillScaledRect(renderer, scale, statusDividerX, command.y + 7.0f, 1.0f, command.h - 14.0f);
+            fillScaledRect(renderer, scale, statusDividerX, command.y + 7.0f * scale, 1.0f * scale, command.h - 14.0f * scale);
             if (completeStatus) {
                 setColor(renderer, 116, 244, 176, view.paused ? 144 : 238);
             } else {
                 setColor(renderer, 246, 218, 82, view.paused ? 128 : 220);
             }
-            const std::size_t statusChars = command.w < 300.0f ? 5u : 8u;
-            scaledDebugText(renderer, scale, statusDividerX + 6.0f, command.y + 7.0f, fitDebugText(statusText, statusChars));
+            const std::size_t statusChars = command.w < 300.0f * scale ? 5u : 8u;
+            scaledDebugText(renderer, scale, statusDividerX + 6.0f * scale, command.y + 7.0f * scale, fitDebugText(statusText, statusChars));
         }
         if (view.completionVisible) {
             drawCompletionCheckBadge(
                 renderer,
                 scale,
                 view.completionCheck,
-                command.x + command.w - 18.0f,
-                command.y + 31.0f,
+                command.x + command.w - 18.0f * scale,
+                command.y + 31.0f * scale,
                 completeProgress,
                 flashOn);
         }
@@ -709,18 +723,18 @@ void drawTrainingCommandOverlay(const UiRenderContext& ui, const TrainingCommand
             drawCompletionSweep(
                 renderer,
                 scale,
-                command.x + 7.0f,
-                stepY - 4.0f,
-                stepRight - command.x - 12.0f,
-                13.0f,
+                command.x + 7.0f * scale,
+                stepY - 4.0f * scale,
+                stepRight - command.x - 12.0f * scale,
+                13.0f * scale,
                 completeProgress,
                 flashOn);
         }
         const std::size_t visibleStepCount = std::min<std::size_t>(view.practiceSteps.size(), 16u);
         const bool roomyCommand = visibleStepCount > 0 && visibleStepCount <= 5
-            && (stepRight - layout.stepX) >= 150.0f;
-        const float separatorW = roomyCommand ? 16.0f : 12.0f;
-        const float stepGap = roomyCommand ? 9.0f : 6.0f;
+            && (stepRight - layout.stepX) >= 150.0f * scale;
+        const float separatorW = (roomyCommand ? 16.0f : 12.0f) * scale;
+        const float stepGap = (roomyCommand ? 9.0f : 6.0f) * scale;
         for (const auto& step : view.practiceSteps) {
             if (stepsDrawn >= 16) {
                 break;
@@ -732,8 +746,8 @@ void drawTrainingCommandOverlay(const UiRenderContext& ui, const TrainingCommand
                     break;
                 }
                 setColor(renderer, 255, 226, 64, 246);
-                scaledDebugText(renderer, scale, stepX + 2.0f, stepY + 1.0f, ">");
-                scaledDebugText(renderer, scale, stepX + 3.0f, stepY + 1.0f, ">");
+                scaledDebugText(renderer, scale, stepX + 2.0f * scale, stepY + 1.0f * scale, ">");
+                scaledDebugText(renderer, scale, stepX + 3.0f * scale, stepY + 1.0f * scale, ">");
                 stepX += separatorW;
             }
             if (stepX + stepW > stepRight) {
@@ -742,7 +756,7 @@ void drawTrainingCommandOverlay(const UiRenderContext& ui, const TrainingCommand
             drawCommandInputChips(
                 renderer,
                 stepX,
-                stepY - 2.0f,
+                stepY - 2.0f * scale,
                 stepRight - stepX,
                 step.label,
                 stepOptions);
@@ -752,18 +766,18 @@ void drawTrainingCommandOverlay(const UiRenderContext& ui, const TrainingCommand
         if (stepsDrawn == 0) {
             drawCommandInputChips(
                 renderer,
-                command.x + 6.0f,
-                stepY - 2.0f,
-                stepRight - command.x - 6.0f,
+                command.x + 6.0f * scale,
+                stepY - 2.0f * scale,
+                stepRight - command.x - 6.0f * scale,
                 view.currentMoveInput,
                 commandInputOptions(scale, CommandInputChipTone::Current, view, objectiveIconScale));
         }
 
         if (layout.inputVisible) {
             const TrainingHudRect& input = layout.input;
-            const float inputX = input.x + 8.0f;
-            const float inputY = input.y + 8.0f;
-            const float inputW = input.w - 12.0f;
+            const float inputX = input.x + 8.0f * scale;
+            const float inputY = input.y + 8.0f * scale;
+            const float inputW = input.w - 12.0f * scale;
             setColor(renderer, 102, 210, 246, 224);
             scaledDebugText(renderer, scale, inputX, inputY, "INPUT HISTORY");
             const std::string actualInput = !view.input.recentInputs.empty()
@@ -773,18 +787,18 @@ void drawTrainingCommandOverlay(const UiRenderContext& ui, const TrainingCommand
                 renderer,
                 scale,
                 inputX,
-                inputY + 15.0f,
+                inputY + 15.0f * scale,
                 inputW,
                 actualInput,
                 view);
             setColor(renderer, 176, 182, 190, 96);
-            fillScaledRect(renderer, scale, inputX, inputY + 31.0f, inputW, 1.0f);
+            fillScaledRect(renderer, scale, inputX, inputY + 31.0f * scale, inputW, 1.0f * scale);
             setColor(renderer, 244, 212, 102, 235);
-            scaledDebugText(renderer, scale, inputX, inputY + 38.0f, "EXPECTED");
+            scaledDebugText(renderer, scale, inputX, inputY + 38.0f * scale, "EXPECTED");
             drawCommandInputChips(
                 renderer,
                 inputX,
-                inputY + 49.0f,
+                inputY + 49.0f * scale,
                 inputW,
                 view.input.expectedInput.empty() ? "-" : view.input.expectedInput,
                 commandInputOptions(scale, CommandInputChipTone::Current, view));
@@ -804,36 +818,36 @@ void drawTrainingCommandOverlay(const UiRenderContext& ui, const TrainingCommand
     }
 
     if (view.input.visible) {
-        const float panelW = std::min(190.0f, widthF - 18.0f);
-        const float panelX = widthF - panelW - 8.0f;
-        const float panelY = 42.0f;
+        const float panelW = std::min(190.0f * scale, safe.w - 18.0f * scale);
+        const float panelX = safe.x + safe.w - panelW - 8.0f * scale;
+        const float panelY = safe.y + 42.0f * scale;
 
         setColor(renderer, 5, 7, 12, 158);
-        fillScaledRect(renderer, scale, panelX, panelY, panelW, 50.0f);
+        fillScaledRect(renderer, scale, panelX, panelY, panelW, 50.0f * scale);
         setColor(renderer, 32, 152, 214, 176);
-        fillScaledRect(renderer, scale, panelX, panelY, panelW, 1.0f);
-        fillScaledRect(renderer, scale, panelX, panelY, 1.0f, 50.0f);
+        fillScaledRect(renderer, scale, panelX, panelY, panelW, 1.0f * scale);
+        fillScaledRect(renderer, scale, panelX, panelY, 1.0f * scale, 50.0f * scale);
         setColor(renderer, 102, 210, 246, 224);
-        scaledDebugText(renderer, scale, panelX + 7.0f, panelY + 5.0f, "INPUT HISTORY");
+        scaledDebugText(renderer, scale, panelX + 7.0f * scale, panelY + 5.0f * scale, "INPUT HISTORY");
 
-        float y = panelY + 23.0f;
+        float y = panelY + 23.0f * scale;
         setColor(renderer, 18, 24, 34, 230);
-        fillScaledRect(renderer, scale, panelX + 8.0f, y - 3.0f, panelW - 16.0f, 11.0f);
+        fillScaledRect(renderer, scale, panelX + 8.0f * scale, y - 3.0f * scale, panelW - 16.0f * scale, 11.0f * scale);
         drawInputHistoryValue(
             renderer,
             scale,
-            panelX + 12.0f,
-            y - 2.0f,
-            panelW - 24.0f,
+            panelX + 12.0f * scale,
+            y - 2.0f * scale,
+            panelW - 24.0f * scale,
             view.input.currentInput,
             view);
-        y += 12.0f;
+        y += 12.0f * scale;
 
         drawCommandInputChips(
             renderer,
-            panelX + 8.0f,
-            y - 2.0f,
-            panelW - 16.0f,
+            panelX + 8.0f * scale,
+            y - 2.0f * scale,
+            panelW - 16.0f * scale,
             view.input.recentInputs,
             liveInputOptions(scale, CommandInputChipTone::Pending, view));
     }
@@ -845,39 +859,42 @@ void drawTrainingPauseHelpOverlay(const UiRenderContext& ui, const TrainingPause
     }
 
     SDL_Renderer* renderer = ui.renderer;
-    const float scale = ui.scale;
-    const float widthF = static_cast<float>(ui.logicalWidth);
-    const float panelW = clampUi(widthF - 44.0f, 238.0f, 292.0f);
-    constexpr float panelH = 121.0f;
-    const float x = std::max(8.0f, (widthF - panelW) * 0.5f);
-    constexpr float y = 61.0f;
+    const DragonUiMetrics metrics = dragonUiMetricsForContext(ui);
+    const SDL_FRect safe = dragonPixelUiSafeArea(CanvasDimensions{ ui.logicalWidth, ui.logicalHeight });
+    const float scale = metrics.pixelScale;
+    const float designWidth = safe.w / std::max(0.01f, scale);
+    const float panelDesignW = clampUi(designWidth - 44.0f, 238.0f, 292.0f);
+    const float panelW = std::min(panelDesignW * scale, safe.w - 16.0f * scale);
+    const float panelH = 121.0f * scale;
+    const float x = safe.x + std::max(8.0f * scale, (safe.w - panelW) * 0.5f);
+    const float y = safe.y + 61.0f * scale;
     const TrainingHudRect panel{ x, y, panelW, panelH };
 
     setColor(renderer, 4, 7, 12, 210);
     fillScaledRect(renderer, scale, panel.x, panel.y, panel.w, panel.h);
     setColor(renderer, 20, 30, 48, 224);
-    fillScaledRect(renderer, scale, panel.x + 1.0f, panel.y + 1.0f, panel.w - 2.0f, 18.0f);
+    fillScaledRect(renderer, scale, panel.x + 1.0f * scale, panel.y + 1.0f * scale, panel.w - 2.0f * scale, 18.0f * scale);
     setColor(renderer, 66, 202, 246, 198);
-    fillScaledRect(renderer, scale, panel.x, panel.y, panel.w, 1.0f);
+    fillScaledRect(renderer, scale, panel.x, panel.y, panel.w, std::max(1.0f, scale));
     setColor(renderer, 224, 190, 82, 190);
-    fillScaledRect(renderer, scale, panel.x + 2.0f, panel.y + 19.0f, panel.w - 4.0f, 1.0f);
+    fillScaledRect(renderer, scale, panel.x + 2.0f * scale, panel.y + 19.0f * scale, panel.w - 4.0f * scale, std::max(1.0f, scale));
     drawCornerAccents(renderer, scale, panel, 172);
 
     setColor(renderer, 230, 220, 172, 240);
-    scaledDebugText(renderer, scale, x + 10.0f, y + 7.0f, "PAUSED");
+    scaledDebugText(renderer, scale, x + 10.0f * scale, y + 7.0f * scale, "PAUSED");
     setColor(renderer, 166, 184, 210, 230);
-    scaledDebugText(renderer, scale, x + 10.0f, y + 25.0f, "START:RESUME");
-    scaledDebugText(renderer, scale, x + 122.0f, y + 25.0f, "SEL:OPTIONS");
-    scaledDebugText(renderer, scale, x + 10.0f, y + 36.0f, "H/L3/R3:SHOW");
-    scaledDebugText(renderer, scale, x + 10.0f, y + 47.0f, "PGUP/DN LB/RB:NEXT");
+    scaledDebugText(renderer, scale, x + 10.0f * scale, y + 25.0f * scale, "START:RESUME");
+    scaledDebugText(renderer, scale, x + 122.0f * scale, y + 25.0f * scale, "SEL:OPTIONS");
+    scaledDebugText(renderer, scale, x + 10.0f * scale, y + 36.0f * scale, "H/L3/R3:SHOW");
+    scaledDebugText(renderer, scale, x + 10.0f * scale, y + 47.0f * scale, "PGUP/DN LB/RB:NEXT");
 
     setColor(renderer, 224, 190, 82, 164);
-    fillScaledRect(renderer, scale, x + 10.0f, y + 61.0f, panelW - 20.0f, 1.0f);
-    drawPauseLegendRow(renderer, scale, x + 10.0f, y + 69.0f, "WAITING", "WAITING FOR INPUT", 102, 210, 246);
-    drawPauseLegendRow(renderer, scale, x + 10.0f, y + 78.0f, "NOW", "PRESS HIGHLIGHTED", 246, 218, 82);
-    drawPauseLegendRow(renderer, scale, x + 10.0f, y + 87.0f, "GOOD", "CORRECT", 104, 244, 172);
-    drawPauseLegendRow(renderer, scale, x + 10.0f, y + 96.0f, "MISS", "WRONG INPUT/ORDER", 246, 112, 72);
-    drawPauseLegendRow(renderer, scale, x + 10.0f, y + 105.0f, "INCOMPLETE", "SEQUENCE NOT DONE", 248, 170, 58);
+    fillScaledRect(renderer, scale, x + 10.0f * scale, y + 61.0f * scale, panelW - 20.0f * scale, std::max(1.0f, scale));
+    drawPauseLegendRow(renderer, scale, x + 10.0f * scale, y + 69.0f * scale, "WAITING", "WAITING FOR INPUT", 102, 210, 246);
+    drawPauseLegendRow(renderer, scale, x + 10.0f * scale, y + 78.0f * scale, "NOW", "PRESS HIGHLIGHTED", 246, 218, 82);
+    drawPauseLegendRow(renderer, scale, x + 10.0f * scale, y + 87.0f * scale, "GOOD", "CORRECT", 104, 244, 172);
+    drawPauseLegendRow(renderer, scale, x + 10.0f * scale, y + 96.0f * scale, "MISS", "WRONG INPUT/ORDER", 246, 112, 72);
+    drawPauseLegendRow(renderer, scale, x + 10.0f * scale, y + 105.0f * scale, "INCOMPLETE", "SEQUENCE NOT DONE", 248, 170, 58);
 }
 
 TrainingCommandHudGeometryReport verifyTrainingCommandHudGeometry(
@@ -886,7 +903,17 @@ TrainingCommandHudGeometryReport verifyTrainingCommandHudGeometry(
     int logicalHeight) {
     const float widthF = static_cast<float>(logicalWidth);
     const float heightF = static_cast<float>(logicalHeight);
-    const TrainingCommandHudLayout layout = trainingCommandHudLayout(view, widthF, heightF);
+    const CanvasDimensions dimensions{ logicalWidth, logicalHeight };
+    const DragonUiMetrics metrics = dragonUiMetricsForCanvas(dimensions, 1.0f);
+    const SDL_FRect safe = dragonPixelUiSafeArea(dimensions);
+    const float scale = metrics.pixelScale;
+    const TrainingCommandHudLayout layout = trainingCommandHudLayout(
+        view,
+        safe.w / std::max(0.01f, scale),
+        safe.h / std::max(0.01f, scale),
+        scale,
+        safe.x,
+        safe.y);
     TrainingCommandHudGeometryReport report;
     report.objectiveVisible = layout.objectiveVisible;
     report.inputVisible = layout.inputVisible;
@@ -946,15 +973,20 @@ TrainingPauseHelpGeometryReport verifyTrainingPauseHelpGeometry(
 
     const float widthF = static_cast<float>(logicalWidth);
     const float heightF = static_cast<float>(logicalHeight);
-    const float panelW = clampUi(widthF - 44.0f, 238.0f, 292.0f);
-    constexpr float panelH = 121.0f;
-    const float x = std::max(8.0f, (widthF - panelW) * 0.5f);
-    constexpr float y = 61.0f;
+    const DragonUiMetrics metrics = dragonUiMetricsForCanvas(CanvasDimensions{ logicalWidth, logicalHeight }, 1.0f);
+    const SDL_FRect safe = dragonPixelUiSafeArea(CanvasDimensions{ logicalWidth, logicalHeight });
+    const float scale = metrics.pixelScale;
+    const float designWidth = safe.w / std::max(0.01f, scale);
+    const float panelDesignW = clampUi(designWidth - 44.0f, 238.0f, 292.0f);
+    const float panelW = std::min(panelDesignW * scale, safe.w - 16.0f * scale);
+    const float panelH = 121.0f * scale;
+    const float x = safe.x + std::max(8.0f * scale, (safe.w - panelW) * 0.5f);
+    const float y = safe.y + 61.0f * scale;
     const bool fits = x >= 0.0f
         && y >= 0.0f
         && x + panelW <= widthF + 0.5f
         && y + panelH <= heightF + 0.5f
-        && panelW >= 238.0f;
+        && panelW >= 238.0f * scale;
     report.ok = fits;
     report.detail = "width=" + std::to_string(logicalWidth)
         + " panelW=" + std::to_string(static_cast<int>(panelW))
