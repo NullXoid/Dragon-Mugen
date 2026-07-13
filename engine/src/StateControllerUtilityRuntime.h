@@ -98,29 +98,10 @@ bool stateSoundFireKeyAlreadyFired(const FighterState& fighter, int fireKey) {
         fireKey) != fighter.firedStateSoundControllerIds.end();
 }
 
-bool stateSoundControllerIdAlreadyFired(const FighterState& fighter, int soundControllerId) {
-    return std::find(
-        fighter.firedStateSoundControllerIds.begin(),
-        fighter.firedStateSoundControllerIds.end(),
-        soundControllerId) != fighter.firedStateSoundControllerIds.end();
-}
-
 void markStateSoundFireKeyFired(FighterState& fighter, int fireKey) {
     if (!stateSoundFireKeyAlreadyFired(fighter, fireKey)) {
         fighter.firedStateSoundControllerIds.push_back(fireKey);
     }
-}
-
-void markStateSoundControllerIdFired(FighterState& fighter, int soundControllerId) {
-    if (!stateSoundControllerIdAlreadyFired(fighter, soundControllerId)) {
-        fighter.firedStateSoundControllerIds.push_back(soundControllerId);
-    }
-}
-
-bool stateSoundTriggerActive(AppState& state, FighterState& fighter, const StateSoundController& sound) {
-    return sound.trigger.hasTrigger
-        ? stateControllerTriggerActive(state, fighter, sound.trigger, nullptr, nullptr)
-        : simpleControllerTriggerActive(state, fighter, sound.triggerTime, sound.triggerAnimElem);
 }
 
 void executePlaySoundController(AppState& state, FighterState& fighter, const StateSoundController& sound) {

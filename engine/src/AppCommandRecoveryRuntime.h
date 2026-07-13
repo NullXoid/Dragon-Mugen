@@ -289,19 +289,6 @@ void enterDirectCommonRecoveryState(
     setFighterAction(fighter, action);
 }
 
-void enterAirRecoveryState(const AppState& state, FighterState& fighter, bool nearGround) {
-    const int action = nearGround
-        ? firstExistingActionForActor(state, fighter, { 5200, 5140, 5210, 5040, 47, 0 })
-        : firstExistingActionForActor(state, fighter, { 5210, 5040, 5140, 5200, 47, 0 });
-    if (action == 47 || action == 0) {
-        enterCommonLandingState(state, fighter);
-        return;
-    }
-    enterDirectCommonRecoveryState(state, fighter, action, action, 'A', 'A', true);
-    fighter.onGround = false;
-    fighter.vy = std::min(fighter.vy, nearGround ? -3.5f : -5.5f);
-}
-
 void triggerFallEnvShakeIfNeeded(AppState& state, FighterState& target);
 
 #include "FallFallbackRuntime.h"

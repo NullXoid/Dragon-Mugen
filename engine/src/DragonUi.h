@@ -48,7 +48,6 @@ DragonUiMetrics dragonUiMetricsForScale(float uiScale);
 float dragonUiDensityForDimensions(CanvasDimensions dimensions);
 DragonUiMetrics dragonUiMetricsForCanvas(CanvasDimensions dimensions, float uiScale);
 DragonUiMetrics dragonUiMetricsForContext(const UiRenderContext& ui);
-DragonUiMetrics dragonUiMetricsForLayout(DragonLayoutClass layoutClass);
 DragonUiMetrics dragonUiMetricsForPreset(CanvasPreset preset);
 SDL_FRect dragonPixelUiSafeArea(CanvasDimensions dimensions);
 

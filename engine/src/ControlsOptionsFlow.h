@@ -14,10 +14,6 @@ ControlsOptionsContext controlsOptionsContext(const AppState& state) {
     return context;
 }
 
-std::vector<OptionsMenuRowView> buildOptionsMenuRows(const AppState& state) {
-    return buildControlsOptionsRows(controlsOptionsContext(state));
-}
-
 int cycleGamepadAssignmentForOptions(int assignment, int deviceCount, int direction) {
     std::vector<int> values;
     values.push_back(0);

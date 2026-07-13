@@ -324,18 +324,6 @@ inline bool storyBoardSectionAddress(std::string_view name, StoryBoardSectionAdd
     return true;
 }
 
-inline bool storyBoardSectionIndices(std::string_view name, int& boardIndex, int& waveIndex) {
-    StoryBoardSectionAddress address;
-    if (!storyBoardSectionAddress(name, address) || address.segmentIndex >= 0) {
-        boardIndex = -1;
-        waveIndex = -1;
-        return false;
-    }
-    boardIndex = address.boardIndex;
-    waveIndex = address.waveIndex;
-    return true;
-}
-
 inline StoryBoardWaveSpec storyBoardWaveSpecFromSection(const MugenSection& section) {
     StoryBoardWaveSpec wave;
     wave.clearText = storyBoardPropertyValue(section, "clear_text");

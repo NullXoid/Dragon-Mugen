@@ -22,7 +22,7 @@ All notable Dragon MUGEN changes are recorded here. Engine commits update the `U
 
 ### Removed
 
-- Removed proven internal zero-call helpers, obsolete per-controller state, and unreachable legacy presentation layouts.
+- Removed 33 proven internal zero-call functions, their orphaned helpers, unused Shop cover variants, and obsolete per-controller fired-state collections. Generic controller persistence and public APIs remain.
 
 ### Compatibility
 

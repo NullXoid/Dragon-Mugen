@@ -55,7 +55,6 @@ bool gamepadButtonMapsToFighterStart(SDL_GamepadType type, SDL_GamepadButton but
 std::string gamepadFamilyName(SDL_GamepadType type);
 
 FighterControls p1Controls();
-FighterControls p2Controls();
 FighterInputState collectFighterInput(const bool* keys, const FighterControls& controls, const GamepadDevice* gamepad);
 bool physicalInputDown(
     const bool* keys,

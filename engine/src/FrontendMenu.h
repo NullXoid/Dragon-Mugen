@@ -48,7 +48,6 @@ FrontendAction decideMainMenuAction(int selected);
 int moveOptionsSelection(int selected, FrontendKey key);
 MainSettings cycleMainSetting(MainSettings settings, int row, int direction, int gamepadDeviceCount);
 FrontendAction decideOptionsAction(const MainSettings& settings, FrontendKey key);
-std::string_view mainSettingLabel(int option);
 std::string matchTimerSettingText(const MainSettings& settings);
 std::string canvasSizeSettingText(const MainSettings& settings);
 std::string uiScaleSettingText(const MainSettings& settings);

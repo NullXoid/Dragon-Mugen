@@ -145,19 +145,6 @@ bool shouldRunSimpleStateRuntimeController(
     int triggerTime,
     int triggerAnimElem);
 
-bool stateCtrlAlreadyFired(const FighterState& fighter, int ctrlControllerId) {
-    return std::find(
-        fighter.firedStateCtrlControllerIds.begin(),
-        fighter.firedStateCtrlControllerIds.end(),
-        ctrlControllerId) != fighter.firedStateCtrlControllerIds.end();
-}
-
-void markStateCtrlFired(FighterState& fighter, int ctrlControllerId) {
-    if (!stateCtrlAlreadyFired(fighter, ctrlControllerId)) {
-        fighter.firedStateCtrlControllerIds.push_back(ctrlControllerId);
-    }
-}
-
 void updateStateCtrlControllers(AppState& state, FighterState& fighter) {
     forEachRuntimeControllerStateDefinition(state, fighter, [&](const StateDefinition& stateDef) {
         for (const auto& ctrl : stateDef.ctrlSets) {
@@ -178,32 +165,6 @@ void updateStateCtrlControllers(AppState& state, FighterState& fighter) {
         }
         return true;
     });
-}
-
-bool statePosAddAlreadyFired(const FighterState& fighter, int posAddControllerId) {
-    return std::find(
-        fighter.firedStatePosAddControllerIds.begin(),
-        fighter.firedStatePosAddControllerIds.end(),
-        posAddControllerId) != fighter.firedStatePosAddControllerIds.end();
-}
-
-void markStatePosAddFired(FighterState& fighter, int posAddControllerId) {
-    if (!statePosAddAlreadyFired(fighter, posAddControllerId)) {
-        fighter.firedStatePosAddControllerIds.push_back(posAddControllerId);
-    }
-}
-
-bool stateChangeAnimAlreadyFired(const FighterState& fighter, int changeAnimControllerId) {
-    return std::find(
-        fighter.firedStateChangeAnimControllerIds.begin(),
-        fighter.firedStateChangeAnimControllerIds.end(),
-        changeAnimControllerId) != fighter.firedStateChangeAnimControllerIds.end();
-}
-
-void markStateChangeAnimFired(FighterState& fighter, int changeAnimControllerId) {
-    if (!stateChangeAnimAlreadyFired(fighter, changeAnimControllerId)) {
-        fighter.firedStateChangeAnimControllerIds.push_back(changeAnimControllerId);
-    }
 }
 
 #include "RuntimeExpressionEvaluation.h"

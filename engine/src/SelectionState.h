@@ -26,7 +26,6 @@ struct SelectionState {
 const CharacterSlot* characterSlotAt(const SelectionState& selection, int index);
 const CharacterSlot* selectedCharacterSlot(const SelectionState& selection);
 const CharacterSlot* sessionP1CharacterSlot(const SelectionState& selection);
-const CharacterSlot* loadedP1CharacterSlot(const SelectionState& selection);
 int sessionP1CharacterIndex(const SelectionState& selection);
 int safeCharacterIndex(const SelectionState& selection, int index);
 int defaultP2CharacterIndex(const SelectionState& selection, int p1Index);

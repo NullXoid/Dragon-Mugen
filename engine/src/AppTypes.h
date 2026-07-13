@@ -165,10 +165,6 @@ inline CanvasDimensions presentationDimensions() {
     return { kPresentationLogicalWidth, kPresentationLogicalHeight };
 }
 
-inline bool canvasPresetChangesLayout(CanvasPreset) {
-    return false;
-}
-
 enum class DragonLayoutClass {
     Classic,
     WideLowRes,

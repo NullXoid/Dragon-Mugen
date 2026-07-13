@@ -145,16 +145,6 @@ void toggleScreenshotFreeze(AppState& state) {
     playMenuCursorDoneSound(state);
 }
 
-int settingCycleDirection(FrontendKey key) {
-    if (key == FrontendKey::Left) {
-        return -1;
-    }
-    if (key == FrontendKey::Right || key == FrontendKey::Accept) {
-        return 1;
-    }
-    return 0;
-}
-
 void resetSingleFightCharacterConfirms(AppState& state) {
     state.selection.p1CharacterConfirmed = false;
     state.selection.p2CharacterConfirmed = false;

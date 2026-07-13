@@ -364,26 +364,6 @@ bool snapshotIsAirborne(const FighterSnapshot& fighter) {
     return !fighter.onGround || fighter.stateType == 'A' || fighter.y < -0.5f;
 }
 
-AirLandingObservation holdInputUntilLanding(RuntimeProbe& runtime, const SymbolicInput& input, int maxFrames) {
-    AirLandingObservation observation;
-    observation.yMin = runtime.snapshot().p1.y;
-    for (int i = 0; i < maxFrames; ++i) {
-        runtime.step(input, 1);
-        const auto p1 = runtime.snapshot().p1;
-        observation.yMin = std::min(observation.yMin, p1.y);
-        if (snapshotIsAirborne(p1)) {
-            if (observation.landed) {
-                observation.reenteredAirAfterLanding = true;
-            }
-            observation.sawAir = true;
-        } else if (observation.sawAir && p1.onGround) {
-            observation.landed = true;
-        }
-        observation.final = p1;
-    }
-    return observation;
-}
-
 AirLandingObservation launchInputUntilLanding(RuntimeProbe& runtime, const SymbolicInput& input, int maxFrames) {
     AirLandingObservation observation;
     observation.yMin = runtime.snapshot().p1.y;

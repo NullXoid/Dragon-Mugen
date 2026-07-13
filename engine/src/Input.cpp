@@ -23,22 +23,6 @@ FighterControls p1Controls() {
     return FighterControls{};
 }
 
-FighterControls p2Controls() {
-    FighterControls controls;
-    controls.left = SDL_SCANCODE_J;
-    controls.right = SDL_SCANCODE_L;
-    controls.up = SDL_SCANCODE_I;
-    controls.down = SDL_SCANCODE_K;
-    controls.s = SDL_SCANCODE_SEMICOLON;
-    controls.x = SDL_SCANCODE_U;
-    controls.y = SDL_SCANCODE_O;
-    controls.z = SDL_SCANCODE_P;
-    controls.a = SDL_SCANCODE_N;
-    controls.b = SDL_SCANCODE_M;
-    controls.c = SDL_SCANCODE_COMMA;
-    return controls;
-}
-
 bool isPlaystationGamepad(SDL_GamepadType type) {
     return type == SDL_GAMEPAD_TYPE_PS3 || type == SDL_GAMEPAD_TYPE_PS4 || type == SDL_GAMEPAD_TYPE_PS5;
 }

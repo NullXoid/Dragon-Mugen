@@ -43,10 +43,6 @@ const CharacterSlot* sessionP1CharacterSlot(const SelectionState& selection) {
     return selectedCharacterSlot(selection);
 }
 
-const CharacterSlot* loadedP1CharacterSlot(const SelectionState& selection) {
-    return characterSlotAt(selection, selection.loadedP1Character);
-}
-
 int sessionP1CharacterIndex(const SelectionState& selection) {
     return characterSlotAt(selection, selection.sessionSlots.p1Character)
         ? selection.sessionSlots.p1Character

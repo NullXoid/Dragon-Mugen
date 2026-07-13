@@ -583,31 +583,6 @@ void applyTargetBindings(AppState& state) {
     }
 }
 
-CollisionBox collisionBoxToWorld(const CollisionBox& box, const FighterState& fighter, const AnimationFrame& frame) {
-    const bool facingLeft = fighter.facing < 0;
-    const bool mirrorX = frame.flipX != facingLeft;
-    float x1 = box.x1;
-    float x2 = box.x2;
-    float y1 = box.y1;
-    float y2 = box.y2;
-
-    if (mirrorX) {
-        x1 = -box.x2;
-        x2 = -box.x1;
-    }
-    if (frame.flipY) {
-        y1 = -box.y2;
-        y2 = -box.y1;
-    }
-
-    return CollisionBox{
-        fighter.x + std::min(x1, x2),
-        fighter.y + std::min(y1, y2),
-        fighter.x + std::max(x1, x2),
-        fighter.y + std::max(y1, y2),
-    };
-}
-
 CollisionBox collisionBoxToWorldScaled(
     const CollisionBox& box,
     const FighterState& fighter,

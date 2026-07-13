@@ -480,15 +480,8 @@ bool setFighterActionElementWithOwner(const AppState& state, FighterState& fight
     return true;
 }
 
-void setFighterActionElement(const AppState& state, FighterState& fighter, int action, int elem) {
-    setFighterActionElementWithOwner(state, fighter, action, elem, -1);
-}
-
 void clearStateRuntimeControllerTracking(FighterState& fighter) {
     fighter.firedStateSoundControllerIds.clear();
-    fighter.firedStateCtrlControllerIds.clear();
-    fighter.firedStatePosAddControllerIds.clear();
-    fighter.firedStateChangeAnimControllerIds.clear();
     fighter.firedStateRuntimeControllerIds.clear();
     fighter.firedStateRuntimeControllerFrameKeys.clear();
     fighter.stateRuntimeControllerCooldowns.clear();

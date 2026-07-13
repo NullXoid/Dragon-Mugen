@@ -403,15 +403,6 @@ void drawDirectionGuideButton(
     drawGuideDirectionArrow(renderer, scale, centerX, centerY, direction.label);
 }
 
-TrainingCommandButtonGuideButtonView asButtonGuideButton(const TrainingCommandDirectionGuideButtonView& direction) {
-    return TrainingCommandButtonGuideButtonView{
-        direction.label,
-        direction.pressed,
-        direction.required,
-        direction.matched,
-    };
-}
-
 template <typename ButtonView>
 void drawGuideCluster(
     SDL_Renderer* renderer,

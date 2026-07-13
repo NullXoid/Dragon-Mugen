@@ -111,11 +111,6 @@ int singleFightRoundResultHoldTicks(const AppState& state) {
     return std::max(75, state.fightRoundSettings.winTime + 30);
 }
 
-bool canEnterState(const AppState& state, int stateNo) {
-    const StateDefinition* stateDef = findStateDefinition(state, stateNo);
-    return stateDef && (!stateDef->hasAnim || findExactClip(state, stateDef->anim));
-}
-
 bool canEnterStateForActor(const AppState& state, const FighterState& fighter, int stateNo) {
     const StateDefinition* stateDef = findStateDefinitionForActor(state, fighter, stateNo);
     return stateDef && (!stateDef->hasAnim || findExactClipForActor(state, fighter, stateDef->anim));

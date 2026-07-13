@@ -36,12 +36,6 @@ void enterRoundInitialState(const AppState& state, FighterState& fighter) {
     enterState(state, fighter, findStateDefinitionForActor(state, fighter, 5900) ? 5900 : 0);
 }
 
-void applyRootFighterSizeScale(const AppState& state, FighterState& fighter) {
-    const CharacterConstants& constants = characterConstantsForActor(state, fighter);
-    fighter.scaleX = constants.sizeScaleX;
-    fighter.scaleY = constants.sizeScaleY;
-}
-
 void clearFighterVariables(FighterState& fighter) {
     fighter.vars.fill(0);
     fighter.sysVars.fill(0);
@@ -318,12 +312,6 @@ void resetFightRound(AppState& state) {
     state.fighters[1].appliedHitDefIds.clear();
     state.fighters[0].firedStateSoundControllerIds.clear();
     state.fighters[1].firedStateSoundControllerIds.clear();
-    state.fighters[0].firedStateCtrlControllerIds.clear();
-    state.fighters[1].firedStateCtrlControllerIds.clear();
-    state.fighters[0].firedStatePosAddControllerIds.clear();
-    state.fighters[1].firedStatePosAddControllerIds.clear();
-    state.fighters[0].firedStateChangeAnimControllerIds.clear();
-    state.fighters[1].firedStateChangeAnimControllerIds.clear();
     state.fighters[0].firedStateRuntimeControllerIds.clear();
     state.fighters[1].firedStateRuntimeControllerIds.clear();
     state.fighters[0].moveContact = false;

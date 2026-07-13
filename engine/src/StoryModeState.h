@@ -237,21 +237,6 @@ int storySelectableBoardNodeCount(const AppState& state) {
     return count;
 }
 
-int storySelectedBoardDisplayIndex(const AppState& state) {
-    int displayIndex = 0;
-    for (int i = 0; i < static_cast<int>(state.story.boardRoute.nodes.size()); ++i) {
-        const StoryBoardNode& node = state.story.boardRoute.nodes[static_cast<size_t>(i)];
-        if (!storyBoardNodeSelectable(node)) {
-            continue;
-        }
-        if (i == state.story.selectedBoardNode) {
-            return displayIndex;
-        }
-        ++displayIndex;
-    }
-    return 0;
-}
-
 int nextStoryPlayableBoardNodeIndex(const AppState& state, int startIndex) {
     for (int i = startIndex + 1; i < static_cast<int>(state.story.boardRoute.nodes.size()); ++i) {
         if (storyBoardNodeStartsFight(state.story.boardRoute.nodes[static_cast<size_t>(i)])) {
@@ -601,15 +586,6 @@ int findStoryDefaultStageIndex(const AppState& state) {
     }
 
     return std::clamp(state.selection.selectedStage, 0, static_cast<int>(state.selection.stages.size()) - 1);
-}
-
-void selectStoryDefaultStage(AppState& state) {
-    ensureStoryBoardRouteLoaded(state);
-    if (state.story.boardRoute.nodes.empty()) {
-        state.selection.selectedStage = findStoryDefaultStageIndex(state);
-        return;
-    }
-    syncStorySelectedStageToBoardNode(state);
 }
 
 int livingStoryEnemyCount(const AppState& state) {

@@ -48,14 +48,6 @@ float shopDemoSceneH(const AppState& state, float h240) {
     return (h240 / 240.0f) * shopDemoLayoutRects(state).world.h * shopDemoWorldZoom(state);
 }
 
-float shopDemoCounterTopY(const AppState& state) {
-    return shopDemoSceneY(state, 120.0f);
-}
-
-float shopDemoCounterFrontY(const AppState& state) {
-    return shopDemoSceneY(state, 124.8f);
-}
-
 float shopDemoCounterFrontBottomY(const AppState& state) {
     return shopDemoSceneY(state, 182.4f);
 }
@@ -116,36 +108,6 @@ void drawShopTextureCover(SDL_Renderer* renderer, const TextureSprite& sprite, c
     const float srcY = std::max(0.0f, texH - srcH) * 0.5f;
     SDL_FRect src{srcX, srcY, srcW, srcH};
     SDL_RenderTexture(renderer, sprite.texture, &src, &dst);
-}
-
-void drawShopTextureCoverVerticalAligned(
-    SDL_Renderer* renderer,
-    const TextureSprite& sprite,
-    const SDL_FRect& dst,
-    float pan01,
-    float verticalAnchor01) {
-    if (!sprite.texture || sprite.width <= 0 || sprite.height <= 0 || dst.w <= 0.0f || dst.h <= 0.0f) {
-        return;
-    }
-    const float texW = static_cast<float>(sprite.width);
-    const float texH = static_cast<float>(sprite.height);
-    const float texAspect = texW / texH;
-    const float dstAspect = dst.w / dst.h;
-    float srcW = texW;
-    float srcH = texH;
-    if (texAspect > dstAspect) {
-        srcW = texH * dstAspect;
-    } else {
-        srcH = texW / dstAspect;
-    }
-    const float srcX = std::max(0.0f, texW - srcW) * std::clamp(pan01, 0.0f, 1.0f);
-    const float srcY = std::max(0.0f, texH - srcH) * std::clamp(verticalAnchor01, 0.0f, 1.0f);
-    SDL_FRect src{srcX, srcY, srcW, srcH};
-    SDL_RenderTexture(renderer, sprite.texture, &src, &dst);
-}
-
-void drawShopTextureCoverBottomAligned(SDL_Renderer* renderer, const TextureSprite& sprite, const SDL_FRect& dst, float pan01) {
-    drawShopTextureCoverVerticalAligned(renderer, sprite, dst, pan01, 1.0f);
 }
 
 float shopDemoFloorY(const AppState& state, float depthZ) {

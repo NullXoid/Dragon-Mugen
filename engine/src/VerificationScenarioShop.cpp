@@ -266,8 +266,7 @@ int runShopRoomActorProjection(RuntimeProbe& runtime, std::ostream& out) {
         && sceneText.find("frontH * counterAspect()") != std::string::npos
         && sceneText.find("shopDemoCounterVisualBottomY(state)") != std::string::npos
         && sceneText.find("frontBottomY - frontH") != std::string::npos
-        && runtimeText.find("kShopCounterW + 80.0f") == std::string::npos
-        && sceneText.find("void drawShopTextureCoverVerticalAligned") != std::string::npos;
+        && runtimeText.find("kShopCounterW + 80.0f") == std::string::npos;
     const bool shopPromptPackPresent =
         shopPromptText.find("i_chie_shop_backdrop.png") != std::string::npos
         && shopPromptText.find("i_chie_shop_counter_back.png") == std::string::npos

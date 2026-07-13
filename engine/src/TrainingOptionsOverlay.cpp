@@ -20,8 +20,6 @@ constexpr float kOptionsClassicVirtualW = 320.0f;
 constexpr float kOptionsDefaultVirtualW = 426.0f;
 constexpr float kOptionsExtraWideVirtualW = 480.0f;
 constexpr float kOptionsVirtualH = 240.0f;
-constexpr float kOptionsPanelMinW = 320.0f;
-constexpr float kOptionsPanelMaxW = 380.0f;
 constexpr float kMoveListPanelMinW = 316.0f;
 constexpr float kMoveListPanelMaxW = 462.0f;
 constexpr int kMoveListVisibleRows = 10;
@@ -78,74 +76,6 @@ float debugTextWidth(const char* text) {
     return text ? debugTextWidth(std::string(text)) : 0.0f;
 }
 
-struct OptionsMenuLayout {
-    float panelX = 0.0f;
-    float panelY = 30.0f;
-    float panelW = kOptionsPanelMinW;
-    float panelH = 184.0f;
-    float columnHeaderY = 0.0f;
-    float listX = 0.0f;
-    float listY = 58.0f;
-    float listW = 0.0f;
-    float listH = 126.0f;
-    float footerY = 0.0f;
-    float footerH = 16.0f;
-    float labelX = 0.0f;
-    float statusCellX = 0.0f;
-    float statusCellW = 0.0f;
-    float rowH = 11.0f;
-    float rowTextOffsetY = 2.0f;
-};
-
-OptionsMenuLayout optionsMenuLayout(const TrainingOptionsMenuView& view, float frameW) {
-    float maxLabelW = debugTextWidth("SETTING");
-    float maxStatusW = debugTextWidth("VALUE");
-    for (const auto& row : view.rows) {
-        maxLabelW = std::max(maxLabelW, debugTextWidth(optionsMenuLabel(row.label)));
-        maxStatusW = std::max(maxStatusW, debugTextWidth(optionsMenuStatus(row.status)));
-    }
-
-    OptionsMenuLayout layout;
-    frameW = std::max(kOptionsClassicVirtualW, frameW);
-    const float availableMaxW = std::clamp(frameW - 20.0f, 240.0f, kOptionsPanelMaxW);
-    const float minW = std::min(kOptionsPanelMinW, availableMaxW);
-    const float statusCellW = std::clamp(maxStatusW + 28.0f, 64.0f, 96.0f);
-    const float contentW = 16.0f + 18.0f + maxLabelW + 28.0f + statusCellW + 26.0f + 16.0f;
-    const float footerW = 20.0f + debugTextWidth(kOptionsFooter) + 8.0f;
-    const float headerW = 10.0f + debugTextWidth(kOptionsTitle) + 16.0f + debugTextWidth(view.pageLabel) + 10.0f;
-    const float desiredPanelW = std::max(std::max(contentW + 24.0f, footerW), headerW);
-    layout.panelW = std::clamp(std::ceil(desiredPanelW), minW, availableMaxW);
-    layout.panelX = std::floor((frameW - layout.panelW) * 0.5f);
-
-    const int rowCount = std::max(1, static_cast<int>(view.rows.size()));
-    layout.listX = layout.panelX + 16.0f;
-    layout.listY = layout.panelY + 34.0f;
-    layout.listW = layout.panelW - 32.0f;
-    layout.listH = static_cast<float>(rowCount) * layout.rowH + 8.0f;
-    layout.columnHeaderY = layout.listY - 10.0f;
-    layout.footerY = layout.listY + layout.listH + 5.0f;
-    layout.panelH = layout.footerY - layout.panelY + layout.footerH + 1.0f;
-    if (layout.panelY + layout.panelH > kOptionsVirtualH - 4.0f) {
-        layout.panelY = std::max(4.0f, kOptionsVirtualH - layout.panelH - 4.0f);
-        layout.listY = layout.panelY + 34.0f;
-        layout.columnHeaderY = layout.listY - 10.0f;
-        layout.footerY = layout.listY + layout.listH + 5.0f;
-    }
-
-    layout.labelX = layout.listX + 18.0f;
-    layout.statusCellW = statusCellW;
-    layout.statusCellX = layout.listX + layout.listW - layout.statusCellW - 26.0f;
-    return layout;
-}
-
-float selectedLabelPillX(const OptionsMenuLayout& layout) {
-    return layout.listX + 7.0f;
-}
-
-float selectedLabelPillW(const OptionsMenuLayout& layout) {
-    return std::max(24.0f, layout.statusCellX - selectedLabelPillX(layout) - 14.0f);
-}
-
 void fillPill(SDL_Renderer* renderer, float x, float y, float w, float h) {
     if (w <= 0.0f || h <= 0.0f) {
         return;
@@ -162,20 +92,6 @@ void fillPill(SDL_Renderer* renderer, float x, float y, float w, float h) {
         fillRect(renderer, x + radius - span, y + static_cast<float>(row), span, 1.0f);
         fillRect(renderer, x + w - radius, y + static_cast<float>(row), span, 1.0f);
     }
-}
-
-void drawValuePill(SDL_Renderer* renderer, const OptionsMenuLayout& layout, float rowTop, const std::string& status, bool selected) {
-    const float pillY = rowTop + 1.0f;
-    const float pillH = layout.rowH - 3.0f;
-
-    setColor(renderer, selected ? 255 : 82, selected ? 238 : 96, selected ? 160 : 124, 220);
-    fillPill(renderer, layout.statusCellX, pillY, layout.statusCellW, pillH);
-    setColor(renderer, selected ? 230 : 18, selected ? 220 : 24, selected ? 172 : 34, selected ? 238 : 232);
-    fillPill(renderer, layout.statusCellX + 1.0f, pillY + 1.0f, layout.statusCellW - 2.0f, pillH - 2.0f);
-
-    setColor(renderer, selected ? 8 : 214, selected ? 12 : 224, selected ? 16 : 234);
-    const float statusX = layout.statusCellX + std::max(2.0f, (layout.statusCellW - debugTextWidth(status)) * 0.5f);
-    debugText(renderer, statusX, rowTop + layout.rowTextOffsetY, status);
 }
 
 struct MoveListLayout {
@@ -331,13 +247,6 @@ std::string normalizedMoveSectionLabel(const std::string& category) {
         return "Super Move";
     }
     return category.empty() ? "All Techniques" : category;
-}
-
-std::string moveListSectionLabel(const TrainingMoveListView& view) {
-    if (view.detail.visible && !view.detail.type.empty()) {
-        return normalizedMoveSectionLabel(view.detail.type);
-    }
-    return normalizedMoveSectionLabel(view.categoryLabel);
 }
 
 void drawMiniButton(SDL_Renderer* renderer, float x, float y, const std::string& label, bool active = false) {

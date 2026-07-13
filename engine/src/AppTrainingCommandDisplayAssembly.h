@@ -820,21 +820,6 @@ std::vector<std::string> recentPhysicalInputDisplayTokens(
     return tokens;
 }
 
-bool commandInputHasAnyToken(const std::string& input, std::initializer_list<std::string_view> aliases) {
-    for (const auto& token : commandInputTokens(input)) {
-        if (token.kind == CommandInputTokenKind::Space) {
-            continue;
-        }
-        const std::string id = commandInputIconId(token.text);
-        for (std::string_view alias : aliases) {
-            if (id == commandInputIconId(alias)) {
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
 std::string uppercaseTrimmed(std::string_view value) {
     std::string out = uppercaseCopy(trim(value));
     return out;

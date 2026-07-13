@@ -228,23 +228,6 @@ FrontendAction decideOptionsAction(const MainSettings& settings, FrontendKey key
     return {};
 }
 
-std::string_view mainSettingLabel(int option) {
-    static constexpr std::array<std::string_view, kMainSettingsCount> labels{
-        "MATCH TIMER",
-        "RESOLUTION",
-        "UI SCALE",
-        "FPS CAP",
-        "P1 PROFILE",
-        "P2 PROFILE",
-        "PAD LABELS",
-        "P1 GAMEPAD",
-        "P2 GAMEPAD",
-        "FALL FALLBACKS",
-        "BACK",
-    };
-    return labels[static_cast<size_t>(std::clamp(option, 0, kMainSettingsCount - 1))];
-}
-
 std::string matchTimerSettingText(const MainSettings& settings) {
     if (settings.matchTimerSeconds <= 0) {
         return "OFF";

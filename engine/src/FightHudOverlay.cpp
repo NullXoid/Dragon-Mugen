@@ -124,68 +124,9 @@ void drawComboCounter(const UiRenderContext& ui, const FightComboCounterView& co
     debugText(ui.renderer, x + countWidth + labelOffsetX, y + combo.textOffsetY, label);
 }
 
-void drawPowerGauge(const UiRenderContext& ui, const FightPowerGaugeView& power, bool p2) {
-    const float barStart = power.anchorX + power.rangeStart;
-    const float barEnd = power.anchorX + power.rangeEnd;
-    const float barLeft = std::min(barStart, barEnd);
-    const float barWidth = std::max(1.0f, std::abs(barEnd - barStart));
-    constexpr float gaugeH = 5.0f;
-    const int maxPower = std::max(1, power.maxValue);
-    const float ratio = std::clamp(static_cast<float>(power.value) / static_cast<float>(maxPower), 0.0f, 1.0f);
-    const float fill = barWidth * ratio;
-
-    setColor(ui.renderer, 8, 10, 12, 230);
-    fillRect(ui.renderer, barLeft - 4.0f, power.y - 2.0f, barWidth + 8.0f, gaugeH + 4.0f);
-    setColor(ui.renderer, 60, 70, 88);
-    drawRect(ui.renderer, barLeft - 4.0f, power.y - 2.0f, barWidth + 8.0f, gaugeH + 4.0f);
-    setColor(ui.renderer, 236, 198, 74);
-    if (barEnd < barStart) {
-        fillRect(ui.renderer, barStart - fill, power.y, fill, gaugeH);
-    } else {
-        fillRect(ui.renderer, barStart, power.y, fill, gaugeH);
-    }
-
-    setColor(ui.renderer, 178, 188, 204);
-    debugText(ui.renderer, p2 ? barEnd - 44.0f : barEnd + 6.0f, power.y - 3.0f, "POWER");
-    const int stocks = power.value / 1000;
-    for (int i = 0; i < 3; ++i) {
-        if (i < stocks) {
-            setColor(ui.renderer, 236, 198, 74);
-        } else {
-            setColor(ui.renderer, 56, 62, 76);
-        }
-        const float pipX = p2 ? barEnd - 7.0f - static_cast<float>(i * 8) : barEnd + 6.0f + static_cast<float>(i * 8);
-        fillRect(ui.renderer, pipX, power.y + 7.0f, 5.0f, 3.0f);
-    }
-}
-
 float lifeBarFillWidth(const FighterHudView& fighter, float maxWidth) {
     const int maxLife = std::max(1, fighter.maxLife);
     return maxWidth * std::clamp(static_cast<float>(fighter.life) / static_cast<float>(maxLife), 0.0f, 1.0f);
-}
-
-void drawArenaPowerStrip(const UiRenderContext& ui, const FighterHudView& fighter, float x, float y, float width) {
-    const int maxPower = std::max(1, fighter.power.maxValue);
-    const float fillW = std::clamp(static_cast<float>(fighter.power.value) / static_cast<float>(maxPower), 0.0f, 1.0f)
-        * std::max(1.0f, width - 4.0f);
-
-    setColor(ui.renderer, 8, 10, 12, 220);
-    fillRect(ui.renderer, x, y, width, 5.0f);
-    setColor(ui.renderer, 50, 58, 74, 210);
-    drawRect(ui.renderer, x, y, width, 5.0f);
-    setColor(ui.renderer, 236, 198, 74);
-    fillRect(ui.renderer, x + 2.0f, y + 2.0f, fillW, 1.0f);
-
-    const int stocks = std::clamp(fighter.power.value / 1000, 0, 3);
-    for (int i = 0; i < 3; ++i) {
-        const float pipX = x + width - 22.0f + static_cast<float>(i * 7);
-        if (i < stocks) {
-            setColor(ui.renderer, 236, 198, 74);
-        } else {
-            setColor(ui.renderer, 56, 62, 76);
-        }
-        fillRect(ui.renderer, pipX, y + 2.0f, 4.0f, 1.0f);
-    }
 }
 
 float hudTextWidth(const std::string& text, float scale) {

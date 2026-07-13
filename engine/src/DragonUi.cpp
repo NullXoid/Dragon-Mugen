@@ -62,20 +62,6 @@ DragonUiMetrics dragonUiMetricsForContext(const UiRenderContext& ui) {
     return dragonUiMetricsForCanvas(CanvasDimensions{ ui.logicalWidth, ui.logicalHeight }, ui.scale);
 }
 
-DragonUiMetrics dragonUiMetricsForLayout(DragonLayoutClass layoutClass) {
-    switch (layoutClass) {
-    case DragonLayoutClass::StandardDefinition:
-        return dragonUiMetricsForCanvas(dimensionsForPreset(CanvasPreset::Sd854x480), 1.0f);
-    case DragonLayoutClass::HighDefinition:
-        return dragonUiMetricsForCanvas(dimensionsForPreset(CanvasPreset::Hd1280x720), 1.0f);
-    case DragonLayoutClass::Classic:
-    case DragonLayoutClass::WideLowRes:
-    case DragonLayoutClass::ExtraLowRes:
-    default:
-        return dragonUiMetricsForScale(1.0f);
-    }
-}
-
 DragonUiMetrics dragonUiMetricsForPreset(CanvasPreset preset) {
     return dragonUiMetricsForCanvas(dimensionsForPreset(preset), 1.0f);
 }

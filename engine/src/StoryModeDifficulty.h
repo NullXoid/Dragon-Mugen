@@ -33,18 +33,6 @@ inline StoryDifficulty cycleStoryDifficulty(StoryDifficulty difficulty, int dire
     return storyDifficultyFromIndex(next);
 }
 
-inline std::string_view storyDifficultyLabel(StoryDifficulty difficulty) {
-    switch (difficulty) {
-    case StoryDifficulty::Easy:
-        return "EASY";
-    case StoryDifficulty::Hard:
-        return "HARD";
-    case StoryDifficulty::Medium:
-    default:
-        return "MEDIUM";
-    }
-}
-
 inline std::string_view storyDifficultyShortLabel(StoryDifficulty difficulty) {
     switch (difficulty) {
     case StoryDifficulty::Easy:

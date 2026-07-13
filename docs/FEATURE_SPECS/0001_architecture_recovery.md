@@ -56,8 +56,8 @@ Incremental commits may land inside that extraction or hardening pass, but they 
 - [x] Wire feature spec validation into `dev_check.py`.
 - [x] Replace the `App.cpp` size gate with preservation documentation guards.
 - [x] Add an active-change guard that blocks undocumented engine/app code commits.
-- [ ] Remove the audited zero-call internal functions and their orphaned helpers while keeping public APIs.
-- [ ] Remove obsolete per-controller fired-state collections while preserving generic runtime persistence.
+- [x] Remove the audited zero-call internal functions and their orphaned helpers while keeping public APIs.
+- [x] Remove obsolete per-controller fired-state collections while preserving generic runtime persistence.
 - [ ] Collapse fixed 640x360 presentation layouts and remove unreachable Classic/non-HD branches.
 - [ ] Make Dragon targets warning-clean under `/W4` or `-Wall -Wextra -Wpedantic` with opt-in warnings-as-errors.
 - [ ] Require both preservation documentation and an `Unreleased` changelog update for engine commits.

@@ -206,10 +206,6 @@ bool arenaDepthActive(const AppState& state) {
         || isStoryMode(state);
 }
 
-float arenaDepthProjectionOffset(const AppState& state, float depthZ) {
-    return arenaDepthActive(state) ? depthZ * state.arenaConfig.depthProjectionScale : 0.0f;
-}
-
 bool arenaCameraRotationActive(const AppState& state) {
     return arenaDepthActive(state) && arenaCameraRotationSelected(state);
 }

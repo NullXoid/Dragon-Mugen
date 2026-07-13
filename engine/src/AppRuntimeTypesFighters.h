@@ -104,9 +104,6 @@ struct FighterState {
     int projectileGuardedTicks = 0;
     std::vector<int> appliedHitDefIds;
     std::vector<int> firedStateSoundControllerIds;
-    std::vector<int> firedStateCtrlControllerIds;
-    std::vector<int> firedStatePosAddControllerIds;
-    std::vector<int> firedStateChangeAnimControllerIds;
     std::vector<int> firedStateRuntimeControllerIds;
     std::vector<int> firedStateRuntimeControllerFrameKeys;
     std::vector<StateControllerCooldown> stateRuntimeControllerCooldowns;

@@ -147,40 +147,7 @@ std::string gamepadActionLayoutText(const AppState& state, int playerIndex) {
         : "X/Y/LB A/B/RB";
 }
 
-std::string contentLine(const LoadedContentSummary& content) {
-    std::ostringstream out;
-    out << content.characterName << " / " << content.stageName;
-    return out.str();
-}
-
 #include "UiRenderHelpers.h"
-
-std::string mainSettingStatus(const AppState& state, int option) {
-    switch (option) {
-    case 0:
-        return matchTimerSettingText(state.mainSettings);
-    case 1:
-        return canvasSizeSettingText(state.mainSettings);
-    case 2:
-        return uiScaleSettingText(state.mainSettings);
-    case 3:
-        return state.mainSettings.fpsCapEnabled ? "60" : "OFF";
-    case 4:
-        return compactSettingText(dragonProgressionPlayerProfileDisplayName(state.progression.save, 0), 18);
-    case 5:
-        return compactSettingText(dragonProgressionPlayerProfileDisplayName(state.progression.save, 1), 18);
-    case 6:
-        return gamepadPromptStyleText(state.mainSettings.gamepadPromptStyle);
-    case 7:
-        return gamepadAssignmentText(state, 0);
-    case 8:
-        return gamepadAssignmentText(state, 1);
-    case 9:
-        return state.mainSettings.fallFallbacksEnabled ? "ON" : "OFF";
-    default:
-        return "";
-    }
-}
 
 std::string mainSettingsPadSummary(const AppState& state) {
     if (state.gamepads.empty()) {
