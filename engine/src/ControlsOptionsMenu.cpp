@@ -59,7 +59,7 @@ OptionsMenuRowView row(
     return OptionsMenuRowView{ std::move(label), std::move(value), selected, adjustable, disabled };
 }
 
-std::vector<OptionsMenuRowView> buildRootRows(const ControlsOptionsContext& context, int selected) {
+std::vector<OptionsMenuRowView> buildRootRows(int selected) {
     return {
         row("GAMEPLAY", "MATCH/PROFILES", selected == 0),
         row("VIDEO", "CANVAS/FPS", selected == 1),
@@ -130,7 +130,7 @@ std::vector<OptionsMenuRowView> buildPlayerRows(const ControlsOptionsContext& co
     return rows;
 }
 
-std::vector<OptionsMenuRowView> buildKeyboardRows(const ControlsOptionsContext& context, int selected) {
+std::vector<OptionsMenuRowView> buildKeyboardRows(int selected) {
     return {
         row("P1 KEYBOARD", "ARROWS A/S/D Z/X/C", selected == 0),
         row("P2 KEYBOARD", "IJKL U/O/P N/M/,", selected == 1),
@@ -160,7 +160,7 @@ std::vector<OptionsMenuRowView> buildInputTestRows(const ControlsOptionsContext&
     };
 }
 
-std::vector<OptionsMenuRowView> buildRestoreRows(const ControlsOptionsContext& context, int selected) {
+std::vector<OptionsMenuRowView> buildRestoreRows(int selected) {
     return {
         row("RESTORE ALL CONTROLS", "DEFAULTS", selected == 0),
         row("RESTORE PLAYER CONTROLS", "CURRENT PLAYER", selected == 1),
@@ -340,16 +340,16 @@ std::vector<OptionsMenuRowView> buildControlsOptionsRows(const ControlsOptionsCo
     case OptionsMenuScreen::PlayerControls:
         return buildPlayerRows(context, selected);
     case OptionsMenuScreen::KeyboardSetup:
-        return buildKeyboardRows(context, selected);
+        return buildKeyboardRows(selected);
     case OptionsMenuScreen::ControllerSetup:
         return buildControllerRows(context, selected);
     case OptionsMenuScreen::InputTest:
         return buildInputTestRows(context, selected);
     case OptionsMenuScreen::RestoreDefaults:
-        return buildRestoreRows(context, selected);
+        return buildRestoreRows(selected);
     case OptionsMenuScreen::Root:
     default:
-        return buildRootRows(context, selected);
+        return buildRootRows(selected);
     }
 }
 

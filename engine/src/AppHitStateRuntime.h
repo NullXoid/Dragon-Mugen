@@ -283,10 +283,6 @@ bool hitDefCausesFall(const HitDefinition& hitDef, bool wasAirborne) {
         || (!wasAirborne && hitGroundTypeIsTrip(hitDef.groundType));
 }
 
-bool hitDefCausesFall(const HitDefinition& hitDef, const FighterState& target) {
-    return hitDefCausesFall(hitDef, !target.onGround || target.stateType == 'A');
-}
-
 int hitTimeForGetHitVars(const HitDefinition& hitDef, bool wasAirborne, bool wasLyingDown, float hitVelocityY) {
     if (wasLyingDown) {
         return std::max(0, hitDef.downHitTime);

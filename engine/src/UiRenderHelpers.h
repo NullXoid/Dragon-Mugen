@@ -107,25 +107,3 @@ void drawSelectBackground(SDL_Renderer* renderer, const AppState& state) {
     setColor(renderer, 0, 0, 0, 150);
     fillRect(renderer, 0, 160, widthF, 60);
 }
-
-void drawFixedOpponentSlot(
-    SDL_Renderer* renderer,
-    float x,
-    float y,
-    float width,
-    float height,
-    std::string_view label) {
-    setColor(renderer, 12, 14, 18);
-    fillRect(renderer, x, y, width, height);
-    setColor(renderer, 54, 62, 76);
-    drawRect(renderer, x, y, width, height);
-
-    setColor(renderer, 74, 82, 98);
-    fillRect(renderer, x + width * 0.38f, y + height * 0.18f, width * 0.24f, height * 0.22f);
-    fillRect(renderer, x + width * 0.28f, y + height * 0.44f, width * 0.44f, height * 0.38f);
-    setColor(renderer, 34, 38, 46);
-    fillRect(renderer, x + width * 0.34f, y + height * 0.50f, width * 0.32f, height * 0.30f);
-
-    setColor(renderer, 150, 160, 176);
-    debugTextCentered(renderer, x + width * 0.5f, y + height * 0.86f, std::string(label));
-}

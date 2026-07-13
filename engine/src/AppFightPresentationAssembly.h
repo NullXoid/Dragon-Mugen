@@ -485,7 +485,6 @@ void drawFightViewFrame(SDL_Renderer* renderer, const AppState& state, bool pres
     SDL_RenderClear(renderer);
 
     const float widthF = logicalWidthF(state);
-    const float centerX = screenCenterX(state);
     const StageSlot fallbackStage;
     const StageSlot& stage = selectedStageSlot(state.selection) ? *selectedStageSlot(state.selection) : fallbackStage;
     const bool hasStageBackground = hasSelectedStageBackground(state);

@@ -8,6 +8,8 @@ Every engine commit must update both one preservation source (this checklist, th
 
 For cleanup changes, also confirm that audited public APIs remain declared, requested verifier fixtures never substitute roster slot zero, strict compiler warnings are clean, and removed future ideas are preserved in a roadmap/spec rather than dormant code.
 
+Run `build\dragon_mugen.exe --verify missing-character-fixture-fails-setup` after changing verifier setup or roster lookup. It must report setup failure for the declared missing fixture without selecting a fallback character.
+
 ## Automated Checks
 
 Run for source-level changes:

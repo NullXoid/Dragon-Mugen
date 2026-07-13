@@ -6,7 +6,7 @@ All notable Dragon MUGEN changes are recorded here. Engine commits update the `U
 
 ### Added
 
-- Added strict Dragon-target compiler warning modes and documentation/change-notification enforcement for the Architecture Recovery cleanup slice.
+- Added strict Dragon-target compiler warning modes, opt-in warnings-as-errors, and documentation/change-notification enforcement for the Architecture Recovery cleanup slice.
 
 ### Changed
 
@@ -15,7 +15,7 @@ All notable Dragon MUGEN changes are recorded here. Engine commits update the `U
 
 ### Fixed
 
-- Verifier fixture lookup now fails setup when a requested character is absent instead of silently selecting roster slot zero.
+- Verifier fixture lookup now fails setup when a requested character is absent instead of silently selecting roster slot zero, covered by `missing-character-fixture-fails-setup`.
 
 ### Deprecated
 
@@ -31,7 +31,7 @@ All notable Dragon MUGEN changes are recorded here. Engine commits update the `U
 
 ### Internal
 
-- Consolidated presentation on the stable 640x360 virtual canvas and hardened cleanup validation. No intended player-visible behavior change.
+- Consolidated presentation on the stable 640x360 virtual canvas, removed warning-exposed orphan helpers, and hardened cleanup validation. Dragon targets are warning-clean under the strict GNU validation build; no intended player-visible behavior change.
 
 ### Known Issues
 

@@ -65,15 +65,15 @@ int runTrainingMoveListGeometry(RuntimeProbe&, std::ostream& out) {
 
     std::vector<TrainingMoveRowView> firstPageRows{
         { "", "Special Move", "", false, "SPECIAL", true, true },
-        { "01", "Ground Recovery Roll", "B+DB+D+A", true },
-        { "02", "Shoryureppa", "D+DF+F+A", false },
-        { "03", "Shinryuken", "D+F+D+F+Z", false },
-        { "04", "Shippu Jinrai Kyaku", "D+DB+B+X", false },
-        { "05", "Kyouja Renbu", "D+DF+F+C", false },
-        { "06", "Kuuchuu Shakunetsu Hadouken", "D+B+D+B+Z", false },
-        { "07", "Punch Throw", "A+S", false },
-        { "08", "Stand Kick Throw", "Z+X", false },
-        { "09", "Shouki Hatsudou", "B+D+F+A+S", false },
+        { "01", "Ground Recovery Roll", "B+DB+D+A", true, "", false, false },
+        { "02", "Shoryureppa", "D+DF+F+A", false, "", false, false },
+        { "03", "Shinryuken", "D+F+D+F+Z", false, "", false, false },
+        { "04", "Shippu Jinrai Kyaku", "D+DB+B+X", false, "", false, false },
+        { "05", "Kyouja Renbu", "D+DF+F+C", false, "", false, false },
+        { "06", "Kuuchuu Shakunetsu Hadouken", "D+B+D+B+Z", false, "", false, false },
+        { "07", "Punch Throw", "A+S", false, "", false, false },
+        { "08", "Stand Kick Throw", "Z+X", false, "", false, false },
+        { "09", "Shouki Hatsudou", "B+D+F+A+S", false, "", false, false },
     };
     TrainingMoveListView firstPage;
     firstPage.rows = firstPageRows;
@@ -93,15 +93,15 @@ int runTrainingMoveListGeometry(RuntimeProbe&, std::ostream& out) {
 
     std::vector<TrainingMoveRowView> secondPageRows{
         { "", "Super Move", "", false, "SUPER", true, true },
-        { "11", "Hadouken", "D+DF+F+A", false },
-        { "12", "Shakunetsu Hadouken", "B+DB+D+DF+F+Z", false },
-        { "13", "Tatsumaki Senpuukyaku", "D+DB+B+X", false },
-        { "14", "Air Tatsumaki Senpuukyaku", "D+DB+B+X", false },
-        { "15", "Shin Shoryuken", "D+F+D+F+Z", false },
-        { "16", "Raging Demon State 3890", "A+A+F+Z+D", false },
-        { "17", "Long Compatibility Stress Command Entry", "D+DF+F+D+DF+F+A+S", false },
-        { "18", "Arena Forward Dash Bounds Recovery", "F+F", false },
-        { "20", "Command Training Demo Finish Advance", "D+DB+B+D+DB+B+C", true },
+        { "11", "Hadouken", "D+DF+F+A", false, "", false, false },
+        { "12", "Shakunetsu Hadouken", "B+DB+D+DF+F+Z", false, "", false, false },
+        { "13", "Tatsumaki Senpuukyaku", "D+DB+B+X", false, "", false, false },
+        { "14", "Air Tatsumaki Senpuukyaku", "D+DB+B+X", false, "", false, false },
+        { "15", "Shin Shoryuken", "D+F+D+F+Z", false, "", false, false },
+        { "16", "Raging Demon State 3890", "A+A+F+Z+D", false, "", false, false },
+        { "17", "Long Compatibility Stress Command Entry", "D+DF+F+D+DF+F+A+S", false, "", false, false },
+        { "18", "Arena Forward Dash Bounds Recovery", "F+F", false, "", false, false },
+        { "20", "Command Training Demo Finish Advance", "D+DB+B+D+DB+B+C", true, "", false, false },
     };
     TrainingMoveListView secondPage;
     secondPage.rows = secondPageRows;

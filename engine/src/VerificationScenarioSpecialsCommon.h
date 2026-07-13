@@ -81,7 +81,7 @@ bool waitForControllableIdle(RuntimeProbe& runtime, int maxFrames) {
     return p1.stateNo == 0 && p1.ctrl && p1.onGround && p1.moveType == 'I';
 }
 
-bool commandCsvContains(std::string_view commands, std::string_view command) {
+[[maybe_unused]] bool commandCsvContains(std::string_view commands, std::string_view command) {
     size_t start = 0;
     while (start <= commands.size()) {
         size_t end = commands.find(',', start);
@@ -133,7 +133,7 @@ void setInputButton(SymbolicInput& input, char button) {
     }
 }
 
-SymbolicInput buttonsInput(std::initializer_list<char> buttons) {
+[[maybe_unused]] SymbolicInput buttonsInput(std::initializer_list<char> buttons) {
     SymbolicInput input;
     for (const char button : buttons) {
         setInputButton(input, button);
@@ -155,7 +155,7 @@ SymbolicInput directionButtonsInput(std::string_view direction, std::initializer
     return input;
 }
 
-bool snapshotInStateSet(const FighterSnapshot& fighter, std::initializer_list<int> states) {
+[[maybe_unused]] bool snapshotInStateSet(const FighterSnapshot& fighter, std::initializer_list<int> states) {
     return std::find(states.begin(), states.end(), fighter.stateNo) != states.end();
 }
 
@@ -285,11 +285,11 @@ InputSequence ffButtonSequence(std::initializer_list<char> buttons) {
     };
 }
 
-InputSequence ffButtonSequence(char button) {
+[[maybe_unused]] InputSequence ffButtonSequence(char button) {
     return ffButtonSequence({ button });
 }
 
-InputSequence doubleQcfSequence(char button) {
+[[maybe_unused]] InputSequence doubleQcfSequence(char button) {
     return {
         { {}, 3 },
         { directionInput("D"), 2 },
@@ -432,7 +432,7 @@ void recordForcedDamageProbe(RuntimeProbe& runtime, std::ostream& out, Counts& c
         + " hit=\"" + hitText + "\"");
 }
 
-int runShotoSpecialsSupers(
+[[maybe_unused]] int runShotoSpecialsSupers(
     RuntimeProbe& runtime,
     std::ostream& out,
     std::string_view characterId,

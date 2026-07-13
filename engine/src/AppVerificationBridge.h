@@ -26,7 +26,9 @@ public:
             return false;
         }
 
-        state_.selection.selectedCharacter = findCharacterIndex(p1Id);
+        if (!selectRequestedCharacter(p1Id, out)) {
+            return false;
+        }
         if (mode == verification::ScenarioMode::Arena) {
             state_.frontend.pendingMode = PendingMode::Arena;
             setArenaDefaultsFromConfig(state_);
@@ -74,7 +76,9 @@ public:
             return false;
         }
 
-        state_.selection.selectedCharacter = findCharacterIndex(p1Id);
+        if (!selectRequestedCharacter(p1Id, out)) {
+            return false;
+        }
         state_.frontend.pendingMode = mode == verification::ScenarioMode::Story
             ? PendingMode::Story
             : PendingMode::SinglePlayer;
@@ -98,7 +102,9 @@ public:
             return false;
         }
 
-        state_.selection.selectedCharacter = findCharacterIndex(p1Id);
+        if (!selectRequestedCharacter(p1Id, out)) {
+            return false;
+        }
         state_.frontend.pendingMode = PendingMode::Arena;
         setArenaDefaultsFromConfig(state_);
         state_.selection.sessionSlots.arenaCpuCount = 1;
@@ -755,7 +761,20 @@ private:
         state_ = AppState{};
     }
 
+    bool selectRequestedCharacter(std::string_view hint, std::ostream& out) {
+        const int index = findCharacterIndex(hint);
+        if (index < 0) {
+            out << "verification setup failed: requested character fixture not found: " << hint << "\n";
+            return false;
+        }
+        state_.selection.selectedCharacter = index;
+        return true;
+    }
+
     int findCharacterIndex(std::string_view hint) const {
+        if (hint.empty()) {
+            return state_.selection.characters.empty() ? -1 : 0;
+        }
         const std::string wanted = lowercaseCopy(hint);
         for (int i = 0; i < static_cast<int>(state_.selection.characters.size()); ++i) {
             const auto& character = state_.selection.characters[static_cast<size_t>(i)];
@@ -768,7 +787,7 @@ private:
                 return i;
             }
         }
-        return 0;
+        return -1;
     }
 
     int findStageIndex(std::string_view hint) const {

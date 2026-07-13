@@ -534,41 +534,41 @@ bool loadSelectedCharacterRuntime(SDL_Renderer* renderer, AppState& state) {
         state.selection.loadedP1Character = p1Index;
 
         SDL_Log(
-            "Character loaded: %s pal=%d actions=%zu states=%zu hitdefs=%zu command-defs=%zu command-states=%zu sounds=%zu",
+            "Character loaded: %s pal=%d actions=%llu states=%llu hitdefs=%llu command-defs=%llu command-states=%llu sounds=%llu",
             character->displayName.c_str(),
             state.characterPaletteNo,
-            state.characterClips.size(),
-            state.stateDefs.size(),
-            state.hitDefs.size(),
-            state.commandDefinitions.size(),
-            state.commandEntries.size(),
-            state.audio.characterSamples.size());
+            static_cast<unsigned long long>(state.characterClips.size()),
+            static_cast<unsigned long long>(state.stateDefs.size()),
+            static_cast<unsigned long long>(state.hitDefs.size()),
+            static_cast<unsigned long long>(state.commandDefinitions.size()),
+            static_cast<unsigned long long>(state.commandEntries.size()),
+            static_cast<unsigned long long>(state.audio.characterSamples.size()));
         if (const CharacterSlot* opponent = characterSlotAt(state.selection, state.selection.sessionSlots.opponentCharacter)) {
             SDL_Log(
-                "Opponent runtime loaded: %s pal=%d actions=%zu states=%zu hitdefs=%zu command-defs=%zu command-states=%zu sounds=%zu",
+                "Opponent runtime loaded: %s pal=%d actions=%llu states=%llu hitdefs=%llu command-defs=%llu command-states=%llu sounds=%llu",
                 opponent->displayName.c_str(),
                 state.opponentRuntime.paletteNo,
-                state.opponentRuntime.clips.size(),
-                state.opponentRuntime.stateDefs.size(),
-                state.opponentRuntime.hitDefs.size(),
-                state.opponentRuntime.commandDefinitions.size(),
-                state.opponentRuntime.commandEntries.size(),
-                state.opponentRuntime.samples.size());
+                static_cast<unsigned long long>(state.opponentRuntime.clips.size()),
+                static_cast<unsigned long long>(state.opponentRuntime.stateDefs.size()),
+                static_cast<unsigned long long>(state.opponentRuntime.hitDefs.size()),
+                static_cast<unsigned long long>(state.opponentRuntime.commandDefinitions.size()),
+                static_cast<unsigned long long>(state.opponentRuntime.commandEntries.size()),
+                static_cast<unsigned long long>(state.opponentRuntime.samples.size()));
         }
         if (state.frontend.pendingMode == PendingMode::Arena || state.frontend.pendingMode == PendingMode::Story) {
             for (size_t i = 0; i < state.arenaRuntimes.size(); ++i) {
                 const auto& runtime = state.arenaRuntimes[i];
                 SDL_Log(
-                    "%s runtime loaded: %s pal=%d actions=%zu states=%zu hitdefs=%zu command-defs=%zu command-states=%zu sounds=%zu",
+                    "%s runtime loaded: %s pal=%d actions=%llu states=%llu hitdefs=%llu command-defs=%llu command-states=%llu sounds=%llu",
                     state.frontend.pendingMode == PendingMode::Story ? "Story" : "Arena",
                     runtime.name.c_str(),
                     runtime.paletteNo,
-                    runtime.clips.size(),
-                    runtime.stateDefs.size(),
-                    runtime.hitDefs.size(),
-                    runtime.commandDefinitions.size(),
-                    runtime.commandEntries.size(),
-                    runtime.samples.size());
+                    static_cast<unsigned long long>(runtime.clips.size()),
+                    static_cast<unsigned long long>(runtime.stateDefs.size()),
+                    static_cast<unsigned long long>(runtime.hitDefs.size()),
+                    static_cast<unsigned long long>(runtime.commandDefinitions.size()),
+                    static_cast<unsigned long long>(runtime.commandEntries.size()),
+                    static_cast<unsigned long long>(runtime.samples.size()));
             }
         }
         return true;

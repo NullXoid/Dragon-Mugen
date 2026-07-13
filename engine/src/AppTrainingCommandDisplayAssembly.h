@@ -661,36 +661,6 @@ std::string joinTokens(const std::vector<std::string>& tokens, std::string_view 
     return result;
 }
 
-std::string inputDirectionToken(const FighterInputState& input, int facing) {
-    const bool forward = facing >= 0 ? input.right : input.left;
-    const bool back = facing >= 0 ? input.left : input.right;
-    if (input.down && forward) {
-        return "DF";
-    }
-    if (input.down && back) {
-        return "DB";
-    }
-    if (input.up && forward) {
-        return "UF";
-    }
-    if (input.up && back) {
-        return "UB";
-    }
-    if (forward) {
-        return "F";
-    }
-    if (back) {
-        return "B";
-    }
-    if (input.down) {
-        return "D";
-    }
-    if (input.up) {
-        return "U";
-    }
-    return "";
-}
-
 std::string physicalInputDirectionToken(const FighterInputState& input) {
     if (input.down && input.right) {
         return "DF";
@@ -717,39 +687,6 @@ std::string physicalInputDirectionToken(const FighterInputState& input) {
         return "U";
     }
     return "";
-}
-
-std::string inputDisplayToken(
-    const FighterInputState& input,
-    int facing,
-    CommandButtonPromptMode mode = CommandButtonPromptMode::Strength) {
-    std::vector<std::string> tokens;
-    const std::string direction = inputDirectionToken(input, facing);
-    if (!direction.empty()) {
-        tokens.push_back(direction);
-    }
-    if (input.x) {
-        tokens.push_back(commandButtonDisplayToken("x", mode));
-    }
-    if (input.y) {
-        tokens.push_back(commandButtonDisplayToken("y", mode));
-    }
-    if (input.z) {
-        tokens.push_back(commandButtonDisplayToken("z", mode));
-    }
-    if (input.a) {
-        tokens.push_back(commandButtonDisplayToken("a", mode));
-    }
-    if (input.b) {
-        tokens.push_back(commandButtonDisplayToken("b", mode));
-    }
-    if (input.c) {
-        tokens.push_back(commandButtonDisplayToken("c", mode));
-    }
-    if (input.s) {
-        tokens.push_back(commandButtonDisplayToken("s", mode));
-    }
-    return joinTokens(tokens, "+");
 }
 
 std::string physicalInputDisplayToken(
@@ -782,24 +719,6 @@ std::string physicalInputDisplayToken(
         tokens.push_back(commandButtonDisplayToken("s", mode));
     }
     return joinTokens(tokens, "+");
-}
-
-std::vector<std::string> recentInputDisplayTokens(
-    const FighterState& fighter,
-    int maxTokens,
-    CommandButtonPromptMode mode = CommandButtonPromptMode::Strength) {
-    std::vector<std::string> tokens;
-    std::string lastToken;
-    for (auto it = fighter.inputHistory.rbegin(); it != fighter.inputHistory.rend() && static_cast<int>(tokens.size()) < maxTokens; ++it) {
-        std::string token = inputDisplayToken(it->input, fighter.facing, mode);
-        if (token == "-" || token == lastToken) {
-            continue;
-        }
-        tokens.push_back(std::move(token));
-        lastToken = tokens.back();
-    }
-    std::reverse(tokens.begin(), tokens.end());
-    return tokens;
 }
 
 std::vector<std::string> recentPhysicalInputDisplayTokens(

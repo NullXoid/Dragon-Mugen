@@ -43,7 +43,7 @@ int getUpActionForFighter(const AppState& state, const FighterState& fighter) {
     return action != 0 ? action : (findExactClipForActor(state, fighter, 5120) ? 5120 : 0);
 }
 
-void enterGroundImpactState(const AppState& state, FighterState& fighter, int stateNo, int action) {
+void enterGroundImpactState(FighterState& fighter, int stateNo, int action) {
     fighter.prevStateNo = fighter.stateNo;
     fighter.stateNo = stateNo;
     fighter.stateTime = 0;
@@ -80,7 +80,7 @@ bool enterFallGroundImpactIfAvailable(AppState& state, FighterState& fighter) {
         enterState(state, fighter, 0);
         return true;
     }
-    enterGroundImpactState(state, fighter, impact.stateNo, impact.action);
+    enterGroundImpactState(fighter, impact.stateNo, impact.action);
     triggerFallEnvShakeIfNeeded(state, fighter);
     if (fighter.hitFallDamage > 0) {
         fighter.life = std::max(0, fighter.life - fighter.hitFallDamage);

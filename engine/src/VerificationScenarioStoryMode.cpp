@@ -114,17 +114,6 @@ bool setupStory(RuntimeProbe& runtime, std::ostream& out, Counts& counts, std::s
     return true;
 }
 
-bool decodedSpriteHasVisibleColor(const DecodedSprite& decoded) {
-    for (size_t i = 0; i + 3 < decoded.rgba.size(); i += 4) {
-        const bool visible = decoded.rgba[i + 3] > 0;
-        const bool colored = decoded.rgba[i + 0] != 0 || decoded.rgba[i + 1] != 0 || decoded.rgba[i + 2] != 0;
-        if (visible && colored) {
-            return true;
-        }
-    }
-    return false;
-}
-
 #include "VerificationScenarioStoryRouteHelpers.h"
 
 int expectedStoryEnemyTotalForDifficulty(StoryDifficulty difficulty) {

@@ -270,7 +270,6 @@ void enterCommonRecoveryLandingState(const AppState& state, FighterState& fighte
 }
 
 void enterDirectCommonRecoveryState(
-    const AppState& state,
     FighterState& fighter,
     int stateNo,
     int action,
@@ -373,7 +372,7 @@ void updateGroundGetHitState(AppState& state, FighterState& target) {
                 enterState(state, target, 0);
                 return;
             }
-            enterGroundImpactState(state, target, 5110, action);
+            enterGroundImpactState(target, 5110, action);
             triggerFallEnvShakeIfNeeded(state, target);
             startFallGroundLiedownRecovery(state, target);
             return;
@@ -553,7 +552,7 @@ void updateGroundGetHitState(AppState& state, FighterState& target) {
             if (action == 47 || action == 0) {
                 enterCommonLandingState(state, target);
             } else {
-                enterDirectCommonRecoveryState(state, target, action, action, 'A', 'A', true);
+                enterDirectCommonRecoveryState(target, action, action, 'A', 'A', true);
                 target.onGround = false;
             }
             return;

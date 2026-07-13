@@ -137,10 +137,10 @@ bool initAudio(AppState& state) {
         state.audio.commonSamples = loadDecodedSoundSamples(state.gameRoot / "data" / "common.snd", state.audio.playbackSpec);
         state.audio.fightSamples = loadDecodedSoundSamples(state.gameRoot / "data" / "fight.snd", state.audio.playbackSpec);
         SDL_Log(
-            "SND loaded: system %zu common %zu fight %zu",
-            state.audio.systemSamples.size(),
-            state.audio.commonSamples.size(),
-            state.audio.fightSamples.size());
+            "SND loaded: system %llu common %llu fight %llu",
+            static_cast<unsigned long long>(state.audio.systemSamples.size()),
+            static_cast<unsigned long long>(state.audio.commonSamples.size()),
+            static_cast<unsigned long long>(state.audio.fightSamples.size()));
     } catch (const std::exception& ex) {
         SDL_Log("SND load failed: %s", ex.what());
     }

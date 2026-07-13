@@ -451,18 +451,6 @@ float clampUi(float value, float minValue, float maxValue) {
     return std::clamp(value, minValue, std::max(minValue, maxValue));
 }
 
-std::pair<int, int> practiceStepProgress(const TrainingCommandHudView& view) {
-    int matched = 0;
-    int total = 0;
-    for (const auto& step : view.practiceSteps) {
-        ++total;
-        if (step.status == TrainingCommandStepStatus::Matched) {
-            ++matched;
-        }
-    }
-    return { matched, total };
-}
-
 bool rectIntersects(const TrainingHudRect& a, const TrainingHudRect& b) {
     if (a.w <= 0.0f || a.h <= 0.0f || b.w <= 0.0f || b.h <= 0.0f) {
         return false;

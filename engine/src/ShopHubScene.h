@@ -163,7 +163,6 @@ void drawShopDemoContactShadow(
     }
     const int rows = std::max(1, static_cast<int>(std::ceil(height)));
     const float radiusY = height * 0.5f;
-    const float radiusX = width * 0.5f;
     for (int row = 0; row < rows; ++row) {
         const float y = centerY - radiusY + static_cast<float>(row);
         const float dy = (static_cast<float>(row) + 0.5f - radiusY) / std::max(1.0f, radiusY);

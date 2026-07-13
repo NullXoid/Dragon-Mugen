@@ -77,7 +77,7 @@ void summary(std::ostream& out, const Counts& counts) {
         << " blocked=" << counts.blocked << "\n";
 }
 
-std::string lowercaseAsciiCopy(std::string_view value) {
+[[maybe_unused]] std::string lowercaseAsciiCopy(std::string_view value) {
     std::string out(value);
     std::transform(out.begin(), out.end(), out.begin(), [](unsigned char ch) {
         return static_cast<char>(std::tolower(ch));
@@ -85,28 +85,32 @@ std::string lowercaseAsciiCopy(std::string_view value) {
     return out;
 }
 
-const CharacterSlot* findCharacterById(const std::vector<CharacterSlot>& characters, std::string_view id) {
+[[maybe_unused]] const CharacterSlot* findCharacterById(const std::vector<CharacterSlot>& characters, std::string_view id) {
     const auto it = std::find_if(characters.begin(), characters.end(), [id](const CharacterSlot& character) {
         return character.id == id;
     });
     return it == characters.end() ? nullptr : &*it;
 }
 
-const StageSlot* findLegacyOpenBorStage(const std::vector<StageSlot>& stages) {
+[[maybe_unused]] const StageSlot* findLegacyOpenBorStage(const std::vector<StageSlot>& stages) {
     const auto it = std::find_if(stages.begin(), stages.end(), [](const StageSlot& stage) {
         return stage.legacyOpenBorSection && stage.openborScrolling;
     });
     return it == stages.end() ? nullptr : &*it;
 }
 
-void header(std::ostream& out, RuntimeProbe& runtime, std::string_view scenario) {
+[[maybe_unused]] void header(std::ostream& out, RuntimeProbe& runtime, std::string_view scenario) {
     out << "VERIFY " << scenario << "\n" << "root: " << runtime.rootText() << "\n"
         << "stage: " << runtime.stageName() << "\n" << "p1: " << runtime.p1Name() << "\n";
 }
 SymbolicInput withButton(char button) {
     SymbolicInput input;
-    if (button == 'x') input.x = true; if (button == 'y') input.y = true; if (button == 'z') input.z = true;
-    if (button == 'a') input.a = true; if (button == 'b') input.b = true; if (button == 'c') input.c = true;
+    if (button == 'x') input.x = true;
+    if (button == 'y') input.y = true;
+    if (button == 'z') input.z = true;
+    if (button == 'a') input.a = true;
+    if (button == 'b') input.b = true;
+    if (button == 'c') input.c = true;
     return input;
 }
 
@@ -142,21 +146,21 @@ SymbolicInput withDirectionAndButton(std::string_view direction, char button) {
     return input;
 }
 
-void performQcfButton(RuntimeProbe& runtime, char button) {
+[[maybe_unused]] void performQcfButton(RuntimeProbe& runtime, char button) {
     runtime.step({}, 3);
     runtime.step(withDirection("D"), 2);
     runtime.step(withDirection("DF"), 2);
     runtime.step(withDirectionAndButton("F", button), 3);
 }
 
-void performQcbButton(RuntimeProbe& runtime, char button) {
+[[maybe_unused]] void performQcbButton(RuntimeProbe& runtime, char button) {
     runtime.step({}, 3);
     runtime.step(withDirection("D"), 2);
     runtime.step(withDirection("DB"), 2);
     runtime.step(withDirectionAndButton("B", button), 3);
 }
 
-void performDpButton(RuntimeProbe& runtime, char button) {
+[[maybe_unused]] void performDpButton(RuntimeProbe& runtime, char button) {
     runtime.step({}, 3);
     runtime.step(withDirection("F"), 2);
     runtime.step(withDirection("D"), 2);
@@ -177,7 +181,7 @@ bool waitForControllableIdle(RuntimeProbe& runtime, int maxFrames) {
     return p1.stateNo == 0 && p1.ctrl && p1.onGround && p1.moveType == 'I';
 }
 
-bool waitForActiveFight(RuntimeProbe& runtime, int maxFrames) {
+[[maybe_unused]] bool waitForActiveFight(RuntimeProbe& runtime, int maxFrames) {
     for (int i = 0; i < maxFrames; ++i) {
         if (runtime.snapshot().matchPhase == static_cast<int>(MatchPhase::Fight)) {
             return true;
@@ -187,18 +191,18 @@ bool waitForActiveFight(RuntimeProbe& runtime, int maxFrames) {
     return runtime.snapshot().matchPhase == static_cast<int>(MatchPhase::Fight);
 }
 
-float horizontalDistance(const RuntimeSnapshot& snapshot) {
+[[maybe_unused]] float horizontalDistance(const RuntimeSnapshot& snapshot) {
     return std::fabs(snapshot.p2.x - snapshot.p1.x);
 }
 
-std::string stateActionDetail(const FighterSnapshot& before, const FighterSnapshot& after, char command) {
+[[maybe_unused]] std::string stateActionDetail(const FighterSnapshot& before, const FighterSnapshot& after, char command) {
     return "command=" + std::string(1, command) + " state_before=" + std::to_string(before.stateNo)
         + " state_after=" + std::to_string(after.stateNo)
         + " anim_before=" + std::to_string(before.action)
         + " anim_after=" + std::to_string(after.action);
 }
 
-bool tryNormal(RuntimeProbe& runtime, char& usedCommand, FighterSnapshot& before, FighterSnapshot& after, bool crouch) {
+[[maybe_unused]] bool tryNormal(RuntimeProbe& runtime, char& usedCommand, FighterSnapshot& before, FighterSnapshot& after, bool crouch) {
     constexpr std::array<char, 6> buttons{ 'x', 'y', 'z', 'a', 'b', 'c' };
     for (const char button : buttons) {
         runtime.step({}, 30);
@@ -244,7 +248,7 @@ struct TauntCtrlSetObservation {
     FighterSnapshot commandAfterRestore;
 };
 
-TauntCtrlSetObservation observeTauntCtrlSetControlRestore(RuntimeProbe& runtime, char restoreCommand) {
+[[maybe_unused]] TauntCtrlSetObservation observeTauntCtrlSetControlRestore(RuntimeProbe& runtime, char restoreCommand) {
     TauntCtrlSetObservation observation;
     observation.restoreCommand = restoreCommand;
     observation.startedFromIdle = waitForControllableIdle(runtime, 360);
@@ -321,7 +325,7 @@ TauntCtrlSetObservation observeTauntCtrlSetControlRestore(RuntimeProbe& runtime,
     return observation;
 }
 
-bool tauntCtrlSetControlRestorePassed(const TauntCtrlSetObservation& observation) {
+[[maybe_unused]] bool tauntCtrlSetControlRestorePassed(const TauntCtrlSetObservation& observation) {
     return observation.startedFromIdle
         && observation.sawState195
         && observation.sawCtrlFalseInTaunt
@@ -332,7 +336,7 @@ bool tauntCtrlSetControlRestorePassed(const TauntCtrlSetObservation& observation
         && observation.commandWorksAfterRestore;
 }
 
-std::string tauntCtrlSetControlRestoreDetail(const TauntCtrlSetObservation& observation) {
+[[maybe_unused]] std::string tauntCtrlSetControlRestoreDetail(const TauntCtrlSetObservation& observation) {
     return "idle_before=" + std::to_string(observation.startedFromIdle ? 1 : 0)
         + " saw_195=" + std::to_string(observation.sawState195 ? 1 : 0)
         + " ctrl_false_in_195=" + std::to_string(observation.sawCtrlFalseInTaunt ? 1 : 0)
@@ -364,7 +368,7 @@ bool snapshotIsAirborne(const FighterSnapshot& fighter) {
     return !fighter.onGround || fighter.stateType == 'A' || fighter.y < -0.5f;
 }
 
-AirLandingObservation launchInputUntilLanding(RuntimeProbe& runtime, const SymbolicInput& input, int maxFrames) {
+[[maybe_unused]] AirLandingObservation launchInputUntilLanding(RuntimeProbe& runtime, const SymbolicInput& input, int maxFrames) {
     AirLandingObservation observation;
     observation.yMin = runtime.snapshot().p1.y;
     runtime.step(input, 1);
@@ -385,7 +389,7 @@ AirLandingObservation launchInputUntilLanding(RuntimeProbe& runtime, const Symbo
     return observation;
 }
 
-std::string airLandingDetail(const AirLandingObservation& observation) {
+[[maybe_unused]] std::string airLandingDetail(const AirLandingObservation& observation) {
     return "saw_air=" + std::to_string(observation.sawAir ? 1 : 0)
         + " landed=" + std::to_string(observation.landed ? 1 : 0)
         + " reentered_air_after_landing=" + std::to_string(observation.reenteredAirAfterLanding ? 1 : 0)
@@ -398,7 +402,7 @@ std::string airLandingDetail(const AirLandingObservation& observation) {
         + " final_on_ground=" + std::to_string(observation.final.onGround ? 1 : 0);
 }
 
-bool airLandingPassed(const AirLandingObservation& observation) {
+[[maybe_unused]] bool airLandingPassed(const AirLandingObservation& observation) {
     return observation.sawAir
         && observation.landed
         && !observation.reenteredAirAfterLanding
@@ -426,7 +430,7 @@ void performForwardForwardA(RuntimeProbe& runtime) {
     runtime.step({}, 1);
 }
 
-KungFuKneeGroundingObservation observeKungFuKneePosSetGrounding(RuntimeProbe& runtime) {
+[[maybe_unused]] KungFuKneeGroundingObservation observeKungFuKneePosSetGrounding(RuntimeProbe& runtime) {
     KungFuKneeGroundingObservation observation;
     runtime.positionFighters(-80.0f, 80.0f);
     observation.startedFromIdle = waitForControllableIdle(runtime, 360);
@@ -458,7 +462,7 @@ KungFuKneeGroundingObservation observeKungFuKneePosSetGrounding(RuntimeProbe& ru
     return observation;
 }
 
-bool kungFuKneeGroundingPassed(const KungFuKneeGroundingObservation& observation) {
+[[maybe_unused]] bool kungFuKneeGroundingPassed(const KungFuKneeGroundingObservation& observation) {
     return observation.startedFromIdle
         && observation.sawState1050
         && observation.sawState1051
@@ -468,7 +472,7 @@ bool kungFuKneeGroundingPassed(const KungFuKneeGroundingObservation& observation
         && !snapshotIsAirborne(observation.final);
 }
 
-std::string kungFuKneeGroundingDetail(const KungFuKneeGroundingObservation& observation) {
+[[maybe_unused]] std::string kungFuKneeGroundingDetail(const KungFuKneeGroundingObservation& observation) {
     return "idle_before=" + std::to_string(observation.startedFromIdle ? 1 : 0)
         + " saw_1050=" + std::to_string(observation.sawState1050 ? 1 : 0)
         + " saw_1051=" + std::to_string(observation.sawState1051 ? 1 : 0)

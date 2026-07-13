@@ -15,10 +15,6 @@ float debugTextWidth(const std::string& text, float scale = 1.0f) {
     return static_cast<float>(text.size()) * 8.0f * scale;
 }
 
-float debugTextWidth(const char* text, float scale = 1.0f) {
-    return text ? debugTextWidth(std::string(text), scale) : 0.0f;
-}
-
 std::size_t charsThatFit(float width, float scale = 1.0f) {
     return static_cast<std::size_t>(std::max(1.0f, std::floor(width / (8.0f * scale))));
 }
@@ -32,24 +28,6 @@ std::string displayValue(const UiMenuListRowView& row) {
         return "";
     }
     return row.adjustable ? "< " + row.value + " >" : row.value;
-}
-
-void fillPill(SDL_Renderer* renderer, float x, float y, float w, float h) {
-    if (w <= 0.0f || h <= 0.0f) {
-        return;
-    }
-    const float radius = h * 0.5f;
-    fillRect(renderer, x + radius, y, std::max(0.0f, w - radius * 2.0f), h);
-
-    const int rowCount = std::max(1, static_cast<int>(std::ceil(h)));
-    const float centerY = y + radius;
-    for (int row = 0; row < rowCount; ++row) {
-        const float sampleY = y + static_cast<float>(row) + 0.5f;
-        const float dy = sampleY - centerY;
-        const float span = std::sqrt(std::max(0.0f, radius * radius - dy * dy));
-        fillRect(renderer, x + radius - span, y + static_cast<float>(row), span, 1.0f);
-        fillRect(renderer, x + w - radius, y + static_cast<float>(row), span, 1.0f);
-    }
 }
 
 struct MenuListLayout {

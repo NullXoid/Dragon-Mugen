@@ -10,13 +10,6 @@ GamepadDevice* findGamepadDevice(AppState& state, SDL_JoystickID id) {
     return it == state.gamepads.end() ? nullptr : &*it;
 }
 
-const GamepadDevice* findGamepadDevice(const AppState& state, SDL_JoystickID id) {
-    auto it = std::find_if(state.gamepads.begin(), state.gamepads.end(), [id](const GamepadDevice& device) {
-        return device.id == id;
-    });
-    return it == state.gamepads.end() ? nullptr : &*it;
-}
-
 void openGamepadDevice(AppState& state, SDL_JoystickID id) {
     if (findGamepadDevice(state, id) || !SDL_IsGamepad(id)) {
         return;
@@ -231,10 +224,6 @@ void drawMainSettings(SDL_Renderer* renderer, const AppState& state) {
 
 std::string_view opponentSlotLabel(PendingMode mode) {
     return opponentTypeLabel(defaultOpponentTypeForMode(mode));
-}
-
-std::string_view opponentSlotLabel(const AppState& state) {
-    return opponentTypeLabel(activeOpponentType(state));
 }
 
 void drawCharacterSelect(SDL_Renderer* renderer, const AppState& state) {

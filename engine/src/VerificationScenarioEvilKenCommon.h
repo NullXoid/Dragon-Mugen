@@ -85,7 +85,7 @@ bool waitForControllableIdle(RuntimeProbe& runtime, int maxFrames) {
     return p1.stateNo == 0 && p1.ctrl && p1.onGround && p1.moveType == 'I';
 }
 
-std::string moveFailureText(const TrainingMoveInfo& move, const FighterSnapshot& p2, std::string_view commands) {
+[[maybe_unused]] std::string moveFailureText(const TrainingMoveInfo& move, const FighterSnapshot& p2, std::string_view commands) {
     std::ostringstream text;
     text << move.label << " [" << move.input << " -> " << move.targetState << "]"
          << " final_state=" << p2.stateNo
@@ -104,7 +104,7 @@ std::string moveFailureText(const TrainingMoveInfo& move, const FighterSnapshot&
     return text.str();
 }
 
-std::string joinLimited(const std::vector<std::string>& values, size_t limit = 80) {
+[[maybe_unused]] std::string joinLimited(const std::vector<std::string>& values, size_t limit = 80) {
     if (values.empty()) {
         return "-";
     }
@@ -138,7 +138,7 @@ bool commaListContains(std::string_view text, std::string_view needle) {
     return false;
 }
 
-bool commandListMatchesExpected(const TrainingMoveInfo& move, std::string_view commands) {
+[[maybe_unused]] bool commandListMatchesExpected(const TrainingMoveInfo& move, std::string_view commands) {
     for (const auto& command : move.commandNames) {
         if (commaListContains(commands, command)) {
             return true;
@@ -147,7 +147,7 @@ bool commandListMatchesExpected(const TrainingMoveInfo& move, std::string_view c
     return false;
 }
 
-void appendUniqueText(std::vector<std::string>& values, const std::string& value, size_t limit = 12) {
+[[maybe_unused]] void appendUniqueText(std::vector<std::string>& values, const std::string& value, size_t limit = 12) {
     if (value.empty() || values.size() >= limit) {
         return;
     }
@@ -156,7 +156,7 @@ void appendUniqueText(std::vector<std::string>& values, const std::string& value
     }
 }
 
-std::string stateTraceText(const FighterSnapshot& fighter) {
+[[maybe_unused]] std::string stateTraceText(const FighterSnapshot& fighter) {
     if (fighter.stateNo == 0 || fighter.stateNo == 20) {
         return {};
     }
@@ -179,7 +179,7 @@ bool snapshotMatchesTrainingMoveTarget(const TrainingMoveInfo& move, const Fight
         && fighter.moveType != 'I';
 }
 
-bool snapshotIndicatesTrainingMoveTarget(const TrainingMoveInfo& move, const RuntimeSnapshot& snap) {
+[[maybe_unused]] bool snapshotIndicatesTrainingMoveTarget(const TrainingMoveInfo& move, const RuntimeSnapshot& snap) {
     if (snapshotMatchesTrainingMoveTarget(move, snap.p2)) {
         return true;
     }

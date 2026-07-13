@@ -2,6 +2,22 @@
 
 namespace dragon::verification {
 
+int runMissingCharacterFixtureFailsSetup(RuntimeProbe& runtime, std::ostream& out) {
+    Counts counts;
+    out << "VERIFY missing-character-fixture-fails-setup\n";
+    const bool rejected = !runtime.setup(
+        "__dragon_fixture_that_does_not_exist__",
+        "Mountainside",
+        ScenarioMode::Training,
+        out);
+    record(out, counts,
+        rejected ? Status::Pass : Status::Fail,
+        "missing_character_fixture_rejected",
+        rejected ? "setup returned false without roster substitution" : "setup silently selected another character");
+    summary(out, counts);
+    return exitCode(counts);
+}
+
 int runKfmBaseline(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
     if (!runtime.setup("kfm", "Mountainside", ScenarioMode::Training, out)) {

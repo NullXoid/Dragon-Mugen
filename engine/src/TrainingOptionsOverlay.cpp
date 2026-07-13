@@ -14,7 +14,6 @@ namespace dragon {
 
 namespace {
 
-constexpr float kMenuTextScale = 0.76f;
 constexpr float kMoveListTextScale = 0.74f;
 constexpr float kOptionsClassicVirtualW = 320.0f;
 constexpr float kOptionsDefaultVirtualW = 426.0f;
@@ -27,19 +26,6 @@ constexpr const char* kOptionsTitle = "TRAINING OPTIONS";
 constexpr const char* kOptionsFooter = "UP/DN SEL  ENT TOG  ESC/F2";
 constexpr const char* kMoveListTitle = "COMMAND LIST";
 constexpr const char* kMoveListFooter = "H DEMO  ENT BACK  L/R TAB";
-
-void compactText(SDL_Renderer* renderer, float x, float y, const std::string& text, float scale = kMenuTextScale) {
-    float oldX = 1.0f;
-    float oldY = 1.0f;
-    SDL_GetRenderScale(renderer, &oldX, &oldY);
-    SDL_SetRenderScale(renderer, oldX * scale, oldY * scale);
-    debugText(renderer, x / scale, y / scale, text);
-    SDL_SetRenderScale(renderer, oldX, oldY);
-}
-
-void compactText(SDL_Renderer* renderer, float x, float y, const char* text, float scale = kMenuTextScale) {
-    compactText(renderer, x, y, std::string(text), scale);
-}
 
 std::string fitted(const std::string& value, std::size_t maxChars) {
     return fitDebugText(value, maxChars);

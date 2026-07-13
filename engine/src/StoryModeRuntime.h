@@ -22,16 +22,6 @@ FighterState* storyTargetForFighter(AppState& state, size_t fighterIndex) {
     return &state.fighters[static_cast<size_t>(targetIndex)];
 }
 
-const FighterState* storyTargetForFighter(const AppState& state, size_t fighterIndex) {
-    const int targetIndex = fighterIndex == 0
-        ? storyNearestLivingEnemyIndex(state, 0)
-        : storyNearestLivingEnemyIndex(state, static_cast<int>(fighterIndex));
-    if (targetIndex < 0 || targetIndex >= static_cast<int>(state.fighters.size())) {
-        return nullptr;
-    }
-    return &state.fighters[static_cast<size_t>(targetIndex)];
-}
-
 void updateStoryFighterFacing(AppState& state) {
     for (size_t i = 0; i < state.fighters.size(); ++i) {
         if (!storyActorCanUpdate(state, i)) {

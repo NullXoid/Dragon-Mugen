@@ -15,9 +15,18 @@ def run_step(label: str, command: list[str], cwd: Path) -> int:
     return completed.returncode
 
 
-def exe_path(repo: Path) -> Path:
+def exe_path(repo: Path, config: str = "Debug") -> Path:
     suffix = ".exe" if os.name == "nt" else ""
-    return repo / "build" / f"dragon_mugen{suffix}"
+    direct = repo / "build" / f"dragon_mugen{suffix}"
+    configured = repo / "build" / config / f"dragon_mugen{suffix}"
+    for candidate in (direct, configured):
+        if candidate.is_file():
+            return candidate
+
+    cache = repo / "build" / "CMakeCache.txt"
+    if cache.is_file() and "CMAKE_CONFIGURATION_TYPES" in cache.read_text(encoding="utf-8", errors="replace"):
+        return configured
+    return direct
 
 
 def main() -> int:
@@ -45,7 +54,7 @@ def main() -> int:
     if not args.quick and not args.skip_build:
         checks.extend(
             [
-                ("cmake configure", ["cmake", "-S", ".", "-B", "build"]),
+                ("cmake configure", ["cmake", "-S", ".", "-B", "build", "-DDRAGON_WARNINGS_AS_ERRORS=ON"]),
                 ("build dragon_mugen", ["cmake", "--build", "build", "--target", "dragon_mugen", "--config", "Debug"]),
             ]
         )

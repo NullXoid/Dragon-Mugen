@@ -26,6 +26,7 @@
 #include <vector>
 namespace dragon::verification {
 int runTrainingOptionsMenuGeometry(RuntimeProbe& runtime, std::ostream& out);
+int runMissingCharacterFixtureFailsSetup(RuntimeProbe& runtime, std::ostream& out);
 int runTrainingMoveListGeometry(RuntimeProbe& runtime, std::ostream& out);
 int runTrainingCommandHudLayout(RuntimeProbe& runtime, std::ostream& out);
 int runTrainingPauseHelpLegend(RuntimeProbe& runtime, std::ostream& out);
@@ -252,6 +253,7 @@ int runShopDemoRoomHook(RuntimeProbe& runtime, std::ostream& out) {
 }
 
 int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::ostream& out) {
+    if (scenarioName == "missing-character-fixture-fails-setup") return runMissingCharacterFixtureFailsSetup(runtime, out);
     if (scenarioName == "shop-route-entry") return runShopRouteEntry(runtime, out);
     if (scenarioName == "shop-room-actor-projection") return runShopRoomActorProjection(runtime, out);
     if (scenarioName == "shop-room-movement-collision") return runShopRoomMovementCollision(runtime, out);

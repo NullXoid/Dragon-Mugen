@@ -59,9 +59,9 @@ Incremental commits may land inside that extraction or hardening pass, but they 
 - [x] Remove the audited zero-call internal functions and their orphaned helpers while keeping public APIs.
 - [x] Remove obsolete per-controller fired-state collections while preserving generic runtime persistence.
 - [x] Collapse fixed 640x360 presentation layouts and remove unreachable Classic/non-HD branches.
-- [ ] Make Dragon targets warning-clean under `/W4` or `-Wall -Wextra -Wpedantic` with opt-in warnings-as-errors.
-- [ ] Require both preservation documentation and an `Unreleased` changelog update for engine commits.
-- [ ] Make requested verifier fixtures fail setup when absent instead of substituting roster slot zero.
+- [x] Make Dragon targets warning-clean under `/W4` or `-Wall -Wextra -Wpedantic` with opt-in warnings-as-errors.
+- [x] Require both preservation documentation and an `Unreleased` changelog update for engine commits.
+- [x] Make requested verifier fixtures fail setup when absent instead of substituting roster slot zero.
 - [ ] Record physical `App.cpp` lines, directly included implementation-shard count, shard lines, and aggregate lines.
 - [ ] Extract screen/mode flow from `App.cpp`.
 - [ ] Extract fight session and round flow from `App.cpp`.

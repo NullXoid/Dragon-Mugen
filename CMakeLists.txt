@@ -13,6 +13,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(DRAGON_FETCH_SDL3 "Fetch SDL3 when a local SDL3 package is not available" ON)
+option(DRAGON_WARNINGS_AS_ERRORS "Treat Dragon target compiler warnings as errors" OFF)
 
 find_package(SDL3 CONFIG QUIET)
 
@@ -175,6 +176,23 @@ add_executable(dragon_mugen
 target_link_libraries(dragon_mugen
     PRIVATE dragon_core
 )
+
+function(dragon_enable_warnings target)
+    if(MSVC)
+        target_compile_options(${target} PRIVATE /W4)
+        if(DRAGON_WARNINGS_AS_ERRORS)
+            target_compile_options(${target} PRIVATE /WX)
+        endif()
+    else()
+        target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
+        if(DRAGON_WARNINGS_AS_ERRORS)
+            target_compile_options(${target} PRIVATE -Werror)
+        endif()
+    endif()
+endfunction()
+
+dragon_enable_warnings(dragon_core)
+dragon_enable_warnings(dragon_mugen)
 
 if(WIN32)
     add_custom_command(TARGET dragon_mugen POST_BUILD
