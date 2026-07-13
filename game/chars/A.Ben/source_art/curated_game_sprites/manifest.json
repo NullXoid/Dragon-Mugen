@@ -19,19 +19,30 @@
         48,
         42
       ],
-      "preview_fps": 14,
+      "preview_fps": 12.0,
       "notes": "Includes idle, anticipation, low dash, recovery. Some AI pose drift remains in middle frames.",
-      "full_sheet": "curated_game_sprites/sheets/dash_selected_384x672.png",
-      "cropped_sheet": "curated_game_sprites/sheets/dash_selected_cropped_384x668.png",
+      "run_manifest": "ltx_runs/dash/manifest.json",
+      "source_frame_dir": "ltx_runs/dash/frames_clean",
+      "full_sheet": "curated_game_sprites/sheets/dash_selected_512x672.png",
+      "cropped_sheet": "curated_game_sprites/sheets/dash_selected_cropped_512x672.png",
       "contact": "curated_game_sprites/contacts/dash_selected_contact.png",
       "gif_preview": "curated_game_sprites/previews/dash_selected_preview.gif",
+      "promoted_frames": [
+        "curated_game_sprites/frames/dash/dash_00_src000_512x672.png",
+        "curated_game_sprites/frames/dash/dash_01_src012_512x672.png",
+        "curated_game_sprites/frames/dash/dash_02_src018_512x672.png",
+        "curated_game_sprites/frames/dash/dash_03_src024_512x672.png",
+        "curated_game_sprites/frames/dash/dash_04_src030_512x672.png",
+        "curated_game_sprites/frames/dash/dash_05_src036_512x672.png",
+        "curated_game_sprites/frames/dash/dash_06_src042_512x672.png",
+        "curated_game_sprites/frames/dash/dash_07_src048_512x672.png",
+        "curated_game_sprites/frames/dash/dash_08_src048_512x672.png",
+        "curated_game_sprites/frames/dash/dash_09_src042_512x672.png"
+      ],
       "cropped_cell": {
-        "width": 384,
-        "height": 668
-      },
-      "revision_note": "Tightened selection to avoid visible LTX drift frames.",
-      "run_manifest": "ltx_runs/dash/manifest.json",
-      "source_frame_dir": "ltx_runs/dash/frames_clean"
+        "width": 368,
+        "height": 614
+      }
     },
     "jump": {
       "selected_source_frames": [
@@ -39,26 +50,37 @@
         12,
         18,
         30,
-        48,
-        54,
+        42,
+        44,
         60,
         66,
         18,
         0
       ],
-      "preview_fps": 12,
+      "preview_fps": 12.0,
       "notes": "Includes idle, crouch, lift, airborne, landing. Still roughest action; use as candidate source.",
-      "full_sheet": "curated_game_sprites/sheets/jump_selected_384x672.png",
-      "cropped_sheet": "curated_game_sprites/sheets/jump_selected_cropped_374x672.png",
+      "run_manifest": "ltx_runs/jump/manifest.json",
+      "source_frame_dir": "ltx_runs/jump/frames_clean",
+      "full_sheet": "curated_game_sprites/sheets/jump_selected_512x672.png",
+      "cropped_sheet": "curated_game_sprites/sheets/jump_selected_cropped_512x672.png",
       "contact": "curated_game_sprites/contacts/jump_selected_contact.png",
       "gif_preview": "curated_game_sprites/previews/jump_selected_preview.gif",
+      "promoted_frames": [
+        "curated_game_sprites/frames/jump/jump_00_src000_512x672.png",
+        "curated_game_sprites/frames/jump/jump_01_src012_512x672.png",
+        "curated_game_sprites/frames/jump/jump_02_src018_512x672.png",
+        "curated_game_sprites/frames/jump/jump_03_src030_512x672.png",
+        "curated_game_sprites/frames/jump/jump_04_src042_512x672.png",
+        "curated_game_sprites/frames/jump/jump_05_src044_512x672.png",
+        "curated_game_sprites/frames/jump/jump_06_src060_512x672.png",
+        "curated_game_sprites/frames/jump/jump_07_src066_512x672.png",
+        "curated_game_sprites/frames/jump/jump_08_src018_512x672.png",
+        "curated_game_sprites/frames/jump/jump_09_src000_512x672.png"
+      ],
       "cropped_cell": {
-        "width": 374,
-        "height": 672
-      },
-      "revision_note": "Tightened selection to avoid visible LTX drift frames.",
-      "run_manifest": "ltx_runs/jump/manifest.json",
-      "source_frame_dir": "ltx_runs/jump/frames_clean"
+        "width": 306,
+        "height": 638
+      }
     },
     "crouch": {
       "selected_source_frames": [
@@ -66,23 +88,23 @@
         60,
         18
       ],
-      "preview_fps": 10,
+      "preview_fps": 12.0,
       "notes": "Derived from the best crouch anticipation poses in the curated jump source. Replace with a dedicated duck video pass when available.",
-      "full_sheet": "curated_game_sprites/sheets/crouch_selected_384x672.png",
-      "cropped_sheet": "curated_game_sprites/sheets/crouch_selected_cropped_384x672.png",
-      "contact": "curated_game_sprites/contacts/crouch_selected_contact.png",
-      "gif_preview": "curated_game_sprites/previews/crouch_selected_preview.gif",
-      "cropped_cell": {
-        "width": 384,
-        "height": 672
-      },
       "run_manifest": "ltx_runs/jump/manifest.json",
       "source_frame_dir": "ltx_runs/jump/frames_clean",
+      "full_sheet": "curated_game_sprites/sheets/crouch_selected_512x672.png",
+      "cropped_sheet": "curated_game_sprites/sheets/crouch_selected_cropped_512x672.png",
+      "contact": "curated_game_sprites/contacts/crouch_selected_contact.png",
+      "gif_preview": "curated_game_sprites/previews/crouch_selected_preview.gif",
       "promoted_frames": [
-        "curated_game_sprites/frames/crouch/crouch_00_src018_384x672.png",
-        "curated_game_sprites/frames/crouch/crouch_01_src060_384x672.png",
-        "curated_game_sprites/frames/crouch/crouch_02_src018_384x672.png"
-      ]
+        "curated_game_sprites/frames/crouch/crouch_00_src018_512x672.png",
+        "curated_game_sprites/frames/crouch/crouch_01_src060_512x672.png",
+        "curated_game_sprites/frames/crouch/crouch_02_src018_512x672.png"
+      ],
+      "cropped_cell": {
+        "width": 278,
+        "height": 446
+      }
     },
     "punch": {
       "selected_source_frames": [
@@ -97,18 +119,30 @@
         60,
         72
       ],
-      "preview_fps": 14,
+      "preview_fps": 12.0,
       "notes": "Strongest action source. Avoided front-facing recovery frames where possible.",
-      "full_sheet": "curated_game_sprites/sheets/punch_selected_384x672.png",
-      "cropped_sheet": "curated_game_sprites/sheets/punch_selected_cropped_384x668.png",
+      "run_manifest": "ltx_runs/punch/manifest.json",
+      "source_frame_dir": "ltx_runs/punch/frames_clean",
+      "full_sheet": "curated_game_sprites/sheets/punch_selected_512x672.png",
+      "cropped_sheet": "curated_game_sprites/sheets/punch_selected_cropped_512x672.png",
       "contact": "curated_game_sprites/contacts/punch_selected_contact.png",
       "gif_preview": "curated_game_sprites/previews/punch_selected_preview.gif",
+      "promoted_frames": [
+        "curated_game_sprites/frames/punch/punch_00_src000_512x672.png",
+        "curated_game_sprites/frames/punch/punch_01_src006_512x672.png",
+        "curated_game_sprites/frames/punch/punch_02_src012_512x672.png",
+        "curated_game_sprites/frames/punch/punch_03_src018_512x672.png",
+        "curated_game_sprites/frames/punch/punch_04_src024_512x672.png",
+        "curated_game_sprites/frames/punch/punch_05_src030_512x672.png",
+        "curated_game_sprites/frames/punch/punch_06_src036_512x672.png",
+        "curated_game_sprites/frames/punch/punch_07_src042_512x672.png",
+        "curated_game_sprites/frames/punch/punch_08_src060_512x672.png",
+        "curated_game_sprites/frames/punch/punch_09_src072_512x672.png"
+      ],
       "cropped_cell": {
         "width": 384,
-        "height": 668
-      },
-      "run_manifest": "ltx_runs/punch/manifest.json",
-      "source_frame_dir": "ltx_runs/punch/frames_clean"
+        "height": 635
+      }
     },
     "kick": {
       "selected_source_frames": [
@@ -195,21 +229,97 @@
       "notes": "",
       "run_manifest": "ltx_runs/idle/manifest.json",
       "source_frame_dir": "ltx_runs/idle/frames_clean",
-      "full_sheet": "curated_game_sprites/sheets/idle_selected_384x672.png",
-      "cropped_sheet": "curated_game_sprites/sheets/idle_selected_cropped_384x672.png",
+      "full_sheet": "curated_game_sprites/sheets/idle_selected_512x672.png",
+      "cropped_sheet": "curated_game_sprites/sheets/idle_selected_cropped_512x672.png",
       "contact": "curated_game_sprites/contacts/idle_selected_contact.png",
       "gif_preview": "curated_game_sprites/previews/idle_selected_preview.gif",
       "promoted_frames": [
-        "curated_game_sprites/frames/idle/idle_00_src000_384x672.png",
-        "curated_game_sprites/frames/idle/idle_01_src002_384x672.png",
-        "curated_game_sprites/frames/idle/idle_02_src004_384x672.png",
-        "curated_game_sprites/frames/idle/idle_03_src006_384x672.png",
-        "curated_game_sprites/frames/idle/idle_04_src004_384x672.png",
-        "curated_game_sprites/frames/idle/idle_05_src002_384x672.png"
+        "curated_game_sprites/frames/idle/idle_00_src000_512x672.png",
+        "curated_game_sprites/frames/idle/idle_01_src002_512x672.png",
+        "curated_game_sprites/frames/idle/idle_02_src004_512x672.png",
+        "curated_game_sprites/frames/idle/idle_03_src006_512x672.png",
+        "curated_game_sprites/frames/idle/idle_04_src004_512x672.png",
+        "curated_game_sprites/frames/idle/idle_05_src002_512x672.png"
       ],
       "cropped_cell": {
         "width": 342,
         "height": 625
+      }
+    },
+    "jump_forward": {
+      "selected_source_frames": [
+        0,
+        12,
+        18,
+        30,
+        42,
+        44,
+        60,
+        66,
+        18,
+        0
+      ],
+      "preview_fps": 12.0,
+      "notes": "",
+      "run_manifest": "ltx_runs/jump/manifest.json",
+      "source_frame_dir": "ltx_runs/jump/frames_clean",
+      "full_sheet": "curated_game_sprites/sheets/jump_forward_selected_512x672.png",
+      "cropped_sheet": "curated_game_sprites/sheets/jump_forward_selected_cropped_512x672.png",
+      "contact": "curated_game_sprites/contacts/jump_forward_selected_contact.png",
+      "gif_preview": "curated_game_sprites/previews/jump_forward_selected_preview.gif",
+      "promoted_frames": [
+        "curated_game_sprites/frames/jump_forward/jump_forward_00_src000_512x672.png",
+        "curated_game_sprites/frames/jump_forward/jump_forward_01_src012_512x672.png",
+        "curated_game_sprites/frames/jump_forward/jump_forward_02_src018_512x672.png",
+        "curated_game_sprites/frames/jump_forward/jump_forward_03_src030_512x672.png",
+        "curated_game_sprites/frames/jump_forward/jump_forward_04_src042_512x672.png",
+        "curated_game_sprites/frames/jump_forward/jump_forward_05_src044_512x672.png",
+        "curated_game_sprites/frames/jump_forward/jump_forward_06_src060_512x672.png",
+        "curated_game_sprites/frames/jump_forward/jump_forward_07_src066_512x672.png",
+        "curated_game_sprites/frames/jump_forward/jump_forward_08_src018_512x672.png",
+        "curated_game_sprites/frames/jump_forward/jump_forward_09_src000_512x672.png"
+      ],
+      "cropped_cell": {
+        "width": 306,
+        "height": 638
+      }
+    },
+    "jump_back": {
+      "selected_source_frames": [
+        0,
+        12,
+        18,
+        30,
+        42,
+        44,
+        60,
+        66,
+        18,
+        0
+      ],
+      "preview_fps": 12.0,
+      "notes": "",
+      "run_manifest": "ltx_runs/jump/manifest.json",
+      "source_frame_dir": "ltx_runs/jump/frames_clean",
+      "full_sheet": "curated_game_sprites/sheets/jump_back_selected_512x672.png",
+      "cropped_sheet": "curated_game_sprites/sheets/jump_back_selected_cropped_512x672.png",
+      "contact": "curated_game_sprites/contacts/jump_back_selected_contact.png",
+      "gif_preview": "curated_game_sprites/previews/jump_back_selected_preview.gif",
+      "promoted_frames": [
+        "curated_game_sprites/frames/jump_back/jump_back_00_src000_512x672.png",
+        "curated_game_sprites/frames/jump_back/jump_back_01_src012_512x672.png",
+        "curated_game_sprites/frames/jump_back/jump_back_02_src018_512x672.png",
+        "curated_game_sprites/frames/jump_back/jump_back_03_src030_512x672.png",
+        "curated_game_sprites/frames/jump_back/jump_back_04_src042_512x672.png",
+        "curated_game_sprites/frames/jump_back/jump_back_05_src044_512x672.png",
+        "curated_game_sprites/frames/jump_back/jump_back_06_src060_512x672.png",
+        "curated_game_sprites/frames/jump_back/jump_back_07_src066_512x672.png",
+        "curated_game_sprites/frames/jump_back/jump_back_08_src018_512x672.png",
+        "curated_game_sprites/frames/jump_back/jump_back_09_src000_512x672.png"
+      ],
+      "cropped_cell": {
+        "width": 306,
+        "height": 638
       }
     }
   }

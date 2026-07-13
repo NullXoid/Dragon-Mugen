@@ -11,7 +11,7 @@ This owned prototype bundle includes:
 - source videos under `source_videos`
 - shop-facing A.Ben assets under `shop`
 
-The curated LTX/Comfy post-processing path is the forward asset workflow. `engine/tools/ltx_sprite_pipeline.py` prepares exported videos into contact sheets, preview GIFs, manifests, and promoted `384x672` action frames. `engine/tools/build_aben_walk_sff.py` rebuilds the active A.Ben SFF from those curated action folders.
+The curated LTX/Comfy post-processing path is the forward asset workflow. `engine/tools/ltx_sprite_pipeline.py` prepares exported videos into contact sheets, preview GIFs, manifests, and promoted `512x672` action frames. `engine/tools/build_aben_walk_sff.py` rebuilds the active A.Ben SFF from those curated action folders.
 
 Current curated action targets:
 
