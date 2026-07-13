@@ -3,7 +3,53 @@
 #include <algorithm>
 #include <cmath>
 
+#include <SDL3/SDL_rect.h>
+
 namespace dragon::shop_demo {
+
+struct ShopDemoLayoutRects {
+    SDL_FRect topBar{};
+    SDL_FRect world{};
+    SDL_FRect helpBar{};
+};
+
+inline ShopDemoLayoutRects makeShopDemoLayoutRects(
+    float width,
+    float height,
+    float topBarHeight,
+    float helpBarHeight) {
+    return {
+        SDL_FRect{ 0.0f, 0.0f, width, topBarHeight },
+        SDL_FRect{ 0.0f, topBarHeight, width, std::max(1.0f, height - topBarHeight - helpBarHeight) },
+        SDL_FRect{ 0.0f, height - helpBarHeight, width, helpBarHeight },
+    };
+}
+
+inline float clampShopDemoWorldZoom(float zoom) {
+    return std::clamp(zoom, 1.0f, 1.72f);
+}
+
+inline float shopDemoWorldFocusY240(float zoom) {
+    return 120.0f + (clampShopDemoWorldZoom(zoom) - 1.0f) * 62.0f;
+}
+
+inline float projectShopDemoSceneY(const SDL_FRect& world, float zoom, float y240) {
+    const float safeZoom = clampShopDemoWorldZoom(zoom);
+    return world.y + world.h * 0.5f
+        + ((y240 - shopDemoWorldFocusY240(safeZoom)) / 240.0f) * world.h * safeZoom;
+}
+
+inline float projectShopDemoSceneHeight(const SDL_FRect& world, float zoom, float height240) {
+    return (height240 / 240.0f) * world.h * clampShopDemoWorldZoom(zoom);
+}
+
+inline float shopDemoPlayerTargetHeight(const SDL_FRect& world, float zoom, float openShotScale) {
+    return world.h * 0.33f * clampShopDemoWorldZoom(zoom) * openShotScale;
+}
+
+inline float shopDemoShopkeeperTargetHeight(const SDL_FRect& world, float zoom) {
+    return world.h * 0.27f * clampShopDemoWorldZoom(zoom);
+}
 
 struct ShopCounterCollisionBounds {
     float playerMinX = 0.0f;

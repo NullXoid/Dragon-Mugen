@@ -85,7 +85,7 @@ For larger extraction changes, also run from a Visual Studio developer shell:
 python engine/tools/dev_check.py .
 ```
 
-The cleanup warning gate was validated with warnings-as-errors on a clean-first Ninja/GNU build and a fresh Visual Studio 2022/MSVC Debug build. Warning fixes must remain source-level and must not weaken the Dragon-only warning flags.
+The cleanup warning gate was validated with warnings-as-errors on a clean-first Ninja/GNU build and a fresh Visual Studio 2022/MSVC Debug build. Warning fixes must remain source-level and must not weaken the Dragon-only warning flags. Classic, Wide, Extra, SD 854x480, and HD 1280x720 remain separate output modes; the stable virtual layout preserves one composition across them, and shared geometry assertions verify SD/HD world and UI scaling.
 
 Manual smoke path:
 

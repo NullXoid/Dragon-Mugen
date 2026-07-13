@@ -1,6 +1,7 @@
 #include "VerificationScenarioCommon.h"
 
 #include "DragonUi.h"
+#include "ShopDemoCollision.h"
 
 #include <filesystem>
 #include <fstream>
@@ -339,25 +340,68 @@ int runDragonUiHdThreeXScaling(RuntimeProbe&, std::ostream& out) {
 int runWorldViewportSdHdLayout(RuntimeProbe&, std::ostream& out) {
     Counts counts;
     out << "VERIFY world-viewport-sd-hd-layout\n";
-    const auto root = std::filesystem::path(".").lexically_normal();
-    const std::string hubText = readTextFile(root / "engine" / "src" / "ShopHubScene.h");
+
+    struct Case {
+        CanvasPreset preset;
+        const char* name;
+    };
+    constexpr std::array<Case, 2> cases{ {
+        { CanvasPreset::Sd854x480, "sd_854x480" },
+        { CanvasPreset::Hd1280x720, "hd_1280x720" },
+    } };
+
+    bool viewportRectsValid = true;
+    bool characterSizesValid = true;
+    std::string detail;
+    for (const Case& item : cases) {
+        const CanvasDimensions dimensions = dimensionsForPreset(item.preset);
+        const DragonUiMetrics metrics = dragonUiMetricsForPreset(item.preset);
+        const auto rects = shop_demo::makeShopDemoLayoutRects(
+            static_cast<float>(dimensions.width),
+            static_cast<float>(dimensions.height),
+            metrics.topBarH,
+            metrics.helpBarH);
+        constexpr float zoom = 1.0f;
+        const float counterFrontY = shop_demo::projectShopDemoSceneY(rects.world, zoom, 182.4f);
+        const float counterVisualBottomY = shop_demo::projectShopDemoSceneY(rects.world, zoom, 201.6f);
+        const float counterFaceDepth = counterVisualBottomY - counterFrontY;
+        const float worldBottom = rects.world.y + rects.world.h;
+        viewportRectsValid = viewportRectsValid
+            && std::fabs(rects.topBar.h - metrics.topBarH) < 0.01f
+            && std::fabs(rects.world.y - rects.topBar.h) < 0.01f
+            && std::fabs(rects.helpBar.y - worldBottom) < 0.01f
+            && std::fabs(rects.helpBar.h - metrics.helpBarH) < 0.01f
+            && counterFrontY > rects.world.y
+            && counterVisualBottomY < worldBottom
+            && counterFaceDepth >= rects.world.h * 0.079f;
+
+        const float playerHeight = shop_demo::shopDemoPlayerTargetHeight(rects.world, zoom, 1.0f);
+        const float shopkeeperHeight = shop_demo::shopDemoShopkeeperTargetHeight(rects.world, zoom);
+        characterSizesValid = characterSizesValid
+            && std::fabs(playerHeight - rects.world.h * 0.33f) < 0.01f
+            && std::fabs(shopkeeperHeight - rects.world.h * 0.27f) < 0.01f
+            && playerHeight > shopkeeperHeight
+            && playerHeight < rects.world.h;
+
+        if (!detail.empty()) {
+            detail += "; ";
+        }
+        detail += std::string(item.name)
+            + " world=" + std::to_string(static_cast<int>(rects.world.w)) + "x"
+            + std::to_string(static_cast<int>(rects.world.h))
+            + " counter_face=" + std::to_string(static_cast<int>(counterFaceDepth))
+            + " actors=" + std::to_string(static_cast<int>(playerHeight)) + "/"
+            + std::to_string(static_cast<int>(shopkeeperHeight));
+    }
+
     record(out, counts,
-        hubText.find("ShopDemoLayoutRects") != std::string::npos
-            && hubText.find("topBar") != std::string::npos
-            && hubText.find("world") != std::string::npos
-            && hubText.find("helpBar") != std::string::npos
-            && hubText.find("shopDemoSceneY(state, 124.8f)") != std::string::npos
-            && hubText.find("shopDemoSceneY(state, 182.4f)") != std::string::npos
-            && hubText.find("shopDemoWorldFocusY240") != std::string::npos
-            ? Status::Pass : Status::Fail,
+        viewportRectsValid ? Status::Pass : Status::Fail,
         "world_viewport_rects",
-        "counter placement is relative to the zoomable world viewport with a thick concept-style front face");
+        detail);
     record(out, counts,
-        hubText.find("shopDemoLayoutRects(state).world.h * 0.33f") != std::string::npos
-            && hubText.find("shopDemoLayoutRects(state).world.h * 0.27f") != std::string::npos
-            ? Status::Pass : Status::Fail,
+        characterSizesValid ? Status::Pass : Status::Fail,
         "character_percent_heights",
-        "A.Ben and I.Chie scale from world viewport height");
+        detail);
     summary(out, counts);
     return exitCode(counts);
 }

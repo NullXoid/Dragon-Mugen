@@ -3,11 +3,7 @@
 // Internal shop hub scene/projection helpers.
 // Include only from ShopDemoRuntime.h after shop room constants are defined.
 
-struct ShopDemoLayoutRects {
-    SDL_FRect topBar{};
-    SDL_FRect world{};
-    SDL_FRect helpBar{};
-};
+using ShopDemoLayoutRects = shop_demo::ShopDemoLayoutRects;
 
 ShopDemoLayoutRects shopDemoLayoutRects(const AppState& state) {
     const DragonUiMetrics metrics = dragonUiMetricsForCanvas(CanvasDimensions{ logicalWidth(state), logicalHeight(state) }, uiScale(state));
@@ -15,11 +11,7 @@ ShopDemoLayoutRects shopDemoLayoutRects(const AppState& state) {
     const float height = logicalHeightF(state);
     const float topH = metrics.topBarH;
     const float helpH = metrics.helpBarH;
-    return {
-        SDL_FRect{ 0.0f, 0.0f, width, topH },
-        SDL_FRect{ 0.0f, topH, width, std::max(1.0f, height - topH - helpH) },
-        SDL_FRect{ 0.0f, height - helpH, width, helpH },
-    };
+    return shop_demo::makeShopDemoLayoutRects(width, height, topH, helpH);
 }
 
 float shopDemoSceneScaleY(const AppState& state) {
@@ -27,11 +19,7 @@ float shopDemoSceneScaleY(const AppState& state) {
 }
 
 float shopDemoWorldZoom(const AppState& state) {
-    return std::clamp(state.shopDemo.worldZoom, 1.0f, 1.72f);
-}
-
-float shopDemoWorldFocusY240(const AppState& state) {
-    return 120.0f + (shopDemoWorldZoom(state) - 1.0f) * 62.0f;
+    return shop_demo::clampShopDemoWorldZoom(state.shopDemo.worldZoom);
 }
 
 float shopDemoScreenX(const AppState& state, float worldX) {
@@ -40,12 +28,11 @@ float shopDemoScreenX(const AppState& state, float worldX) {
 
 float shopDemoSceneY(const AppState& state, float y240) {
     const SDL_FRect world = shopDemoLayoutRects(state).world;
-    return world.y + world.h * 0.5f
-        + ((y240 - shopDemoWorldFocusY240(state)) / 240.0f) * world.h * shopDemoWorldZoom(state);
+    return shop_demo::projectShopDemoSceneY(world, shopDemoWorldZoom(state), y240);
 }
 
 float shopDemoSceneH(const AppState& state, float h240) {
-    return (h240 / 240.0f) * shopDemoLayoutRects(state).world.h * shopDemoWorldZoom(state);
+    return shop_demo::projectShopDemoSceneHeight(shopDemoLayoutRects(state).world, shopDemoWorldZoom(state), h240);
 }
 
 float shopDemoCounterFrontBottomY(const AppState& state) {
@@ -302,11 +289,11 @@ void drawShopDemoBackdropProps(SDL_Renderer* renderer, const AppState& state) {
 
 float shopDemoPlayerTargetHeight(const AppState& state) {
     const float openShotScale = state.shopDemo.shopOpen ? 1.34f : 1.0f;
-    return shopDemoLayoutRects(state).world.h * 0.33f * shopDemoWorldZoom(state) * openShotScale;
+    return shop_demo::shopDemoPlayerTargetHeight(shopDemoLayoutRects(state).world, shopDemoWorldZoom(state), openShotScale);
 }
 
 float shopDemoShopkeeperTargetHeight(const AppState& state) {
-    return shopDemoLayoutRects(state).world.h * 0.27f * shopDemoWorldZoom(state);
+    return shop_demo::shopDemoShopkeeperTargetHeight(shopDemoLayoutRects(state).world, shopDemoWorldZoom(state));
 }
 
 float shopDemoShopkeeperVisualY(const AppState& state) {
