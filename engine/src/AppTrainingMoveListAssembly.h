@@ -73,6 +73,14 @@ bool commandEntryMatchesActiveTrainingMove(
     return activeEntry && commandEntriesRepresentSameTrainingMove(selectedEntry, *activeEntry);
 }
 
+bool displayableTrainingMoveEntriesContain(
+    const std::vector<const CommandStateEntry*>& entries,
+    const CommandStateEntry* candidate) {
+    return candidate && std::any_of(entries.begin(), entries.end(), [&](const CommandStateEntry* entry) {
+        return entry && commandEntriesRepresentSameTrainingMove(*entry, *candidate);
+    });
+}
+
 int findMoveListEntryByKey(const std::vector<const CommandStateEntry*>& entries, const std::string& key) {
     for (int i = 0; i < static_cast<int>(entries.size()); ++i) {
         const auto* entry = entries[static_cast<size_t>(i)];
@@ -218,6 +226,8 @@ TrainingCommandHudView trainingCommandHudView(
 
     if (view.commandsVisible) {
         const auto& entries = activeDisplayableMoveListEntries(state);
+        const CommandStateEntry* displayActiveEntry =
+            displayableTrainingMoveEntriesContain(entries, activeEntry) ? activeEntry : nullptr;
         const int selected = entries.empty()
             ? -1
             : std::clamp(state.training.options.selectedMoveListEntry, 0, static_cast<int>(entries.size()) - 1);
@@ -241,7 +251,7 @@ TrainingCommandHudView trainingCommandHudView(
             rows.push_back(TrainingCommandRowView{
                 fitDebugText(moveListEntryName(*entry), 16),
                 fitDebugText(inputText.empty() && definition ? commandDefinitionInputLabel(*definition, promptMode) : inputText, 10),
-                activeEntry == entry,
+                commandEntryMatchesActiveTrainingMove(*entry, displayActiveEntry),
                 index == selected,
             });
         }
@@ -259,12 +269,12 @@ TrainingCommandHudView trainingCommandHudView(
             && !state.training.commandPractice.notification.empty();
         view.completionTicks = state.training.commandPractice.flashTicks;
         view.completionLabel = fitDebugText(state.training.commandPractice.notification, 21);
-        if (activeEntry) {
-            view.activeCommandLabel = fitDebugText(activeEntry->label, 19);
+        if (displayActiveEntry) {
+            view.activeCommandLabel = fitDebugText(moveListEntryName(*displayActiveEntry), 19);
         }
         if (selected >= 0) {
             const auto& entry = *entries[static_cast<size_t>(selected)];
-            const bool complete = commandEntryMatchesActiveTrainingMove(entry, activeEntry);
+            const bool complete = commandEntryMatchesActiveTrainingMove(entry, displayActiveEntry);
             const CommandDefinition* definition = practiceCommandDefinitionForEntry(state, entry, commands);
             const int matched = definition ? matchedPracticeStepCount(fighter, *definition) : 0;
             view.currentMoveName = fitDebugText(moveListEntryName(entry), 20);

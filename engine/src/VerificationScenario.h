@@ -264,6 +264,7 @@ public:
         std::ostream& out,
         int arenaCpuCount = 1) = 0;
     virtual bool setupStageSelect(std::string_view p1Id, ScenarioMode mode, std::ostream& out) = 0;
+    virtual bool setupArenaSetupScreen(std::string_view p1Id, std::ostream& out) = 0;
     virtual void step(const SymbolicInput& p1Input, int frames) = 0;
     virtual void step(const SymbolicInput& p1Input, const SymbolicInput& p2Input, int frames) = 0;
     virtual void pressKey(std::string_view key) = 0;

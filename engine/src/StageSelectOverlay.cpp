@@ -12,20 +12,15 @@ namespace dragon {
 namespace {
 
 struct StageSelectCanvas {
-    float width = 426.0f;
-    float height = 240.0f;
-    bool hd = false;
+    float width = 640.0f;
+    float height = 360.0f;
+    bool hd = true;
     bool classic = false;
 };
 
 StageSelectCanvas stageSelectCanvas(const UiRenderContext& ui) {
-    if (ui.logicalWidth >= 1000 || ui.logicalHeight >= 620) {
-        return { 640.0f, 360.0f, true, false };
-    }
-    if (ui.logicalWidth <= 340) {
-        return { 320.0f, 240.0f, false, true };
-    }
-    return { 426.0f, 240.0f, false, false };
+    (void)ui;
+    return { 640.0f, 360.0f, true, false };
 }
 
 void shadowText(SDL_Renderer* renderer, float x, float y, const std::string& text, Uint8 r, Uint8 g, Uint8 b) {

@@ -133,12 +133,12 @@ StoryWaveRole storyWaveRole(const AppState& state, int waveIndex) {
 std::string_view storyWaveRoleLabel(StoryWaveRole role) {
     switch (role) {
     case StoryWaveRole::MidBoss:
-        return "MID BOSS";
+        return "MINI BOSS";
     case StoryWaveRole::Boss:
         return "BOSS";
     case StoryWaveRole::Normal:
     default:
-        return "WAVE";
+        return "NORMAL";
     }
 }
 
@@ -688,9 +688,7 @@ std::string storyStatusLine(const AppState& state) {
     }
     const int waves = storyWaveCount(state);
     const StoryWaveRole role = storyWaveRole(state, state.story.waveIndex);
-    const std::string roleText = role == StoryWaveRole::Normal
-        ? std::string{}
-        : "  " + std::string(storyWaveRoleLabel(role));
+    const std::string roleText = "  " + std::string(storyWaveRoleLabel(role));
     return "Wave "
         + std::to_string(std::clamp(state.story.waveIndex + 1, 1, waves))
         + "/"

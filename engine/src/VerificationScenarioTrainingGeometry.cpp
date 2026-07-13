@@ -39,7 +39,8 @@ int runTrainingOptionsMenuGeometry(RuntimeProbe&, std::ostream& out) {
         });
         const auto geometry = verifyTrainingOptionsMenuGeometry(view);
         const std::string pageName = "page_" + std::to_string(page + 1);
-        record(out, counts, rows.size() == static_cast<std::size_t>(kTrainingOptionRows) ? Status::Pass : Status::Fail,
+        const auto expectedRows = static_cast<std::size_t>(lastOption - firstOption);
+        record(out, counts, rows.size() == expectedRows ? Status::Pass : Status::Fail,
             pageName + "_row_count",
             "rows=" + std::to_string(rows.size())
             + " first_option=" + std::to_string(firstOption)

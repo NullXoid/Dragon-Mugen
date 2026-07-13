@@ -134,6 +134,7 @@ int runMainMenuResponsiveLayout(RuntimeProbe& runtime, std::ostream& out);
 int runMainMenuEditablePresentationData(RuntimeProbe& runtime, std::ostream& out);
 int runMainMenuEditableLayoutData(RuntimeProbe& runtime, std::ostream& out);
 int runStageSelectResponsiveLayout(RuntimeProbe& runtime, std::ostream& out);
+int runArenaSetupResponsiveLayout(RuntimeProbe& runtime, std::ostream& out);
 int runVideoResolutionStableVirtualLayout(RuntimeProbe& runtime, std::ostream& out);
 int runVideoHdFullscreenWindowPolicy(RuntimeProbe& runtime, std::ostream& out);
 int runControlsPlayerOneToFourNavigation(RuntimeProbe& runtime, std::ostream& out);
@@ -283,6 +284,7 @@ int runNamedScenario(RuntimeProbe& runtime, std::string_view scenarioName, std::
     if (scenarioName == "main-menu-editable-presentation-data") return runMainMenuEditablePresentationData(runtime, out);
     if (scenarioName == "main-menu-editable-layout-data") return runMainMenuEditableLayoutData(runtime, out);
     if (scenarioName == "stage-select-responsive-layout") return runStageSelectResponsiveLayout(runtime, out);
+    if (scenarioName == "arena-setup-responsive-layout") return runArenaSetupResponsiveLayout(runtime, out);
     if (scenarioName == "video-resolution-stable-virtual-layout") return runVideoResolutionStableVirtualLayout(runtime, out);
     if (scenarioName == "video-hd-fullscreen-window-policy") return runVideoHdFullscreenWindowPolicy(runtime, out);
     if (scenarioName == "options-category-navigation") return runOptionsCategoryNavigation(runtime, out);

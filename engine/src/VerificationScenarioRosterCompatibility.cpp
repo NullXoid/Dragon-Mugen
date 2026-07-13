@@ -135,6 +135,18 @@ std::string runtimeDetail(const RuntimeSnapshot& snap) {
         + " mugen=" + std::to_string(snap.p1UsesMugenSemantics ? 1 : 0);
 }
 
+std::string contactDetail(const RuntimeSnapshot& snap) {
+    return " dist=" + std::to_string(snap.p1P2BodyDistX)
+        + " clsn=" + std::to_string(snap.p1Clsn1Count)
+        + "/" + std::to_string(snap.p1Clsn2Count)
+        + ":" + std::to_string(snap.p2Clsn1Count)
+        + "/" + std::to_string(snap.p2Clsn2Count)
+        + " overlap=" + std::to_string(snap.p1P2BoxesOverlap ? 1 : 0)
+        + " hitdef=" + std::to_string(snap.p1ActiveHitDef ? 1 : 0)
+        + " hitflag=" + std::to_string(snap.p1HitFlagAllowsP2 ? 1 : 0)
+        + " hittable=" + std::to_string(snap.p2HittableByP1 ? 1 : 0);
+}
+
 bool waitForFight(RuntimeProbe& runtime, int maxFrames) {
     const int fightPhase = static_cast<int>(MatchPhase::Fight);
     for (int i = 0; i < maxFrames; ++i) {
@@ -165,6 +177,16 @@ bool p1LooksPlayable(const RuntimeSnapshot& snap) {
         && snap.p1.scaleX > 0.0f
         && snap.p1.scaleY > 0.0f;
 }
+
+bool scaleNear(float value, float expected) {
+    return std::abs(value - expected) < 0.001f;
+}
+
+bool fighterScaleNear(const FighterSnapshot& fighter, float expectedX, float expectedY) {
+    return scaleNear(fighter.scaleX, expectedX) && scaleNear(fighter.scaleY, expectedY);
+}
+
+constexpr float kOwnedDragonCharacterScale = 0.55f;
 
 const std::array<AttackProbe, 6>& attackProbes() {
     static const std::array<AttackProbe, 6> probes{ {
@@ -320,7 +342,7 @@ bool detectSpecificAttack(RuntimeProbe& runtime, const AttackProbe& attack, int 
 
 bool detectSimpleContact(RuntimeProbe& runtime, const AttackProbe& attack, RuntimeSnapshot& observed) {
     runtime.setTrainingDummyGuardMode("off");
-    runtime.positionFighters(-12.0f, 14.0f);
+    runtime.positionFighters(-6.0f, 6.0f);
     runtime.forceFighterState(0, 0);
     runtime.forceFighterState(1, 0);
     runtime.setFighterLife(0, 1000);
@@ -333,9 +355,13 @@ bool detectSimpleContact(RuntimeProbe& runtime, const AttackProbe& attack, Runti
         return false;
     }
 
+    RuntimeSnapshot bestObserved = observed;
     for (int i = 0; i < 120; ++i) {
         runtime.step(i < 3 ? attack.input : SymbolicInput{}, 1);
         observed = runtime.snapshot();
+        if (observed.p1ActiveHitDef || observed.p1Clsn1Count > 0 || observed.p1P2BoxesOverlap) {
+            bestObserved = observed;
+        }
         if (observed.p1.moveContact
             || observed.p1.moveHit
             || observed.p1.moveGuarded
@@ -349,6 +375,7 @@ bool detectSimpleContact(RuntimeProbe& runtime, const AttackProbe& attack, Runti
                     || observed.lastHitText.find("P1 guard ") != std::string::npos);
         }
     }
+    observed = bestObserved;
     return false;
 }
 
@@ -509,7 +536,8 @@ void verifyCharacter(RuntimeProbe& runtime, std::ostream& out, Counts& counts, c
     record(out, counts, contacted ? Status::Pass : Status::Partial,
         prefix + "_simple_contact",
         "button=" + std::string(matchedAttack.name) + " p1{" + fighterDetail(contactSnap.p1)
-            + "} p2{" + fighterDetail(contactSnap.p2) + "} text=\"" + contactSnap.lastHitText + "\"");
+            + "} p2{" + fighterDetail(contactSnap.p2) + "}" + contactDetail(contactSnap)
+            + " text=\"" + contactSnap.lastHitText + "\"");
 }
 
 std::vector<RosterCharacterInfo> compatibilitySmokeRoster(RuntimeProbe& runtime) {
@@ -572,12 +600,17 @@ void verifyOwnedABen(RuntimeProbe& runtime, std::ostream& out, Counts& counts, c
     }
 
     const bool ready = waitForFight(runtime, 480) && waitForP1Idle(runtime, 480);
+    const auto readySnap = runtime.snapshot();
     record(out, counts, ready ? Status::Pass : Status::Fail,
         "aben_fight_idle_ready",
-        "p1{" + fighterDetail(runtime.snapshot().p1) + "}");
+        "p1{" + fighterDetail(readySnap.p1) + "}");
     if (!ready) {
         return;
     }
+    record(out, counts,
+        fighterScaleNear(readySnap.p1, kOwnedDragonCharacterScale, kOwnedDragonCharacterScale) ? Status::Pass : Status::Fail,
+        "aben_owned_scale",
+        "expected=0.55x0.55 p1{" + fighterDetail(readySnap.p1) + "}");
     captureRosterProofFrame(runtime, out, counts, "aben", "standing");
 
     RuntimeSnapshot beforeMove;
@@ -662,7 +695,8 @@ void verifyOwnedABen(RuntimeProbe& runtime, std::ostream& out, Counts& counts, c
     const bool contacted = punched && detectSimpleContact(runtime, punchProbe, contactSnap);
     record(out, counts, contacted ? Status::Pass : Status::Fail,
         "aben_punch_contact",
-        "p1{" + fighterDetail(contactSnap.p1) + "} p2{" + fighterDetail(contactSnap.p2) + "} text=\"" + contactSnap.lastHitText + "\"");
+        "p1{" + fighterDetail(contactSnap.p1) + "} p2{" + fighterDetail(contactSnap.p2) + "}"
+            + contactDetail(contactSnap) + " text=\"" + contactSnap.lastHitText + "\"");
 }
 
 void verifyOwnedIChie(RuntimeProbe& runtime, std::ostream& out, Counts& counts, const RosterCharacterInfo& character) {
@@ -689,10 +723,15 @@ void verifyOwnedIChie(RuntimeProbe& runtime, std::ostream& out, Counts& counts, 
         record(out, counts, Status::Blocked, "ichie_setup", "Training setup failed");
     } else {
         const bool ready = waitForFight(runtime, 480) && waitForP1Idle(runtime, 480);
+        const auto readySnap = runtime.snapshot();
         record(out, counts, ready ? Status::Pass : Status::Fail,
             "ichie_runtime_loads",
-            "p1{" + fighterDetail(runtime.snapshot().p1) + "}");
+            "p1{" + fighterDetail(readySnap.p1) + "}");
         if (ready) {
+            record(out, counts,
+                fighterScaleNear(readySnap.p1, kOwnedDragonCharacterScale, kOwnedDragonCharacterScale) ? Status::Pass : Status::Fail,
+                "ichie_owned_scale",
+                "expected=0.55x0.55 p1{" + fighterDetail(readySnap.p1) + "}");
             captureRosterProofFrame(runtime, out, counts, "ichie", "standing_placeholder");
         }
     }

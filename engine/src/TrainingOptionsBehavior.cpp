@@ -100,7 +100,7 @@ std::string_view trainingOptionLabel(int option) {
         "HIT LOG",
         "HIT SOUND",
         "DUMMY INV",
-        "AUTO LIFE",
+        "EXIT MAIN",
         "DUMMY FREEZE",
         "DUMMY GUARD",
         "GUARD DMG",
@@ -111,6 +111,7 @@ std::string_view trainingOptionLabel(int option) {
         "MOVE TYPE",
         "MOVE LIST",
         "RESET POS",
+        "AUTO LIFE",
     };
     return labels[static_cast<std::size_t>(std::clamp(option, 0, kTrainingOptionCount - 1))];
 }
@@ -135,8 +136,8 @@ std::string trainingOptionStatus(const TrainingOptions& settings, int option) {
         return settings.playHitSounds ? "ON" : "OFF";
     case 8:
         return settings.dummyInvincible ? "ON" : "OFF";
-    case 9:
-        return settings.dummyAutoLife ? "ON" : "OFF";
+    case kTrainingExitMainOption:
+        return "GO";
     case 10:
         return settings.dummyFrozen ? "ON" : "OFF";
     case 11:
@@ -157,6 +158,8 @@ std::string trainingOptionStatus(const TrainingOptions& settings, int option) {
         return "OPEN";
     case kTrainingResetOption:
         return "RUN";
+    case kTrainingAutoLifeOption:
+        return settings.dummyAutoLife ? "ON" : "OFF";
     default:
         return "";
     }
@@ -191,9 +194,6 @@ void toggleTrainingOption(TrainingOptions& settings, int option) {
     case 8:
         settings.dummyInvincible = !settings.dummyInvincible;
         break;
-    case 9:
-        settings.dummyAutoLife = !settings.dummyAutoLife;
-        break;
     case 10:
         settings.dummyFrozen = !settings.dummyFrozen;
         break;
@@ -222,6 +222,9 @@ void toggleTrainingOption(TrainingOptions& settings, int option) {
         settings.moveListOpen = true;
         settings.selectedMoveListEntry = 0;
         settings.moveListScroll = 0;
+        break;
+    case kTrainingAutoLifeOption:
+        settings.dummyAutoLife = !settings.dummyAutoLife;
         break;
     default:
         break;

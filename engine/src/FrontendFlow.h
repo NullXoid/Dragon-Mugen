@@ -696,7 +696,14 @@ void handleKey(SDL_Renderer* renderer, AppState& state, SDL_Keycode key) {
             case SDLK_RETURN:
             case SDLK_KP_ENTER:
             case SDLK_SPACE:
-                if (state.training.options.selectedOption == kTrainingResetOption) {
+                if (state.training.options.selectedOption == kTrainingExitMainOption) {
+                    state.training.options.menuOpen = false;
+                    state.training.options.moveListOpen = false;
+                    unloadCharacterRuntime(state);
+                    state.frontend.exitConfirmOpen = false;
+                    state.frontend.screen = Screen::ModeSelect;
+                    state.frontend.screenFrame = 0;
+                } else if (state.training.options.selectedOption == kTrainingResetOption) {
                     resetTrainingPositions(state);
                 } else {
                     const int toggledOption = state.training.options.selectedOption;

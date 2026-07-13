@@ -47,7 +47,7 @@ void applyStoryDifficultyToEnemy(AppState& state, FighterState& fighter, size_t 
 
 void applyStoryWaveRoleToEnemy(AppState& state, FighterState& fighter) {
     const StoryWaveRole role = storyWaveRole(state, state.story.waveIndex);
-    int lifePermille = 1000;
+    int lifePermille = 650;
     int startingPower = 0;
     switch (role) {
     case StoryWaveRole::Boss:

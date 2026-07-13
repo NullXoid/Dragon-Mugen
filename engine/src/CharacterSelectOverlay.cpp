@@ -13,14 +13,13 @@ namespace dragon {
 namespace {
 
 float selectVirtualWidth(const UiRenderContext& ui) {
-    if (ui.logicalWidth >= 1000 || ui.logicalHeight >= 620) {
-        return 640.0f;
-    }
-    return ui.logicalWidth <= 340 ? 320.0f : 426.0f;
+    (void)ui;
+    return 640.0f;
 }
 
 float selectVirtualHeight(float virtualWidth) {
-    return virtualWidth >= 600.0f ? 360.0f : 240.0f;
+    (void)virtualWidth;
+    return 360.0f;
 }
 
 void drawFixedOpponentSlot(
@@ -177,26 +176,26 @@ void drawCharacterSelectOverlay(const UiRenderContext& ui, const CharacterSelect
     const float centerX = widthF * 0.5f;
     const bool classic = widthF <= 340.0f;
     const bool expanded = widthF >= 600.0f;
-    const float topBarH = expanded ? 48.0f : 34.0f;
-    const float panelX = expanded ? 70.0f : (classic ? 8.0f : 18.0f);
-    const float panelY = expanded ? 56.0f : (classic ? 38.0f : 38.0f);
+    const float topBarH = expanded ? 54.0f : 34.0f;
+    const float panelX = expanded ? 24.0f : (classic ? 8.0f : 18.0f);
+    const float panelY = expanded ? 66.0f : (classic ? 38.0f : 38.0f);
     const float panelW = widthF - panelX * 2.0f;
-    const float panelH = heightF - panelY - (expanded ? 8.0f : 6.0f);
-    const float cardGap = expanded ? 28.0f : (classic ? 8.0f : 14.0f);
-    const float cardW = expanded ? 176.0f : (classic ? 136.0f : 160.0f);
-    const float cardH = expanded ? 128.0f : (classic ? 88.0f : 96.0f);
-    const float cardY = expanded ? 72.0f : (classic ? 52.0f : 50.0f);
+    const float panelH = heightF - panelY - (expanded ? 12.0f : 6.0f);
+    const float cardGap = expanded ? 34.0f : (classic ? 8.0f : 14.0f);
+    const float cardW = expanded ? 214.0f : (classic ? 136.0f : 160.0f);
+    const float cardH = expanded ? 148.0f : (classic ? 88.0f : 96.0f);
+    const float cardY = expanded ? 84.0f : (classic ? 52.0f : 50.0f);
     const float leftCardX = centerX - cardGap * 0.5f - cardW;
     const float rightCardX = centerX + cardGap * 0.5f;
-    const float portraitPad = expanded ? 10.0f : 7.0f;
-    const float portraitBoxY = cardY + (expanded ? 30.0f : 24.0f);
-    const float portraitBoxH = expanded ? 66.0f : (classic ? 42.0f : 48.0f);
-    const float gridCellSize = expanded ? 28.0f : (classic ? 21.0f : 23.0f);
+    const float portraitPad = expanded ? 12.0f : 7.0f;
+    const float portraitBoxY = cardY + (expanded ? 32.0f : 24.0f);
+    const float portraitBoxH = expanded ? 82.0f : (classic ? 42.0f : 48.0f);
+    const float gridCellSize = expanded ? 30.0f : (classic ? 21.0f : 23.0f);
     const float gridCellSpacing = expanded ? 5.0f : 3.0f;
-    const float gridY = cardY + cardH + (expanded ? 16.0f : 10.0f);
-    const float footerStatusY = heightF - (expanded ? 62.0f : 41.0f);
-    const float footerStageY = heightF - (expanded ? 44.0f : 28.0f);
-    const float footerControlsY = heightF - (expanded ? 26.0f : 15.0f);
+    const float gridY = expanded ? 242.0f : cardY + cardH + 10.0f;
+    const float footerStatusY = heightF - (expanded ? 60.0f : 41.0f);
+    const float footerStageY = heightF - (expanded ? 42.0f : 28.0f);
+    const float footerControlsY = heightF - (expanded ? 24.0f : 15.0f);
     const int titleMaxChars = expanded ? 58 : (classic ? 32 : 42);
 
     setColor(renderer, 4, 9, 16, 232);
@@ -324,6 +323,15 @@ void drawCharacterSelectOverlay(const UiRenderContext& ui, const CharacterSelect
         const float p2CursorY = gridY + static_cast<float>(safeP2Cell / columns) * (gridCellSize + gridCellSpacing) - 1.0f;
         const float inset = safeP2Cell == safeSelectedCell ? 3.0f : 0.0f;
         drawCellCursor(renderer, p2CursorX, p2CursorY, 80, 175, 255, view.p2Confirmed, view.frame, inset, gridCellSize + 2.0f);
+    }
+
+    if (expanded) {
+        setColor(renderer, 10, 17, 26, 212);
+        fillRect(renderer, panelX + 10.0f, footerStatusY - 8.0f, panelW - 20.0f, 48.0f);
+        setColor(renderer, 81, 210, 198, 150);
+        drawRect(renderer, panelX + 10.0f, footerStatusY - 8.0f, panelW - 20.0f, 48.0f);
+        setColor(renderer, 198, 79, 85, 140);
+        fillRect(renderer, panelX + 18.0f, footerStatusY + 14.0f, panelW - 36.0f, 1.0f);
     }
 
     if (view.showP2Cursor) {

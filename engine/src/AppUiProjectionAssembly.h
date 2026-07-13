@@ -445,15 +445,14 @@ VsScreenLoadStatus vsScreenLoadStatus(const AppState& state) {
 
 std::string_view loadingOpponentSlotLabel(const AppState& state) {
     if (isStoryMode(state)) {
-        const StoryWaveRole role = storyWaveRole(state, state.story.waveIndex);
-        return role == StoryWaveRole::Normal ? std::string_view{"WAVE"} : storyWaveRoleLabel(role);
+        return storyWaveRoleLabel(storyWaveRole(state, state.story.waveIndex));
     }
     return opponentTypeLabel(activeOpponentType(state));
 }
 
 std::string loadingOpponentDisplayName(const AppState& state) {
     if (isStoryMode(state)) {
-        return storyFighterName(state, 1);
+        return std::string(storyWaveRoleLabel(storyWaveRole(state, state.story.waveIndex)));
     }
     return opponentDisplayName(state);
 }

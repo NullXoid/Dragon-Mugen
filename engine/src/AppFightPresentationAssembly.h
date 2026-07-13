@@ -122,12 +122,17 @@ FightHudView fightHudView(const AppState& state) {
             if (state.frontend.pendingMode == PendingMode::Story && i > 0) {
                 prefix += std::string(storyDifficultyShortLabel(state.story.difficulty)) + " ";
             }
-            const std::string name = state.frontend.pendingMode == PendingMode::Story
-                ? storyFighterName(state, static_cast<size_t>(i))
-                : arenaFighterName(state, static_cast<size_t>(i));
+            const FighterState& fighter = state.fighters[static_cast<size_t>(i)];
+            const bool storyEnemy = state.frontend.pendingMode == PendingMode::Story && i > 0;
+            const std::string name = storyEnemy
+                ? std::string(storyWaveRoleLabel(storyWaveRole(state, state.story.waveIndex)))
+                : (state.frontend.pendingMode == PendingMode::Story
+                    ? storyFighterName(state, static_cast<size_t>(i))
+                    : arenaFighterName(state, static_cast<size_t>(i)));
+            const int defaultMaxLife = characterMaxLifeForFighterIndex(state, static_cast<size_t>(i));
             fighterView.name = compactSettingText(prefix + name, 13);
-            fighterView.life = state.fighters[static_cast<size_t>(i)].life;
-            fighterView.maxLife = characterMaxLifeForFighterIndex(state, static_cast<size_t>(i));
+            fighterView.life = fighter.life;
+            fighterView.maxLife = fighter.maxLifeOverride > 0 ? fighter.maxLifeOverride : defaultMaxLife;
             fighterView.power = fightPowerGaugeView(state, static_cast<size_t>(i));
         }
     }
@@ -350,25 +355,29 @@ void drawLightFightPauseOverlay(SDL_Renderer* renderer, const AppState& state) {
     }
 
     const UiRenderContext ui = uiRenderContext(renderer, state);
+    constexpr bool hdCanvas = true;
+    constexpr float canvasW = 640.0f;
+    constexpr float canvasH = 360.0f;
+    ScopedVirtualCanvas virtualCanvas(ui, canvasW, canvasH);
     const DragonUiMetrics metrics = dragonUiMetricsForContext(ui);
     const auto& tokens = dragonUiTokens();
-    const float s = metrics.pixelScale;
-    const float panelW = 172.0f * s;
-    const float panelH = 70.0f * s;
-    const float x = std::floor((static_cast<float>(ui.logicalWidth) - panelW) * 0.5f);
-    const float y = std::floor((static_cast<float>(ui.logicalHeight) - panelH) * 0.5f);
+    const float s = hdCanvas ? 1.0f : metrics.pixelScale;
+    const float panelW = (hdCanvas ? 220.0f : 172.0f) * s;
+    const float panelH = (hdCanvas ? 108.0f : 70.0f) * s;
+    const float x = std::floor((canvasW - panelW) * 0.5f);
+    const float y = std::floor((canvasH - panelH) * 0.5f);
     setColor(renderer, tokens.panelBase, 226);
     fillRect(renderer, x, y, panelW, panelH);
     setColor(renderer, tokens.primaryTeal, 230);
     drawRect(renderer, x, y, panelW, panelH);
     setColor(renderer, tokens.separatorRed, 230);
-    fillRect(renderer, x + 2.0f * s, y + 23.0f * s, panelW - 4.0f * s, metrics.border);
+    fillRect(renderer, x + 2.0f * s, y + (hdCanvas ? 34.0f : 23.0f) * s, panelW - 4.0f * s, metrics.border);
     setColor(renderer, tokens.mutedGold, 245);
-    scaledDebugText(renderer, s, x + 55.0f * s, y + 8.0f * s, "PAUSED");
+    scaledDebugText(renderer, s, x + (hdCanvas ? 82.0f : 55.0f) * s, y + (hdCanvas ? 13.0f : 8.0f) * s, "PAUSED");
     setColor(renderer, tokens.primaryText, 235);
-    scaledDebugText(renderer, s, x + 25.0f * s, y + 34.0f * s, "START  RESUME");
+    scaledDebugText(renderer, s, x + (hdCanvas ? 42.0f : 25.0f) * s, y + (hdCanvas ? 52.0f : 34.0f) * s, "START  RESUME");
     setColor(renderer, tokens.mutedText, 230);
-    scaledDebugText(renderer, s, x + 25.0f * s, y + 48.0f * s, "SELECT OPTIONS");
+    scaledDebugText(renderer, s, x + (hdCanvas ? 42.0f : 25.0f) * s, y + (hdCanvas ? 72.0f : 48.0f) * s, "SELECT OPTIONS");
 }
 
 void drawScreenshotFreezeOverlay(SDL_Renderer* renderer, const AppState& state) {

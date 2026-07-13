@@ -1,5 +1,6 @@
 #include "VsScreenOverlay.h"
 
+#include "DragonUi.h"
 #include "UiRenderPrimitives.h"
 
 #include <SDL3/SDL_render.h>
@@ -32,42 +33,43 @@ void loadingTextRight(SDL_Renderer* renderer, float rightX, float y, const std::
 }
 
 void drawLoadingBackdrop(SDL_Renderer* renderer, float width, float height) {
+    const auto& tokens = dragonUiTokens();
     const float topH = std::max(24.0f, height * 0.12f);
     const float horizonY = height * 0.56f;
 
-    setColor(renderer, 4, 8, 13);
+    setColor(renderer, tokens.panelBase);
     fillRect(renderer, 0.0f, 0.0f, width, height);
-    setColor(renderer, 7, 16, 25);
+    setColor(renderer, tokens.panelBase);
     fillRect(renderer, 0.0f, 0.0f, width, topH);
-    setColor(renderer, 10, 20, 32, 230);
+    setColor(renderer, tokens.secondaryPanel, 230);
     fillRect(renderer, 0.0f, topH, width, horizonY - topH);
-    setColor(renderer, 5, 8, 13, 242);
+    setColor(renderer, tokens.panelBase, 242);
     fillRect(renderer, 0.0f, horizonY, width, height - horizonY);
 
     for (int i = 0; i < 7; ++i) {
         const float t = static_cast<float>(i) / 6.0f;
         const float y = topH + (horizonY - topH) * t;
-        setColor(renderer, 81, 210, 198, static_cast<Uint8>(18 + i * 4));
+        setColor(renderer, tokens.primaryTeal, static_cast<Uint8>(18 + i * 4));
         fillRect(renderer, width * (0.10f + t * 0.08f), y, width * (0.80f - t * 0.16f), 1.0f);
     }
 
     for (int i = 0; i < 6; ++i) {
         const float t = static_cast<float>(i) / 5.0f;
         const float y = horizonY + (height - horizonY) * t;
-        setColor(renderer, 81, 210, 198, static_cast<Uint8>(16 + i * 7));
+        setColor(renderer, tokens.primaryTeal, static_cast<Uint8>(16 + i * 7));
         fillRect(renderer, 0.0f, y, width, 1.0f);
     }
 
     const float centerX = width * 0.5f;
     for (int i = -4; i <= 4; ++i) {
         const float offset = static_cast<float>(i) * width * 0.09f;
-        setColor(renderer, 81, 210, 198, 18);
+        setColor(renderer, tokens.primaryTeal, 18);
         fillRect(renderer, centerX + offset, horizonY, 1.0f, height - horizonY);
     }
 
-    setColor(renderer, 231, 195, 90, 62);
+    setColor(renderer, tokens.mutedGold, 62);
     fillRect(renderer, width * 0.08f, horizonY + (height - horizonY) * 0.47f, width * 0.84f, 1.0f);
-    setColor(renderer, 198, 79, 85, 230);
+    setColor(renderer, tokens.separatorRed, 230);
     fillRect(renderer, 0.0f, topH - 2.0f, width, 2.0f);
 }
 
@@ -102,28 +104,23 @@ void drawLoadingProgressBar(
     float progress,
     VsScreenLoadStatus status) {
     const float clamped = std::clamp(progress, 0.0f, 1.0f);
+    const auto& tokens = dragonUiTokens();
     setColor(renderer, 8, 10, 15, 230);
     fillRect(renderer, x, y, width, height);
-    setColor(renderer, 72, 80, 98, 230);
+    setColor(renderer, tokens.mutedText, 230);
     drawRect(renderer, x, y, width, height);
 
-    Uint8 r = 96;
-    Uint8 g = 168;
-    Uint8 b = 230;
+    SDL_Color fill = tokens.primaryTeal;
     if (status == VsScreenLoadStatus::Ready) {
-        r = 118;
-        g = 226;
-        b = 160;
+        fill = { 118, 226, 160, 255 };
     } else if (status == VsScreenLoadStatus::Failed) {
-        r = 230;
-        g = 96;
-        b = 92;
+        fill = { 230, 96, 92, 255 };
     }
 
     if (clamped > 0.0f) {
-        setColor(renderer, r, g, b, 220);
+        setColor(renderer, fill, 220);
         fillRect(renderer, x + 2.0f, y + 2.0f, std::max(0.0f, (width - 4.0f) * clamped), height - 4.0f);
-        setColor(renderer, 245, 235, 150, 90);
+        setColor(renderer, tokens.mutedGold, 90);
         fillRect(renderer, x + 2.0f, y + 2.0f, std::max(0.0f, (width - 4.0f) * clamped), 2.0f);
     }
 }
@@ -137,13 +134,14 @@ void drawLoadingPortraitCard(
     float height,
     const std::string& name,
     const std::string& fallbackLabel) {
-    setColor(renderer, 7, 16, 25, 238);
+    const auto& tokens = dragonUiTokens();
+    setColor(renderer, tokens.panelBase, 238);
     fillRect(renderer, x, y, width, height);
-    setColor(renderer, 64, 78, 98);
+    setColor(renderer, tokens.mutedText);
     drawRect(renderer, x, y, width, height);
-    setColor(renderer, 16, 26, 39, 210);
+    setColor(renderer, tokens.secondaryPanel, 210);
     fillRect(renderer, x + 1.0f, y + 1.0f, width - 2.0f, 14.0f);
-    setColor(renderer, 81, 210, 198, 180);
+    setColor(renderer, tokens.primaryTeal, 180);
     fillRect(renderer, x + 1.0f, y + 1.0f, width - 2.0f, 1.0f);
 
     const float imageY = y + 17.0f;
@@ -156,10 +154,8 @@ void drawLoadingPortraitCard(
             static_cast<float>(portrait.height),
         };
         if (portrait.height > portrait.width * 1.25f) {
-            src.x = static_cast<float>(portrait.width) * 0.33f;
-            src.w = static_cast<float>(portrait.width) * 0.34f;
-            src.y = static_cast<float>(portrait.height) * 0.04f;
-            src.h = static_cast<float>(portrait.height) * 0.22f;
+            src.y = 0.0f;
+            src.h = static_cast<float>(portrait.height) * 0.72f;
         }
         const float scale = std::min({
             2.0f,
@@ -177,16 +173,17 @@ void drawLoadingPortraitCard(
         drawFixedOpponentSlot(renderer, x + width * 0.21f, imageY + 4.0f, width * 0.58f, imageH - 8.0f, fallbackLabel);
     }
 
-    setColor(renderer, 12, 14, 18, 230);
+    setColor(renderer, tokens.panelBase, 230);
     fillRect(renderer, x + 1.0f, y + height - 18.0f, width - 2.0f, 17.0f);
-    setColor(renderer, 233, 237, 243);
+    setColor(renderer, tokens.primaryText);
     const int maxChars = std::max(5, static_cast<int>((width - 14.0f) / 8.0f));
     debugTextCentered(renderer, x + width * 0.5f, y + height - 14.0f, fitDebugText(name, static_cast<std::size_t>(maxChars)));
-    setColor(renderer, 137, 150, 167);
+    setColor(renderer, tokens.mutedText);
     debugTextCentered(renderer, x + width * 0.5f, y + 5.0f, fitDebugText(fallbackLabel, static_cast<std::size_t>(maxChars)));
 }
 
 void drawVersusScreenOverlayStable(SDL_Renderer* renderer, const VsScreenView& view) {
+    const auto& tokens = dragonUiTokens();
     const float widthF = kLoadingVirtualWidth;
     const float heightF = kLoadingVirtualHeight;
     const float centerX = widthF * 0.5f;
@@ -209,13 +206,13 @@ void drawVersusScreenOverlayStable(SDL_Renderer* renderer, const VsScreenView& v
     const float panelX = centerX - panelW * 0.5f;
     const float panelY = 55.0f;
     const float panelH = 252.0f;
-    setColor(renderer, 7, 16, 25, 226);
+    setColor(renderer, tokens.panelBase, 226);
     fillRect(renderer, panelX, panelY, panelW, panelH);
-    setColor(renderer, 26, 144, 138, 235);
+    setColor(renderer, tokens.primaryTeal, 235);
     drawRect(renderer, panelX, panelY, panelW, panelH);
-    setColor(renderer, 16, 26, 39, 230);
+    setColor(renderer, tokens.secondaryPanel, 230);
     fillRect(renderer, panelX + 1.0f, panelY + 1.0f, panelW - 2.0f, 26.0f);
-    setColor(renderer, 198, 79, 85, 240);
+    setColor(renderer, tokens.separatorRed, 240);
     fillRect(renderer, panelX + 1.0f, panelY + 27.0f, panelW - 2.0f, 2.0f);
     loadingText(renderer, panelX + 12.0f, panelY + 10.0f, "MATCH LOADING", 231, 195, 90);
     loadingTextRight(renderer, panelX + panelW - 12.0f, panelY + 10.0f, view.loadStatus == VsScreenLoadStatus::Ready
@@ -233,9 +230,9 @@ void drawVersusScreenOverlayStable(SDL_Renderer* renderer, const VsScreenView& v
 
     const float matchupW = 156.0f;
     const float matchupX = centerX - matchupW * 0.5f;
-    setColor(renderer, 4, 7, 12, 225);
+    setColor(renderer, tokens.panelBase, 225);
     fillRect(renderer, matchupX, cardY + 28.0f, matchupW, 70.0f);
-    setColor(renderer, 231, 195, 90, 230);
+    setColor(renderer, tokens.mutedGold, 230);
     fillRect(renderer, matchupX + 12.0f, cardY + 30.0f, matchupW - 24.0f, 1.0f);
     loadingTextCentered(renderer, centerX, cardY + 44.0f, "VS", 233, 237, 243);
     loadingTextCentered(renderer, centerX, cardY + 63.0f, fitDebugText(view.opponentSlotLabel, 16), 137, 150, 167);
@@ -244,18 +241,18 @@ void drawVersusScreenOverlayStable(SDL_Renderer* renderer, const VsScreenView& v
     const float loadX = panelX + 24.0f;
     const float loadY = panelY + panelH - 52.0f;
     const float loadW = panelW - 48.0f;
-    setColor(renderer, 10, 16, 25, 232);
+    setColor(renderer, tokens.secondaryPanel, 232);
     fillRect(renderer, loadX, loadY, loadW, 42.0f);
-    setColor(renderer, 26, 144, 138, 210);
+    setColor(renderer, tokens.primaryTeal, 210);
     drawRect(renderer, loadX, loadY, loadW, 42.0f);
     loadingText(renderer, loadX + 8.0f, loadY + 9.0f, "STAGE", 137, 150, 167);
     loadingText(renderer, loadX + 66.0f, loadY + 9.0f, fitDebugText(view.stageName, 43), 233, 237, 243);
     loadingTextRight(renderer, loadX + loadW - 8.0f, loadY + 9.0f, progressText, 231, 195, 90);
     drawLoadingProgressBar(renderer, loadX + 8.0f, loadY + 29.0f, loadW - 16.0f, 7.0f, progress, view.loadStatus);
 
-    setColor(renderer, 7, 16, 25, 224);
+    setColor(renderer, tokens.panelBase, 224);
     fillRect(renderer, panelX, panelY + panelH + 10.0f, panelW, 24.0f);
-    setColor(renderer, 26, 144, 138, 210);
+    setColor(renderer, tokens.primaryTeal, 210);
     drawRect(renderer, panelX, panelY + panelH + 10.0f, panelW, 24.0f);
     loadingText(renderer, panelX + 12.0f, panelY + panelH + 18.0f, "MATCH DATA", 137, 150, 167);
     loadingTextRight(renderer, panelX + panelW - 12.0f, panelY + panelH + 18.0f, "PLEASE WAIT", 137, 150, 167);

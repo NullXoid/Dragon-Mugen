@@ -93,6 +93,27 @@ public:
         return true;
     }
 
+    bool setupArenaSetupScreen(std::string_view p1Id, std::ostream& out) override {
+        if (!prepareVerificationShell(out) || !loadVerificationContent(out)) {
+            return false;
+        }
+
+        state_.selection.selectedCharacter = findCharacterIndex(p1Id);
+        state_.frontend.pendingMode = PendingMode::Arena;
+        setArenaDefaultsFromConfig(state_);
+        state_.selection.sessionSlots.arenaCpuCount = 1;
+        setArenaCpuCount(state_, 1);
+        state_.selection.sessionSlots.opponentType = OpponentType::Cpu;
+        selectArenaDefaultStage(state_);
+        configureFightSessionSlotsFromSelection(state_);
+        state_.frontend.screen = Screen::ArenaSetup;
+        state_.frontend.screenFrame = 0;
+
+        loadVisualAssets(renderer_, state_);
+        openExistingGamepads(state_);
+        return true;
+    }
+
     void step(const verification::SymbolicInput& p1Input, int frames) override {
         step(p1Input, verification::SymbolicInput{}, frames);
     }
