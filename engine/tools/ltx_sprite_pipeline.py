@@ -240,10 +240,30 @@ def _remove_studio_background(image: Image.Image) -> Image.Image:
     bright_neutral = (alpha > 0) & (mean > 205) & (max_delta < 24)
     light_gray = (alpha > 0) & (mean > 150) & (max_delta < 12)
 
-    background = _border_connected_mask(chroma_green | chroma_magenta | bright_neutral | light_gray)
+    border_rgb = np.concatenate(
+        (
+            rgb[0, :, :],
+            rgb[-1, :, :],
+            rgb[:, 0, :],
+            rgb[:, -1, :],
+        ),
+        axis=0,
+    )
+    border_color = np.median(border_rgb, axis=0)
+    color_distance = np.sqrt(np.sum((rgb - border_color) ** 2, axis=2))
+    border_like = (alpha > 0) & (color_distance < 46)
+
+    background = _border_connected_mask(chroma_green | chroma_magenta | bright_neutral | light_gray | border_like)
     arr[background, 0:3] = 0
     arr[background, 3] = 0
     return Image.fromarray(arr, "RGBA")
+
+
+def _needs_background_cleanup(image: Image.Image) -> bool:
+    alpha = image.convert("RGBA").getchannel("A")
+    if alpha.getextrema()[0] == 255:
+        return True
+    return alpha.getbbox() == (0, 0, image.width, image.height)
 
 
 def _drop_disconnected_alpha_debris(image: Image.Image, min_alpha: int = 8) -> Image.Image:
@@ -542,9 +562,12 @@ def promote(args: argparse.Namespace) -> int:
     if not manifest:
         raise FileNotFoundError(f"Run manifest not found: {manifest_path}")
 
-    action = str(manifest.get("action", "")).lower()
+    source_action = str(manifest.get("action", "")).lower()
+    if source_action not in SUPPORTED_ACTIONS:
+        raise ValueError(f"Unsupported action in manifest: {source_action!r}")
+    action = str(args.action or source_action).lower()
     if action not in SUPPORTED_ACTIONS:
-        raise ValueError(f"Unsupported action in manifest: {action!r}")
+        raise ValueError(f"Unsupported promoted action: {action!r}")
 
     selected = _parse_selected(args.selected)
     if not selected:
@@ -570,7 +593,7 @@ def promote(args: argparse.Namespace) -> int:
     for output_index, source_index in enumerate(selected):
         source_path = source_frames[source_index]
         source_image = Image.open(source_path)
-        if source_dir.name == "frames_raw":
+        if source_dir.name == "frames_raw" or _needs_background_cleanup(source_image):
             source_image = _remove_studio_background(source_image)
         normalized = _drop_disconnected_alpha_debris(_fit_frame(source_image, cell_width, cell_height))
         output_path = action_dir / f"{action}_{output_index:02d}_src{source_index:03d}_{cell_width}x{cell_height}.png"
@@ -614,19 +637,23 @@ def promote(args: argparse.Namespace) -> int:
     }
     _write_json(curated_manifest_path, curated_manifest)
 
-    manifest["selected_source_frames"] = selected
-    manifest["cell_width"] = cell_width
-    manifest["cell_height"] = cell_height
-    manifest.setdefault("paths", {})
-    manifest["paths"].update(
-        {
-            "full_sheet": _portable_path(full_sheet, manifest_base),
-            "cropped_sheet": _portable_path(cropped_sheet, manifest_base),
-            "contact": _portable_path(contact, manifest_base),
-            "preview": _portable_path(preview, manifest_base),
-            "promoted_frames": [_portable_path(path, manifest_base) for path in selected_paths],
-        }
-    )
+    run_promotion = {
+        "selected_source_frames": selected,
+        "cell_width": cell_width,
+        "cell_height": cell_height,
+        "full_sheet": _portable_path(full_sheet, manifest_base),
+        "cropped_sheet": _portable_path(cropped_sheet, manifest_base),
+        "contact": _portable_path(contact, manifest_base),
+        "preview": _portable_path(preview, manifest_base),
+        "promoted_frames": [_portable_path(path, manifest_base) for path in selected_paths],
+    }
+    if action == source_action:
+        manifest["selected_source_frames"] = selected
+        manifest["cell_width"] = cell_width
+        manifest["cell_height"] = cell_height
+        manifest.setdefault("paths", {}).update(run_promotion)
+    else:
+        manifest.setdefault("derived_actions", {})[action] = run_promotion
     _write_json(manifest_path, manifest)
 
     print(f"Promoted {len(selected_paths)} {action} frames to {action_dir}")
@@ -659,6 +686,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     promote_parser = subparsers.add_parser("promote", help="Promote selected run frames into curated sprite assets")
     promote_parser.add_argument("--run-dir", type=Path, required=True, help="Run directory created by prepare")
+    promote_parser.add_argument("--action", help="Optional output action override for derived actions")
     promote_parser.add_argument("--selected", help="Comma-separated zero-based source frame indices")
     promote_parser.add_argument(
         "--curated-root",

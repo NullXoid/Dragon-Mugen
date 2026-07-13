@@ -33,6 +33,7 @@ from lab_paths import (
     character_kind,
     character_names,
     config_path,
+    curated_root,
     find_repo_root,
     format_selected_frames,
     is_relative_to,
@@ -158,6 +159,165 @@ def render_media_panel(title: str, media_path: Path | None, root: Path, empty: s
     if url:
         media = f'<img src="{esc(url)}" alt="{esc(title)}">'
     return f'<div><div class="media-label">{esc(title)}</div><div class="media">{media}</div></div>'
+
+
+def first_existing_sheet(root: Path, selected_character: str, action: str) -> Path | None:
+    sheets = curated_root(root, selected_character) / "sheets"
+    candidates = [
+        sheets / f"{action}_selected_512x672.png",
+        sheets / f"{action}_selected_384x672.png",
+        sheets / f"{action}_selected_cropped_512x672.png",
+        sheets / f"{action}_selected_cropped_384x672.png",
+    ]
+    candidates.extend(sorted(sheets.glob(f"{action}_selected*.png")))
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def render_move_browser(summary: dict, root: Path, selected_character: str) -> str:
+    moves = []
+    for row in summary["action_rows"]:
+        action = row["name"]
+        preview = row["preview"]
+        contact = row["contact"]
+        sheet = first_existing_sheet(root, selected_character, action)
+        source_preview = row["run"].get("source_preview")
+        source_contact = row["run"].get("source_contact")
+        source_video = row["source_video"]
+        moves.append(
+            {
+                "name": action,
+                "label": action.replace("_", " ").title(),
+                "frames": row["frame_count"],
+                "preview": media_url(preview, root) if preview else "",
+                "contact": media_url(contact, root) if contact else "",
+                "sheet": media_url(sheet, root) if sheet else "",
+                "sourcePreview": media_url(source_preview, root) if source_preview else "",
+                "sourceContact": media_url(source_contact, root) if source_contact else "",
+                "sourceVideo": media_url(source_video, root) if source_video else "",
+            }
+        )
+
+    moves_json = json.dumps(moves).replace("</", "<\\/")
+    return f"""
+    <section class="panel move-browser" data-moves='{esc(moves_json)}'>
+      <div class="move-browser-head">
+        <div>
+          <h2>Move Preview</h2>
+          <p class="note">Use the arrows or left/right keys to scan promoted sprite actions. Restart reloads the GIF preview.</p>
+        </div>
+        <div class="move-controls" aria-label="Move controls">
+          <button type="button" data-move-prev aria-label="Previous move">&lt;</button>
+          <select data-move-select aria-label="Select move"></select>
+          <button type="button" data-move-next aria-label="Next move">&gt;</button>
+          <button type="button" data-move-restart>Restart preview</button>
+        </div>
+      </div>
+      <div class="move-stage">
+        <div class="move-preview">
+          <div class="move-title"><b data-move-title>Move</b><span data-move-count></span></div>
+          <div class="move-frame">
+            <img data-move-preview alt="Curated move preview">
+            <div class="empty-media" data-move-empty>No curated preview</div>
+          </div>
+        </div>
+        <div class="move-inspector">
+          <div class="move-links">
+            <a data-move-sheet target="_blank">sprite sheet</a>
+            <a data-move-contact target="_blank">contact sheet</a>
+            <a data-move-source target="_blank">source contact</a>
+            <a data-move-video target="_blank">source video</a>
+          </div>
+          <div class="move-strip">
+            <img data-move-contact-img alt="Selected contact sheet">
+          </div>
+        </div>
+      </div>
+    </section>
+    <script>
+      (() => {{
+        const browser = document.querySelector('.move-browser');
+        if (!browser) return;
+        const moves = JSON.parse(browser.dataset.moves || '[]');
+        const select = browser.querySelector('[data-move-select]');
+        const preview = browser.querySelector('[data-move-preview]');
+        const empty = browser.querySelector('[data-move-empty]');
+        const contactImg = browser.querySelector('[data-move-contact-img]');
+        const title = browser.querySelector('[data-move-title]');
+        const count = browser.querySelector('[data-move-count]');
+        const sheetLink = browser.querySelector('[data-move-sheet]');
+        const contactLink = browser.querySelector('[data-move-contact]');
+        const sourceLink = browser.querySelector('[data-move-source]');
+        const videoLink = browser.querySelector('[data-move-video]');
+        let index = Math.max(0, moves.findIndex((move) => move.preview || move.contact));
+        const setLink = (link, url) => {{
+          link.href = url || '#';
+          link.classList.toggle('disabled-link', !url);
+          link.setAttribute('aria-disabled', url ? 'false' : 'true');
+        }};
+        const previewUrl = (move) => move.preview || move.contact || '';
+        const sourceUrl = (move) => move.sourceContact || move.sourcePreview || '';
+        const render = (restart = false) => {{
+          if (!moves.length) {{
+            title.textContent = 'No promoted moves';
+            count.textContent = '0 frames';
+            preview.hidden = true;
+            empty.hidden = false;
+            contactImg.hidden = true;
+            [sheetLink, contactLink, sourceLink, videoLink].forEach((link) => setLink(link, ''));
+            return;
+          }}
+          const move = moves[index] || {{}};
+          select.value = String(index);
+          title.textContent = move.label || 'Move';
+          count.textContent = `${{index + 1}}/${{moves.length}} - ${{move.frames || 0}} frames`;
+          const url = previewUrl(move);
+          if (url) {{
+            preview.hidden = false;
+            empty.hidden = true;
+            preview.src = restart ? `${{url}}?t=${{Date.now()}}` : url;
+          }} else {{
+            preview.hidden = true;
+            empty.hidden = false;
+            preview.removeAttribute('src');
+          }}
+          const contact = move.contact || move.sheet || '';
+          contactImg.hidden = !contact;
+          if (contact) contactImg.src = contact;
+          setLink(sheetLink, move.sheet);
+          setLink(contactLink, move.contact);
+          setLink(sourceLink, sourceUrl(move));
+          setLink(videoLink, move.sourceVideo);
+        }};
+        const step = (delta) => {{
+          if (!moves.length) return;
+          index = (index + delta + moves.length) % moves.length;
+          render(true);
+        }};
+        moves.forEach((move, i) => {{
+          const option = document.createElement('option');
+          option.value = String(i);
+          option.textContent = `${{move.label}} (${{move.frames || 0}})`;
+          select.appendChild(option);
+        }});
+        browser.querySelector('[data-move-prev]').addEventListener('click', () => step(-1));
+        browser.querySelector('[data-move-next]').addEventListener('click', () => step(1));
+        browser.querySelector('[data-move-restart]').addEventListener('click', () => render(true));
+        select.addEventListener('change', () => {{
+          index = Number(select.value) || 0;
+          render(true);
+        }});
+        window.addEventListener('keydown', (event) => {{
+          if (event.target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)) return;
+          if (event.key === 'ArrowLeft') step(-1);
+          if (event.key === 'ArrowRight') step(1);
+        }});
+        render(false);
+      }})();
+    </script>
+    """
 
 
 def render_action_cards(summary: dict, root: Path, selected_character: str) -> str:
@@ -500,6 +660,89 @@ def render_page(root: Path, selected_character: str, result: CommandResult | Non
     }}
     .media img {{ max-width: 100%; max-height: 260px; object-fit: contain; image-rendering: auto; }}
     .empty-media {{ color: var(--muted); }}
+    .move-browser {{ display: grid; gap: 14px; }}
+    .move-browser-head {{
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: start;
+    }}
+    .move-browser-head h2 {{ margin-bottom: 4px; }}
+    .move-controls {{
+      display: grid;
+      grid-template-columns: 44px minmax(150px, 240px) 44px auto;
+      gap: 8px;
+      align-items: center;
+      min-width: min(100%, 500px);
+    }}
+    .move-controls button {{ min-height: 40px; }}
+    .move-stage {{
+      display: grid;
+      grid-template-columns: minmax(280px, 520px) minmax(0, 1fr);
+      gap: 14px;
+      align-items: stretch;
+    }}
+    .move-preview,
+    .move-inspector {{
+      background: #100d0d;
+      border: 1px solid #352720;
+      min-width: 0;
+    }}
+    .move-title {{
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      border-bottom: 1px solid #352720;
+      color: var(--gold);
+      padding: 10px 12px;
+    }}
+    .move-title span {{ color: var(--muted); }}
+    .move-frame {{
+      min-height: 280px;
+      display: grid;
+      place-items: center;
+      background:
+        linear-gradient(45deg, #1c1c1c 25%, transparent 25%),
+        linear-gradient(-45deg, #1c1c1c 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #1c1c1c 75%),
+        linear-gradient(-45deg, transparent 75%, #1c1c1c 75%);
+      background-color: #101010;
+      background-size: 28px 28px;
+      background-position: 0 0, 0 14px, 14px -14px, -14px 0;
+      overflow: hidden;
+    }}
+    .move-frame img {{
+      max-width: 100%;
+      max-height: 420px;
+      object-fit: contain;
+      image-rendering: auto;
+    }}
+    .move-inspector {{ display: grid; grid-template-rows: auto minmax(0, 1fr); }}
+    .move-links {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 14px;
+      border-bottom: 1px solid #352720;
+      padding: 10px 12px;
+    }}
+    .disabled-link {{
+      color: var(--muted);
+      pointer-events: none;
+      text-decoration: none;
+    }}
+    .move-strip {{
+      min-height: 280px;
+      display: grid;
+      place-items: center;
+      overflow: auto;
+      padding: 12px;
+    }}
+    .move-strip img {{
+      max-width: 100%;
+      max-height: 420px;
+      object-fit: contain;
+      image-rendering: auto;
+    }}
     dl {{ display: grid; grid-template-columns: 105px minmax(0, 1fr); gap: 6px 10px; margin: 12px 0; }}
     dt {{ color: var(--muted); }}
     dd {{ margin: 0; overflow-wrap: anywhere; }}
@@ -542,6 +785,10 @@ def render_page(root: Path, selected_character: str, result: CommandResult | Non
       header.hero, main {{ padding-left: 16px; padding-right: 16px; }}
       .workspace-list li, .runtime-list li {{ grid-template-columns: 1fr; gap: 4px; }}
       .media-grid {{ grid-template-columns: 1fr; }}
+      .move-browser-head {{ display: grid; }}
+      .move-controls {{ grid-template-columns: 44px minmax(0, 1fr) 44px; min-width: 0; }}
+      .move-controls [data-move-restart] {{ grid-column: 1 / -1; }}
+      .move-stage {{ grid-template-columns: 1fr; }}
       dl {{ grid-template-columns: 1fr; }}
     }}
   </style>
@@ -556,6 +803,7 @@ def render_page(root: Path, selected_character: str, result: CommandResult | Non
     {render_result(result)}
     {render_workspace(summary, root, selected_character)}
     {render_mugen_files(summary, root, selected_character)}
+    {render_move_browser(summary, root, selected_character)}
     {render_action_cards(summary, root, selected_character)}
     {render_build_tools(root, selected_character)}
     {render_video_import(root, selected_character)}
