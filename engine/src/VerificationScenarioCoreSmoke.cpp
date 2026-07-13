@@ -851,7 +851,7 @@ int runLiliHienHououKyakuDemo(RuntimeProbe& runtime, std::ostream& out) {
             + " p2_active=" + std::to_string(finalSnap.p2.afterImageActive ? 1 : 0)
             + " p2_trail=" + std::to_string(finalSnap.p2.afterImageTrailCount)
             + " max_trail=" + std::to_string(maxAfterImageTrails));
-    if (const char* screenshotPath = std::getenv("DRAGON_SCREENSHOT_PATH"); screenshotPath && *screenshotPath) {
+    if (const char* screenshotPath = SDL_getenv("DRAGON_SCREENSHOT_PATH"); screenshotPath && *screenshotPath) {
         const bool captured = runtime.captureScreenshot(std::filesystem::path(screenshotPath));
         record(out, counts, captured ? Status::Pass : Status::Fail, "screenshot_captured", screenshotPath);
     }

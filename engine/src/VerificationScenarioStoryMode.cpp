@@ -5,6 +5,8 @@
 #include "VerificationStoryEnemyRoles.h"
 #include "dragon/Sff.h"
 
+#include <SDL3/SDL_stdinc.h>
+
 #include <algorithm>
 #include <cctype>
 #include <cstddef>
@@ -128,7 +130,7 @@ void captureOptionalScreenshot(
     Counts& counts,
     const char* envName,
     std::string_view checkName) {
-    const char* screenshotPath = std::getenv(envName);
+    const char* screenshotPath = SDL_getenv(envName);
     if (!screenshotPath || !*screenshotPath) {
         return;
     }
@@ -218,7 +220,7 @@ int runStoryStageSelectMap(RuntimeProbe& runtime, std::ostream& out) {
         "DRAGON_STORY_STAGE_SELECT_SCREENSHOT",
         "story_stage_select_screenshot");
 
-    if (const char* characterSelectPath = std::getenv("DRAGON_STORY_CHARACTER_SELECT_SCREENSHOT");
+    if (const char* characterSelectPath = SDL_getenv("DRAGON_STORY_CHARACTER_SELECT_SCREENSHOT");
         characterSelectPath && *characterSelectPath) {
         runtime.pressKey("escape");
         const auto characterSelect = runtime.snapshot();

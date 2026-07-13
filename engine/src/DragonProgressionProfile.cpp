@@ -2,6 +2,8 @@
 
 #include "dragon/MugenText.h"
 
+#include <SDL3/SDL_stdinc.h>
+
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
@@ -28,7 +30,7 @@ bool equalsNoCase(std::string_view lhs, std::string_view rhs) {
 
 std::string firstEnvironmentValue(std::initializer_list<const char*> names) {
     for (const char* name : names) {
-        const char* value = std::getenv(name);
+        const char* value = SDL_getenv(name);
         if (value && !trim(value).empty()) {
             return trim(value);
         }

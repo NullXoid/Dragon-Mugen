@@ -14,9 +14,9 @@ std::string stageSelectSnapshotDetail(const RuntimeSnapshot& snapshot, const Run
 }
 
 void captureStageSelectScreenshot(RuntimeProbe& runtime, std::ostream& out, Counts& counts) {
-    const char* screenshotPath = std::getenv("DRAGON_STAGE_SELECT_SCREENSHOT");
+    const char* screenshotPath = SDL_getenv("DRAGON_STAGE_SELECT_SCREENSHOT");
     if (!screenshotPath || !*screenshotPath) {
-        screenshotPath = std::getenv("DRAGON_SCREENSHOT_PATH");
+        screenshotPath = SDL_getenv("DRAGON_SCREENSHOT_PATH");
     }
     if (!screenshotPath || !*screenshotPath) {
         return;
@@ -27,9 +27,9 @@ void captureStageSelectScreenshot(RuntimeProbe& runtime, std::ostream& out, Coun
 }
 
 void captureArenaSetupScreenshot(RuntimeProbe& runtime, std::ostream& out, Counts& counts) {
-    const char* screenshotPath = std::getenv("DRAGON_ARENA_SETUP_SCREENSHOT");
+    const char* screenshotPath = SDL_getenv("DRAGON_ARENA_SETUP_SCREENSHOT");
     if (!screenshotPath || !*screenshotPath) {
-        screenshotPath = std::getenv("DRAGON_SCREENSHOT_PATH");
+        screenshotPath = SDL_getenv("DRAGON_SCREENSHOT_PATH");
     }
     if (!screenshotPath || !*screenshotPath) {
         return;

@@ -64,8 +64,8 @@
         }
 
         if (startsWithNoCase(controllerType, "Helper")) {
-            const auto* stateNo = findProperty(section, "stateno");
-            if (!controllerTrigger || !stateNo) {
+            const auto* helperState = findProperty(section, "stateno");
+            if (!controllerTrigger || !helperState) {
                 continue;
             }
 
@@ -73,8 +73,8 @@
             StateHelperController helper;
             helper.id = nextRuntimeControllerId++;
             helper.trigger = *controllerTrigger;
-            helper.stateNo = parseIntValue(stateNo->value, 0);
-            helper.stateNoExpression = trim(stateNo->value);
+            helper.stateNo = parseIntValue(helperState->value, 0);
+            helper.stateNoExpression = trim(helperState->value);
             helper.helperId = findProperty(section, "id") ? parseIntValue(findProperty(section, "id")->value, helper.stateNo) : helper.stateNo;
             if (const auto* pos = findProperty(section, "pos")) {
                 const auto values = parseExplodPosition(pos->value, constants);

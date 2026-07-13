@@ -13,6 +13,8 @@
 #include "TrainingOptionsBehavior.h"
 #include "TrainingOptionsOverlay.h"
 
+#include <SDL3/SDL_stdinc.h>
+
 #include <algorithm>
 #include <array>
 #include <cctype>

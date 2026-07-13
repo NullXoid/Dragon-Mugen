@@ -5,6 +5,8 @@
 
 #include "AppTypes.h"
 
+#include <SDL3/SDL_stdinc.h>
+
 #include <algorithm>
 #include <array>
 #include <cctype>
@@ -74,7 +76,7 @@ void captureRosterProofFrame(
     Counts& counts,
     std::string_view characterPrefix,
     std::string_view poseName) {
-    const char* directory = std::getenv("DRAGON_ROSTER_SCREENSHOT_DIR");
+    const char* directory = SDL_getenv("DRAGON_ROSTER_SCREENSHOT_DIR");
     if (!directory || !*directory) {
         return;
     }

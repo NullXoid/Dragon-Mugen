@@ -47,7 +47,7 @@ void drawTitleBackground(SDL_Renderer* renderer, const AppState& state) {
             motifX - 160.0f,
             145.0f,
             SDL_BLENDMODE_MUL,
-            state.systemScreens.mainMenu.motifShadowAlpha);
+            static_cast<Uint8>(std::clamp(state.systemScreens.mainMenu.motifShadowAlpha, 0, 255)));
     }
 
     setColor(renderer, 0, 0, 0);

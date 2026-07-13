@@ -85,6 +85,8 @@ For larger extraction changes, also run from a Visual Studio developer shell:
 python engine/tools/dev_check.py .
 ```
 
+The cleanup warning gate was validated with warnings-as-errors on a clean-first Ninja/GNU build and a fresh Visual Studio 2022/MSVC Debug build. Warning fixes must remain source-level and must not weaken the Dragon-only warning flags.
+
 Manual smoke path:
 
 - Mode select opens.

@@ -2,6 +2,8 @@
 
 #include "AppTypes.h"
 
+#include <SDL3/SDL_stdinc.h>
+
 #include <cstdlib>
 #include <filesystem>
 #include <ostream>
@@ -61,9 +63,9 @@ void summary(std::ostream& out, const Counts& counts) {
 }
 
 void captureOptionalScreenshot(RuntimeProbe& runtime, std::ostream& out, Counts& counts) {
-    const char* screenshotPath = std::getenv("DRAGON_LOADING_SCREENSHOT");
+    const char* screenshotPath = SDL_getenv("DRAGON_LOADING_SCREENSHOT");
     if (!screenshotPath || !*screenshotPath) {
-        screenshotPath = std::getenv("DRAGON_SCREENSHOT_PATH");
+        screenshotPath = SDL_getenv("DRAGON_SCREENSHOT_PATH");
     }
     if (!screenshotPath || !*screenshotPath) {
         return;

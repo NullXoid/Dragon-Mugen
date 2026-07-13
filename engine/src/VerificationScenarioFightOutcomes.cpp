@@ -2,6 +2,8 @@
 
 #include "AppTypes.h"
 
+#include <SDL3/SDL_stdinc.h>
+
 #include <cstdlib>
 #include <filesystem>
 #include <ostream>
@@ -189,7 +191,7 @@ void recordLightPauseResume(
     runtime.pressKey("enter");
     const auto paused = runtime.snapshot();
     if (name == "single_player") {
-        if (const char* screenshotPath = std::getenv("DRAGON_LIGHT_PAUSE_SCREENSHOT");
+        if (const char* screenshotPath = SDL_getenv("DRAGON_LIGHT_PAUSE_SCREENSHOT");
             screenshotPath && *screenshotPath) {
             const bool captured = runtime.captureScreenshot(std::filesystem::path(screenshotPath));
             record(out, counts, captured ? Status::Pass : Status::Fail, "light_pause_screenshot_captured", screenshotPath);

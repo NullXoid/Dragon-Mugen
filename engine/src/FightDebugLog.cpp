@@ -22,7 +22,7 @@ std::string lowerEnvValue(const char* value) {
 }
 
 bool debugFlagEnabled(const char* name) {
-    const std::string value = lowerEnvValue(std::getenv(name));
+    const std::string value = lowerEnvValue(SDL_getenv(name));
     return !value.empty()
         && value != "0"
         && value != "false"

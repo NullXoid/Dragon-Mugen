@@ -4,6 +4,8 @@
 #include "dragon/MugenData.h"
 #include "dragon/Sff.h"
 
+#include <SDL3/SDL_stdinc.h>
+
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
@@ -342,7 +344,7 @@ int runStoryScottTramRooftop(RuntimeProbe& runtime, std::ostream& out) {
         "story_runtime_remains_wave_mode",
         "fighters=" + std::to_string(snap.fighterCount)
             + " active=" + std::to_string(snap.storyActiveEnemies));
-    if (const char* screenshotPath = std::getenv("DRAGON_SCREENSHOT_PATH"); screenshotPath && *screenshotPath) {
+    if (const char* screenshotPath = SDL_getenv("DRAGON_SCREENSHOT_PATH"); screenshotPath && *screenshotPath) {
         const bool captured = runtime.captureScreenshot(std::filesystem::path(screenshotPath));
         record(out, counts, captured ? Status::Pass : Status::Fail, "screenshot_captured", screenshotPath);
     }

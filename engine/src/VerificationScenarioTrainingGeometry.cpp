@@ -184,7 +184,7 @@ int runTrainingCommandHudLayout(RuntimeProbe& runtime, std::ostream& out) {
             geometry.detail);
     }
 
-    if (const char* screenshotPath = std::getenv("DRAGON_SCREENSHOT_PATH"); screenshotPath && *screenshotPath) {
+    if (const char* screenshotPath = SDL_getenv("DRAGON_SCREENSHOT_PATH"); screenshotPath && *screenshotPath) {
         const bool captured = runtime.captureScreenshot(std::filesystem::path(screenshotPath));
         record(out, counts, captured ? Status::Pass : Status::Fail, "screenshot_captured", screenshotPath);
     }
@@ -220,7 +220,7 @@ int runTrainingPauseHelpLegend(RuntimeProbe& runtime, std::ostream& out) {
             optionsOpen.detail);
     }
 
-    if (const char* screenshotPath = std::getenv("DRAGON_PAUSE_SCREENSHOT_PATH"); screenshotPath && *screenshotPath) {
+    if (const char* screenshotPath = SDL_getenv("DRAGON_PAUSE_SCREENSHOT_PATH"); screenshotPath && *screenshotPath) {
         runtime.setFightPaused(true);
         const bool captured = runtime.captureScreenshot(std::filesystem::path(screenshotPath));
         record(out, counts, captured ? Status::Pass : Status::Fail, "pause_screenshot_captured", screenshotPath);

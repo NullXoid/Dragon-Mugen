@@ -2,6 +2,8 @@
 
 #include "AppTypes.h"
 
+#include <SDL3/SDL_stdinc.h>
+
 #include <cstdlib>
 #include <filesystem>
 #include <cmath>
@@ -159,7 +161,7 @@ int runArenaOpenBorScrollStageFixture(
         + " p1_x_before=" + std::to_string(start.p1.x)
         + " p1_x_after=" + std::to_string(forward.p1.x));
 
-    if (const char* screenshotPath = std::getenv("DRAGON_SCREENSHOT_PATH"); screenshotPath && *screenshotPath) {
+    if (const char* screenshotPath = SDL_getenv("DRAGON_SCREENSHOT_PATH"); screenshotPath && *screenshotPath) {
         const bool captured = runtime.captureScreenshot(std::filesystem::path(screenshotPath));
         record(out, counts, captured ? Status::Pass : Status::Fail, "screenshot_captured", screenshotPath);
     }

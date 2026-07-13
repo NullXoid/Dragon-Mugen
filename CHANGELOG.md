@@ -31,7 +31,7 @@ All notable Dragon MUGEN changes are recorded here. Engine commits update the `U
 
 ### Internal
 
-- Consolidated presentation on the stable 640x360 virtual canvas, removed warning-exposed orphan helpers, and hardened cleanup validation. Dragon targets are warning-clean under the strict GNU validation build; no intended player-visible behavior change.
+- Consolidated presentation on the stable 640x360 virtual canvas, removed warning-exposed orphan helpers, and hardened cleanup validation. Dragon targets are warning-clean under strict GNU and MSVC validation builds; no intended player-visible behavior change.
 
 ### Known Issues
 

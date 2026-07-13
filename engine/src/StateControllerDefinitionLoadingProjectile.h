@@ -176,12 +176,12 @@
             projectile.removeWhenHit = findProperty(section, "projremove") ? parseIntValue(findProperty(section, "projremove")->value, projectile.removeWhenHit) : projectile.removeWhenHit;
             projectile.pauseMoveTime = findProperty(section, "pausemovetime") ? parseIntValue(findProperty(section, "pausemovetime")->value, 0) : 0;
             projectile.superMoveTime = findProperty(section, "supermovetime") ? parseIntValue(findProperty(section, "supermovetime")->value, projectile.pauseMoveTime) : projectile.pauseMoveTime;
-            if (const auto* priority = findProperty(section, "projpriority")) {
-                const auto values = parseIntPairValue(priority->value, projectile.priority, projectile.cancelPriority);
+            if (const auto* projectilePriority = findProperty(section, "projpriority")) {
+                const auto values = parseIntPairValue(projectilePriority->value, projectile.priority, projectile.cancelPriority);
                 projectile.priority = values.first;
                 projectile.cancelPriority = values.second;
-            } else if (const auto* priority = findProperty(section, "priority")) {
-                const auto values = parseIntPairValue(priority->value, projectile.priority, projectile.cancelPriority);
+            } else if (const auto* fallbackPriority = findProperty(section, "priority")) {
+                const auto values = parseIntPairValue(fallbackPriority->value, projectile.priority, projectile.cancelPriority);
                 projectile.priority = values.first;
                 projectile.cancelPriority = values.second;
             }

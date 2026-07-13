@@ -555,11 +555,11 @@
                     continue;
                 }
                 const auto* attr = findProperty(section, "attr");
-                const auto* stateNo = findProperty(section, "stateno");
-                if (!attr || !stateNo) {
+                const auto* targetState = findProperty(section, "stateno");
+                if (!attr || !targetState) {
                     continue;
                 }
-                const auto parsedState = parsePlainIntValue(stateNo->value);
+                const auto parsedState = parsePlainIntValue(targetState->value);
                 if (!parsedState) {
                     continue;
                 }

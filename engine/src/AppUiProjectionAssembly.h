@@ -379,8 +379,8 @@ void drawParallaxFloorSprite(
         }
 
         SDL_FRect src{ 0.0f, static_cast<float>(row), sourceWidth, 1.0f };
-        for (float x = drawX; x < static_cast<float>(logicalWidth); x += rowWidth) {
-            SDL_FRect dst{ x, y + static_cast<float>(row), rowWidth, 1.0f };
+        for (float tileX = drawX; tileX < static_cast<float>(logicalWidth); tileX += rowWidth) {
+            SDL_FRect dst{ tileX, y + static_cast<float>(row), rowWidth, 1.0f };
             SDL_RenderTexture(renderer, sprite.texture, &src, &dst);
         }
     }
