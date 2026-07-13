@@ -15,7 +15,7 @@ Only one feature may be `In Progress` at a time.
 
 Current specs:
 
-- `0001_architecture_recovery.md` - Planned architecture recovery and module ownership guardrails.
+- `0001_architecture_recovery.md` - In-progress safe cleanup, warning hardening, and architecture reporting slice.
 - `0002_fight_correctness.md` - Complete classic fight outcome/routing/combat correctness slice.
 - `0003_roster_compatibility_readiness.md` - Complete selectable-roster compatibility smoke slice.
 - `0004_openbor_stage_compatibility_v2.md` - Planned Arena OpenBOR stage compatibility, load progress, and 4-fighter performance slice.

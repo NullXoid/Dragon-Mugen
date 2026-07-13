@@ -31,6 +31,7 @@ def main() -> int:
     checks: list[tuple[str, list[str]]] = [
         ("architecture guard", [sys.executable, "engine/tools/guard_architecture.py", "."]),
         ("feature spec check", [sys.executable, "engine/tools/check_feature_specs.py", "."]),
+        ("active-change guard tests", [sys.executable, "engine/tools/test_guard_active_change.py"]),
     ]
 
     if not args.quick:

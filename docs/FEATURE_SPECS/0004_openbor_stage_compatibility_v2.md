@@ -1,6 +1,6 @@
 # OpenBOR Stage Compatibility v2
 
-Status: In Progress
+Status: Planned
 
 ## Goal
 
@@ -50,6 +50,8 @@ Out of scope:
 This feature is one complete Arena/OpenBOR compatibility slice, not a set of isolated polish patches. It includes an owned loading-progress boundary, an OpenBOR conversion/metadata boundary, a four-fighter performance measurement path, scripted verifiers, manual test instructions, and roadmap/checklist/ledger updates.
 
 The loading bar must represent actual progress through known work such as character metadata, character runtime, stage metadata, stage sprites, textures, sounds, and fight-session preparation. If a loading step is still synchronous, the feature must split or report that step honestly instead of drawing a fake smooth bar.
+
+Planning note (2026-07-13): this feature returned to `Planned` while Architecture Recovery performs the safe cleanup slice. Completed loading-progress and performance work remains preserved below. The unfinished metadata, converter/import path, and expanded fixture coverage remain the next OpenBOR work; they are not cancelled or replaced by cleanup.
 
 ## Ownership
 

@@ -36,6 +36,7 @@ REQUIRED_MODULE_FILES = [
 ]
 
 REQUIRED_PROCESS_FILES = [
+    Path("CHANGELOG.md"),
     Path("docs/FEATURE_COMPLETION_POLICY.md"),
     Path("docs/FAILURE_POSTMORTEM_2026_06_04.md"),
     Path("docs/FEATURE_LEDGER.md"),

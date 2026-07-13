@@ -37,7 +37,11 @@ The active guard in `engine/tools/guard_active_change.py` is not a line-count gu
 - `docs/REGRESSION_CHECKLIST.md`
 - the active `docs/FEATURE_SPECS/*.md` file
 
-This forces every engine change to record what must keep working, what changed, or how it was verified.
+It must also update the root `CHANGELOG.md` under `Unreleased`. This forces every engine change to record what must keep working, what changed, or how it was verified, and to leave a concise notification for users and developers. Internal refactors should explicitly state that there is no intended player-visible behavior change.
+
+## Cleanup and Deprecation Rule
+
+Unused future ideas belong in a roadmap or feature spec, not in dormant functions, unused state, or unreachable branches. Internal code may be removed after call-site and compatibility review. Public API removal requires an `Unreleased` deprecation notice, migration guidance, and at least one release checkpoint before deletion.
 
 ## Complete Means Complete
 

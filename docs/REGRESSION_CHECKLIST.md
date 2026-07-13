@@ -4,6 +4,10 @@ This is the verification appendix, not the roadmap. Use [ENGINE_COMPLETION_ROADM
 
 Use this checklist before committing engine/app code. It exists because previous work was lost while adding new features.
 
+Every engine commit must update both one preservation source (this checklist, the feature ledger, or the active feature spec) and root `CHANGELOG.md`. Internal cleanup notices must say that no player-visible behavior change is intended. Compatibility or Dragon extension documents change only when their supported data behavior changes; project handoff files change at milestones or branch-state changes rather than every small commit.
+
+For cleanup changes, also confirm that audited public APIs remain declared, requested verifier fixtures never substitute roster slot zero, strict compiler warnings are clean, and removed future ideas are preserved in a roadmap/spec rather than dormant code.
+
 ## Automated Checks
 
 Run for source-level changes:

@@ -22,6 +22,7 @@ PRESERVATION_DOCS = {
 }
 
 FEATURE_SPEC_PREFIX = "docs/FEATURE_SPECS/"
+CHANGELOG_PATH = "CHANGELOG.md"
 
 
 def staged_paths(repo: Path) -> set[str]:
@@ -46,6 +47,19 @@ def is_preservation_update(path: str) -> bool:
     return path in PRESERVATION_DOCS or path.startswith(FEATURE_SPEC_PREFIX)
 
 
+def documentation_failures(paths: set[str]) -> tuple[list[str], list[str]]:
+    engine_changes = sorted(path for path in paths if is_engine_change(path))
+    if not engine_changes:
+        return engine_changes, []
+
+    failures: list[str] = []
+    if not any(is_preservation_update(path) for path in paths):
+        failures.append("preservation")
+    if CHANGELOG_PATH not in paths:
+        failures.append("changelog")
+    return engine_changes, failures
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Guard active Dragon MUGEN changes against undocumented regressions.")
     parser.add_argument("root", nargs="?", default=Path(__file__).resolve().parents[2], type=Path)
@@ -53,19 +67,17 @@ def main() -> int:
 
     repo = args.root.resolve()
     paths = staged_paths(repo)
-    engine_changes = sorted(path for path in paths if is_engine_change(path))
-    if not engine_changes:
-        print("Dragon active-change guard: PASS")
-        return 0
-
-    if any(is_preservation_update(path) for path in paths):
+    engine_changes, failures = documentation_failures(paths)
+    if not failures:
         print("Dragon active-change guard: PASS")
         return 0
 
     print("Dragon active-change guard failed:")
-    print("  - Engine/app code is staged without a preservation documentation update.")
-    print("  - Update docs/FEATURE_LEDGER.md or docs/REGRESSION_CHECKLIST.md in the same commit.")
-    print("  - If this is a new active feature, update the matching docs/FEATURE_SPECS/*.md file.")
+    if "preservation" in failures:
+        print("  - Engine/app code is staged without a preservation documentation update.")
+        print("  - Update docs/FEATURE_LEDGER.md, docs/REGRESSION_CHECKLIST.md, or the active feature spec.")
+    if "changelog" in failures:
+        print("  - Engine/app code is staged without an Unreleased notification in CHANGELOG.md.")
     print("  - Staged engine files:")
     for path in engine_changes:
         print(f"    - {path}")

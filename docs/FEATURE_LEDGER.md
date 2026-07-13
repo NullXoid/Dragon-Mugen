@@ -29,13 +29,15 @@ Static audits do not count as live verification. Parsed M.U.G.E.N controllers re
 
 | Item | Current Value |
 | --- | ---: |
-| Starting `App.cpp` count | 16820 |
-| Current `App.cpp` count | 12633 |
-| Total removed | 4187 |
-| Reduction | 24.9% |
-| Remaining to 50% reduction | 4223 |
+| Starting `App.cpp` physical lines | 16820 |
+| Current `App.cpp` physical lines | 364 |
+| Directly included implementation shards | 65 |
+| Direct implementation-shard lines | 16660 |
+| `App.cpp` plus direct shards | 17024 |
 
-Latest pass: Runtime performance diagnostics and safe render-only culling were added with ownership in `FramePerformance`, `WorldRender`, and verifier performance modules. `AppVerificationBridge.h` was kept under the hard file-size threshold by extracting performance/probe helpers. Current file-size guard output on this branch reports `engine/src/App.cpp` at `12633` lines plus existing oversized verifier/training files; no new performance helper file is over the hard threshold. Previous freeze-watch and air-special recovery details remain preserved in the feature rows below.
+Architecture metrics count physical `App.cpp` lines and every implementation header it directly includes. A small coordinator file does not by itself demonstrate modularization; shard count and aggregate direct-source size must move in the right direction too. The 2026-07-13 cleanup baseline is 364 physical `App.cpp` lines plus 65 direct implementation shards containing 16660 lines, for 17024 aggregate direct lines. Runtime performance diagnostics and safe render-only culling remain owned by `FramePerformance`, `WorldRender`, and verifier performance modules. Previous freeze-watch and air-special recovery details remain preserved in the feature rows below.
+
+Safe cleanup preservation update (2026-07-13): Architecture Recovery may remove only proven internal zero-call code, orphaned helpers, obsolete controller bookkeeping, and permanently unreachable presentation branches. It must preserve public `findSndSample()` and `resolveLocalCoordScaleX/Y()`, supported parsers/controllers/content readers, progression-save migration, Dragon extension boundaries, generic controller persistence, and declared compatibility scenarios. Requested verifier fixtures must fail setup when missing rather than silently selecting roster slot zero. This is an internal refactor with no intended player-visible behavior change.
 
 Cleanup preservation note: the owned player roster remains `A.Ben` and `I.Chie` in `game/data/select.def`, while Story enemy combat roles are now editable through `[Enemy Setup]` in `game/data/story_boards.def` (`grunts`, `mini_bosses`, and `bosses`) so KFM/Ken/Ryu-style compatibility fixtures can be used as enemy examples without becoming player-selectable owned content. A.Ben depth movement intentionally reuses promoted walk frames through generated SFF groups `24` and `25` instead of maintaining separate up/down walk source videos, and `owned-character-readiness`, Story route/wave verifiers, Arena depth-walk verification, shop movement/collision verification, `dev_check.py --skip-build`, `git diff --check`, and `check_file_sizes.py` are the preservation gate for this cleanup.
 
