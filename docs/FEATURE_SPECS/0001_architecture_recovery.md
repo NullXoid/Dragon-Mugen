@@ -62,7 +62,7 @@ Incremental commits may land inside that extraction or hardening pass, but they 
 - [x] Make Dragon targets warning-clean under `/W4` or `-Wall -Wextra -Wpedantic` with opt-in warnings-as-errors.
 - [x] Require both preservation documentation and an `Unreleased` changelog update for engine commits.
 - [x] Make requested verifier fixtures fail setup when absent instead of substituting roster slot zero.
-- [ ] Record physical `App.cpp` lines, directly included implementation-shard count, shard lines, and aggregate lines.
+- [x] Record physical `App.cpp` lines, directly included implementation-shard count, shard lines, and aggregate lines.
 - [ ] Extract screen/mode flow from `App.cpp`.
 - [ ] Extract fight session and round flow from `App.cpp`.
 - [ ] Extract command buffering and CMD matching from `App.cpp`.
