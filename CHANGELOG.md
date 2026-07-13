@@ -11,6 +11,7 @@ All notable Dragon MUGEN changes are recorded here. Engine commits update the `U
 ### Changed
 
 - Architecture reporting now includes physical `App.cpp` lines, direct implementation-shard count, shard lines, and aggregate direct-source lines.
+- Character Select, Arena Setup, Fight Result, Stage Select, and Story Stage Select now use their single 640x360 virtual composition directly; output presets still control output size and quality.
 
 ### Fixed
 

@@ -12,16 +12,6 @@
 namespace dragon {
 namespace {
 
-float selectVirtualWidth(const UiRenderContext& ui) {
-    (void)ui;
-    return 640.0f;
-}
-
-float selectVirtualHeight(float virtualWidth) {
-    (void)virtualWidth;
-    return 360.0f;
-}
-
 void drawFixedOpponentSlot(
     SDL_Renderer* renderer,
     float x,
@@ -168,51 +158,47 @@ void drawWaveOpponentSlot(SDL_Renderer* renderer, float x, float y, float w, flo
 
 void drawCharacterSelectOverlay(const UiRenderContext& ui, const CharacterSelectView& view) {
     SDL_Renderer* renderer = ui.renderer;
-    const float virtualWidth = selectVirtualWidth(ui);
-    const float virtualHeight = selectVirtualHeight(virtualWidth);
-    ScopedVirtualCanvas virtualCanvas(ui, virtualWidth, virtualHeight);
-    const float widthF = virtualWidth;
-    const float heightF = virtualHeight;
+    constexpr float widthF = 640.0f;
+    constexpr float heightF = 360.0f;
+    ScopedVirtualCanvas virtualCanvas(ui, widthF, heightF);
     const float centerX = widthF * 0.5f;
-    const bool classic = widthF <= 340.0f;
-    const bool expanded = widthF >= 600.0f;
-    const float topBarH = expanded ? 54.0f : 34.0f;
-    const float panelX = expanded ? 24.0f : (classic ? 8.0f : 18.0f);
-    const float panelY = expanded ? 66.0f : (classic ? 38.0f : 38.0f);
+    constexpr float topBarH = 54.0f;
+    constexpr float panelX = 24.0f;
+    constexpr float panelY = 66.0f;
     const float panelW = widthF - panelX * 2.0f;
-    const float panelH = heightF - panelY - (expanded ? 12.0f : 6.0f);
-    const float cardGap = expanded ? 34.0f : (classic ? 8.0f : 14.0f);
-    const float cardW = expanded ? 214.0f : (classic ? 136.0f : 160.0f);
-    const float cardH = expanded ? 148.0f : (classic ? 88.0f : 96.0f);
-    const float cardY = expanded ? 84.0f : (classic ? 52.0f : 50.0f);
+    constexpr float panelH = heightF - panelY - 12.0f;
+    constexpr float cardGap = 34.0f;
+    constexpr float cardW = 214.0f;
+    constexpr float cardH = 148.0f;
+    constexpr float cardY = 84.0f;
     const float leftCardX = centerX - cardGap * 0.5f - cardW;
     const float rightCardX = centerX + cardGap * 0.5f;
-    const float portraitPad = expanded ? 12.0f : 7.0f;
-    const float portraitBoxY = cardY + (expanded ? 32.0f : 24.0f);
-    const float portraitBoxH = expanded ? 82.0f : (classic ? 42.0f : 48.0f);
-    const float gridCellSize = expanded ? 30.0f : (classic ? 21.0f : 23.0f);
-    const float gridCellSpacing = expanded ? 5.0f : 3.0f;
-    const float gridY = expanded ? 242.0f : cardY + cardH + 10.0f;
-    const float footerStatusY = heightF - (expanded ? 60.0f : 41.0f);
-    const float footerStageY = heightF - (expanded ? 42.0f : 28.0f);
-    const float footerControlsY = heightF - (expanded ? 24.0f : 15.0f);
-    const int titleMaxChars = expanded ? 58 : (classic ? 32 : 42);
+    constexpr float portraitPad = 12.0f;
+    constexpr float portraitBoxY = cardY + 32.0f;
+    constexpr float portraitBoxH = 82.0f;
+    constexpr float gridCellSize = 30.0f;
+    constexpr float gridCellSpacing = 5.0f;
+    constexpr float gridY = 242.0f;
+    constexpr float footerStatusY = heightF - 60.0f;
+    constexpr float footerStageY = heightF - 42.0f;
+    constexpr float footerControlsY = heightF - 24.0f;
+    constexpr int titleMaxChars = 58;
 
     setColor(renderer, 4, 9, 16, 232);
     fillRect(renderer, 0.0f, 0.0f, widthF, topBarH);
     setColor(renderer, 198, 79, 85, 235);
     fillRect(renderer, 0.0f, topBarH - 2.0f, widthF, 2.0f);
 
-    drawSelectText(renderer, expanded ? 20.0f : 10.0f, expanded ? 14.0f : 9.0f, fitDebugText(view.modeTitle, 22), 231, 195, 90);
-    drawSelectTextCentered(renderer, centerX, expanded ? 14.0f : 9.0f, "CHARACTER SELECT", 81, 210, 198);
+    drawSelectText(renderer, 20.0f, 14.0f, fitDebugText(view.modeTitle, 22), 231, 195, 90);
+    drawSelectTextCentered(renderer, centerX, 14.0f, "CHARACTER SELECT", 81, 210, 198);
     const std::string selectLine = view.showP2Cursor ? "P1 / P2 SELECT YOUR FIGHTERS" : view.activePlayerLabel + " SELECT YOUR FIGHTER";
-    drawSelectTextCentered(renderer, centerX, expanded ? 31.0f : 22.0f, fitDebugText(selectLine, titleMaxChars), 246, 226, 112);
+    drawSelectTextCentered(renderer, centerX, 31.0f, fitDebugText(selectLine, titleMaxChars), 246, 226, 112);
     if (!view.profileName.empty()) {
         std::string profileLine = "P1 " + view.profileName;
         if (!view.opponentProfileName.empty()) {
             profileLine += "   P2 " + view.opponentProfileName;
         }
-        drawSelectTextCentered(renderer, centerX, expanded ? 44.0f : 32.0f, fitDebugText("PROFILE " + profileLine, titleMaxChars), 128, 171, 225);
+        drawSelectTextCentered(renderer, centerX, 44.0f, fitDebugText("PROFILE " + profileLine, titleMaxChars), 128, 171, 225);
     }
 
     drawSelectFrame(renderer, panelX, panelY, panelW, panelH);
@@ -266,7 +252,7 @@ void drawCharacterSelectOverlay(const UiRenderContext& ui, const CharacterSelect
             view.opponentIsDummy);
     }
 
-    const int cardNameChars = expanded ? 18 : (classic ? 14 : 16);
+    constexpr int cardNameChars = 18;
     drawSelectText(renderer, leftCardX + 8.0f, cardY + cardH - 26.0f, fitDebugText(view.selectedName, cardNameChars), 235, 240, 248);
     if (!view.selectedProgressionLabel.empty()) {
         drawSelectText(renderer, leftCardX + 8.0f, cardY + cardH - 13.0f, fitDebugText(view.selectedProgressionLabel, cardNameChars), 120, 230, 170);
@@ -325,14 +311,12 @@ void drawCharacterSelectOverlay(const UiRenderContext& ui, const CharacterSelect
         drawCellCursor(renderer, p2CursorX, p2CursorY, 80, 175, 255, view.p2Confirmed, view.frame, inset, gridCellSize + 2.0f);
     }
 
-    if (expanded) {
-        setColor(renderer, 10, 17, 26, 212);
-        fillRect(renderer, panelX + 10.0f, footerStatusY - 8.0f, panelW - 20.0f, 48.0f);
-        setColor(renderer, 81, 210, 198, 150);
-        drawRect(renderer, panelX + 10.0f, footerStatusY - 8.0f, panelW - 20.0f, 48.0f);
-        setColor(renderer, 198, 79, 85, 140);
-        fillRect(renderer, panelX + 18.0f, footerStatusY + 14.0f, panelW - 36.0f, 1.0f);
-    }
+    setColor(renderer, 10, 17, 26, 212);
+    fillRect(renderer, panelX + 10.0f, footerStatusY - 8.0f, panelW - 20.0f, 48.0f);
+    setColor(renderer, 81, 210, 198, 150);
+    drawRect(renderer, panelX + 10.0f, footerStatusY - 8.0f, panelW - 20.0f, 48.0f);
+    setColor(renderer, 198, 79, 85, 140);
+    fillRect(renderer, panelX + 18.0f, footerStatusY + 14.0f, panelW - 36.0f, 1.0f);
 
     if (view.showP2Cursor) {
         drawSelectTextCentered(
@@ -346,7 +330,7 @@ void drawCharacterSelectOverlay(const UiRenderContext& ui, const CharacterSelect
     } else {
         drawSelectTextCentered(renderer, centerX, footerStatusY, view.activePlayerLabel, 238, 210, 94);
     }
-    drawSelectTextCentered(renderer, centerX, footerStageY, fitDebugText("STAGE: " + view.preferredStageLabel, classic ? 32 : (expanded ? 54 : 46)), 210, 218, 230);
+    drawSelectTextCentered(renderer, centerX, footerStageY, fitDebugText("STAGE: " + view.preferredStageLabel, 54), 210, 218, 230);
 
     drawSelectTextCentered(
         renderer,

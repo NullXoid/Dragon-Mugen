@@ -13,16 +13,8 @@
 namespace dragon {
 namespace {
 
-struct StoryStageCanvas {
-    float width = 640.0f;
-    float height = 360.0f;
-    bool hd = true;
-};
-
-StoryStageCanvas storyStageCanvas(const UiRenderContext& ui) {
-    (void)ui;
-    return { 640.0f, 360.0f, true };
-}
+constexpr float kStoryStageWidth = 640.0f;
+constexpr float kStoryStageHeight = 360.0f;
 
 void storyText(SDL_Renderer* renderer, float x, float y, const std::string& text, Uint8 r, Uint8 g, Uint8 b) {
     setColor(renderer, 3, 5, 8, 230);
@@ -79,14 +71,6 @@ void drawDashedRoad(SDL_Renderer* renderer, float x1, float x2, float y) {
     fillRect(renderer, x1, y + 3.0f, x2 - x1, 1.0f);
 }
 
-void drawComicCorners(SDL_Renderer* renderer, float x, float y, float w, float h, SDL_Color color) {
-    setColor(renderer, color.r, color.g, color.b, color.a);
-    fillRect(renderer, x, y, 14.0f, 2.0f);
-    fillRect(renderer, x, y, 2.0f, 10.0f);
-    fillRect(renderer, x + w - 14.0f, y + h - 2.0f, 14.0f, 2.0f);
-    fillRect(renderer, x + w - 2.0f, y + h - 10.0f, 2.0f, 10.0f);
-}
-
 void drawStageCard(
     SDL_Renderer* renderer,
     const StoryStageCardView& stage,
@@ -140,11 +124,11 @@ int firstVisibleStage(int selectedIndex, int stageCount, int visibleCount) {
     return std::clamp(selectedIndex - visibleCount / 2, 0, stageCount - visibleCount);
 }
 
-void drawStoryStageSelectHd(const UiRenderContext& ui, const StoryStageSelectView& view, const StoryStageCanvas& canvas) {
+void drawStoryStageSelect(const UiRenderContext& ui, const StoryStageSelectView& view) {
     SDL_Renderer* renderer = ui.renderer;
-    ScopedVirtualCanvas virtualCanvas(ui, canvas.width, canvas.height);
-    const float widthF = canvas.width;
-    const float heightF = canvas.height;
+    ScopedVirtualCanvas virtualCanvas(ui, kStoryStageWidth, kStoryStageHeight);
+    constexpr float widthF = kStoryStageWidth;
+    constexpr float heightF = kStoryStageHeight;
     const float centerX = widthF * 0.5f;
 
     setColor(renderer, 4, 6, 10, 96);
@@ -234,111 +218,7 @@ void drawStoryStageSelectHd(const UiRenderContext& ui, const StoryStageSelectVie
 } // namespace
 
 void drawStoryStageSelectOverlay(const UiRenderContext& ui, const StoryStageSelectView& view) {
-    SDL_Renderer* renderer = ui.renderer;
-    const StoryStageCanvas canvas = storyStageCanvas(ui);
-    if (canvas.hd) {
-        drawStoryStageSelectHd(ui, view, canvas);
-        return;
-    }
-
-    ScopedVirtualCanvas virtualCanvas(ui, canvas.width, canvas.height);
-    const float widthF = canvas.width;
-    const float heightF = canvas.height;
-    const float centerX = widthF * 0.5f;
-
-    setColor(renderer, 4, 6, 10, 112);
-    fillRect(renderer, 0, 0, widthF, heightF);
-    setColor(renderer, 8, 12, 20, 180);
-    fillRect(renderer, 0, 0, widthF, 27.0f);
-    setColor(renderer, 224, 64, 86, 210);
-    fillRect(renderer, 0, 27.0f, widthF, 2.0f);
-
-    storyText(renderer, 14.0f, 8.0f, fitDebugText(view.routeTitle.empty() ? "STORY MAP" : view.routeTitle, widthF < 360.0f ? 11 : 15), 246, 226, 112);
-    storyTextCentered(renderer, centerX, 8.0f, "SELECT A BOARD", 150, 210, 252);
-    const float fighterRight = widthF - 66.0f;
-    const int fighterChars = std::clamp(static_cast<int>((fighterRight - centerX - 62.0f) / 8.0f), 0, 8);
-    if (fighterChars > 0) {
-        storyTextRight(renderer, fighterRight, 8.0f, fitDebugText(view.fighterLabel, fighterChars), 220, 232, 242);
-    }
-
-    if (view.stages.empty()) {
-        storyTextCentered(renderer, centerX, 96.0f, "NO STORY BOARDS", 246, 126, 116);
-        storyTextCentered(renderer, centerX, 112.0f, "CHECK story_boards.def", 220, 232, 242);
-        return;
-    }
-
-    const int stageCount = static_cast<int>(view.stages.size());
-    const int visibleCount = std::min(stageCount, 3);
-    const int first = firstVisibleStage(std::clamp(view.selectedIndex, 0, stageCount - 1), stageCount, visibleCount);
-    const int last = first + visibleCount;
-    const float margin = widthF < 360.0f ? 18.0f : 26.0f;
-    const float cardGap = widthF < 360.0f ? 12.0f : 16.0f;
-    const float maxCardW = 118.0f;
-    const float cardW = std::clamp((widthF - margin * 2.0f - cardGap * static_cast<float>(visibleCount - 1))
-            / static_cast<float>(std::max(1, visibleCount)),
-        64.0f,
-        maxCardW);
-    const float cardH = widthF < 360.0f ? 53.0f : 64.0f;
-    const float rowW = cardW * static_cast<float>(visibleCount) + cardGap * static_cast<float>(visibleCount - 1);
-    const float rowX = centerX - rowW * 0.5f;
-    const float rowY = 50.0f;
-    const float roadY = rowY + cardH + 17.0f;
-
-    for (int visible = 0; visible + 1 < visibleCount; ++visible) {
-        const float x1 = rowX + static_cast<float>(visible) * (cardW + cardGap) + cardW + 2.0f;
-        const float x2 = rowX + static_cast<float>(visible + 1) * (cardW + cardGap) - 2.0f;
-        drawDashedRoad(renderer, x1, x2, roadY);
-    }
-
-    for (int i = first; i < last; ++i) {
-        const int visible = i - first;
-        const float x = rowX + static_cast<float>(visible) * (cardW + cardGap);
-        drawStageCard(renderer, view.stages[static_cast<std::size_t>(i)], i + 1, x, rowY, cardW, cardH);
-    }
-
-    const float panelX = std::max(18.0f, centerX - 184.0f);
-    const float panelW = std::min(widthF - panelX * 2.0f, 368.0f);
-    const float panelY = heightF - 90.0f;
-    const float panelH = 72.0f;
-    setColor(renderer, 5, 8, 15, 200);
-    fillRect(renderer, panelX, panelY, panelW, panelH);
-    setColor(renderer, 26, 42, 60, 210);
-    fillRect(renderer, panelX, panelY, panelW, 13.0f);
-    setColor(renderer, 54, 188, 202, 230);
-    fillRect(renderer, panelX, panelY, panelW, 1.0f);
-    setColor(renderer, 248, 210, 80, 210);
-    fillRect(renderer, panelX + 10.0f, panelY + 34.0f, panelW - 20.0f, 1.0f);
-    drawComicCorners(renderer, panelX, panelY, panelW, panelH, SDL_Color{ 56, 188, 202, 210 });
-
-    const int selectedOneBased = std::clamp(view.selectedIndex + 1, 1, stageCount);
-    storyText(renderer, panelX + 12.0f, panelY + 4.0f, "EPISODE " + std::to_string(selectedOneBased) + "/" + std::to_string(stageCount), 246, 226, 112);
-    storyTextRight(renderer, panelX + panelW - 12.0f, panelY + 4.0f, "DIFF " + fitDebugText(view.difficultyLabel, 6), 246, 226, 112);
-    storyText(renderer, panelX + 12.0f, panelY + 18.0f,
-        fitDebugText(view.selectedStageName, std::max(10, static_cast<int>((panelW - 24.0f) / 8.0f))),
-        150, 226, 252);
-    const bool compactDetails = widthF < 360.0f;
-    storyText(
-        renderer,
-        panelX + 12.0f,
-        panelY + 40.0f,
-        fitDebugText(view.selectedNodeKind.empty() ? "NODE" : view.selectedNodeKind, compactDetails ? 9 : 11),
-        120,
-        226,
-        218);
-    storyText(renderer, panelX + (compactDetails ? 100.0f : 118.0f), panelY + 40.0f, "WAVES " + std::to_string(std::max(1, view.waveCount)), 220, 232, 242);
-    if (!view.selectedNodeTarget.empty()) {
-        storyText(renderer, panelX + 12.0f, panelY + 54.0f,
-            fitDebugText("TARGET " + view.selectedNodeTarget, std::max(10, static_cast<int>((panelW - 24.0f) / 8.0f))),
-            196, 206, 220);
-    } else {
-        storyText(renderer, panelX + 12.0f, panelY + 54.0f,
-            fitDebugText(view.selectedStageAuthor, std::max(10, static_cast<int>((panelW - 24.0f) / 8.0f))),
-            196, 206, 220);
-    }
-
-    setColor(renderer, 6, 8, 12, 190);
-    fillRect(renderer, 0, heightF - 15.0f, widthF, 15.0f);
-    storyTextCentered(renderer, centerX, heightF - 12.0f, "L/R BOARD  UP/DN DIFF  ENT START  ESC BACK", 220, 232, 242);
+    drawStoryStageSelect(ui, view);
 }
 
 } // namespace dragon

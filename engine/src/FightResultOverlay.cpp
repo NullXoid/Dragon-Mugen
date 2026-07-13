@@ -11,16 +11,8 @@
 namespace dragon {
 namespace {
 
-struct FightResultCanvas {
-    float width = 640.0f;
-    float height = 360.0f;
-    bool hd = true;
-};
-
-FightResultCanvas fightResultCanvas(const UiRenderContext& ui) {
-    (void)ui;
-    return { 640.0f, 360.0f, true };
-}
+constexpr float kFightResultWidth = 640.0f;
+constexpr float kFightResultHeight = 360.0f;
 
 void drawRoundPips(const UiRenderContext& ui, float x, float y, FightRoundPipsView pips) {
     const auto& tokens = dragonUiTokens();
@@ -50,20 +42,19 @@ void drawRoundCalloutBand(const UiRenderContext& ui, const FightRoundCalloutView
         return;
     }
 
-    const FightResultCanvas canvas = fightResultCanvas(ui);
-    ScopedVirtualCanvas virtualCanvas(ui, canvas.width, canvas.height);
+    ScopedVirtualCanvas virtualCanvas(ui, kFightResultWidth, kFightResultHeight);
 
-    const float centerX = canvas.width * 0.5f;
-    const float scale = canvas.height / 240.0f;
+    constexpr float centerX = kFightResultWidth * 0.5f;
+    constexpr float scale = kFightResultHeight / 240.0f;
     const float pulse = 0.5f + 0.5f * std::sin(static_cast<float>(view.frame) * 0.18f);
     const float pop = std::max(0.0f, 1.0f - static_cast<float>(view.frame) / 14.0f);
-    const float bandW = std::min(canvas.width - 48.0f, (232.0f + pop * 22.0f) * scale);
+    const float bandW = std::min(kFightResultWidth - 48.0f, (232.0f + pop * 22.0f) * scale);
     const float bandY = 75.0f * scale;
     const float panelY = 82.0f * scale;
     const auto& tokens = dragonUiTokens();
 
     setColor(ui.renderer, tokens.panelBase, 180);
-    fillRect(ui.renderer, 0.0f, bandY, canvas.width, 48.0f * scale);
+    fillRect(ui.renderer, 0.0f, bandY, kFightResultWidth, 48.0f * scale);
     setColor(ui.renderer, tokens.panelBase, 226);
     fillRect(ui.renderer, centerX - bandW * 0.5f, panelY, bandW, 34.0f * scale);
     setColor(ui.renderer, tokens.secondaryPanel, 236);
@@ -94,11 +85,10 @@ void drawRoundResultOverlay(const UiRenderContext& ui, const FightRoundResultVie
         return;
     }
 
-    const FightResultCanvas canvas = fightResultCanvas(ui);
-    ScopedVirtualCanvas virtualCanvas(ui, canvas.width, canvas.height);
+    ScopedVirtualCanvas virtualCanvas(ui, kFightResultWidth, kFightResultHeight);
 
-    const float centerX = canvas.width * 0.5f;
-    const float scale = canvas.height / 240.0f;
+    constexpr float centerX = kFightResultWidth * 0.5f;
+    constexpr float scale = kFightResultHeight / 240.0f;
     const float pulse = 0.5f + 0.5f * std::sin(static_cast<float>(view.frame) * 0.15f);
     const auto& tokens = dragonUiTokens();
     setColor(ui.renderer, tokens.panelBase, 180);
@@ -127,15 +117,14 @@ void drawRoundResultOverlay(const UiRenderContext& ui, const FightRoundResultVie
 }
 
 void drawMatchResultScreen(const UiRenderContext& ui, const FightMatchResultView& view) {
-    const FightResultCanvas canvas = fightResultCanvas(ui);
-    ScopedVirtualCanvas virtualCanvas(ui, canvas.width, canvas.height);
-    const float widthF = canvas.width;
-    const float heightF = canvas.height;
+    ScopedVirtualCanvas virtualCanvas(ui, kFightResultWidth, kFightResultHeight);
+    constexpr float widthF = kFightResultWidth;
+    constexpr float heightF = kFightResultHeight;
     const float centerX = widthF * 0.5f;
     const float pulse = 0.5f + 0.5f * std::sin(static_cast<float>(view.frame) * 0.12f);
     const auto& tokens = dragonUiTokens();
 
-    if (canvas.hd) {
+    {
         setColor(ui.renderer, tokens.panelBase, 192);
         fillRect(ui.renderer, 0, 0, widthF, heightF);
         setColor(ui.renderer, tokens.panelBase, 240);
@@ -209,69 +198,7 @@ void drawMatchResultScreen(const UiRenderContext& ui, const FightMatchResultView
 
         setColor(ui.renderer, tokens.mutedText);
         debugTextCentered(ui.renderer, centerX, menuY + 20.0f * static_cast<float>(rowCount) + 12.0f, "ENTER SELECT");
-        return;
     }
-
-    setColor(ui.renderer, tokens.panelBase, 238);
-    fillRect(ui.renderer, 0, 0, widthF, heightF);
-    setColor(ui.renderer, tokens.secondaryPanel);
-    fillRect(ui.renderer, 0, 0, widthF, 54);
-    setColor(ui.renderer, tokens.panelBase, 226);
-    fillRect(ui.renderer, 18, 62, widthF - 36.0f, 94);
-    setColor(ui.renderer, tokens.mutedText);
-    drawRect(ui.renderer, 18, 62, widthF - 36.0f, 94);
-    setColor(ui.renderer, tokens.separatorRed);
-    fillRect(ui.renderer, 0, 52, widthF, 2);
-    setColor(ui.renderer, tokens.mutedGold);
-    fillRect(ui.renderer, 22, 64, widthF - 44.0f, 2);
-
-    setColor(ui.renderer, tokens.mutedGold);
-    debugText(ui.renderer, 22, 18, "MATCH COMPLETE");
-    setColor(ui.renderer, tokens.primaryTeal);
-    debugText(ui.renderer, 198, 18, view.modeLabel);
-
-    setColor(ui.renderer, tokens.primaryText);
-    debugTextCentered(ui.renderer, centerX, 72, fitDebugText(view.winnerText, 28));
-    setColor(ui.renderer, tokens.mutedGold);
-    debugTextCentered(ui.renderer, centerX, 94, view.scoreText);
-    setColor(ui.renderer, tokens.mutedText);
-    debugTextCentered(ui.renderer, centerX, 112, view.methodText);
-    float infoY = 128.0f;
-    if (!view.progressionText.empty()) {
-        setColor(ui.renderer, SDL_Color{ 124, 222, 170, 255 });
-        debugTextCentered(ui.renderer, centerX, 128, fitDebugText(view.progressionText, 42));
-        infoY = 142.0f;
-    }
-    if (!view.quoteText.empty()) {
-        setColor(ui.renderer, tokens.mutedText);
-        debugTextCentered(ui.renderer, centerX, infoY, fitDebugText("\"" + view.quoteText + "\"", 40));
-        debugTextCentered(ui.renderer, centerX, infoY + 14.0f, fitDebugText(view.stageText, 34));
-    } else {
-        setColor(ui.renderer, tokens.mutedText);
-        debugTextCentered(ui.renderer, centerX, infoY, fitDebugText(view.stageText, 34));
-    }
-
-    const int rowCount = std::clamp(view.menuRowCount, 0, static_cast<int>(view.menuRows.size()));
-    const float menuStartY = !view.quoteText.empty()
-        ? (view.progressionText.empty() ? 166.0f : 178.0f)
-        : (view.progressionText.empty() ? 154.0f : 166.0f);
-    for (int i = 0; i < rowCount; ++i) {
-        const auto& row = view.menuRows[static_cast<size_t>(i)];
-        const float y = menuStartY + static_cast<float>(i * 16);
-        if (row.selected) {
-            setColor(ui.renderer, tokens.primaryTeal, static_cast<Uint8>(190 + pulse * 48.0f));
-            fillRect(ui.renderer, centerX - 70.0f, y - 4.0f, 140, 14);
-            setColor(ui.renderer, tokens.mutedGold);
-            fillRect(ui.renderer, centerX - 66.0f, y + 10.0f, 132, 1);
-            setColor(ui.renderer, 8, 12, 16);
-        } else {
-            setColor(ui.renderer, tokens.mutedText);
-        }
-        debugTextCentered(ui.renderer, centerX, y, row.label);
-    }
-
-    setColor(ui.renderer, tokens.mutedText);
-    debugTextCentered(ui.renderer, centerX, 224, "ENTER SELECT");
 }
 
 } // namespace dragon

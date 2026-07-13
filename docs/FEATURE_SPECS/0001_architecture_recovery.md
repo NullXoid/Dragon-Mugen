@@ -58,7 +58,7 @@ Incremental commits may land inside that extraction or hardening pass, but they 
 - [x] Add an active-change guard that blocks undocumented engine/app code commits.
 - [x] Remove the audited zero-call internal functions and their orphaned helpers while keeping public APIs.
 - [x] Remove obsolete per-controller fired-state collections while preserving generic runtime persistence.
-- [ ] Collapse fixed 640x360 presentation layouts and remove unreachable Classic/non-HD branches.
+- [x] Collapse fixed 640x360 presentation layouts and remove unreachable Classic/non-HD branches.
 - [ ] Make Dragon targets warning-clean under `/W4` or `-Wall -Wextra -Wpedantic` with opt-in warnings-as-errors.
 - [ ] Require both preservation documentation and an `Unreleased` changelog update for engine commits.
 - [ ] Make requested verifier fixtures fail setup when absent instead of substituting roster slot zero.
