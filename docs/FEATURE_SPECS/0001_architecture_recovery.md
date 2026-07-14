@@ -64,6 +64,7 @@ Incremental commits may land inside that extraction or hardening pass, but they 
 - [x] Make requested verifier fixtures fail setup when absent instead of substituting roster slot zero.
 - [x] Record physical `App.cpp` lines, directly included implementation-shard count, shard lines, and aggregate lines.
 - [x] Keep the Dragon presentation render target at native 1280x720 for every output profile so Classic/Wide/Extra cannot downsample UI text or introduce nested letterboxing.
+- [x] Add an end-to-end SDL presentation verifier for all five output profiles and run it from the full development gate.
 - [ ] Extract screen/mode flow from `App.cpp`.
 - [ ] Extract fight session and round flow from `App.cpp`.
 - [ ] Extract command buffering and CMD matching from `App.cpp`.
@@ -86,7 +87,7 @@ For larger extraction changes, also run from a Visual Studio developer shell:
 python engine/tools/dev_check.py .
 ```
 
-The cleanup warning gate was validated with warnings-as-errors on a clean-first Ninja/GNU build and a fresh Visual Studio 2022/MSVC Debug build. Warning fixes must remain source-level and must not weaken the Dragon-only warning flags. Classic, Wide, Extra, SD 854x480, and HD 1280x720 remain separate selectable output profiles; the stable virtual layout preserves one composition across them. The shared presentation target remains 1280x720 so lower profiles cannot destroy Dragon UI detail before final display scaling, and shared geometry assertions verify SD/HD world and UI scaling.
+The cleanup warning gate was validated with warnings-as-errors on a clean-first Ninja/GNU build and a fresh Visual Studio 2022/MSVC Debug build. Warning fixes must remain source-level and must not weaken the Dragon-only warning flags. Classic, Wide, Extra, SD 854x480, and HD 1280x720 remain separate selectable output profiles; the stable virtual layout preserves one composition across them. The shared presentation target remains 1280x720 so lower profiles cannot destroy Dragon UI detail before final display scaling. `video-resolution-presentation-e2e` initializes the real SDL Video Options screen, renders and reads back all five physical frames, verifies the production target and nonblank presentation, and compares a stable UI region across profiles; shared geometry assertions continue to verify SD/HD world and UI scaling.
 
 Manual smoke path:
 

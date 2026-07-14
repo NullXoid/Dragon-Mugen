@@ -152,6 +152,7 @@ add_library(dragon_core STATIC
     engine/src/VerificationScenarioTrainingDemoAll.cpp
     engine/src/VerificationScenarioTrainingCommands.cpp
     engine/src/VerificationScenarioTrainingGeometry.cpp
+    engine/src/VerificationScenarioVideoPresentation.cpp
     engine/src/App.cpp
 )
 

@@ -2,6 +2,7 @@
 
 #include "FramePerformance.h"
 
+#include <cstdint>
 #include <iosfwd>
 #include <filesystem>
 #include <string>
@@ -253,6 +254,20 @@ struct UiGeometryProbe {
     std::string detail;
 };
 
+struct PresentationFrameProbe {
+    bool readbackOk = false;
+    int selectedOutputWidth = 0;
+    int selectedOutputHeight = 0;
+    int renderTargetWidth = 0;
+    int renderTargetHeight = 0;
+    int physicalWidth = 0;
+    int physicalHeight = 0;
+    int readbackWidth = 0;
+    int readbackHeight = 0;
+    int sampledDistinctByteValues = 0;
+    std::uint64_t staticUiHash = 0;
+};
+
 class RuntimeProbe {
 public:
     virtual ~RuntimeProbe() = default;
@@ -265,6 +280,7 @@ public:
         int arenaCpuCount = 1) = 0;
     virtual bool setupStageSelect(std::string_view p1Id, ScenarioMode mode, std::ostream& out) = 0;
     virtual bool setupArenaSetupScreen(std::string_view p1Id, std::ostream& out) = 0;
+    virtual bool setupVideoOptions(std::ostream& out) = 0;
     virtual void step(const SymbolicInput& p1Input, int frames) = 0;
     virtual void step(const SymbolicInput& p1Input, const SymbolicInput& p2Input, int frames) = 0;
     virtual void pressKey(std::string_view key) = 0;
@@ -312,6 +328,7 @@ public:
     virtual void holdTrainingShowSelect(bool held, int frames) = 0;
     virtual RuntimePerformanceResult measurePerformance(int warmupFrames, int measuredFrames, bool renderEachFrame, bool stressInputs) = 0;
     virtual bool captureScreenshot(const std::filesystem::path& path) = 0;
+    virtual PresentationFrameProbe videoOptionsPresentation(int outputProfileIndex) = 0;
     virtual RuntimeSnapshot snapshot() const = 0;
     virtual std::string rootText() const = 0;
     virtual std::string stageName() const = 0;

@@ -68,6 +68,7 @@ def main() -> int:
                 ("verify classic-fight-combat", [str(exe), "--verify", "classic-fight-combat"]),
                 ("verify cpu-baseline", [str(exe), "--verify", "cpu-baseline"]),
                 ("verify arena-cpu-1", [str(exe), "--verify", "arena-cpu-1"]),
+                ("verify video-resolution-presentation-e2e", [str(exe), "--verify", "video-resolution-presentation-e2e"]),
             ]
         )
 

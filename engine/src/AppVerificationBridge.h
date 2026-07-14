@@ -428,6 +428,7 @@ public:
     }
 
 #include "AppVerificationRuntimeTrainingMethods.inl"
+#include "AppVerificationRuntimePresentationMethods.inl"
 
     verification::RuntimePerformanceResult measurePerformance(
         int warmupFrames,

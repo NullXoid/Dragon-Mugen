@@ -7,6 +7,7 @@ All notable Dragon MUGEN changes are recorded here. Engine commits update the `U
 ### Added
 
 - Added strict Dragon-target compiler warning modes, opt-in warnings-as-errors, and documentation/change-notification enforcement for the Architecture Recovery cleanup slice.
+- Added `video-resolution-presentation-e2e`, which renders Video Options through the production SDL target for all five output profiles, reads back the physical frame, checks native target dimensions/nonblank output, and compares stable UI pixels. Full `dev_check.py` now runs this scenario.
 
 ### Changed
 
