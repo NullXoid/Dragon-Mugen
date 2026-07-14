@@ -165,6 +165,10 @@ inline CanvasDimensions presentationDimensions() {
     return { kPresentationLogicalWidth, kPresentationLogicalHeight };
 }
 
+inline CanvasDimensions presentationFrameTargetDimensions() {
+    return presentationDimensions();
+}
+
 enum class DragonLayoutClass {
     Classic,
     WideLowRes,

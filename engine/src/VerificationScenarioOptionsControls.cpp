@@ -553,7 +553,7 @@ int runMainMenuEditableLayoutData(RuntimeProbe& runtime, std::ostream& out) {
     return exitCode(counts);
 }
 
-int runVideoResolutionStableVirtualLayout(RuntimeProbe& runtime, std::ostream& out) {
+int runVideoResolutionStableVirtualLayout(RuntimeProbe&, std::ostream& out) {
     Counts counts;
     out << "VERIFY video-resolution-stable-virtual-layout\n";
 
@@ -571,6 +571,7 @@ int runVideoResolutionStableVirtualLayout(RuntimeProbe& runtime, std::ostream& o
 
     for (const Case& item : cases) {
         const CanvasDimensions canvas = presentationDimensions();
+        const CanvasDimensions frameTarget = presentationFrameTargetDimensions();
         const CanvasDimensions output = outputDimensionsForPreset(item.preset);
         const DragonUiMetrics metrics = dragonUiMetricsForCanvas(canvas, 1.0f);
         const UiRenderContext ui{
@@ -590,6 +591,22 @@ int runVideoResolutionStableVirtualLayout(RuntimeProbe& runtime, std::ostream& o
             std::string(item.name) + "_stable_layout_preserves_output_preset",
             "layout=" + std::to_string(canvas.width) + "x" + std::to_string(canvas.height)
                 + " output=" + std::to_string(output.width) + "x" + std::to_string(output.height));
+
+        const bool nativePresentationTarget =
+            frameTarget.width == canvas.width
+            && frameTarget.height == canvas.height;
+        record(out, counts,
+            nativePresentationTarget ? Status::Pass : Status::Fail,
+            std::string(item.name) + "_ui_keeps_native_presentation_target",
+            "target=" + std::to_string(frameTarget.width) + "x" + std::to_string(frameTarget.height)
+                + " output_profile=" + std::to_string(output.width) + "x" + std::to_string(output.height));
+
+        const bool matchingPresentationAspect =
+            frameTarget.width * canvas.height == canvas.width * frameTarget.height;
+        record(out, counts,
+            matchingPresentationAspect ? Status::Pass : Status::Fail,
+            std::string(item.name) + "_avoids_nested_output_letterbox",
+            "presentation and frame target share one aspect ratio");
 
         const SDL_FRect mainPanel = mainMenuPanelRect(ui);
         const bool panelInside =
@@ -648,24 +665,17 @@ int runVideoResolutionStableVirtualLayout(RuntimeProbe& runtime, std::ostream& o
             optionsGeometry.detail);
     }
 
-    const auto repoRoot = std::filesystem::path(runtime.rootText()).parent_path();
-    const std::string loopText = verificationReadTextFile(repoRoot / "engine" / "src" / "AppMainLoopAssembly.h");
-    const std::string appText = verificationReadTextFile(repoRoot / "engine" / "src" / "App.cpp");
+    const CanvasDimensions classicOutput = outputDimensionsForPreset(CanvasPreset::Classic320x240);
+    const CanvasDimensions frameTarget = presentationFrameTargetDimensions();
     record(out, counts,
-        loopText.find("SDL_TEXTUREACCESS_TARGET") != std::string::npos
-                && loopText.find("selectedOutputDimensions(state)") != std::string::npos
-                && loopText.find("SDL_SetRenderTarget(renderer, gPresentationFrameTarget)") != std::string::npos
+        classicOutput.width == 320 && classicOutput.height == 240
+                && frameTarget.width == kPresentationLogicalWidth
+                && frameTarget.height == kPresentationLogicalHeight
             ? Status::Pass
             : Status::Fail,
-        "render_path_uses_selected_output_target",
-        "presentation frame renders into the selected output-sized texture");
-    record(out, counts,
-        appText.find("beginPresentationFrame(renderer, state)") != std::string::npos
-                && loopText.find("presentPresentationFrame(SDL_Renderer* renderer, const AppState& state)") != std::string::npos
-            ? Status::Pass
-            : Status::Fail,
-        "main_loop_uses_presentation_frame_target",
-        "main loop begins and presents through the shared presentation target");
+        "classic_profile_does_not_downsample_dragon_ui",
+        "profile=" + std::to_string(classicOutput.width) + "x" + std::to_string(classicOutput.height)
+            + " target=" + std::to_string(frameTarget.width) + "x" + std::to_string(frameTarget.height));
 
     summary(out, counts);
     return exitCode(counts);

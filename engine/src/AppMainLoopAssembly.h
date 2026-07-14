@@ -228,8 +228,8 @@ void destroyPresentationFrameTarget() {
     gPresentationFrameTargetActive = false;
 }
 
-bool ensurePresentationFrameTarget(SDL_Renderer* renderer, const AppState& state) {
-    const CanvasDimensions target = selectedOutputDimensions(state);
+bool ensurePresentationFrameTarget(SDL_Renderer* renderer) {
+    const CanvasDimensions target = presentationFrameTargetDimensions();
     if (target.width <= 0 || target.height <= 0) {
         return false;
     }
@@ -284,7 +284,7 @@ SDL_FRect centeredOutputRectForTarget(SDL_Renderer* renderer, int targetWidth, i
 }
 
 void beginPresentationFrame(SDL_Renderer* renderer, const AppState& state) {
-    if (!renderer || !ensurePresentationFrameTarget(renderer, state)) {
+    if (!renderer || !ensurePresentationFrameTarget(renderer)) {
         gPresentationFrameTargetActive = false;
         clearPhysicalFrame(renderer);
         applyLogicalPresentation(renderer, state);
