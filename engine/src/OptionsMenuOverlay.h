@@ -1,5 +1,6 @@
 #pragma once
 
+#include "UiMenuList.h"
 #include "UiRenderContext.h"
 
 #include <span>
@@ -26,5 +27,6 @@ struct OptionsMenuView {
 };
 
 void drawOptionsMenuOverlay(const UiRenderContext& ui, const OptionsMenuView& view);
+UiMenuListGeometrySnapshot optionsMenuGeometrySnapshot(const UiRenderContext& ui, const OptionsMenuView& view);
 
 } // namespace dragon

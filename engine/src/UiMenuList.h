@@ -2,6 +2,8 @@
 
 #include "UiRenderContext.h"
 
+#include <SDL3/SDL_rect.h>
+
 #include <span>
 #include <string>
 
@@ -43,7 +45,18 @@ struct UiMenuListGeometryReport {
     std::string detail;
 };
 
+struct UiMenuListGeometrySnapshot {
+    bool valid = false;
+    SDL_FRect panel{};
+    SDL_FRect firstValueCell{};
+};
+
 void drawUiMenuList(const UiRenderContext& ui, const UiMenuListView& view, const UiMenuListStyle& style = {});
+UiMenuListGeometrySnapshot uiMenuListGeometrySnapshot(
+    const UiMenuListView& view,
+    float frameW,
+    float frameH,
+    const UiMenuListStyle& style = {});
 UiMenuListGeometryReport verifyUiMenuListGeometry(
     const UiMenuListView& view,
     float frameW,

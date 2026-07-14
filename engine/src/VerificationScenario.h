@@ -254,6 +254,14 @@ struct UiGeometryProbe {
     std::string detail;
 };
 
+struct PresentationMenuRowProbe {
+    std::string label;
+    std::string value;
+    bool selected = false;
+    bool adjustable = false;
+    bool disabled = false;
+};
+
 struct PresentationFrameProbe {
     bool readbackOk = false;
     int selectedOutputWidth = 0;
@@ -265,7 +273,12 @@ struct PresentationFrameProbe {
     int readbackWidth = 0;
     int readbackHeight = 0;
     int sampledDistinctByteValues = 0;
+    int menuBodyDistinctByteValues = 0;
     std::uint64_t staticUiHash = 0;
+    std::uint64_t menuBodyHash = 0;
+    std::string menuTitle;
+    std::string menuFooter;
+    std::vector<PresentationMenuRowProbe> menuRows;
 };
 
 class RuntimeProbe {

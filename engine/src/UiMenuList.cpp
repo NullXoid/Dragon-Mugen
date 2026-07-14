@@ -212,6 +212,26 @@ void drawUiMenuList(const UiRenderContext& ui, const UiMenuListView& view, const
     }
 }
 
+UiMenuListGeometrySnapshot uiMenuListGeometrySnapshot(
+    const UiMenuListView& view,
+    float frameW,
+    float frameH,
+    const UiMenuListStyle& style) {
+    if (view.rows.empty()) {
+        return {};
+    }
+
+    const MenuListLayout layout = menuListLayout(view, frameW, frameH, style);
+    const float firstRowTop = layout.listY + 4.0f * layout.textScale;
+    const float valueCellY = firstRowTop + layout.textScale;
+    const float valueCellH = std::max(9.0f * layout.textScale, style.rowH - 3.0f * layout.textScale);
+    return {
+        true,
+        SDL_FRect{ layout.panelX, layout.panelY, layout.panelW, layout.panelH },
+        SDL_FRect{ layout.valueCellX, valueCellY, layout.valueCellW, valueCellH },
+    };
+}
+
 UiMenuListGeometryReport verifyUiMenuListGeometry(
     const UiMenuListView& view,
     float frameW,

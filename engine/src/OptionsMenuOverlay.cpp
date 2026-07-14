@@ -10,6 +10,54 @@
 #include <vector>
 
 namespace dragon {
+namespace {
+
+std::vector<UiMenuListRowView> uiMenuRows(const OptionsMenuView& view) {
+    std::vector<UiMenuListRowView> rows;
+    rows.reserve(view.rows.size());
+    for (const auto& row : view.rows) {
+        rows.push_back(UiMenuListRowView{
+            row.label,
+            row.value,
+            row.selected,
+            row.adjustable,
+            row.disabled,
+        });
+    }
+    return rows;
+}
+
+UiMenuListView uiMenuView(const OptionsMenuView& view, const std::vector<UiMenuListRowView>& rows) {
+    return UiMenuListView{
+        rows,
+        view.title.empty() ? "OPTIONS" : view.title,
+        view.pageLabel,
+        view.labelHeader.empty() ? "SETTING" : view.labelHeader,
+        view.valueHeader,
+        view.padSummary,
+        view.footer,
+    };
+}
+
+UiMenuListStyle optionsMenuStyle(const UiRenderContext& ui) {
+    const DragonUiMetrics metrics = dragonUiMetricsForContext(ui);
+    const SDL_FRect safe = dragonPixelUiSafeArea(CanvasDimensions{ ui.logicalWidth, ui.logicalHeight });
+    const float s = metrics.pixelScale;
+    return UiMenuListStyle{
+        metrics.topBarH + 16.0f * s,
+        300.0f * s,
+        std::min(safe.w - 20.0f * s, 430.0f * s),
+        metrics.rowH,
+        true,
+        s,
+        safe.x,
+        safe.y,
+        safe.w,
+        safe.h,
+    };
+}
+
+} // namespace
 
 void drawOptionsMenuOverlay(const UiRenderContext& ui, const OptionsMenuView& view) {
     SDL_Renderer* renderer = ui.renderer;
@@ -29,41 +77,21 @@ void drawOptionsMenuOverlay(const UiRenderContext& ui, const OptionsMenuView& vi
     const std::string title = view.title.empty() ? "OPTIONS" : view.title;
     scaledDebugText(renderer, s, centerX - static_cast<float>(title.size()) * 4.0f * s, safe.y + 8.0f * s, title);
 
-    std::vector<UiMenuListRowView> rows;
-    rows.reserve(view.rows.size());
-    for (const auto& row : view.rows) {
-        rows.push_back(UiMenuListRowView{
-            row.label,
-            row.value,
-            row.selected,
-            row.adjustable,
-            row.disabled,
-        });
-    }
+    const std::vector<UiMenuListRowView> rows = uiMenuRows(view);
 
     drawUiMenuList(
         ui,
-        UiMenuListView{
-            rows,
-            view.title.empty() ? "OPTIONS" : view.title,
-            view.pageLabel,
-            view.labelHeader.empty() ? "SETTING" : view.labelHeader,
-            view.valueHeader,
-            view.padSummary,
-            view.footer,
-        },
-        UiMenuListStyle{
-            metrics.topBarH + 16.0f * s,
-            300.0f * s,
-            std::min(safe.w - 20.0f * s, 430.0f * s),
-            metrics.rowH,
-            true,
-            s,
-            safe.x,
-            safe.y,
-            safe.w,
-            safe.h,
-        });
+        uiMenuView(view, rows),
+        optionsMenuStyle(ui));
+}
+
+UiMenuListGeometrySnapshot optionsMenuGeometrySnapshot(const UiRenderContext& ui, const OptionsMenuView& view) {
+    const std::vector<UiMenuListRowView> rows = uiMenuRows(view);
+    return uiMenuListGeometrySnapshot(
+        uiMenuView(view, rows),
+        static_cast<float>(ui.logicalWidth),
+        static_cast<float>(ui.logicalHeight),
+        optionsMenuStyle(ui));
 }
 
 } // namespace dragon
