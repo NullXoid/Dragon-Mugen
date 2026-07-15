@@ -15,9 +15,13 @@ namespace {
 
 struct LaunchOptions {
     bool console = false;
+#if DRAGON_ENABLE_VERIFY
     bool verify = false;
+#endif
     bool hasRoot = false;
+#if DRAGON_ENABLE_VERIFY
     std::string verifyScenario;
+#endif
     dragon::AppStartupOptions startup;
     std::filesystem::path root;
 };
@@ -68,6 +72,7 @@ LaunchOptions parseLaunchOptions(int argc, char** argv) {
         }
 
         if (arg == "--verify") {
+#if DRAGON_ENABLE_VERIFY
             if (options.verify) {
                 throw std::runtime_error("Duplicate --verify option");
             }
@@ -79,6 +84,9 @@ LaunchOptions parseLaunchOptions(int argc, char** argv) {
             if (options.verifyScenario.empty() || options.verifyScenario.starts_with("--")) {
                 throw std::runtime_error("--verify requires a scenario name");
             }
+#else
+            throw std::runtime_error("--verify is available only in DRAGON_ENABLE_VERIFY developer builds");
+#endif
             continue;
         }
 
@@ -275,12 +283,14 @@ int main(int argc, char** argv) {
         const LaunchOptions options = parseLaunchOptions(argc, argv);
         const std::filesystem::path root = resolveRuntimeRoot(options, executableDirectory(argv));
 
+#if DRAGON_ENABLE_VERIFY
         if (options.verify) {
             if (options.console) {
                 throw std::runtime_error("--verify and --console cannot be combined");
             }
             return dragon::runVerificationScenario(root, options.verifyScenario, std::cout);
         }
+#endif
 
         if (!options.console) {
             return dragon::runApp(root, options.startup);

@@ -54,7 +54,18 @@ def main() -> int:
     if not args.quick and not args.skip_build:
         checks.extend(
             [
-                ("cmake configure", ["cmake", "-S", ".", "-B", "build", "-DDRAGON_WARNINGS_AS_ERRORS=ON"]),
+                (
+                    "cmake configure",
+                    [
+                        "cmake",
+                        "-S",
+                        ".",
+                        "-B",
+                        "build",
+                        "-DDRAGON_WARNINGS_AS_ERRORS=ON",
+                        "-DDRAGON_ENABLE_VERIFY=ON",
+                    ],
+                ),
                 ("build dragon_mugen", ["cmake", "--build", "build", "--target", "dragon_mugen", "--config", "Debug"]),
             ]
         )

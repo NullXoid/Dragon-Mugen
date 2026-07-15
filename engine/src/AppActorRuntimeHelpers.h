@@ -224,7 +224,7 @@ int firstExistingActionForActor(const AppState& state, const FighterState& fight
     return 0;
 }
 
-int firstExistingAction(const AppState& state, std::initializer_list<int> actions) {
+[[maybe_unused]] int firstExistingAction(const AppState& state, std::initializer_list<int> actions) {
     for (const int action : actions) {
         if (findExactClip(state, action)) {
             return action;

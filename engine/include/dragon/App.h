@@ -23,6 +23,8 @@ struct AppStartupOptions {
 };
 
 int runApp(const std::filesystem::path& gameRoot, const AppStartupOptions& startupOptions = {});
+#if DRAGON_ENABLE_VERIFY
 int runVerificationScenario(const std::filesystem::path& gameRoot, std::string_view scenarioName, std::ostream& out);
+#endif
 
 } // namespace dragon

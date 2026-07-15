@@ -143,7 +143,10 @@ struct FighterVisualScreenBounds {
     bool valid = false;
 };
 
-FighterVisualScreenBounds fighterVisualScreenBounds(const AppState& state, const StageSlot& stage, const FighterState& fighter) {
+[[maybe_unused]] FighterVisualScreenBounds fighterVisualScreenBounds(
+    const AppState& state,
+    const StageSlot& stage,
+    const FighterState& fighter) {
     const AnimationFrame* frame = currentFrameForFighter(state, fighter);
     if (!frame || !frame->sprite.texture || frame->sprite.width <= 0) {
         return {};

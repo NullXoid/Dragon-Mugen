@@ -227,7 +227,7 @@ bool storyBoardNodeSelectable(const StoryBoardNode& node) {
     return storyBoardNodeStartsFight(node) && node.segmentIndex <= 0;
 }
 
-int storySelectableBoardNodeCount(const AppState& state) {
+[[maybe_unused]] int storySelectableBoardNodeCount(const AppState& state) {
     int count = 0;
     for (const StoryBoardNode& node : state.story.boardRoute.nodes) {
         if (storyBoardNodeSelectable(node)) {

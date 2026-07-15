@@ -14,6 +14,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(DRAGON_FETCH_SDL3 "Fetch SDL3 when a local SDL3 package is not available" ON)
 option(DRAGON_WARNINGS_AS_ERRORS "Treat Dragon target compiler warnings as errors" OFF)
+option(DRAGON_ENABLE_VERIFY "Build verifier scenarios and the --verify developer entrypoint" OFF)
 
 find_package(SDL3 CONFIG QUIET)
 
@@ -122,39 +123,46 @@ add_library(dragon_core STATIC
     engine/src/TrainingOptionsOverlay.cpp
     engine/src/VsScreenOverlay.cpp
     engine/src/Input.cpp
-    engine/src/VerificationScenario.cpp
-    engine/src/VerificationScenarioArena.cpp
-    engine/src/VerificationScenarioArenaAben.cpp
-    engine/src/VerificationScenarioArenaOpenBor.cpp
-    engine/src/VerificationScenarioEvilKen.cpp
-    engine/src/VerificationScenarioEvilKenAdvanced.cpp
-    engine/src/VerificationScenarioEvilRyu.cpp
-    engine/src/VerificationScenarioEvilRyuSpecials.cpp
-    engine/src/VerificationScenarioCoreSmoke.cpp
-    engine/src/VerificationScenarioClassicCombat.cpp
-    engine/src/VerificationScenarioModeSmoke.cpp
-    engine/src/VerificationScenarioOptionsControls.cpp
-    engine/src/VerificationScenarioStageSelect.cpp
-    engine/src/VerificationScenarioFightOutcomes.cpp
-    engine/src/VerificationScenarioDragonProgression.cpp
-    engine/src/VerificationScenarioKfmHit.cpp
-    engine/src/VerificationScenarioLoading.cpp
-    engine/src/VerificationScenarioMovement.cpp
-    engine/src/VerificationScenarioPerformance.cpp
-    engine/src/VerificationScenarioRosterCompatibility.cpp
-    engine/src/VerificationScenarioScottCompatibility.cpp
-    engine/src/VerificationScenarioShop.cpp
-    engine/src/VerificationScenarioShopVisual.cpp
-    engine/src/VerificationScenarioStoryEvilRyu.cpp
-    engine/src/VerificationScenarioStoryMode.cpp
-    engine/src/VerificationScenarioSpecials.cpp
-    engine/src/VerificationScenarioTrainingSpecials.cpp
-    engine/src/VerificationScenarioTrainingDemoAll.cpp
-    engine/src/VerificationScenarioTrainingCommands.cpp
-    engine/src/VerificationScenarioTrainingGeometry.cpp
-    engine/src/VerificationScenarioVideoPresentation.cpp
     engine/src/App.cpp
 )
+
+if(DRAGON_ENABLE_VERIFY)
+    target_sources(dragon_core
+        PRIVATE
+            engine/src/VerificationScenario.cpp
+            engine/src/VerificationScenarioArena.cpp
+            engine/src/VerificationScenarioArenaAben.cpp
+            engine/src/VerificationScenarioArenaOpenBor.cpp
+            engine/src/VerificationScenarioEvilKen.cpp
+            engine/src/VerificationScenarioEvilKenAdvanced.cpp
+            engine/src/VerificationScenarioEvilRyu.cpp
+            engine/src/VerificationScenarioEvilRyuSpecials.cpp
+            engine/src/VerificationScenarioCoreSmoke.cpp
+            engine/src/VerificationScenarioClassicCombat.cpp
+            engine/src/VerificationScenarioModeSmoke.cpp
+            engine/src/VerificationScenarioOptionsControls.cpp
+            engine/src/VerificationScenarioStageSelect.cpp
+            engine/src/VerificationScenarioFightOutcomes.cpp
+            engine/src/VerificationScenarioDragonProgression.cpp
+            engine/src/VerificationScenarioKfmHit.cpp
+            engine/src/VerificationScenarioLoading.cpp
+            engine/src/VerificationScenarioMovement.cpp
+            engine/src/VerificationScenarioPerformance.cpp
+            engine/src/VerificationScenarioRosterCompatibility.cpp
+            engine/src/VerificationScenarioScottCompatibility.cpp
+            engine/src/VerificationScenarioShop.cpp
+            engine/src/VerificationScenarioShopVisual.cpp
+            engine/src/VerificationScenarioStoryEvilRyu.cpp
+            engine/src/VerificationScenarioStoryMode.cpp
+            engine/src/VerificationScenarioSpecials.cpp
+            engine/src/VerificationScenarioTrainingSpecials.cpp
+            engine/src/VerificationScenarioTrainingDemoAll.cpp
+            engine/src/VerificationScenarioTrainingCommands.cpp
+            engine/src/VerificationScenarioTrainingGeometry.cpp
+            engine/src/VerificationScenarioVideoPresentation.cpp
+    )
+    target_compile_definitions(dragon_core PUBLIC DRAGON_ENABLE_VERIFY=1)
+endif()
 
 target_include_directories(dragon_core
     PUBLIC

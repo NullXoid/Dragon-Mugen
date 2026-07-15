@@ -45,7 +45,9 @@
 #include "UiRenderPrimitives.h"
 #include "UiSpriteView.h"
 #include "VsScreenOverlay.h"
+#if DRAGON_ENABLE_VERIFY
 #include "VerificationScenario.h"
+#endif
 
 #include <SDL3/SDL.h>
 
@@ -119,12 +121,14 @@ namespace {
 
 } // namespace
 
+#if DRAGON_ENABLE_VERIFY
 int runVerificationScenario(
     const std::filesystem::path& gameRoot,
     std::string_view scenarioName,
     std::ostream& out) {
     return runVerificationScenarioInternal(gameRoot, scenarioName, out);
 }
+#endif
 
 std::string normalizedStartupToken(std::string_view value) {
     std::string token;

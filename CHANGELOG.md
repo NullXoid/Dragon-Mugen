@@ -14,6 +14,7 @@ All notable Dragon MUGEN changes are recorded here. Engine commits update the `U
 - Architecture reporting now includes physical `App.cpp` lines, direct implementation-shard count, shard lines, and aggregate direct-source lines.
 - The cleanup slice reduced aggregate `App.cpp` plus direct-shard source from 17024 to 16821 lines while keeping the coordinator and shard count visible.
 - Character Select, Arena Setup, Fight Result, Stage Select, and Story Stage Select now use one stable 640x360 virtual composition directly. Classic, Wide, Extra, SD 854x480, and HD 1280x720 remain selectable output profiles without changing UI composition.
+- Verifier scenarios and the `--verify` entrypoint now compile only when `DRAGON_ENABLE_VERIFY=ON`; normal runtime builds no longer ship with verifier scenario code attached.
 
 ### Fixed
 

@@ -329,4 +329,6 @@ void presentPresentationFrame(SDL_Renderer* renderer, const AppState& state) {
     SDL_RenderPresent(renderer);
 }
 
+#if DRAGON_ENABLE_VERIFY
 #include "AppVerificationBridge.h"
+#endif
