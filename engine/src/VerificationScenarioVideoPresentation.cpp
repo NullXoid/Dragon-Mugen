@@ -8,12 +8,6 @@ namespace dragon::verification {
 int runVideoResolutionPresentationE2e(RuntimeProbe& runtime, std::ostream& out) {
     Counts counts;
     out << "VERIFY video-resolution-presentation-e2e\n";
-    if (!runtime.setupVideoOptions(out)) {
-        record(out, counts, Status::Blocked, "setup_video_options", "SDL Video Options setup failed");
-        summary(out, counts);
-        return exitCode(counts);
-    }
-    out << "E2E SDL Video Options ready\n" << std::flush;
 
     struct Case {
         int profileIndex;
@@ -40,7 +34,15 @@ int runVideoResolutionPresentationE2e(RuntimeProbe& runtime, std::ostream& out) 
     std::optional<std::uint64_t> referenceStaticUiHash;
     std::optional<std::uint64_t> referenceMenuBodyHash;
     std::optional<std::vector<std::string>> referenceStableValues;
+    std::optional<std::vector<ResolutionScreenProbe>> referenceScreens;
     for (const Case& item : cases) {
+        if (!runtime.setupVideoOptions(out)) {
+            record(out, counts, Status::Blocked,
+                std::string(item.name) + "_setup_video_options",
+                "SDL Video Options setup failed");
+            continue;
+        }
+        out << "E2E SDL Video Options ready for " << item.name << "\n" << std::flush;
         out << "E2E render " << item.name << "\n" << std::flush;
         const PresentationFrameProbe probe = runtime.videoOptionsPresentation(item.profileIndex);
         out << "E2E readback " << item.name << " complete\n" << std::flush;
@@ -143,6 +145,50 @@ int runVideoResolutionPresentationE2e(RuntimeProbe& runtime, std::ostream& out) 
             "hash=" + std::to_string(probe.menuBodyHash)
                 + " reference=" + std::to_string(*referenceMenuBodyHash)
                 + " resolution value cell masked");
+
+        const std::vector<ResolutionScreenProbe> screens = runtime.resolutionScreenPresentation(item.profileIndex);
+        record(out, counts,
+            screens.size() == 27 ? Status::Pass : Status::Fail,
+            std::string(item.name) + "_all_engine_screens_enumerated",
+            "screens=" + std::to_string(screens.size()) + " expected=27");
+        if (!referenceScreens) {
+            referenceScreens = screens;
+        }
+        for (const ResolutionScreenProbe& screen : screens) {
+            const std::string prefix = std::string(item.name) + "_" + screen.name;
+            record(out, counts,
+                screen.readbackOk
+                        && screen.readbackWidth == 1280
+                        && screen.readbackHeight == 720
+                    ? Status::Pass : Status::Fail,
+                prefix + "_physical_frame_readback",
+                std::to_string(screen.readbackWidth) + "x" + std::to_string(screen.readbackHeight));
+            record(out, counts,
+                screen.distinctByteValues >= 16 ? Status::Pass : Status::Fail,
+                prefix + "_frame_is_not_blank",
+                "distinct_byte_values=" + std::to_string(screen.distinctByteValues));
+            record(out, counts,
+                screen.proofSaved ? Status::Pass : Status::Fail,
+                prefix + "_proof_saved",
+                screen.proofPath.string());
+
+            const auto reference = std::find_if(
+                referenceScreens->begin(),
+                referenceScreens->end(),
+                [&](const ResolutionScreenProbe& candidate) { return candidate.name == screen.name; });
+            const bool profileSpecificValue = screen.name == "options_video";
+            record(out, counts,
+                reference != referenceScreens->end()
+                        && (profileSpecificValue || screen.frameHash == reference->frameHash)
+                    ? Status::Pass : Status::Fail,
+                prefix + "_composition_matches_classic",
+                profileSpecificValue
+                    ? "resolution value is profile-specific; masked menu assertion used"
+                    : "hash=" + std::to_string(screen.frameHash)
+                        + " classic=" + (reference == referenceScreens->end()
+                            ? std::string("missing")
+                            : std::to_string(reference->frameHash)));
+        }
     }
 
     summary(out, counts);

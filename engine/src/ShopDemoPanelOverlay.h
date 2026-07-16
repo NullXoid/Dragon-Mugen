@@ -346,13 +346,17 @@ void drawShopDemoItemPanel(SDL_Renderer* renderer, AppState& state) {
         fillRect(renderer, rects.world.x, rects.world.y, rects.world.w, rects.world.h);
     }
 
+    setColor(renderer, 0, 0, 0, 118);
+    fillRect(renderer, x + 4.0f * layout.scale, y + 5.0f * layout.scale, panelW, panelH);
     setColor(renderer, tokens.panelBase, 246);
     fillRect(renderer, x, y, panelW, panelH);
-    setColor(renderer, tokens.primaryTeal, 180);
+    setColor(renderer, tokens.mutedGold, 220);
     drawRect(renderer, x, y, panelW, panelH);
+    setColor(renderer, tokens.primaryTeal, 82);
+    drawRect(renderer, x + 2.0f * layout.scale, y + 2.0f * layout.scale, panelW - 4.0f * layout.scale, panelH - 4.0f * layout.scale);
     setColor(renderer, tokens.secondaryPanel, 245);
     fillRect(renderer, x + layout.scale, y + layout.scale, panelW - 2.0f * layout.scale, 20.0f * layout.scale);
-    setColor(renderer, tokens.separatorRed);
+    setColor(renderer, tokens.mutedGold, 210);
     fillRect(renderer, x + layout.pad, y + 21.0f * layout.scale, panelW - 2.0f * layout.pad, std::max(1.0f, layout.scale));
     setColor(renderer, tokens.mutedGold);
     shopDemoPanelText(renderer, x + layout.pad, y + 7.0f * layout.scale, "I.CHIE SHOP", layout.textScale);
@@ -544,14 +548,15 @@ void drawShopDemoTransactionBanner(SDL_Renderer* renderer, const AppState& state
     const ShopDemoLayoutRects rects = shopDemoLayoutRects(state);
     const auto& tokens = dragonUiTokens();
     const float s = metrics.pixelScale;
-    const float bannerW = std::min(300.0f * s, width - 32.0f * s);
+    const float bannerW = std::min(240.0f * s, width - 32.0f * s);
     const float x = (width - bannerW) * 0.5f;
-    const float y = rects.helpBar.y - 44.0f * s;
+    const float bannerH = 32.0f * s;
+    const float y = rects.helpBar.y - 40.0f * s;
     const int alpha = std::clamp(state.shopDemo.transactionTicks * 4, 96, 235);
     setColor(renderer, tokens.panelBase, static_cast<Uint8>(alpha));
-    fillRect(renderer, x, y, bannerW, 35.0f * s);
+    fillRect(renderer, x, y, bannerW, bannerH);
     setColor(renderer, tokens.primaryTeal, static_cast<Uint8>(std::min(alpha + 20, 255)));
-    drawRect(renderer, x, y, bannerW, 35.0f * s);
+    drawRect(renderer, x, y, bannerW, bannerH);
     setColor(renderer, tokens.primaryTeal);
     shopDemoPanelTextCentered(renderer, x + bannerW * 0.5f, y + 7.0f * s, shopDemoPanelFitText(state.shopDemo.transactionTitle, bannerW - 18.0f * s, kShopPanelTextScale * s), kShopPanelTextScale * s);
     if (!state.shopDemo.transactionDetail.empty()) {
@@ -559,7 +564,7 @@ void drawShopDemoTransactionBanner(SDL_Renderer* renderer, const AppState& state
         shopDemoPanelTextCentered(
             renderer,
             x + bannerW * 0.5f,
-            y + 21.0f * s,
+            y + 19.0f * s,
             shopDemoPanelFitText(state.shopDemo.transactionDetail, bannerW - 18.0f * s, kShopPanelMetaTextScale * s),
             kShopPanelMetaTextScale * s);
     }

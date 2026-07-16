@@ -22,8 +22,33 @@ float shopDemoWorldZoom(const AppState& state) {
     return shop_demo::clampShopDemoWorldZoom(state.shopDemo.worldZoom);
 }
 
-float shopDemoScreenX(const AppState& state, float worldX) {
+shop_demo::ShopPerspectiveCamera shopDemoPerspectiveCamera(const AppState& state) {
+    const SDL_FRect world = shopDemoLayoutRects(state).world;
+    constexpr float kFocalLength = 620.0f;
+    return {
+        world.x + world.w * 0.5f,
+        world.y - world.h * (0.16f + state.shopDemo.cinematicBlend * 0.34f),
+        state.shopDemo.cameraX,
+        kFocalLength / shopDemoWorldZoom(state),
+        kFocalLength,
+        world.h * 0.86f,
+        -0.025f * state.shopDemo.cinematicBlend,
+    };
+}
+
+shop_demo::ShopPerspectivePoint shopDemoProjectGround(const AppState& state, float worldX, float depthZ) {
+    return shop_demo::projectShopGroundPoint(shopDemoPerspectiveCamera(state), worldX, depthZ);
+}
+
+float shopDemoScreenXAtDepth(const AppState& state, float worldX, float depthZ) {
+    if (state.shopDemo.perspectiveCameraEnabled) {
+        return shopDemoProjectGround(state, worldX, depthZ).x;
+    }
     return screenCenterX(state) + (worldX - state.shopDemo.cameraX) * shopDemoWorldZoom(state);
+}
+
+float shopDemoScreenX(const AppState& state, float worldX) {
+    return shopDemoScreenXAtDepth(state, worldX, 0.0f);
 }
 
 float shopDemoSceneY(const AppState& state, float y240) {
@@ -98,6 +123,9 @@ void drawShopTextureCover(SDL_Renderer* renderer, const TextureSprite& sprite, c
 }
 
 float shopDemoFloorY(const AppState& state, float depthZ) {
+    if (state.shopDemo.perspectiveCameraEnabled) {
+        return shopDemoProjectGround(state, state.shopDemo.cameraX, depthZ).floorY;
+    }
     return shopDemoFloorBaseY(state) + depthZ * 0.38f * shopDemoSceneScaleY(state) * shopDemoWorldZoom(state);
 }
 
@@ -218,6 +246,19 @@ void drawShopDemoFloor(SDL_Renderer* renderer, const AppState& state) {
             world.h * zoom,
         };
         drawShopTextureCover(renderer, state.shopDemo.shopBackdrop, dst, shopDemoBackdropPan01(state));
+        const TextureSprite& focusBackdrop = state.shopDemo.layeredSceneV2Enabled
+                && state.shopDemo.shopFocusBackdropV2.texture
+            ? state.shopDemo.shopFocusBackdropV2
+            : state.shopDemo.shopFocusBackdrop;
+        if (focusBackdrop.texture && state.shopDemo.cinematicBlend > 0.01f) {
+            const Uint8 focusAlpha = static_cast<Uint8>(std::clamp(
+                static_cast<int>(std::lround(state.shopDemo.cinematicBlend * 255.0f)),
+                0,
+                255));
+            SDL_SetTextureAlphaMod(focusBackdrop.texture, focusAlpha);
+            drawShopTextureCover(renderer, focusBackdrop, dst, 0.5f);
+            SDL_SetTextureAlphaMod(focusBackdrop.texture, 255);
+        }
         return;
     }
 
@@ -287,13 +328,75 @@ void drawShopDemoBackdropProps(SDL_Renderer* renderer, const AppState& state) {
     shopDemoWorldRect(renderer, state, kShopCounterX + 112.0f, 76.0f, kShopCounterW - 224.0f, 3.0f);
 }
 
+void drawShopDemoV2Prop(
+    SDL_Renderer* renderer,
+    const AppState& state,
+    std::size_t propIndex,
+    float worldX,
+    float depthZ,
+    float worldHeight,
+    float opacity = 1.0f) {
+    if (!state.shopDemo.layeredSceneV2Enabled
+        || propIndex >= state.shopDemo.shopV2Props.size()) {
+        return;
+    }
+    const TextureSprite& prop = state.shopDemo.shopV2Props[propIndex];
+    if (!prop.texture || prop.height <= 0) {
+        return;
+    }
+    const auto projected = shopDemoProjectGround(state, worldX, depthZ);
+    const float targetHeight = worldHeight * projected.scale;
+    const Uint8 alpha = static_cast<Uint8>(std::clamp(
+        static_cast<int>(std::lround(opacity * 255.0f)),
+        0,
+        255));
+    SDL_SetTextureAlphaMod(prop.texture, alpha);
+    drawSpriteAtAxis(renderer, prop, projected.x, projected.floorY, shopSpriteScaleForHeight(prop, targetHeight));
+    SDL_SetTextureAlphaMod(prop.texture, 255);
+}
+
+void drawShopDemoLayeredWallPropsV2(SDL_Renderer* renderer, const AppState& state) {
+    if (!state.shopDemo.layeredSceneV2Enabled || state.shopDemo.cinematicBlend <= 0.01f) {
+        return;
+    }
+    const float opacity = std::clamp(state.shopDemo.cinematicBlend, 0.0f, 1.0f);
+    drawShopDemoV2Prop(renderer, state, 0, 510.0f, -84.0f, 184.0f, opacity * 0.92f);
+    drawShopDemoV2Prop(renderer, state, 4, 345.0f, -84.0f, 37.0f, opacity * 0.68f);
+    drawShopDemoV2Prop(renderer, state, 3, 315.0f, -64.0f, 55.0f, opacity * 0.92f);
+}
+
+float shopDemoRenderedPlayerDepth(const AppState& state);
+
 float shopDemoPlayerTargetHeight(const AppState& state) {
+    if (state.shopDemo.perspectiveCameraEnabled) {
+        const float depthScale = shopDemoProjectGround(
+            state,
+            state.shopDemo.playerX,
+            shopDemoRenderedPlayerDepth(state)).scale;
+        return shopDemoLayoutRects(state).world.h * 0.33f * depthScale;
+    }
     const float openShotScale = state.shopDemo.shopOpen ? 1.34f : 1.0f;
     return shop_demo::shopDemoPlayerTargetHeight(shopDemoLayoutRects(state).world, shopDemoWorldZoom(state), openShotScale);
 }
 
 float shopDemoShopkeeperTargetHeight(const AppState& state) {
-    return shop_demo::shopDemoShopkeeperTargetHeight(shopDemoLayoutRects(state).world, shopDemoWorldZoom(state));
+    const float focusScale = 1.0f + state.shopDemo.cinematicBlend * 0.28f;
+    if (state.shopDemo.perspectiveCameraEnabled) {
+        const float depthScale = shopDemoProjectGround(state, kShopkeeperX, kShopkeeperDepth).scale;
+        return shopDemoLayoutRects(state).world.h * 0.27f * depthScale * focusScale;
+    }
+    return shop_demo::shopDemoShopkeeperTargetHeight(shopDemoLayoutRects(state).world, shopDemoWorldZoom(state)) * focusScale;
+}
+
+float shopDemoCounterTargetHeight(const AppState& state) {
+    const float baseHeight = std::clamp(shopDemoLayoutRects(state).world.h * 0.18f, 68.0f, 88.0f);
+    if (state.shopDemo.perspectiveCameraEnabled) {
+        const float visualDepth = 70.0f + (20.0f - 70.0f) * state.shopDemo.cinematicBlend;
+        const float depthScale = shopDemoProjectGround(state, kShopCounterVisualCenterX, visualDepth).scale;
+        const float focusedCounterGain = state.shopDemo.shopOpen ? 0.49f : 0.10f;
+        return baseHeight * depthScale * (1.0f + state.shopDemo.cinematicBlend * focusedCounterGain);
+    }
+    return baseHeight * shopDemoWorldZoom(state) * (1.0f + state.shopDemo.cinematicBlend * 1.02f);
 }
 
 float shopDemoShopkeeperVisualY(const AppState& state) {
@@ -307,16 +410,21 @@ float shopDemoRenderedPlayerDepth(const AppState& state) {
 }
 
 float shopDemoRenderedPlayerScreenX(const AppState& state) {
-    if (!state.shopDemo.shopOpen) {
-        return shopDemoScreenX(state, state.shopDemo.playerX);
+    const float freeRoamX = shopDemoScreenXAtDepth(state, state.shopDemo.playerX, shopDemoRenderedPlayerDepth(state));
+    if (state.shopDemo.cinematicBlend <= 0.0f) {
+        return freeRoamX;
     }
     const SDL_FRect world = shopDemoLayoutRects(state).world;
-    return world.x + world.w * 0.30f;
+    const float stagedX = world.x + world.w * (state.shopDemo.shopOpen ? 0.27f : 0.34f);
+    return freeRoamX + (stagedX - freeRoamX) * state.shopDemo.cinematicBlend;
 }
 
 float shopDemoRenderedPlayerBaselineY(const AppState& state) {
     if (!state.shopDemo.shopOpen) {
-        return shopDemoFloorY(state, shopDemoRenderedPlayerDepth(state));
+        const SDL_FRect world = shopDemoLayoutRects(state).world;
+        const float projectedY = shopDemoFloorY(state, shopDemoRenderedPlayerDepth(state))
+            + 6.0f * shopDemoSceneScaleY(state) * state.shopDemo.cinematicBlend;
+        return std::min(projectedY, world.y + world.h - 8.0f);
     }
     const SDL_FRect world = shopDemoLayoutRects(state).world;
     return world.y + world.h * 1.02f;
@@ -336,7 +444,7 @@ void drawShopDemoPlayerShadow(SDL_Renderer* renderer, const AppState& state) {
 }
 
 void drawShopDemoShopkeeperShadow(SDL_Renderer* renderer, const AppState& state) {
-    const float sx = shopDemoScreenX(state, kShopkeeperX);
+    const float sx = shopDemoScreenXAtDepth(state, kShopkeeperX, kShopkeeperDepth);
     const float sy = shopDemoShopkeeperVisualY(state);
     const float targetH = shopDemoShopkeeperTargetHeight(state);
     drawShopDemoContactShadow(renderer, sx, sy - 1.0f * shopDemoSceneScaleY(state) * shopDemoWorldZoom(state), targetH * 0.45f, std::max(2.0f, targetH * 0.05f), 78);
@@ -374,18 +482,21 @@ void drawShopDemoPlayer(SDL_Renderer* renderer, const AppState& state) {
 }
 
 void drawShopDemoShopkeeper(SDL_Renderer* renderer, const AppState& state) {
-    if (state.shopDemo.shopkeeperPose.texture) {
-        const float spriteScale = shopSpriteScaleForHeight(state.shopDemo.shopkeeperPose, shopDemoShopkeeperTargetHeight(state));
+    const TextureSprite& shopkeeper = state.shopDemo.layeredSceneV2Enabled && state.shopDemo.shopkeeperPoseV2.texture
+        ? state.shopDemo.shopkeeperPoseV2
+        : state.shopDemo.shopkeeperPose;
+    if (shopkeeper.texture) {
+        const float spriteScale = shopSpriteScaleForHeight(shopkeeper, shopDemoShopkeeperTargetHeight(state));
         drawSpriteAtAxis(
             renderer,
-            state.shopDemo.shopkeeperPose,
-            shopDemoScreenX(state, kShopkeeperX),
+            shopkeeper,
+            shopDemoScreenXAtDepth(state, kShopkeeperX, kShopkeeperDepth),
             shopDemoShopkeeperVisualY(state),
             spriteScale);
         return;
     }
 
-    const float sx = shopDemoScreenX(state, kShopkeeperX);
+    const float sx = shopDemoScreenXAtDepth(state, kShopkeeperX, kShopkeeperDepth);
     const float sy = shopDemoShopkeeperVisualY(state);
     const float fallbackScale = shopDemoShopkeeperTargetHeight(state) / 54.0f;
     setColor(renderer, 95, 54, 132);
@@ -395,7 +506,10 @@ void drawShopDemoShopkeeper(SDL_Renderer* renderer, const AppState& state) {
 }
 
 void drawShopDemoCounterFront(SDL_Renderer* renderer, const AppState& state) {
-    const float frontBottomY = shopDemoCounterVisualBottomY(state);
+    const float visualDepth = 70.0f + (20.0f - 70.0f) * state.shopDemo.cinematicBlend;
+    const float frontBottomY = state.shopDemo.perspectiveCameraEnabled
+        ? shopDemoProjectGround(state, kShopCounterVisualCenterX, visualDepth).floorY
+        : shopDemoCounterVisualBottomY(state);
     const auto counterAspect = [&]() {
         if (state.shopDemo.shopCounterFront.width > 0 && state.shopDemo.shopCounterFront.height > 0) {
             return static_cast<float>(state.shopDemo.shopCounterFront.width)
@@ -403,15 +517,41 @@ void drawShopDemoCounterFront(SDL_Renderer* renderer, const AppState& state) {
         }
         return kShopCounterVisualDefaultAspect;
     };
-    const float frontH = std::clamp(shopDemoLayoutRects(state).world.h * 0.26f, 42.0f, 60.0f) * shopDemoWorldZoom(state);
+    const float frontH = shopDemoCounterTargetHeight(state);
     const float visualW = frontH * counterAspect();
     const SDL_FRect dst{
-        shopDemoScreenX(state, kShopCounterVisualCenterX) - visualW * 0.5f,
+        shopDemoScreenXAtDepth(state, kShopCounterVisualCenterX, visualDepth) - visualW * 0.5f,
         frontBottomY - frontH,
         visualW,
         frontH,
     };
     if (state.shopDemo.shopCounterFront.texture) {
+        if (state.shopDemo.perspectiveCameraEnabled) {
+            const float baseHeight = std::clamp(shopDemoLayoutRects(state).world.h * 0.18f, 68.0f, 88.0f);
+            const float focusedCounterGain = state.shopDemo.shopOpen ? 0.49f : 0.10f;
+            const float worldHeight = baseHeight * (1.0f + state.shopDemo.cinematicBlend * focusedCounterGain);
+            const float worldWidth = worldHeight * counterAspect();
+            const auto left = shopDemoProjectGround(
+                state,
+                kShopCounterVisualCenterX - worldWidth * 0.5f,
+                visualDepth);
+            const auto right = shopDemoProjectGround(
+                state,
+                kShopCounterVisualCenterX + worldWidth * 0.5f,
+                visualDepth);
+            const float leftHeight = worldHeight * left.scale;
+            const float rightHeight = worldHeight * right.scale;
+            const SDL_FColor white{ 1.0f, 1.0f, 1.0f, 1.0f };
+            const SDL_Vertex vertices[4]{
+                SDL_Vertex{ SDL_FPoint{ left.x, left.floorY - leftHeight }, white, SDL_FPoint{ 0.0f, 0.0f } },
+                SDL_Vertex{ SDL_FPoint{ right.x, right.floorY - rightHeight }, white, SDL_FPoint{ 1.0f, 0.0f } },
+                SDL_Vertex{ SDL_FPoint{ right.x, right.floorY }, white, SDL_FPoint{ 1.0f, 1.0f } },
+                SDL_Vertex{ SDL_FPoint{ left.x, left.floorY }, white, SDL_FPoint{ 0.0f, 1.0f } },
+            };
+            constexpr int indices[6]{ 0, 1, 2, 0, 2, 3 };
+            SDL_RenderGeometry(renderer, state.shopDemo.shopCounterFront.texture, vertices, 4, indices, 6);
+            return;
+        }
         SDL_RenderTexture(renderer, state.shopDemo.shopCounterFront.texture, nullptr, &dst);
         return;
     }

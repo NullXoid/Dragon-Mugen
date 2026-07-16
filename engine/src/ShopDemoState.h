@@ -22,8 +22,12 @@ enum class ShopPendingAction {
 
 struct ShopDemoState {
     TextureSprite shopBackdrop;
+    TextureSprite shopFocusBackdrop;
+    TextureSprite shopFocusBackdropV2;
     TextureSprite shopCounterFront;
     TextureSprite shopkeeperPose;
+    TextureSprite shopkeeperPoseV2;
+    std::array<TextureSprite, 10> shopV2Props{};
     TextureSprite shopPlayerPose;
     std::array<TextureSprite, 8> shopPlayerWalkFrames{};
     TextureSprite trainingWeightIcon;
@@ -36,11 +40,14 @@ struct ShopDemoState {
     bool playerMoving = false;
     bool playerFacingLeft = false;
     bool shopkeeperGreetingReady = false;
+    bool perspectiveCameraEnabled = true;
+    bool layeredSceneV2Enabled = true;
     float playerWalkFrame = 0.0f;
     float playerX = -92.0f;
     float playerDepthZ = 10.0f;
     float cameraX = 0.0f;
     float worldZoom = 1.0f;
+    float cinematicBlend = 0.0f;
     int selectedItem = 0;
     int selectedEquipCharacter = 0;
     ShopPanelMode panelMode = ShopPanelMode::Buy;

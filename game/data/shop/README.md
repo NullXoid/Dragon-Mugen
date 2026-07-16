@@ -6,7 +6,10 @@ Save generated files here:
 
 ```text
 game/data/shop/i_chie_shop_backdrop.png
+game/data/shop/i_chie_shop_focus_backdrop.png
+game/data/shop/i_chie_shop_focus_backdrop_v2.png
 game/data/shop/i_chie_shop_counter_front.png
+game/data/shop/v2/*.png
 ```
 
 ## 1. Full Room Backdrop
@@ -35,7 +38,25 @@ Color palette: black, dark brown, muted gold, teal/cyan, purple accents.
 Constraints: no people, no characters, no UI panels, no menus, no icons, no charts, no labels, no readable text, no watermark, no logo. Do not create an infographic. Do not create a poster. This is a game stage background only.
 ```
 
-## 2. Counter Front Layer
+## 2. Interaction Focus Backdrop
+
+Filename:
+
+```text
+i_chie_shop_focus_backdrop.png
+```
+
+This 16:9 room composition is blended over the wide panorama only while greeting I.Chie or using the shop. Keep the counter and characters out of this image; those remain separate runtime layers so collision, depth ordering, and responsive UI stay intact.
+
+The V2 focus backdrop uses the cleaner supplied room plate. Runtime-ready V2 crops are prepared from the approved alpha sheets with:
+
+```powershell
+python engine\tools\prepare_shop_v2_assets.py --props-sheet <shop-props-transparent.png> --ichie-sheet <ichie-poses-transparent.png> --out-dir game\data\shop\v2
+```
+
+The crop tool does not regenerate or repaint the supplied art; it preserves the original pixels and alpha while producing named component files.
+
+## 3. Counter Front Layer
 
 Filename:
 

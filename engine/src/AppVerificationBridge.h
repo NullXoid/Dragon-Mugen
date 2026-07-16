@@ -751,6 +751,7 @@ private:
         closeAllGamepads(state_);
         destroyVisualAssets(state_);
         destroyAudioAssets(state_);
+        destroyPresentationFrameTarget();
         if (renderer_) {
             SDL_DestroyRenderer(renderer_);
             renderer_ = nullptr;

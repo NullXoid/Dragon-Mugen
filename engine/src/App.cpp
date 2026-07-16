@@ -31,6 +31,7 @@
 #include "SelectionState.h"
 #include "ShopCatalog.h"
 #include "ShopDemoCollision.h"
+#include "ShopPerspectiveProjection.h"
 #include "StageSelectOverlay.h"
 #include "StoryStageSelectOverlay.h"
 #include "TrainingState.h"

@@ -1,8 +1,6 @@
 #pragma once
-
 // Internal App.cpp implementation shard.
 // Arena-style Dragon shop hub runtime.
-
 namespace {
 
 constexpr float kShopRoomLeft = -1120.0f;
@@ -41,12 +39,22 @@ constexpr float kShopOpenPlayerPresentationDepth = 112.0f;
 
 float shopDemoWorldZoomTarget(const AppState& state) {
     if (state.shopDemo.shopOpen) {
-        return 1.58f;
+        return 1.46f;
     }
     if (state.shopDemo.shopkeeperGreetingReady || !state.shopDemo.transactionTitle.empty()) {
-        return 1.18f;
+        return 1.28f;
     }
     return 1.0f;
+}
+
+float shopDemoCinematicBlendTarget(const AppState& state) {
+    if (state.shopDemo.shopOpen) {
+        return 1.0f;
+    }
+    if (state.shopDemo.shopkeeperGreetingReady || !state.shopDemo.transactionTitle.empty()) {
+        return 1.0f;
+    }
+    return 0.0f;
 }
 
 float shopDemoWorldFocusTargetX(const AppState& state) {
@@ -92,6 +100,12 @@ void shopDemoUpdateCamera(AppState& state, bool snap = false) {
         ? targetCamera
         : state.shopDemo.cameraX + (targetCamera - state.shopDemo.cameraX) * 0.16f;
     state.shopDemo.cameraX = shopDemoClampCamera(state, state.shopDemo.cameraX);
+
+    const float targetBlend = shopDemoCinematicBlendTarget(state);
+    state.shopDemo.cinematicBlend = snap
+        ? targetBlend
+        : state.shopDemo.cinematicBlend + (targetBlend - state.shopDemo.cinematicBlend) * 0.10f;
+    state.shopDemo.cinematicBlend = std::clamp(state.shopDemo.cinematicBlend, 0.0f, 1.0f);
 }
 
 #include "ShopHubScene.h"
@@ -254,6 +268,8 @@ void ensureShopDemoAssets(SDL_Renderer* renderer, AppState& state) {
         return sprite;
     };
     state.shopDemo.shopBackdrop = loadOptionalShopSprite("data/shop/i_chie_shop_backdrop.png");
+    state.shopDemo.shopFocusBackdrop = loadOptionalShopSprite("data/shop/i_chie_shop_focus_backdrop.png");
+    state.shopDemo.shopFocusBackdropV2 = loadOptionalShopSprite("data/shop/i_chie_shop_focus_backdrop_v2.png");
     state.shopDemo.shopCounterFront = loadOptionalShopSprite("data/shop/i_chie_shop_counter_front.png");
     state.shopDemo.shopkeeperPose = loadOptionalShopSpriteFirst({
         "chars/I.Chie/shop/shopkeeper_pose.png",
@@ -261,6 +277,7 @@ void ensureShopDemoAssets(SDL_Renderer* renderer, AppState& state) {
     });
     state.shopDemo.shopkeeperPose.axisX = state.shopDemo.shopkeeperPose.width / 2;
     state.shopDemo.shopkeeperPose.axisY = std::max(0, state.shopDemo.shopkeeperPose.height - 2);
+#include "ShopV2AssetLoading.inl"
     state.shopDemo.shopPlayerPose = loadOptionalShopSpriteFirst({
         "chars/A.Ben/shop/shop_player_back_pose.png",
         "data/shop/shop_player_back_pose.png",
@@ -309,6 +326,7 @@ void resetShopDemoRoom(AppState& state) {
     state.shopDemo.playerX = kShopkeeperX - 118.0f;
     state.shopDemo.playerDepthZ = kShopCounterSolidFrontDepth + 18.0f;
     state.shopDemo.worldZoom = 1.0f;
+    state.shopDemo.cinematicBlend = 0.0f;
     state.shopDemo.cameraX = shopDemoClampCamera(state, state.shopDemo.playerX);
     shopDemoUpdateCamera(state, true);
     state.shopDemo.selectedItem = 0;
@@ -914,7 +932,7 @@ void drawShopDemoHud(SDL_Renderer* renderer, AppState& state) {
 
     setColor(renderer, tokens.panelBase, 214);
     fillRect(renderer, rects.topBar.x, rects.topBar.y, rects.topBar.w, rects.topBar.h);
-    setColor(renderer, tokens.separatorRed);
+    setColor(renderer, tokens.mutedGold, 210);
     fillRect(renderer, 0.0f, rects.topBar.h - metrics.border, width, metrics.border);
     setColor(renderer, tokens.mutedGold);
     scaledDebugText(renderer, s, leftX, textY, leftLabel);
@@ -953,6 +971,7 @@ void drawShopDemo(SDL_Renderer* renderer, AppState& state) {
     SDL_SetRenderClipRect(renderer, &worldClip);
     drawShopDemoFloor(renderer, state);
     drawShopDemoBackdropProps(renderer, state);
+    drawShopDemoLayeredWallPropsV2(renderer, state);
     drawShopDemoShopkeeperShadow(renderer, state);
     drawShopDemoShopkeeper(renderer, state);
     const bool playerBehindCounter = !state.shopDemo.shopOpen && shopDemoPlayerBehindCounter(state);

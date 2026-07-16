@@ -59,6 +59,62 @@ bool captureVerificationScreenshot(SDL_Renderer* renderer, AppState& state, cons
     return saved;
 }
 
+verification::ResolutionScreenProbe captureResolutionScreenProbe(
+    SDL_Renderer* renderer,
+    AppState& state,
+    std::string name,
+    const std::filesystem::path& proofPath) {
+    verification::ResolutionScreenProbe out;
+    out.name = std::move(name);
+    out.proofPath = proofPath;
+    if (!renderer) {
+        return out;
+    }
+
+    state.suppressFpsCounter = true;
+    renderVerificationActiveScreen(renderer, state);
+    renderVerificationActiveScreen(renderer, state);
+
+    SDL_Surface* surface = SDL_RenderReadPixels(renderer, nullptr);
+    if (!surface) {
+        return out;
+    }
+
+    out.readbackWidth = surface->w;
+    out.readbackHeight = surface->h;
+    const int bytesPerPixel = SDL_BYTESPERPIXEL(surface->format);
+    if (surface->pixels && bytesPerPixel > 0 && surface->w > 0 && surface->h > 0) {
+        constexpr std::uint64_t fnvOffset = 1469598103934665603ULL;
+        constexpr std::uint64_t fnvPrime = 1099511628211ULL;
+        std::array<bool, 256> distinct{};
+        std::uint64_t hash = fnvOffset;
+        const auto* pixels = static_cast<const Uint8*>(surface->pixels);
+        for (int y = 0; y < surface->h; ++y) {
+            const Uint8* row = pixels + static_cast<size_t>(y) * static_cast<size_t>(surface->pitch);
+            for (int x = 0; x < surface->w; ++x) {
+                const Uint8* pixel = row + static_cast<size_t>(x) * static_cast<size_t>(bytesPerPixel);
+                for (int byte = 0; byte < bytesPerPixel; ++byte) {
+                    const Uint8 value = pixel[byte];
+                    distinct[value] = true;
+                    hash ^= value;
+                    hash *= fnvPrime;
+                }
+            }
+        }
+        out.frameHash = hash;
+        out.distinctByteValues = static_cast<int>(std::count(distinct.begin(), distinct.end(), true));
+        out.readbackOk = true;
+    }
+
+    std::error_code error;
+    std::filesystem::create_directories(proofPath.parent_path(), error);
+    if (!error) {
+        out.proofSaved = SDL_SaveBMP(surface, proofPath.string().c_str());
+    }
+    SDL_DestroySurface(surface);
+    return out;
+}
+
 verification::PresentationFrameProbe captureVideoOptionsPresentationProbe(
     SDL_Renderer* renderer,
     AppState& state,

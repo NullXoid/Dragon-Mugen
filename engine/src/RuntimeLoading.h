@@ -781,8 +781,14 @@ void destroyVisualAssets(AppState& state) {
     destroyTextureSprite(state.commandCompleteCheck);
     destroyTextureSprite(state.storyForwardCueImage);
     destroyTextureSprite(state.shopDemo.shopBackdrop);
+    destroyTextureSprite(state.shopDemo.shopFocusBackdrop);
+    destroyTextureSprite(state.shopDemo.shopFocusBackdropV2);
     destroyTextureSprite(state.shopDemo.shopCounterFront);
     destroyTextureSprite(state.shopDemo.shopkeeperPose);
+    destroyTextureSprite(state.shopDemo.shopkeeperPoseV2);
+    for (auto& prop : state.shopDemo.shopV2Props) {
+        destroyTextureSprite(prop);
+    }
     destroyTextureSprite(state.shopDemo.shopPlayerPose);
     for (auto& frame : state.shopDemo.shopPlayerWalkFrames) {
         destroyTextureSprite(frame);

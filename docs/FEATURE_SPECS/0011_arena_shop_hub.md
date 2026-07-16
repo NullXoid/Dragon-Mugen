@@ -45,7 +45,8 @@ In scope:
 - A solid counter collision footprint that blocks direct walk-through while preserving front and back aisles.
 - A top/back route around the counter so the player can reach the other side without clipping through it.
 - A non-combat run modifier using the existing depth-modifier binding (`Shift`/left trigger).
-- Optional PNG art layers for the shop backdrop, counter-back layer, and counter-front layer, with documented prompts and a code-drawn fallback when assets are missing.
+- Optional PNG art layers for the walkable panorama, interaction-focus backdrop, and counter-front layer, with documented prompts and a code-drawn fallback when assets are missing.
+- A stable free-roam shot that transitions into a smooth I.Chie-focused greeting/shop composition without changing collision or interaction coordinates.
 - Verifiers for room route, actor projection, profile persistence, Guest non-save behavior, and controls.
 
 Out of scope:
@@ -94,6 +95,12 @@ This should land as a complete feature slice, not as a menu stub. The first impl
 - [x] Add compact scaled shop panel text, item-name/value columns, wrapped detail text, split metadata, and short footer labels so item descriptions, requirements, ownership, target, and controls do not run off the panel.
 - [x] Extract the shop panel overlay out of `ShopDemoRuntime.h` and add denser Phase 2 item presentation: slot icons, selected-item effect summaries, compact detail geometry, and balance-aware confirmation/result text.
 - [x] Add asset-ready shop room composition hooks for optional backdrop/counter PNG layers, plus prompt documentation for generating the needed shop art without committing bad placeholder images.
+- [x] Preserve the wide walk-up panorama and blend to the approved concept-room composition for greeting/shop focus, with larger actor/counter staging and the responsive shop panel layered above it.
+- [x] Stage the focused counter at I.Chie's waist instead of her knees, while keeping its gameplay collision footprint unchanged.
+- [x] Add an experimental Shop-only pinhole camera with focal length, camera depth, yaw, horizon, and camera height; project actors/counter from the existing gameplay X/depth plane without changing collision or screen-space UI.
+- [x] Render the counter as a perspective-warped textured quad so camera yaw changes its left/right edge depth instead of merely scaling a flat rectangle.
+- [x] Add a layered Shop V2 using the supplied clean room plate plus deterministic crops for the high-resolution I.Chie welcome pose, cabinet, hologram, and wall detail planes.
+- [x] Preserve V1 as a local restore point and capture V1/V2 greeting and overlay proofs independently across every output profile before accepting V2.
 - [x] Add focused shop verifiers and update roadmap, ledger, and regression checklist records.
 
 ## Verification
@@ -110,6 +117,7 @@ build\dragon_mugen.exe --verify shop-equip-profile-scope
 build\dragon_mugen.exe --verify shop-guest-no-save
 build\dragon_mugen.exe --verify shop-controller-keyboard-navigation
 build\dragon_mugen.exe --verify shop-panel-text-fit
+build\dragon_mugen.exe --verify video-resolution-presentation-e2e
 build\dragon_mugen.exe --verify dragon-progression-enemy-reward
 ```
 
@@ -141,7 +149,9 @@ Manual smoke:
 - Confirm the tuned shop walk/run speed feels slower than Phase 1 without returning to tap-to-move behavior.
 - Confirm Buy/Sell/Equip item rows use readable icon/name/value columns, descriptions/effects wrap without hiding key meaning, LV/slot/owned/target metadata stays visible, and confirmation/footer controls fit inside the shop panel.
 - Confirm the built-in fallback shop room shows shelf bays, neon I.Chie branding, dragon accents, layered wall/floor bands, and a richer counter face even before optional PNG art is installed.
-- Drop in generated `game/data/shop/i_chie_shop_backdrop.png`, `i_chie_shop_counter_back.png`, and `i_chie_shop_counter_front.png` and confirm the room switches from fallback geometry to layered art while preserving counter collision and front/back draw order.
+- Confirm `i_chie_shop_backdrop.png` remains stable while walking, interaction blends to `i_chie_shop_focus_backdrop.png`, and leaving the interaction smoothly returns to the panorama without moving collision or interaction volumes.
+- Review `shop_demo`, `shop_greeting_v1`, `shop_greeting_v2`, `shop_overlay_v1`, and `shop_overlay_v2` for every output profile so both perspective compositions remain directly comparable.
+- Confirm `i_chie_shop_counter_front.png` preserves counter collision and front/back draw order in both the walk-up and focused shots.
 - Confirm the player cannot walk through the counter body, but can go around it through the back/top aisle and side openings.
 - Clear enemies in Story Mode and confirm each defeated enemy grants profile-owned XP/gold.
 - Switch to Guest and confirm no persistent transaction is saved.

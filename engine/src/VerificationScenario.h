@@ -281,6 +281,17 @@ struct PresentationFrameProbe {
     std::vector<PresentationMenuRowProbe> menuRows;
 };
 
+struct ResolutionScreenProbe {
+    std::string name;
+    bool readbackOk = false;
+    bool proofSaved = false;
+    int readbackWidth = 0;
+    int readbackHeight = 0;
+    int distinctByteValues = 0;
+    std::uint64_t frameHash = 0;
+    std::filesystem::path proofPath;
+};
+
 class RuntimeProbe {
 public:
     virtual ~RuntimeProbe() = default;
@@ -342,6 +353,7 @@ public:
     virtual RuntimePerformanceResult measurePerformance(int warmupFrames, int measuredFrames, bool renderEachFrame, bool stressInputs) = 0;
     virtual bool captureScreenshot(const std::filesystem::path& path) = 0;
     virtual PresentationFrameProbe videoOptionsPresentation(int outputProfileIndex) = 0;
+    virtual std::vector<ResolutionScreenProbe> resolutionScreenPresentation(int outputProfileIndex) = 0;
     virtual RuntimeSnapshot snapshot() const = 0;
     virtual std::string rootText() const = 0;
     virtual std::string stageName() const = 0;

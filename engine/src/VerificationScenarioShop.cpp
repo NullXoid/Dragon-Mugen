@@ -5,7 +5,9 @@
 #include "FrontendMenu.h"
 #include "ShopCatalog.h"
 #include "ShopDemoCollision.h"
+#include "ShopPerspectiveProjection.h"
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
@@ -152,6 +154,16 @@ int runShopRoomActorProjection(RuntimeProbe& runtime, std::ostream& out) {
             && std::filesystem::exists(root / "chars" / "A.Ben" / "shop" / "shop_player_back_pose.png")
             && std::filesystem::exists(root / "chars" / "A.Ben" / "shop" / "walk" / "shop_player_walk_0.png") ? Status::Pass : Status::Fail,
         "shop_character_owned_assets_exist", "I.Chie shopkeeper plus A.Ben pose/walk");
+    const auto shopV2Root = root / "data" / "shop" / "v2";
+    const bool shopV2AssetsExist =
+        std::filesystem::exists(root / "data" / "shop" / "i_chie_shop_focus_backdrop_v2.png")
+        && std::filesystem::exists(shopV2Root / "ichie_welcome.png")
+        && std::filesystem::exists(shopV2Root / "shelf_cabinet.png")
+        && std::filesystem::exists(shopV2Root / "hologram_terminal.png")
+        && std::filesystem::exists(shopV2Root / "neon_wall_panel.png");
+    record(out, counts, shopV2AssetsExist ? Status::Pass : Status::Fail,
+        "shop_v2_layer_asset_pack",
+        "clean focus plate plus separate I.Chie, cabinet, hologram, and wall layers");
     record(out, counts, std::filesystem::exists(shopSff) ? Status::Pass : Status::Fail,
         "shopkeeper_sff_exists",
         shopSff.string());
@@ -191,9 +203,33 @@ int runShopRoomActorProjection(RuntimeProbe& runtime, std::ostream& out) {
         "shop_characters_scaled_down",
         "shopkeeper_scale=" + std::to_string(kShopVerifyShopkeeperScale));
 
+    shop_demo::ShopPerspectiveCamera perspectiveCamera;
+    perspectiveCamera.viewportCenterX = 640.0f;
+    perspectiveCamera.horizonY = 80.0f;
+    perspectiveCamera.cameraDepth = 620.0f;
+    perspectiveCamera.focalLength = 620.0f;
+    perspectiveCamera.cameraHeight = 520.0f;
+    const auto farFloor = shop_demo::projectShopGroundPoint(perspectiveCamera, 0.0f, -80.0f);
+    const auto nearFloor = shop_demo::projectShopGroundPoint(perspectiveCamera, 0.0f, 110.0f);
+    const auto rightFloor = shop_demo::projectShopGroundPoint(perspectiveCamera, 120.0f, 0.0f);
+    record(out, counts,
+        nearFloor.scale > farFloor.scale
+            && nearFloor.floorY > farFloor.floorY
+            && rightFloor.x > perspectiveCamera.viewportCenterX
+            ? Status::Pass : Status::Fail,
+        "shop_pinhole_ground_projection",
+        "near objects project larger/lower and positive world X projects right");
+    perspectiveCamera.yawRadians = -0.025f;
+    const auto yawedFloor = shop_demo::projectShopGroundPoint(perspectiveCamera, 0.0f, 80.0f);
+    record(out, counts,
+        std::fabs(yawedFloor.x - perspectiveCamera.viewportCenterX) > 1.0f ? Status::Pass : Status::Fail,
+        "shop_perspective_camera_yaw",
+        "camera yaw shifts ground-plane projection without changing gameplay coordinates");
+
     const auto repoRoot = root.filename() == "game" ? root.parent_path() : root;
     const std::string runtimeText = readTextFile(repoRoot / "engine" / "src" / "ShopDemoRuntime.h");
     const std::string sceneText = readTextFile(repoRoot / "engine" / "src" / "ShopHubScene.h");
+    const std::string v2AssetLoadingText = readTextFile(repoRoot / "engine" / "src" / "ShopV2AssetLoading.inl");
     const std::string collisionText = readTextFile(repoRoot / "engine" / "src" / "ShopDemoCollision.h");
     record(out, counts,
         runtimeText.find("collectMappedFighterInput") != std::string::npos
@@ -213,12 +249,15 @@ int runShopRoomActorProjection(RuntimeProbe& runtime, std::ostream& out) {
             && runtimeText.find("shopDemoVisiblePlayerMinX") != std::string::npos
             && runtimeText.find("shopDemoVisiblePlayerMaxX") != std::string::npos
             && runtimeText.find("shopDemoWorldZoomTarget") != std::string::npos
+            && runtimeText.find("shopDemoCinematicBlendTarget") != std::string::npos
             && runtimeText.find("shopDemoWorldFocusTargetX") != std::string::npos
             && runtimeText.find("const float targetCamera = shopDemoClampCamera(state, shopDemoWorldFocusTargetX(state))") != std::string::npos
             && runtimeText.find("shopDemoUpdateCamera(state)") != std::string::npos
+            && sceneText.find("shopDemoPerspectiveCamera") != std::string::npos
+            && sceneText.find("shopDemoProjectGround") != std::string::npos
             ? Status::Pass : Status::Fail,
         "shop_camera_composes_counter_and_shop_open_zoom",
-        "closed shop camera keeps counter composition; greeting/open states focus and zoom the world shot");
+        "closed shop camera keeps counter composition; greeting/open states blend to the concept room while focusing and zooming the world shot");
     record(out, counts,
         runtimeText.find("kShopCounterFrontDepth") != std::string::npos
             && runtimeText.find("drawShopDemoCounterFront(renderer, state)") != std::string::npos
@@ -258,11 +297,16 @@ int runShopRoomActorProjection(RuntimeProbe& runtime, std::ostream& out) {
     const std::string shopPromptText = readTextFile(shopPromptReadme);
     const bool shopArtHooksPresent =
         runtimeText.find("i_chie_shop_backdrop.png") != std::string::npos
+        && runtimeText.find("i_chie_shop_focus_backdrop.png") != std::string::npos
+        && runtimeText.find("i_chie_shop_focus_backdrop_v2.png") != std::string::npos
+        && v2AssetLoadingText.find("data/shop/v2/ichie_welcome.png") != std::string::npos
+        && sceneText.find("drawShopDemoLayeredWallPropsV2") != std::string::npos
         && runtimeText.find("i_chie_shop_counter_back.png") == std::string::npos
         && runtimeText.find("i_chie_shop_counter_front.png") != std::string::npos
         && runtimeText.find("drawShopDemoCounterBackArt") == std::string::npos
         && runtimeText.find("kShopCounterVisualCenterX") != std::string::npos
         && runtimeText.find("kShopCounterVisualDefaultAspect") != std::string::npos
+        && sceneText.find("shopDemoCounterTargetHeight") != std::string::npos
         && sceneText.find("frontH * counterAspect()") != std::string::npos
         && sceneText.find("shopDemoCounterVisualBottomY(state)") != std::string::npos
         && sceneText.find("frontBottomY - frontH") != std::string::npos
